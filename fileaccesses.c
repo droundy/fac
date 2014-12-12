@@ -3,6 +3,7 @@
 #include <sys/wait.h>
 #include <sys/types.h>
 #include <sys/syscall.h>
+#include <linux/limits.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -56,9 +57,19 @@ long get_syscall_arg(const struct user_regs_struct *regs, int which) {
     }
 }
 
+int identify_fd(char *path_buffer, int child, int fd) {
+  int ret;
+  char *proc = (char *)malloc(PATH_MAX);
+  sprintf(proc, "/proc/%d/fd/%d", child, fd);
+  ret = readlink(proc, path_buffer, PATH_MAX);
+  if (ret == -1) *path_buffer = 0;
+  else path_buffer[ret] = 0;
+  return ret;
+}
 
 void do_trace(pid_t child) {
   int status, syscall, retval;
+  char *filename = (char *)malloc(PATH_MAX);
   waitpid(child, &status, 0);
   ptrace(PTRACE_SETOPTIONS, child, 0, PTRACE_O_TRACESYSGOOD);
   while(1) {
@@ -71,10 +82,21 @@ void do_trace(pid_t child) {
     }
     syscall = regs.orig_rax;
 
-    if (syscall == SYS_read) {
-      fprintf(stderr, "read(%d) = ", get_syscall_arg(&regs, 0));
-    } else if (syscall == SYS_write) {
-      fprintf(stderr, "write(%d) = ", get_syscall_arg(&regs, 0));
+    if (fd_argument[syscall] >= 0) {
+      int fd = get_syscall_arg(&regs, fd_argument[syscall]);
+      identify_fd(filename, child, fd);
+      fprintf(stderr, "%s(%d == %s) = ",
+              syscalls[syscall],
+              fd,
+              filename);
+    } else if (syscall == SYS_mmap) {
+      identify_fd(filename, child, get_syscall_arg(&regs, 0));
+      fprintf(stderr, "%s(%d == %s) = ",
+              syscalls[syscall],
+              get_syscall_arg(&regs, 0),
+              filename);
+    } else if (syscall == SYS_exit || syscall == SYS_exit_group) {
+      fprintf(stderr, "%s()\n", syscalls[syscall]);
     } else if (syscall < sizeof(syscalls)/sizeof(const char *)) {
       fprintf(stderr, "%s() = ", syscalls[syscall]);
     } else {

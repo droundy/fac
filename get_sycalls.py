@@ -28,7 +28,6 @@ for (syscall, num) in re_syscall.findall(unistd):
     maxnum = max(maxnum, num)
 
 print """
-
 const char *syscalls[] = {"""
 
 for i in range(maxnum):
@@ -37,3 +36,25 @@ for i in range(maxnum):
 print '  "%s"' % sysnames[maxnum]
 print "};\n"
 
+fd_argument = {
+    'read': 0,
+    'write': 0,
+    'close': 0,
+    'fstat': 0,
+    'mmap': 4,
+}
+
+print """
+const int fd_argument[] = {"""
+
+for i in range(maxnum):
+    if sysnames[i] in fd_argument:
+        print '  %d,' % fd_argument[sysnames[i]]
+    else:
+        print '  -1,'
+
+if sysnames[maxnum] in fd_argument:
+    print '  %d' % fd_argument[sysnames[maxnum]]
+else:
+    print '  -1'
+print "};\n"
