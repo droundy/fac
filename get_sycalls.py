@@ -39,9 +39,26 @@ print "};\n"
 fd_argument = {
     'read': 0,
     'write': 0,
+    'pread': 0,
+    'pwrite': 0,
+    'pread64': 0,
+    'pwrite64': 0,
+    'readv': 0,
+    'writev': 0,
     'close': 0,
     'fstat': 0,
     'mmap': 4,
+    'sendfile': 1, # technically also 0!  :(
+    'fcntl': 0,
+    'flock': 0,
+    'fsync': 0,
+    'fdatasync': 0,
+    'ftruncate': 0,
+    'fchmod': 0,
+    'fchown': 0,
+    'fstatfs': 0,
+    'fadvise64': 0,
+    'fallocate': 0,
 }
 
 print """
