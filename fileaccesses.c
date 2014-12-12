@@ -8,6 +8,8 @@
 #include <errno.h>
 #include <string.h>
 
+#include "syscalls.h"
+
 int do_child(int argc, char **argv);
 int do_trace(pid_t child);
 
@@ -36,33 +38,6 @@ int do_child(int argc, char **argv) {
 }
 
 int wait_for_syscall(pid_t child);
-
-const char *syscalls[] = {
-  "read",
-  "write",
-  "open",
-  "close",
-  "newstat",
-  "newfstat",
-  "newlstat",
-  "poll",
-  "lseek",
-  "mmap",
-  "mprotect",
-  "munmap",
-  "brk",
-  "rt_sigaction",
-  "rt_sigprocmask",
-  "rt_sigreturn",
-  "ioctl",
-  "pread64",
-  "pwrite64",
-  "readv",
-  "writev",
-  "access",
-  "pipe",
-  "select"
-};
 
 int do_trace(pid_t child) {
     int status, syscall, retval;
