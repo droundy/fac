@@ -12,7 +12,7 @@
 
 #include "syscalls.h"
 
-void do_trace(pid_t child);
+void do_trace();
 
 int main(int argc, char **argv) {
   if (argc < 2) {
@@ -29,12 +29,21 @@ int main(int argc, char **argv) {
     kill(getpid(), SIGSTOP);
     return execvp(args[0], args);
   } else {
-    do_trace(child);
+    waitpid(-1, 0, 0);
+    ptrace(PTRACE_SETOPTIONS, child, 0,
+           PTRACE_O_TRACESYSGOOD |
+           PTRACE_O_TRACEFORK |
+           PTRACE_O_TRACEVFORK |
+           PTRACE_O_TRACECLONE |
+           PTRACE_O_TRACEEXEC);
+    ptrace(PTRACE_SYSCALL, child, 0, 0);
+    do_trace();
   }
   return 0;
 }
 
-int wait_for_syscall(pid_t child);
+int wait_for_syscall_from(pid_t child);
+pid_t wait_for_syscall();
 
 long get_syscall_arg(const struct user_regs_struct *regs, int which) {
     switch (which) {
@@ -90,19 +99,13 @@ int identify_fd(char *path_buffer, pid_t child, int fd) {
   return ret;
 }
 
-void do_trace(pid_t child) {
+void do_trace() {
   int status, syscall, retval;
   char *filename = (char *)malloc(PATH_MAX);
-  waitpid(-1, &status, 0);
-  ptrace(PTRACE_SETOPTIONS, child, 0,
-         PTRACE_O_TRACESYSGOOD |
-         PTRACE_O_TRACEFORK |
-         PTRACE_O_TRACEVFORK |
-         PTRACE_O_TRACECLONE |
-         PTRACE_O_TRACEEXEC);
   while(1) {
     struct user_regs_struct regs;
-    if (wait_for_syscall(child) != 0) break;
+    pid_t child = wait_for_syscall();
+    if (child == 0) break;
 
     if (ptrace(PTRACE_GETREGS, child, NULL, &regs) == -1) {
       fprintf(stderr, "ERROR PTRACING!\n");
@@ -113,23 +116,24 @@ void do_trace(pid_t child) {
     if (fd_argument[syscall] >= 0) {
       int fd = get_syscall_arg(&regs, fd_argument[syscall]);
       identify_fd(filename, child, fd);
-      fprintf(stderr, "%s(%d == %s) = ",
+      fprintf(stderr, "%d: %s(%d == %s) = \n",
+              child,
               syscalls[syscall],
               fd,
               filename);
     } else if (string_argument[syscall] >= 0) {
       char *arg = read_string(child, get_syscall_arg(&regs, 0));
-      fprintf(stderr, "%s(\"%s\") = ", syscalls[syscall], arg);
+      fprintf(stderr, "%d: %s(\"%s\") = \n", child, syscalls[syscall], arg);
       free(arg);
     } else if (syscall == SYS_exit || syscall == SYS_exit_group) {
-      fprintf(stderr, "%s()\n", syscalls[syscall]);
+      fprintf(stderr, "%d: %s()\n", child, syscalls[syscall]);
     } else if (syscall < sizeof(syscalls)/sizeof(const char *)) {
-      fprintf(stderr, "%s() = ", syscalls[syscall]);
+      fprintf(stderr, "%d: %s() = \n", child, syscalls[syscall]);
     } else {
-      fprintf(stderr, "syscall(%d) = ", syscall);
+      fprintf(stderr, "%d: syscall(%d) = \n", child, syscall);
     }
 
-    if (wait_for_syscall(child) != 0) break;
+    if (wait_for_syscall_from(child) != 0) break;
 
     if (ptrace(PTRACE_GETREGS, child, NULL, &regs) == -1) {
       fprintf(stderr, "ERROR PTRACING!\n");
@@ -138,25 +142,49 @@ void do_trace(pid_t child) {
     retval = regs.rax;
     if (fd_return[syscall]) {
       identify_fd(filename, child, retval);
-      fprintf(stderr, "%d == %s\n", retval, filename);
+      fprintf(stderr, "\t%d == %s\n", retval, filename);
     } else {
-      fprintf(stderr, "%d\n", retval);
+      fprintf(stderr, "\t%d\n", retval);
     }
+    ptrace(PTRACE_SYSCALL, child, 0, 0);
   }
 }
 
-int wait_for_syscall(pid_t child) {
+int wait_for_syscall_from(pid_t child) {
   int status;
   while (1) {
     ptrace(PTRACE_SYSCALL, child, 0, 0);
-    int pid = waitpid(-1, &status, 0);
+    int pid = waitpid(child, &status, 0);
     //ptrace(PTRACE_SYSCALL, pid, 0, 0);
     fprintf(stderr, "\npid:  %d   <-  %d\n", pid, status);
     if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_CLONE<<8))) {
       fprintf(stderr, "\ncloned!!!\n");
     }
     if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_FORK<<8))) {
-      fprintf(stderr, "\nforked!!!\n");
+      pid_t newpid;
+      ptrace(PTRACE_GETEVENTMSG, pid, 0, &newpid);
+      fprintf(stderr, "\nforked %d from %d!!!\n", newpid, pid);
+      waitpid(newpid, 0, 0);
+      ptrace(PTRACE_SETOPTIONS, newpid, 0,
+             PTRACE_O_TRACESYSGOOD |
+             PTRACE_O_TRACEFORK |
+             PTRACE_O_TRACEVFORK |
+             PTRACE_O_TRACECLONE |
+             PTRACE_O_TRACEEXEC);
+      //ptrace(PTRACE_SYSCALL, newpid, 0, 0);
+    }
+    if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_EXEC<<8))) {
+      pid_t newpid;
+      ptrace(PTRACE_GETEVENTMSG, pid, 0, &newpid);
+      fprintf(stderr, "\nexeced!!! %d from %d\n", newpid, pid);
+      //waitpid(newpid, 0, 0);
+      /* ptrace(PTRACE_SETOPTIONS, newpid, 0, */
+      /*        PTRACE_O_TRACESYSGOOD | */
+      /*        PTRACE_O_TRACEFORK | */
+      /*        PTRACE_O_TRACEVFORK | */
+      /*        PTRACE_O_TRACECLONE | */
+      /*        PTRACE_O_TRACEEXEC); */
+      /* ptrace(PTRACE_SYSCALL, newpid, 0, 0); */
     }
     if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_VFORK<<8))) {
       fprintf(stderr, "\nvforked!!!\n");
@@ -165,5 +193,31 @@ int wait_for_syscall(pid_t child) {
       return 0;
     if (WIFEXITED(status))
       return 1;
+  }
+}
+
+pid_t wait_for_syscall() {
+  int status;
+  while (1) {
+    int pid = waitpid(-1, &status, 0);
+    //ptrace(PTRACE_SYSCALL, pid, 0, 0);
+    fprintf(stderr, "\npid:  %d   <-  %d\n", pid, status);
+    if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_CLONE<<8))) {
+      fprintf(stderr, "\ncloned!!!\n");
+    }
+    if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_FORK<<8))) {
+      pid_t newpid;
+      ptrace(PTRACE_GETEVENTMSG, pid, 0, &newpid);
+      fprintf(stderr, "\nforked %d from %d!!!\n", newpid, pid);
+      ptrace(PTRACE_SYSCALL, newpid, 0, 0);
+    }
+    if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_VFORK<<8))) {
+      fprintf(stderr, "\nvforked!!!\n");
+    }
+    if (WIFSTOPPED(status) && WSTOPSIG(status) & 0x80)
+      return pid;
+    if (WIFEXITED(status))
+      return -1;
+    ptrace(PTRACE_SYSCALL, pid, 0, 0);
   }
 }
