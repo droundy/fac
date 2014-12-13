@@ -93,8 +93,13 @@ int identify_fd(char *path_buffer, pid_t child, int fd) {
 void do_trace(pid_t child) {
   int status, syscall, retval;
   char *filename = (char *)malloc(PATH_MAX);
-  waitpid(child, &status, 0);
-  ptrace(PTRACE_SETOPTIONS, child, 0, PTRACE_O_TRACESYSGOOD);
+  waitpid(-1, &status, 0);
+  ptrace(PTRACE_SETOPTIONS, child, 0,
+         PTRACE_O_TRACESYSGOOD |
+         PTRACE_O_TRACEFORK |
+         PTRACE_O_TRACEVFORK |
+         PTRACE_O_TRACECLONE |
+         PTRACE_O_TRACEEXEC);
   while(1) {
     struct user_regs_struct regs;
     if (wait_for_syscall(child) != 0) break;
@@ -141,13 +146,24 @@ void do_trace(pid_t child) {
 }
 
 int wait_for_syscall(pid_t child) {
-    int status;
-    while (1) {
-        ptrace(PTRACE_SYSCALL, child, 0, 0);
-        waitpid(child, &status, 0);
-        if (WIFSTOPPED(status) && WSTOPSIG(status) & 0x80)
-            return 0;
-        if (WIFEXITED(status))
-            return 1;
+  int status;
+  while (1) {
+    ptrace(PTRACE_SYSCALL, child, 0, 0);
+    int pid = waitpid(-1, &status, 0);
+    //ptrace(PTRACE_SYSCALL, pid, 0, 0);
+    fprintf(stderr, "\npid:  %d   <-  %d\n", pid, status);
+    if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_CLONE<<8))) {
+      fprintf(stderr, "\ncloned!!!\n");
     }
+    if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_FORK<<8))) {
+      fprintf(stderr, "\nforked!!!\n");
+    }
+    if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_VFORK<<8))) {
+      fprintf(stderr, "\nvforked!!!\n");
+    }
+    if (WIFSTOPPED(status) && WSTOPSIG(status) & 0x80)
+      return 0;
+    if (WIFEXITED(status))
+      return 1;
+  }
 }
