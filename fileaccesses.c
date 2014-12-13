@@ -110,7 +110,12 @@ void do_trace(pid_t child) {
       exit(1);
     }
     retval = regs.rax;
-    fprintf(stderr, "%d\n", retval);
+    if (fd_return[syscall]) {
+      identify_fd(filename, child, retval);
+      fprintf(stderr, "%d == %s\n", retval, filename);
+    } else {
+      fprintf(stderr, "%d\n", retval);
+    }
   }
 }
 

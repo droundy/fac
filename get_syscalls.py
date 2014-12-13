@@ -75,3 +75,25 @@ if sysnames[maxnum] in fd_argument:
 else:
     print '  -1'
 print "};\n"
+
+
+fd_return = ['open',
+             'creat',
+             'openat',
+             'open_by_handle_at',
+             ]
+
+print """
+const int fd_return[] = {"""
+
+for i in range(maxnum):
+    if sysnames[i] in fd_return:
+        print '  1,'
+    else:
+        print '  0,'
+
+if sysnames[maxnum] in fd_return:
+    print '  1'
+else:
+    print '  0'
+print "};\n"
