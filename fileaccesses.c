@@ -57,7 +57,30 @@ long get_syscall_arg(const struct user_regs_struct *regs, int which) {
     }
 }
 
-int identify_fd(char *path_buffer, int child, int fd) {
+char *read_string(pid_t child, unsigned long addr) {
+    char *val = malloc(4096);
+    int allocated = 4096;
+    int read = 0;
+    unsigned long tmp;
+    while (1) {
+        if (read + sizeof tmp > allocated) {
+            allocated *= 2;
+            val = realloc(val, allocated);
+        }
+        tmp = ptrace(PTRACE_PEEKDATA, child, addr + read);
+        if(errno != 0) {
+            val[read] = 0;
+            break;
+        }
+        memcpy(val + read, &tmp, sizeof tmp);
+        if (memchr(&tmp, 0, sizeof tmp) != NULL)
+            break;
+        read += sizeof tmp;
+    }
+    return val;
+}
+
+int identify_fd(char *path_buffer, pid_t child, int fd) {
   int ret;
   char *proc = (char *)malloc(PATH_MAX);
   sprintf(proc, "/proc/%d/fd/%d", child, fd);
@@ -89,12 +112,10 @@ void do_trace(pid_t child) {
               syscalls[syscall],
               fd,
               filename);
-    } else if (syscall == SYS_mmap) {
-      identify_fd(filename, child, get_syscall_arg(&regs, 0));
-      fprintf(stderr, "%s(%d == %s) = ",
-              syscalls[syscall],
-              get_syscall_arg(&regs, 0),
-              filename);
+    } else if (string_argument[syscall] >= 0) {
+      char *arg = read_string(child, get_syscall_arg(&regs, 0));
+      fprintf(stderr, "%s(\"%s\") = ", syscalls[syscall], arg);
+      free(arg);
     } else if (syscall == SYS_exit || syscall == SYS_exit_group) {
       fprintf(stderr, "%s()\n", syscalls[syscall]);
     } else if (syscall < sizeof(syscalls)/sizeof(const char *)) {

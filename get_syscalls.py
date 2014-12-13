@@ -97,3 +97,29 @@ if sysnames[maxnum] in fd_return:
 else:
     print '  0'
 print "};\n"
+
+
+
+string_argument = {
+    'open': 0,
+    'stat': 0,
+    'lstat': 0,
+    'execve': 0,
+    'access': 0,
+    'rename': 1, # also 0
+}
+
+print """
+const int string_argument[] = {"""
+
+for i in range(maxnum):
+    if sysnames[i] in string_argument:
+        print '  %d,' % string_argument[sysnames[i]]
+    else:
+        print '  -1,'
+
+if sysnames[maxnum] in string_argument:
+    print '  %d' % string_argument[sysnames[maxnum]]
+else:
+    print '  -1'
+print "};\n"
