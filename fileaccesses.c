@@ -181,6 +181,7 @@ int wait_for_syscall_from(pid_t child) {
       ptrace(PTRACE_SETOPTIONS, newpid, 0,
              PTRACE_O_TRACESYSGOOD |
              PTRACE_O_TRACEFORK |
+             PTRACE_O_TRACEVFORK |
              PTRACE_O_TRACEVFORKDONE |
              PTRACE_O_TRACECLONE |
              PTRACE_O_TRACEEXEC);
