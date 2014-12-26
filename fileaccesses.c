@@ -49,7 +49,7 @@ long get_syscall_arg(const struct user_regs_struct *regs, int which) {
     }
 }
 
-char *read_string(pid_t child, unsigned long addr) {
+char *read_a_string(pid_t child, unsigned long addr) {
     char *val = malloc(4096);
     int allocated = 4096;
     int read = 0;
@@ -105,7 +105,7 @@ static int print_syscall(pid_t child) {
             fd,
             filename);
   } else if (string_argument[syscall] >= 0) {
-    char *arg = read_string(child, get_syscall_arg(&regs, 0));
+    char *arg = read_a_string(child, get_syscall_arg(&regs, 0));
     fprintf(stderr, "%d/%d: %s(\"%s\") = ", child, num_programs, syscalls[syscall], arg);
     free(arg);
   } else if (is_wait_or_exit[syscall]) {
@@ -114,6 +114,42 @@ static int print_syscall(pid_t child) {
     fprintf(stderr, "%d/%d: %s() = ", child, num_programs, syscalls[syscall]);
   } else {
     fprintf(stderr, "%d/%d: syscall(%d) = ", child, num_programs, syscall);
+  }
+  free(filename);
+  return syscall;
+}
+
+static int print_syscall_access(pid_t child) {
+  struct user_regs_struct regs;
+  int syscall;
+  char *filename = (char *)malloc(PATH_MAX);
+
+  if (ptrace(PTRACE_GETREGS, child, NULL, &regs) == -1) {
+    fprintf(stderr, "ERROR PTRACING %d!\n", child);
+    error(1, errno, "error getting registers for %d...", child);
+    exit(1);
+  }
+  syscall = regs.orig_rax;
+
+  if (write_fd[syscall] >= 0) {
+    identify_fd(filename, child, get_syscall_arg(&regs, write_fd[syscall]));
+    fprintf(stderr, "W: %s(%s)\n", syscalls[syscall], filename);
+  }
+  if (read_fd[syscall] >= 0) {
+    identify_fd(filename, child, get_syscall_arg(&regs, read_fd[syscall]));
+    fprintf(stderr, "R: %s(%s)\n", syscalls[syscall], filename);
+  }
+  if (read_string[syscall] >= 0) {
+    fprintf(stderr, "R: %s(%s)\n", syscalls[syscall],
+            read_a_string(child, get_syscall_arg(&regs, read_string[syscall])));
+  }
+  if (write_string[syscall] >= 0) {
+    fprintf(stderr, "W: %s(%s)\n", syscalls[syscall],
+            read_a_string(child, get_syscall_arg(&regs, write_string[syscall])));
+  }
+  if (unlink_string[syscall] >= 0) {
+    fprintf(stderr, "D: %s(%s)\n", syscalls[syscall],
+            read_a_string(child, get_syscall_arg(&regs, unlink_string[syscall])));
   }
   free(filename);
   return syscall;
@@ -159,7 +195,7 @@ int main(int argc, char **argv) {
           fprintf(stderr, "foo execed!!! %d from %d\n", newpid, child);
           exit(1);
         } else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_VFORK_DONE<<8))) {
-          fprintf(stderr, "foo vfork done!!! %d\n", child);
+          //fprintf(stderr, "foo vfork done!!! %d\n", child);
           ptrace_syscall(child); // keep going!
         } else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_CLONE<<8))) {
           fprintf(stderr, "foo cloned!!! %d\n", child);
@@ -184,7 +220,7 @@ int main(int argc, char **argv) {
         }
       }
 
-      syscall = print_syscall(child);
+      syscall = print_syscall_access(child);
 
       if (is_wait_or_exit[syscall]) {
         /* These syscalls may wait on a child process, so we cannot
@@ -210,7 +246,7 @@ int main(int argc, char **argv) {
         } else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_EXEC<<8))) {
           pid_t newpid;
           ptrace(PTRACE_GETEVENTMSG, child, 0, &newpid);
-          fprintf(stderr, "\nexeced!!! %d from %d\n", newpid, child);
+          //fprintf(stderr, "\nexeced!!! %d from %d\n", newpid, child);
         } else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_VFORK_DONE<<8))) {
           fprintf(stderr, "vfork is done in %d\n", child);
           ptrace_syscall(child); // skip over return value of vfork
@@ -220,11 +256,11 @@ int main(int argc, char **argv) {
           ptrace(PTRACE_GETEVENTMSG, child, 0, &newpid);
           fprintf(stderr, "\nforked %d from %d!!!\n", newpid, child);
           waitpid(newpid, 0, 0);
-          fprintf(stderr, "waitpid %d worked!!!\n", newpid);
+          //fprintf(stderr, "waitpid %d worked!!!\n", newpid);
           if (ptrace(PTRACE_SETOPTIONS, newpid, 0, my_ptrace_options)) {
             fprintf(stderr, "error ptracing setoptions n %d\n", newpid);
           }
-          fprintf(stderr, "ptrace setoptions %d worked!!!\n", newpid);
+          //fprintf(stderr, "ptrace setoptions %d worked!!!\n", newpid);
           num_programs++;
 
           ptrace_syscall(newpid);
@@ -233,24 +269,24 @@ int main(int argc, char **argv) {
           ptrace(PTRACE_GETEVENTMSG, child, 0, &newpid);
           fprintf(stderr, "\ncloned %d from %d!!!\n", newpid, child);
           waitpid(newpid, 0, 0);
-          fprintf(stderr, "waitpid %d worked!!!\n", newpid);
+          //fprintf(stderr, "waitpid %d worked!!!\n", newpid);
           if (ptrace(PTRACE_SETOPTIONS, newpid, 0, my_ptrace_options)) {
             fprintf(stderr, "error ptracing setoptions n %d\n", newpid);
           }
-          fprintf(stderr, "ptrace setoptions %d worked!!!\n", newpid);
+          //fprintf(stderr, "ptrace setoptions %d worked!!!\n", newpid);
           num_programs++;
 
           ptrace_syscall(newpid);
         } else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_VFORK<<8))) {
           pid_t newpid;
           ptrace(PTRACE_GETEVENTMSG, child, 0, &newpid);
-          fprintf(stderr, "\nvforked %d from %d!!!\n", newpid, child);
+          //fprintf(stderr, "\nvforked %d from %d!!!\n", newpid, child);
           waitpid(newpid, 0, 0);
-          fprintf(stderr, "waitpid %d worked!!!\n", newpid);
+          //fprintf(stderr, "waitpid %d worked!!!\n", newpid);
           if (ptrace(PTRACE_SETOPTIONS, newpid, 0, my_ptrace_options)) {
             fprintf(stderr, "error ptracing setoptions n %d\n", newpid);
           }
-          fprintf(stderr, "ptrace setoptions %d worked!!!\n", newpid);
+          //fprintf(stderr, "ptrace setoptions %d worked!!!\n", newpid);
           num_programs++;
 
           ptrace_syscall(child);
@@ -261,17 +297,6 @@ int main(int argc, char **argv) {
           exit(1);
         }
         ptrace_syscall(child); // we don't understand id, so keep trying
-      }
-
-      if (ptrace(PTRACE_GETREGS, child, NULL, &regs) == -1) {
-        warn("ERROR PTRACING in %d", child);
-      }
-      int retval = regs.rax;
-      if (fd_return[syscall]) {
-        identify_fd(filename, child, retval);
-        fprintf(stderr, "%d == %s\n", retval, filename);
-      } else {
-        fprintf(stderr, "%d\n", retval);
       }
       ptrace_syscall(child);
 

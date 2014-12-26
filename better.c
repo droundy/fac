@@ -49,7 +49,7 @@ long get_syscall_arg(const struct user_regs_struct *regs, int which) {
     }
 }
 
-char *read_string(pid_t child, unsigned long addr) {
+char *read_a_string(pid_t child, unsigned long addr) {
     char *val = malloc(4096);
     int allocated = 4096;
     int read = 0;
@@ -105,7 +105,7 @@ static int print_syscall(pid_t child) {
             fd,
             filename);
   } else if (string_argument[syscall] >= 0) {
-    char *arg = read_string(child, get_syscall_arg(&regs, 0));
+    char *arg = read_a_string(child, get_syscall_arg(&regs, 0));
     fprintf(stderr, "%d/%d: %s(\"%s\") = ", child, num_programs, syscalls[syscall], arg);
     free(arg);
   } else if (is_wait_or_exit[syscall]) {
