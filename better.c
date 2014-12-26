@@ -108,7 +108,7 @@ static int print_syscall(pid_t child) {
     char *arg = read_string(child, get_syscall_arg(&regs, 0));
     fprintf(stderr, "%d/%d: %s(\"%s\") = ", child, num_programs, syscalls[syscall], arg);
     free(arg);
-  } else if (syscall == SYS_exit || syscall == SYS_exit_group) {
+  } else if (is_wait_or_exit[syscall]) {
     fprintf(stderr, "%d/%d: %s()\n", child, num_programs, syscalls[syscall]);
   } else if (syscall < sizeof(syscalls)/sizeof(const char *)) {
     fprintf(stderr, "%d/%d: %s() = ", child, num_programs, syscalls[syscall]);
@@ -219,6 +219,19 @@ int main(int argc, char **argv) {
           pid_t newpid;
           ptrace(PTRACE_GETEVENTMSG, child, 0, &newpid);
           fprintf(stderr, "\nforked %d from %d!!!\n", newpid, child);
+          waitpid(newpid, 0, 0);
+          fprintf(stderr, "waitpid %d worked!!!\n", newpid);
+          if (ptrace(PTRACE_SETOPTIONS, newpid, 0, my_ptrace_options)) {
+            fprintf(stderr, "error ptracing setoptions n %d\n", newpid);
+          }
+          fprintf(stderr, "ptrace setoptions %d worked!!!\n", newpid);
+          num_programs++;
+
+          ptrace_syscall(newpid);
+        } else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_CLONE<<8))) {
+          pid_t newpid;
+          ptrace(PTRACE_GETEVENTMSG, child, 0, &newpid);
+          fprintf(stderr, "\ncloned %d from %d!!!\n", newpid, child);
           waitpid(newpid, 0, 0);
           fprintf(stderr, "waitpid %d worked!!!\n", newpid);
           if (ptrace(PTRACE_SETOPTIONS, newpid, 0, my_ptrace_options)) {

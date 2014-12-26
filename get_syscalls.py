@@ -126,7 +126,7 @@ print "};\n"
 
 
 
-is_wait_or_exit = ['wait4', 'exit_group']
+is_wait_or_exit = ['wait4', 'waitid', 'exit', 'exit_group']
 
 print """
 const int is_wait_or_exit[] = {"""
