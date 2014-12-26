@@ -20,7 +20,7 @@ const void *my_ptrace_options = (void *)(PTRACE_O_TRACESYSGOOD |
                                          PTRACE_O_TRACEEXEC);
 
 void ptrace_syscall(pid_t pid) {
-  fprintf(stderr, "\tcalling ptrace_syscall on %d\n", pid);
+  //fprintf(stderr, "\tcalling ptrace_syscall on %d\n", pid);
   int ret = ptrace(PTRACE_SYSCALL, pid, 0, 0);
   if (ret == -1) {
     error(1, errno, "error calling ptrace_syscall on %d\n", pid);
@@ -99,21 +99,21 @@ static int print_syscall(pid_t child) {
   if (fd_argument[syscall] >= 0) {
     int fd = get_syscall_arg(&regs, fd_argument[syscall]);
     identify_fd(filename, child, fd);
-    fprintf(stderr, "%d/%d: %s(%d == %s) = \n",
+    fprintf(stderr, "%d/%d: %s(%d == %s) = ",
             child, num_programs,
             syscalls[syscall],
             fd,
             filename);
   } else if (string_argument[syscall] >= 0) {
     char *arg = read_string(child, get_syscall_arg(&regs, 0));
-    fprintf(stderr, "%d/%d: %s(\"%s\") = \n", child, num_programs, syscalls[syscall], arg);
+    fprintf(stderr, "%d/%d: %s(\"%s\") = ", child, num_programs, syscalls[syscall], arg);
     free(arg);
   } else if (syscall == SYS_exit || syscall == SYS_exit_group) {
     fprintf(stderr, "%d/%d: %s()\n", child, num_programs, syscalls[syscall]);
   } else if (syscall < sizeof(syscalls)/sizeof(const char *)) {
-    fprintf(stderr, "%d/%d: %s() = \n", child, num_programs, syscalls[syscall]);
+    fprintf(stderr, "%d/%d: %s() = ", child, num_programs, syscalls[syscall]);
   } else {
-    fprintf(stderr, "%d/%d: syscall(%d) = \n", child, num_programs, syscall);
+    fprintf(stderr, "%d/%d: syscall(%d) = ", child, num_programs, syscall);
   }
   free(filename);
   return syscall;
@@ -146,7 +146,7 @@ int main(int argc, char **argv) {
       int status, syscall;
     look_for_syscall:
       while (1) {
-        fprintf(stderr, "waiting for any syscall...\n");
+        //fprintf(stderr, "waiting for any syscall...\n");
         child = waitpid(-1, &status, 0);
         if (WIFSTOPPED(status) && WSTOPSIG(status) & 0x80) {
           break;
@@ -199,7 +199,7 @@ int main(int argc, char **argv) {
       ptrace_syscall(child); // run the syscall to its finish
 
       while (1) {
-        fprintf(stderr, "waiting for syscall from %d...\n", child);
+        //fprintf(stderr, "waiting for syscall from %d...\n", child);
         waitpid(child, &status, 0);
         if (WIFSTOPPED(status) && WSTOPSIG(status) & 0x80) {
           break;
