@@ -19,6 +19,15 @@ const void *my_ptrace_options = (void *)(PTRACE_O_TRACESYSGOOD |
                                          PTRACE_O_TRACECLONE |
                                          PTRACE_O_TRACEEXEC);
 
+void ptrace_syscall(pid_t pid) {
+  fprintf(stderr, "\tcalling ptrace_syscall on %d\n", pid);
+  int ret = ptrace(PTRACE_SYSCALL, pid, 0, 0);
+  if (ret == -1) {
+    error(1, errno, "error calling ptrace_syscall on %d\n", pid);
+    exit(1);
+  }
+}
+
 long get_syscall_arg(const struct user_regs_struct *regs, int which) {
     switch (which) {
 #ifdef __amd64__
@@ -127,7 +136,7 @@ int main(int argc, char **argv) {
   } else {
     waitpid(-1, 0, 0);
     ptrace(PTRACE_SETOPTIONS, child, 0, my_ptrace_options);
-    ptrace(PTRACE_SYSCALL, child, 0, 0); // run until a sycall is attempted
+    ptrace_syscall(child); // run until a sycall is attempted
 
     char *filename = (char *)malloc(PATH_MAX);
     while (num_programs > 0) {
@@ -151,37 +160,60 @@ int main(int argc, char **argv) {
           exit(1);
         } else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_VFORK_DONE<<8))) {
           fprintf(stderr, "foo vfork done!!! %d\n", child);
+          ptrace_syscall(child); // keep going!
+        } else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_CLONE<<8))) {
+          fprintf(stderr, "foo cloned!!! %d\n", child);
+          exit(1);
         } else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_VFORK<<8))) {
           fprintf(stderr, "foo vforked!!! %d\n", child);
           exit(1);
         } else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_FORK<<8))) {
           fprintf(stderr, "foo forked!!! %d\n", child);
           exit(1);
-        } else {
-          fprintf(stderr, "I do not understand this %d... :(\n", status);
+        } else if (WIFSIGNALED(status)) {
+          fprintf(stderr, "foo signaled!!! %d\n", child);
           exit(1);
+        } else if (WIFCONTINUED(status)) {
+          fprintf(stderr, "foo continued!!! %d\n", child);
+          exit(1);
+        } else {
+          fprintf(stderr, "I do not understand on child %d this %x also %x compare %x... :(\n",
+                  child, status, status >> 8, SIGTRAP);
+          //exit(1);
+          ptrace_syscall(child);
         }
-        ptrace(PTRACE_SYSCALL, child, 0, 0); // we don't understand id, so keep trying
       }
 
       syscall = print_syscall(child);
 
-      ptrace(PTRACE_SYSCALL, child, 0, 0); // run the syscall to its finish
+      if (is_wait_or_exit[syscall]) {
+        /* These syscalls may wait on a child process, so we cannot
+           wait for their return, since this may not happen if stop
+           processing the child processes.  So my simple
+           (non-threaded) approach is just to ignore their return
+           value. */
+        ptrace(PTRACE_SYSCALL, child, 0, 0); // ignore return value
+        goto look_for_syscall;
+      }
+
+      ptrace_syscall(child); // run the syscall to its finish
+
       while (1) {
         fprintf(stderr, "waiting for syscall from %d...\n", child);
         waitpid(child, &status, 0);
         if (WIFSTOPPED(status) && WSTOPSIG(status) & 0x80) {
           break;
         } else if (WIFEXITED(status)) {
-          fprintf(stderr, "got an exit from %d...\n", child);
+          fprintf(stderr, "we got an exit from %d...\n", child);
           if (--num_programs <= 0) return 0;
+          goto look_for_syscall; // no point looking any longer!
         } else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_EXEC<<8))) {
           pid_t newpid;
           ptrace(PTRACE_GETEVENTMSG, child, 0, &newpid);
           fprintf(stderr, "\nexeced!!! %d from %d\n", newpid, child);
         } else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_VFORK_DONE<<8))) {
           fprintf(stderr, "vfork is done in %d\n", child);
-          ptrace(PTRACE_SYSCALL, child, 0, 0); // skip over return value of vfork
+          ptrace_syscall(child); // skip over return value of vfork
           waitpid(child, &status, 0);
         } else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_FORK<<8))) {
           pid_t newpid;
@@ -195,7 +227,7 @@ int main(int argc, char **argv) {
           fprintf(stderr, "ptrace setoptions %d worked!!!\n", newpid);
           num_programs++;
 
-          ptrace(PTRACE_SYSCALL, newpid, 0, 0);
+          ptrace_syscall(newpid);
         } else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_VFORK<<8))) {
           pid_t newpid;
           ptrace(PTRACE_GETEVENTMSG, child, 0, &newpid);
@@ -208,47 +240,14 @@ int main(int argc, char **argv) {
           fprintf(stderr, "ptrace setoptions %d worked!!!\n", newpid);
           num_programs++;
 
-          ptrace(PTRACE_SYSCALL, child, 0, 0);
-          ptrace(PTRACE_SYSCALL, newpid, 0, 0);
+          ptrace_syscall(child);
+          ptrace_syscall(newpid);
           goto look_for_syscall;
-          while (1) {
-            pid_t who = waitpid(-1, &status, 0);
-            int mycall;
-            fprintf(stderr, "got something from %d\n", who);
-
-            if (WIFEXITED(status)) {
-              fprintf(stderr, "got an exit from %d...\n", who);
-              if (--num_programs <= 0) return 0;
-            } else if (WIFSTOPPED(status) && WSTOPSIG(status) & 0x80) {
-              mycall = print_syscall(who);
-              ptrace(PTRACE_SYSCALL, who, 0, 0);
-            } else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_EXEC<<8))) {
-              pid_t newpid;
-              ptrace(PTRACE_GETEVENTMSG, who, 0, &newpid);
-              fprintf(stderr, "\nexeced!!! %d from %d\n", newpid, who);
-              ptrace(PTRACE_SYSCALL, newpid, 0, 0);
-            } else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_VFORK_DONE<<8))) {
-              fprintf(stderr, "vfork all done!!!!!!!!!\n");
-              ptrace(PTRACE_SYSCALL, who, 0, 0);
-            } else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_VFORK<<8))) {
-              fprintf(stderr, "vfork!!!!!!!!!\n");
-              exit(1);
-            } else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_FORK<<8))) {
-              fprintf(stderr, "fork!!!!!!!!!\n");
-              exit(1);
-            } else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_CLONE<<8))) {
-              fprintf(stderr, "clone!!!!!!!!!\n");
-              exit(1);
-            } else {
-              fprintf(stderr, "something unexpected!\n");
-              exit(1);
-            }
-          }
         } else {
           fprintf(stderr, "I do not understand this event %d\n\n", status);
           exit(1);
         }
-        ptrace(PTRACE_SYSCALL, child, 0, 0); // we don't understand id, so keep trying
+        ptrace_syscall(child); // we don't understand id, so keep trying
       }
 
       if (ptrace(PTRACE_GETREGS, child, NULL, &regs) == -1) {
@@ -261,7 +260,7 @@ int main(int argc, char **argv) {
       } else {
         fprintf(stderr, "%d\n", retval);
       }
-      ptrace(PTRACE_SYSCALL, child, 0, 0);
+      ptrace_syscall(child);
 
     }
   }

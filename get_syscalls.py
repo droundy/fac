@@ -123,3 +123,22 @@ if sysnames[maxnum] in string_argument:
 else:
     print '  -1'
 print "};\n"
+
+
+
+is_wait_or_exit = ['wait4', 'exit_group']
+
+print """
+const int is_wait_or_exit[] = {"""
+
+for i in range(maxnum):
+    if sysnames[i] in is_wait_or_exit:
+        print '  1,'
+    else:
+        print '  0,'
+
+if sysnames[maxnum] in is_wait_or_exit:
+    print '  1'
+else:
+    print '  0'
+print "};\n"
