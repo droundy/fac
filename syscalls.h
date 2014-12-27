@@ -1,5 +1,5 @@
 
-const char *syscalls[] = {
+static const char *syscalls[] = {
   "read",
   "write",
   "open",
@@ -315,7 +315,7 @@ const char *syscalls[] = {
 };
 
 
-const int fd_argument[] = {
+static const int fd_argument[] = {
   0,
   0,
   -1,
@@ -631,7 +631,7 @@ const int fd_argument[] = {
 };
 
 
-const int fd_return[] = {
+static const int fd_return[] = {
   0,
   0,
   1,
@@ -947,7 +947,7 @@ const int fd_return[] = {
 };
 
 
-const int string_argument[] = {
+static const int string_argument[] = {
   -1,
   -1,
   0,
@@ -1263,7 +1263,7 @@ const int string_argument[] = {
 };
 
 
-const int is_wait_or_exit[] = {
+static const int is_wait_or_exit[] = {
   0,
   0,
   0,
@@ -1579,7 +1579,7 @@ const int is_wait_or_exit[] = {
 };
 
 
-const int write_fd[] = {
+static const int write_fd[] = {
   -1,
   0,
   -1,
@@ -1895,7 +1895,7 @@ const int write_fd[] = {
 };
 
 
-const int write_string[] = {
+static const int write_string[] = {
   -1,
   -1,
   -1,
@@ -2211,7 +2211,7 @@ const int write_string[] = {
 };
 
 
-const int read_fd[] = {
+static const int read_fd[] = {
   0,
   -1,
   -1,
@@ -2527,7 +2527,7 @@ const int read_fd[] = {
 };
 
 
-const int read_string[] = {
+static const int read_string[] = {
   -1,
   -1,
   -1,
@@ -2843,7 +2843,7 @@ const int read_string[] = {
 };
 
 
-const int unlink_string[] = {
+static const int unlink_string[] = {
   -1,
   -1,
   -1,

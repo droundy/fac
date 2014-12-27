@@ -28,7 +28,7 @@ for (syscall, num) in re_syscall.findall(unistd):
     maxnum = max(maxnum, num)
 
 print """
-const char *syscalls[] = {"""
+static const char *syscalls[] = {"""
 
 for i in range(maxnum):
     print '  "%s",' % sysnames[i]
@@ -38,7 +38,7 @@ print "};\n"
 
 def bool_table(name, syscalls):
     print """
-const int %s[] = {""" % name
+static const int %s[] = {""" % name
 
     for i in range(maxnum):
         if sysnames[i] in syscalls:
@@ -55,7 +55,7 @@ const int %s[] = {""" % name
 
 def argument_table(name, syscall_argument):
     print """
-const int %s[] = {""" % name
+static const int %s[] = {""" % name
 
     for i in range(maxnum):
         if sysnames[i] in syscall_argument:
