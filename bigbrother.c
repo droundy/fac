@@ -9,9 +9,19 @@
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
+#include <stdarg.h>
 
 #include "syscalls.h"
 #include "bigbrother.h"
+
+static const debug_output = 0;
+
+static void debugprintf(const char *format, ...) {
+  va_list args;
+  va_start(args, format);
+  if (debug_output) vfprintf(stderr, format, args);
+  va_end(args);
+}
 
 static const void *my_ptrace_options =
   (void *)(PTRACE_O_TRACESYSGOOD |
@@ -29,7 +39,7 @@ static int interesting_path(const char *path) {
 }
 
 static void ptrace_syscall(pid_t pid) {
-  //fprintf(stderr, "\tcalling ptrace_syscall on %d\n", pid);
+  //debugprintf("\tcalling ptrace_syscall on %d\n", pid);
   int ret = ptrace(PTRACE_SYSCALL, pid, 0, 0);
   if (ret == -1) {
     error(1, errno, "error calling ptrace_syscall on %d\n", pid);
@@ -118,7 +128,7 @@ static int save_syscall_access(pid_t child,
   int syscall;
 
   if (ptrace(PTRACE_GETREGS, child, NULL, &regs) == -1) {
-    fprintf(stderr, "ERROR PTRACING %d!\n", child);
+    debugprintf("ERROR PTRACING %d!\n", child);
     error(1, errno, "error getting registers for %d...", child);
     exit(1);
   }
@@ -130,11 +140,11 @@ static int save_syscall_access(pid_t child,
       char *filename = (char *)malloc(PATH_MAX);
       identify_fd(filename, child, fd);
       if (interesting_path(filename)) {
-        fprintf(stderr, "W: %s(%s)\n", syscalls[syscall], filename);
+        debugprintf("W: %s(%s)\n", syscalls[syscall], filename);
         insert_to_listset(written_to_files, filename);
         delete_from_listset(deleted_files, filename);
       } else {
-        fprintf(stderr, "W~ %s(%s)\n", syscalls[syscall], filename);
+        debugprintf("W~ %s(%s)\n", syscalls[syscall], filename);
         free(filename);
       }
     }
@@ -145,10 +155,10 @@ static int save_syscall_access(pid_t child,
       char *filename = (char *)malloc(PATH_MAX);
       identify_fd(filename, child, fd);
       if (interesting_path(filename)) {
-        fprintf(stderr, "R: %s(%s)\n", syscalls[syscall], filename);
+        debugprintf("R: %s(%s)\n", syscalls[syscall], filename);
         insert_to_listset(read_from_files, filename);
       } else {
-        fprintf(stderr, "R~ %s(%s)\n", syscalls[syscall], filename);
+        debugprintf("R~ %s(%s)\n", syscalls[syscall], filename);
         free(filename);
       }
     }
@@ -156,33 +166,33 @@ static int save_syscall_access(pid_t child,
   if (read_string[syscall] >= 0) {
     char *arg = read_a_path(child, get_syscall_arg(&regs, read_string[syscall]));
     if (interesting_path(arg)) {
-      fprintf(stderr, "R: %s(%s)\n", syscalls[syscall], arg);
+      debugprintf("R: %s(%s)\n", syscalls[syscall], arg);
       insert_to_listset(read_from_files, arg);
     } else {
-      fprintf(stderr, "R~ %s(%s)\n", syscalls[syscall], arg);
+      debugprintf("R~ %s(%s)\n", syscalls[syscall], arg);
       free(arg);
     }
   }
   if (write_string[syscall] >= 0) {
     char *arg = read_a_path(child, get_syscall_arg(&regs, write_string[syscall]));
     if (interesting_path(arg)) {
-      fprintf(stderr, "W: %s(%s)\n", syscalls[syscall], arg);
+      debugprintf("W: %s(%s)\n", syscalls[syscall], arg);
       insert_to_listset(written_to_files, arg);
       delete_from_listset(deleted_files, arg);
     } else {
-      fprintf(stderr, "W~ %s(%s)\n", syscalls[syscall], arg);
+      debugprintf("W~ %s(%s)\n", syscalls[syscall], arg);
       free(arg);
     }
   }
   if (unlink_string[syscall] >= 0) {
     char *arg = read_a_path(child, get_syscall_arg(&regs, unlink_string[syscall]));
     if (interesting_path(arg)) {
-      fprintf(stderr, "D: %s(%s)\n", syscalls[syscall], arg);
+      debugprintf("D: %s(%s)\n", syscalls[syscall], arg);
       insert_to_listset(deleted_files, arg);
       delete_from_listset(written_to_files, arg);
       delete_from_listset(read_from_files, arg);
     } else {
-      fprintf(stderr, "D~ %s(%s)\n", syscalls[syscall], arg);
+      debugprintf("D~ %s(%s)\n", syscalls[syscall], arg);
       free(arg);
     }
   }
@@ -212,12 +222,12 @@ int bigbrother_process(char **args,
       int status, syscall;
     look_for_syscall:
       while (1) {
-        //fprintf(stderr, "waiting for any syscall...\n");
+        //debugprintf("waiting for any syscall...\n");
         child = waitpid(-1, &status, 0);
         if (WIFSTOPPED(status) && WSTOPSIG(status) & 0x80) {
           break;
         } else if (WIFEXITED(status)) {
-          //fprintf(stderr, "got an exit from %d...\n", child);
+          //debugprintf("got an exit from %d...\n", child);
           if (--num_programs <= 0) return 0;
         } else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_EXEC<<8))) {
           pid_t newpid;
@@ -225,7 +235,7 @@ int bigbrother_process(char **args,
           fprintf(stderr, "foo execed!!! %d from %d\n", newpid, child);
           exit(1);
         } else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_VFORK_DONE<<8))) {
-          //fprintf(stderr, "foo vfork done!!! %d\n", child);
+          //debugprintf("foo vfork done!!! %d\n", child);
           ptrace_syscall(child); // keep going!
         } else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_CLONE<<8))) {
           fprintf(stderr, "foo cloned!!! %d\n", child);
@@ -243,7 +253,7 @@ int bigbrother_process(char **args,
           fprintf(stderr, "foo continued!!! %d\n", child);
           exit(1);
         } else {
-          /* fprintf(stderr, "I do not understand on child %d this %x also %x compare %x... :(\n",
+          /* debugprintf("I do not understand on child %d this %x also %x compare %x... :(\n",
                   child, status, status >> 8, SIGTRAP);
                   exit(1); */
           ptrace_syscall(child);
@@ -265,58 +275,58 @@ int bigbrother_process(char **args,
       ptrace_syscall(child); // run the syscall to its finish
 
       while (1) {
-        //fprintf(stderr, "waiting for syscall from %d...\n", child);
+        //debugprintf("waiting for syscall from %d...\n", child);
         waitpid(child, &status, 0);
         if (WIFSTOPPED(status) && WSTOPSIG(status) & 0x80) {
           break;
         } else if (WIFEXITED(status)) {
-          //fprintf(stderr, "we got an exit from %d...\n", child);
+          //debugprintf("we got an exit from %d...\n", child);
           if (--num_programs <= 0) return 0;
           goto look_for_syscall; // no point looking any longer!
         } else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_EXEC<<8))) {
           pid_t newpid;
           ptrace(PTRACE_GETEVENTMSG, child, 0, &newpid);
-          //fprintf(stderr, "\nexeced!!! %d from %d\n", newpid, child);
+          //debugprintf("\nexeced!!! %d from %d\n", newpid, child);
         } else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_VFORK_DONE<<8))) {
-          fprintf(stderr, "vfork is done in %d\n", child);
+          debugprintf("vfork is done in %d\n", child);
           ptrace_syscall(child); // skip over return value of vfork
           waitpid(child, &status, 0);
         } else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_FORK<<8))) {
           pid_t newpid;
           ptrace(PTRACE_GETEVENTMSG, child, 0, &newpid);
-          //fprintf(stderr, "\nforked %d from %d!!!\n", newpid, child);
+          //debugprintf("\nforked %d from %d!!!\n", newpid, child);
           waitpid(newpid, 0, 0);
-          //fprintf(stderr, "waitpid %d worked!!!\n", newpid);
+          //debugprintf("waitpid %d worked!!!\n", newpid);
           if (ptrace(PTRACE_SETOPTIONS, newpid, 0, my_ptrace_options)) {
-            fprintf(stderr, "error ptracing setoptions n %d\n", newpid);
+            debugprintf("error ptracing setoptions n %d\n", newpid);
           }
-          //fprintf(stderr, "ptrace setoptions %d worked!!!\n", newpid);
+          //debugprintf("ptrace setoptions %d worked!!!\n", newpid);
           num_programs++;
 
           ptrace_syscall(newpid);
         } else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_CLONE<<8))) {
           pid_t newpid;
           ptrace(PTRACE_GETEVENTMSG, child, 0, &newpid);
-          fprintf(stderr, "\ncloned %d from %d!!!\n", newpid, child);
+          debugprintf("\ncloned %d from %d!!!\n", newpid, child);
           waitpid(newpid, 0, 0);
-          //fprintf(stderr, "waitpid %d worked!!!\n", newpid);
+          //debugprintf("waitpid %d worked!!!\n", newpid);
           if (ptrace(PTRACE_SETOPTIONS, newpid, 0, my_ptrace_options)) {
-            fprintf(stderr, "error ptracing setoptions n %d\n", newpid);
+            debugprintf("error ptracing setoptions n %d\n", newpid);
           }
-          //fprintf(stderr, "ptrace setoptions %d worked!!!\n", newpid);
+          //debugprintf("ptrace setoptions %d worked!!!\n", newpid);
           num_programs++;
 
           ptrace_syscall(newpid);
         } else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_VFORK<<8))) {
           pid_t newpid;
           ptrace(PTRACE_GETEVENTMSG, child, 0, &newpid);
-          //fprintf(stderr, "\nvforked %d from %d!!!\n", newpid, child);
+          //debugprintf("\nvforked %d from %d!!!\n", newpid, child);
           waitpid(newpid, 0, 0);
-          //fprintf(stderr, "waitpid %d worked!!!\n", newpid);
+          //debugprintf("waitpid %d worked!!!\n", newpid);
           if (ptrace(PTRACE_SETOPTIONS, newpid, 0, my_ptrace_options)) {
-            fprintf(stderr, "error ptracing setoptions n %d\n", newpid);
+            debugprintf("error ptracing setoptions n %d\n", newpid);
           }
-          //fprintf(stderr, "ptrace setoptions %d worked!!!\n", newpid);
+          //debugprintf("ptrace setoptions %d worked!!!\n", newpid);
           num_programs++;
 
           ptrace_syscall(child);
