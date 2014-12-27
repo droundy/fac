@@ -20,6 +20,13 @@ const void *my_ptrace_options = (void *)(PTRACE_O_TRACESYSGOOD |
                                          PTRACE_O_TRACECLONE |
                                          PTRACE_O_TRACEEXEC);
 
+int interesting_path(const char *path) {
+  if (memcmp(path, "/dev/", 5) == 0) return 0;
+  if (strlen(path) == 0) return 0; /* ?! */
+  if (memcmp(path, "/tmp/", 5) == 0) return 0;
+  return 1;
+}
+
 void ptrace_syscall(pid_t pid) {
   //fprintf(stderr, "\tcalling ptrace_syscall on %d\n", pid);
   int ret = ptrace(PTRACE_SYSCALL, pid, 0, 0);
@@ -84,6 +91,24 @@ int identify_fd(char *path_buffer, pid_t child, int fd) {
   return ret;
 }
 
+int absolute_path(char *path_buffer, pid_t child, const char *path) {
+  char *filename = malloc(PATH_MAX);
+  sprintf(filename, "/proc/%d/cwd", child);
+  chdir(filename);
+  realpath(path, path_buffer);
+  chdir("/");
+  free(filename);
+  return 0;
+}
+
+char *read_a_path(pid_t child, unsigned long addr) {
+  char *foo = read_a_string(child, addr);
+  char *abspath = malloc(PATH_MAX);
+  absolute_path(abspath, child, foo);
+  free(foo);
+  return abspath;
+}
+
 static int num_programs = 1;
 
 static int print_syscall(pid_t child) {
@@ -137,38 +162,66 @@ static int print_syscall_access(pid_t child) {
   syscall = regs.orig_rax;
 
   if (write_fd[syscall] >= 0) {
-    char *filename = (char *)malloc(PATH_MAX);
-    identify_fd(filename, child, get_syscall_arg(&regs, write_fd[syscall]));
-    fprintf(stderr, "W: %s(%s)\n", syscalls[syscall], filename);
-    insert_to_listset(&written_to_files, filename);
+    int fd = get_syscall_arg(&regs, write_fd[syscall]);
+    if (fd >= 0) {
+      char *filename = (char *)malloc(PATH_MAX);
+      identify_fd(filename, child, fd);
+      if (interesting_path(filename)) {
+        fprintf(stderr, "W: %s(%s)\n", syscalls[syscall], filename);
+        insert_to_listset(&written_to_files, filename);
+        delete_from_listset(&deleted_files, filename);
+      } else {
+        fprintf(stderr, "W~ %s(%s)\n", syscalls[syscall], filename);
+        free(filename);
+      }
+    }
   }
   if (read_fd[syscall] >= 0) {
-    char *filename = (char *)malloc(PATH_MAX);
-    identify_fd(filename, child, get_syscall_arg(&regs, read_fd[syscall]));
-    fprintf(stderr, "R: %s(%s)\n", syscalls[syscall], filename);
-    insert_to_listset(&read_from_files, filename);
+    int fd = get_syscall_arg(&regs, read_fd[syscall]);
+    if (fd >= 0) {
+      char *filename = (char *)malloc(PATH_MAX);
+      identify_fd(filename, child, fd);
+      if (interesting_path(filename)) {
+        fprintf(stderr, "R: %s(%s)\n", syscalls[syscall], filename);
+        insert_to_listset(&read_from_files, filename);
+      } else {
+        fprintf(stderr, "R~ %s(%s)\n", syscalls[syscall], filename);
+        free(filename);
+      }
+    }
   }
   if (read_string[syscall] >= 0) {
-    char *filename = (char *)malloc(PATH_MAX);
-    char *arg = read_a_string(child, get_syscall_arg(&regs, read_string[syscall]));
-    fprintf(stderr, "R: %s(%s)\n", syscalls[syscall], arg);
-    free(arg);
-    insert_to_listset(&read_from_files, filename);
+    char *arg = read_a_path(child, get_syscall_arg(&regs, read_string[syscall]));
+    if (interesting_path(arg)) {
+      fprintf(stderr, "R: %s(%s)\n", syscalls[syscall], arg);
+      insert_to_listset(&read_from_files, arg);
+    } else {
+      fprintf(stderr, "R~ %s(%s)\n", syscalls[syscall], arg);
+      free(arg);
+    }
   }
   if (write_string[syscall] >= 0) {
-    char *filename = (char *)malloc(PATH_MAX);
-    char *arg = read_a_string(child, get_syscall_arg(&regs, write_string[syscall]));
-    fprintf(stderr, "W: %s(%s)\n", syscalls[syscall], arg);
-    free(arg);
-    insert_to_listset(&written_to_files, filename);
-    delete_from_listset(&deleted_files, filename);
+    char *arg = read_a_path(child, get_syscall_arg(&regs, write_string[syscall]));
+    if (interesting_path(arg)) {
+      fprintf(stderr, "W: %s(%s)\n", syscalls[syscall], arg);
+      insert_to_listset(&written_to_files, arg);
+      delete_from_listset(&deleted_files, arg);
+    } else {
+      fprintf(stderr, "W~ %s(%s)\n", syscalls[syscall], arg);
+      free(arg);
+    }
   }
   if (unlink_string[syscall] >= 0) {
-    char *arg = read_a_string(child, get_syscall_arg(&regs, unlink_string[syscall]));
-    fprintf(stderr, "D: %s(%s)\n", syscalls[syscall], arg);
-    insert_to_listset(&deleted_files, arg);
-    delete_from_listset(&written_to_files, arg);
-    delete_from_listset(&read_from_files, arg);
+    char *arg = read_a_path(child, get_syscall_arg(&regs, unlink_string[syscall]));
+    if (interesting_path(arg)) {
+      fprintf(stderr, "D: %s(%s)\n", syscalls[syscall], arg);
+      insert_to_listset(&deleted_files, arg);
+      delete_from_listset(&written_to_files, arg);
+      delete_from_listset(&read_from_files, arg);
+    } else {
+      fprintf(stderr, "D~ %s(%s)\n", syscalls[syscall], arg);
+      free(arg);
+    }
   }
   return syscall;
 }
