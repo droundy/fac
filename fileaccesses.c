@@ -161,16 +161,47 @@ static int print_syscall_access(pid_t child) {
     fprintf(stderr, "W: %s(%s)\n", syscalls[syscall], arg);
     free(arg);
     insert_to_listset(&written_to_files, filename);
+    delete_from_listset(&deleted_files, filename);
   }
   if (unlink_string[syscall] >= 0) {
     char *arg = read_a_string(child, get_syscall_arg(&regs, unlink_string[syscall]));
     fprintf(stderr, "D: %s(%s)\n", syscalls[syscall], arg);
-    free(arg);
     insert_to_listset(&deleted_files, arg);
     delete_from_listset(&written_to_files, arg);
     delete_from_listset(&read_from_files, arg);
   }
   return syscall;
+}
+
+void report_results_and_exit() {
+  listset *s = read_from_files;
+  while (s != NULL) {
+    fprintf(stderr, "r: %s\n", s->path);
+    listset *d = s;
+    s = s->next;
+    free(d->path);
+    free(d);
+  }
+  read_from_files = NULL;
+
+  s = written_to_files;
+  while (s != NULL) {
+    fprintf(stderr, "w: %s\n", s->path);
+    listset *d = s;
+    s = s->next;
+    free(d->path);
+    free(d);
+  }
+
+  s = deleted_files;
+  while (s != NULL) {
+    fprintf(stderr, "d: %s\n", s->path);
+    listset *d = s;
+    s = s->next;
+    free(d->path);
+    free(d);
+  }
+  exit(0);
 }
 
 int main(int argc, char **argv) {
@@ -205,7 +236,7 @@ int main(int argc, char **argv) {
           break;
         } else if (WIFEXITED(status)) {
           //fprintf(stderr, "got an exit from %d...\n", child);
-          if (--num_programs <= 0) return 0;
+          if (--num_programs <= 0) report_results_and_exit();
         } else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_EXEC<<8))) {
           pid_t newpid;
           ptrace(PTRACE_GETEVENTMSG, child, 0, &newpid);
@@ -258,7 +289,7 @@ int main(int argc, char **argv) {
           break;
         } else if (WIFEXITED(status)) {
           //fprintf(stderr, "we got an exit from %d...\n", child);
-          if (--num_programs <= 0) return 0;
+          if (--num_programs <= 0) report_results_and_exit();
           goto look_for_syscall; // no point looking any longer!
         } else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_EXEC<<8))) {
           pid_t newpid;
@@ -271,7 +302,7 @@ int main(int argc, char **argv) {
         } else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_FORK<<8))) {
           pid_t newpid;
           ptrace(PTRACE_GETEVENTMSG, child, 0, &newpid);
-          fprintf(stderr, "\nforked %d from %d!!!\n", newpid, child);
+          //fprintf(stderr, "\nforked %d from %d!!!\n", newpid, child);
           waitpid(newpid, 0, 0);
           //fprintf(stderr, "waitpid %d worked!!!\n", newpid);
           if (ptrace(PTRACE_SETOPTIONS, newpid, 0, my_ptrace_options)) {
@@ -319,5 +350,5 @@ int main(int argc, char **argv) {
 
     }
   }
-  return 0;
+  report_results_and_exit();
 }
