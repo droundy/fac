@@ -132,6 +132,7 @@ argument_table('read_fd', {'read': 0,
                            'sendfile': 1})
 
 argument_table('read_string', {'rename': 1,
+                               'execve': 0,
                                'truncate': 0})
 
 argument_table('unlink_string', {'unlink': 0,

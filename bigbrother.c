@@ -32,9 +32,12 @@ static const void *my_ptrace_options =
            PTRACE_O_TRACEEXEC);
 
 static int interesting_path(const char *path) {
-  if (memcmp(path, "/dev/", 5) == 0) return 0;
   if (strlen(path) == 0) return 0; /* ?! */
-  if (memcmp(path, "/tmp/", 5) == 0) return 0;
+  if (path[0] != '/') return 0;
+  if (strlen(path) > 4) {
+    if (memcmp(path, "/dev/", 5) == 0) return 0;
+    if (memcmp(path, "/tmp/", 5) == 0) return 0;
+  }
   return 1;
 }
 
@@ -165,7 +168,7 @@ static int save_syscall_access(pid_t child,
   }
   if (read_string[syscall] >= 0) {
     char *arg = read_a_path(child, get_syscall_arg(&regs, read_string[syscall]));
-    if (interesting_path(arg)) {
+    if (interesting_path(arg) && !access(arg, R_OK)) {
       debugprintf("R: %s(%s)\n", syscalls[syscall], arg);
       insert_to_listset(read_from_files, arg);
     } else {
@@ -175,7 +178,7 @@ static int save_syscall_access(pid_t child,
   }
   if (write_string[syscall] >= 0) {
     char *arg = read_a_path(child, get_syscall_arg(&regs, write_string[syscall]));
-    if (interesting_path(arg)) {
+    if (interesting_path(arg) && !access(arg, W_OK)) {
       debugprintf("W: %s(%s)\n", syscalls[syscall], arg);
       insert_to_listset(written_to_files, arg);
       delete_from_listset(deleted_files, arg);
@@ -186,7 +189,7 @@ static int save_syscall_access(pid_t child,
   }
   if (unlink_string[syscall] >= 0) {
     char *arg = read_a_path(child, get_syscall_arg(&regs, unlink_string[syscall]));
-    if (interesting_path(arg)) {
+    if (interesting_path(arg) && !access(arg, W_OK)) {
       debugprintf("D: %s(%s)\n", syscalls[syscall], arg);
       insert_to_listset(deleted_files, arg);
       delete_from_listset(written_to_files, arg);
