@@ -11,6 +11,7 @@
 #include <string.h>
 
 #include "syscalls.h"
+#include "listset.h"
 
 const void *my_ptrace_options = (void *)(PTRACE_O_TRACESYSGOOD |
                                          PTRACE_O_TRACEFORK |
@@ -77,6 +78,7 @@ int identify_fd(char *path_buffer, pid_t child, int fd) {
   char *proc = (char *)malloc(PATH_MAX);
   sprintf(proc, "/proc/%d/fd/%d", child, fd);
   ret = readlink(proc, path_buffer, PATH_MAX);
+  free(proc);
   if (ret == -1) *path_buffer = 0;
   else path_buffer[ret] = 0;
   return ret;
@@ -119,10 +121,13 @@ static int print_syscall(pid_t child) {
   return syscall;
 }
 
+listset *written_to_files = 0;
+listset *read_from_files = 0;
+listset *deleted_files = 0;
+
 static int print_syscall_access(pid_t child) {
   struct user_regs_struct regs;
   int syscall;
-  char *filename = (char *)malloc(PATH_MAX);
 
   if (ptrace(PTRACE_GETREGS, child, NULL, &regs) == -1) {
     fprintf(stderr, "ERROR PTRACING %d!\n", child);
@@ -132,26 +137,39 @@ static int print_syscall_access(pid_t child) {
   syscall = regs.orig_rax;
 
   if (write_fd[syscall] >= 0) {
+    char *filename = (char *)malloc(PATH_MAX);
     identify_fd(filename, child, get_syscall_arg(&regs, write_fd[syscall]));
     fprintf(stderr, "W: %s(%s)\n", syscalls[syscall], filename);
+    insert_to_listset(&written_to_files, filename);
   }
   if (read_fd[syscall] >= 0) {
+    char *filename = (char *)malloc(PATH_MAX);
     identify_fd(filename, child, get_syscall_arg(&regs, read_fd[syscall]));
     fprintf(stderr, "R: %s(%s)\n", syscalls[syscall], filename);
+    insert_to_listset(&read_from_files, filename);
   }
   if (read_string[syscall] >= 0) {
-    fprintf(stderr, "R: %s(%s)\n", syscalls[syscall],
-            read_a_string(child, get_syscall_arg(&regs, read_string[syscall])));
+    char *filename = (char *)malloc(PATH_MAX);
+    char *arg = read_a_string(child, get_syscall_arg(&regs, read_string[syscall]));
+    fprintf(stderr, "R: %s(%s)\n", syscalls[syscall], arg);
+    free(arg);
+    insert_to_listset(&read_from_files, filename);
   }
   if (write_string[syscall] >= 0) {
-    fprintf(stderr, "W: %s(%s)\n", syscalls[syscall],
-            read_a_string(child, get_syscall_arg(&regs, write_string[syscall])));
+    char *filename = (char *)malloc(PATH_MAX);
+    char *arg = read_a_string(child, get_syscall_arg(&regs, write_string[syscall]));
+    fprintf(stderr, "W: %s(%s)\n", syscalls[syscall], arg);
+    free(arg);
+    insert_to_listset(&written_to_files, filename);
   }
   if (unlink_string[syscall] >= 0) {
-    fprintf(stderr, "D: %s(%s)\n", syscalls[syscall],
-            read_a_string(child, get_syscall_arg(&regs, unlink_string[syscall])));
+    char *arg = read_a_string(child, get_syscall_arg(&regs, unlink_string[syscall]));
+    fprintf(stderr, "D: %s(%s)\n", syscalls[syscall], arg);
+    free(arg);
+    insert_to_listset(&deleted_files, arg);
+    delete_from_listset(&written_to_files, arg);
+    delete_from_listset(&read_from_files, arg);
   }
-  free(filename);
   return syscall;
 }
 
@@ -174,7 +192,6 @@ int main(int argc, char **argv) {
     ptrace(PTRACE_SETOPTIONS, child, 0, my_ptrace_options);
     ptrace_syscall(child); // run until a sycall is attempted
 
-    char *filename = (char *)malloc(PATH_MAX);
     while (num_programs > 0) {
       struct user_regs_struct regs;
 
