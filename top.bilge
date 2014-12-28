@@ -1,2 +1,2 @@
-|gcc -g -o bilge bilge.c
+|gcc -g -o bilge bilge.c targets.c
 >bilge
