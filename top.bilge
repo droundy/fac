@@ -1,0 +1,2 @@
+|gcc -g -o bilge bilge.c
+>bilge
