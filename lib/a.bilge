@@ -1,0 +1,2 @@
+|gcc -g -O2 -Wall -o fileaccesses fileaccesses.c listset.c bigbrother.c
+>fileaccesses
