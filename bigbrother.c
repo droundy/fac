@@ -10,11 +10,12 @@
 #include <errno.h>
 #include <string.h>
 #include <stdarg.h>
+#include <error.h>
 
 #include "syscalls.h"
 #include "bigbrother.h"
 
-static const debug_output = 0;
+static const int debug_output = 0;
 
 static void debugprintf(const char *format, ...) {
   va_list args;
@@ -97,7 +98,10 @@ static char *read_a_string(pid_t child, unsigned long addr) {
 static int identify_fd(char *path_buffer, pid_t child, int fd) {
   int ret;
   char *proc = (char *)malloc(PATH_MAX);
-  sprintf(proc, "/proc/%d/fd/%d", child, fd);
+  if (snprintf(proc, PATH_MAX, "/proc/%d/fd/%d", child, fd) >= PATH_MAX) {
+    fprintf(stderr, "filename too large!!!\n");
+    exit(1);
+  }
   ret = readlink(proc, path_buffer, PATH_MAX);
   free(proc);
   if (ret == -1) *path_buffer = 0;
@@ -107,7 +111,10 @@ static int identify_fd(char *path_buffer, pid_t child, int fd) {
 
 static int absolute_path(char *path_buffer, pid_t child, const char *path) {
   char *filename = malloc(PATH_MAX);
-  sprintf(filename, "/proc/%d/cwd", child);
+  if (snprintf(filename, PATH_MAX, "/proc/%d/cwd", child) >= PATH_MAX) {
+    fprintf(stderr, "filename too large!!!\n");
+    exit(1);
+  }
   chdir(filename);
   realpath(path, path_buffer);
   chdir("/");
@@ -219,8 +226,6 @@ int bigbrother_process(char **args,
     ptrace_syscall(child); // run until a sycall is attempted
 
     while (num_programs > 0) {
-      struct user_regs_struct regs;
-
       pid_t child = 0;
       int status, syscall;
     look_for_syscall:
