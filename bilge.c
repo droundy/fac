@@ -10,6 +10,8 @@
 #include <errno.h>
 #include <string.h>
 
+#include "bilge.h"
+
 void go_to_bilge_top() {
   while (1) {
     DIR *dir = opendir(".");
@@ -42,6 +44,11 @@ void go_to_bilge_top() {
 void find_bilge_files(const char *dirname, int level) {
   DIR *dir = opendir(dirname);
   struct dirent entry, *result;
+
+  struct all_targets *all = 0;
+  read_bilge_file(&all, "top.bilge");
+  print_bilge_file(all);
+  return;
 
   if (!dir) error(1, errno, "unable to opendir %s", dirname);
 
