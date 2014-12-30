@@ -7,7 +7,6 @@
 #include <error.h>
 #include <errno.h>
 #include <string.h>
-#include <assert.h>
 #include <limits.h>
 #include <stdlib.h>
 
@@ -36,42 +35,52 @@ void read_bilge_file(struct all_targets **all, const char *path) {
 
   struct rule *therule = 0;
 
+  int linenum = 0;
   char *one_line = 0;
   size_t buffer_length = 0;
   while (getline(&one_line, &buffer_length, f) >= 0) {
+    linenum++;
     int line_length = strlen(one_line);
     if (line_length > 0 && one_line[line_length-1] == '\n')
       one_line[line_length-- -1] = 0; /* trim newline */
 
-    if (line_length == 0) continue;
+    if (line_length < 2) continue;
+    if (one_line[0] == '#') continue; /* it is a comment! */
 
+    if (one_line[1] != ' ')
+      error_at_line(1, 0, path, linenum,
+                    "Second character of line should be a space");
     switch (one_line[0]) {
     case '|':
       therule = create_rule(one_line+1, the_directory);
       break;
     case '<':
-        assert(therule);
-        {
-          struct target *t = lookup_target(*all, one_line+1);
-          if (!t) {
-            t = create_target(one_line+1);
-            insert_target(all, t);
-          }
-          add_input(therule, t);
+      if (!therule)
+        error_at_line(1, 0, path, linenum,
+                      "\"<\" input lines must follow a \"|\" command line");
+      {
+        struct target *t = lookup_target(*all, one_line+1);
+        if (!t) {
+          t = create_target(one_line+1);
+          insert_target(all, t);
         }
-        break;
+        add_input(therule, t);
+      }
+      break;
     case '>':
-        assert(therule);
-        {
-          struct target *t = lookup_target(*all, one_line+1);
-          if (!t) {
-            t = create_target(one_line+1);
-            insert_target(all, t);
-          }
-          t->rule = therule;
-          add_output(therule, t);
+      if (!therule)
+        error_at_line(1, 0, path, linenum,
+                      "\">\" output lines must follow a \"|\" command line");
+      {
+        struct target *t = lookup_target(*all, one_line+1);
+        if (!t) {
+          t = create_target(one_line+1);
+          insert_target(all, t);
         }
-        break;
+        t->rule = therule;
+        add_output(therule, t);
+      }
+      break;
     }
   }
   free(one_line);
