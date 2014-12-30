@@ -41,6 +41,7 @@ static int interesting_path(const char *path) {
   if (strlen(path) > 4) {
     if (memcmp(path, "/dev/", 5) == 0) return 0;
     if (memcmp(path, "/tmp/", 5) == 0) return 0;
+    if (memcmp(path, "/proc/", 6) == 0) return 0;
   }
   return 1;
 }
