@@ -17,12 +17,38 @@ static char *mycopy(const char *str) {
 }
 
 static char *absolute_path(const char *dir, const char *rel) {
-  int len = strlen(dir)+strlen(rel)+2;
-  char *filename = malloc(len);
-  if (snprintf(filename, len, "%s/%s", dir, rel) >= len)
-    error_at_line(1,0, __FILE__, __LINE__, "filename too large!!!");
-  char *thepath = realpath(filename, 0);
-  free(filename);
+  char *myrel = mycopy(rel);
+  int len = strlen(myrel);
+  for (int i=len-1;i>=0;i--) {
+    if (myrel[i] == '/') {
+      int lastbit_length = len - i - 1;
+      myrel[i] = 0;
+      len = strlen(dir)+strlen(myrel)+2;
+      char *filename = malloc(len);
+      if (snprintf(filename, len, "%s/%s", dir, myrel) >= len)
+        error_at_line(1,0, __FILE__, __LINE__, "filename too large!!!");
+      char *thepath = realpath(filename, 0);
+      if (!thepath)
+        error_at_line(1,errno, __FILE__, __LINE__, "filename trouble");
+      free(filename);
+      free(myrel);
+      len = strlen(thepath);
+      thepath = realloc(thepath, len+lastbit_length+2);
+      if (snprintf(thepath+len, lastbit_length+2, "/%s", rel+strlen(rel)-lastbit_length)
+          >= lastbit_length+2)
+        error_at_line(1,0, __FILE__, __LINE__, "bug!!!");
+      return thepath;
+    }
+  }
+  free(myrel);
+  char *thepath = realpath(dir, 0);
+  if (!thepath)
+    error_at_line(1,errno, __FILE__, __LINE__, "filename trouble");
+  int rel_len = strlen(rel);
+  int dirlen = strlen(thepath);
+  thepath = realloc(thepath, dirlen + rel_len + 2);
+  if (snprintf(thepath+dirlen, rel_len+2, "/%s", rel) >= rel_len+2)
+    error_at_line(1,0, __FILE__, __LINE__, "bug!!!");
   return thepath;
 }
 
