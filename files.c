@@ -16,6 +16,16 @@ static char *mycopy(const char *str) {
   return out;
 }
 
+static char *absolute_path(const char *dir, const char *rel) {
+  int len = strlen(dir)+strlen(rel)+2;
+  char *filename = malloc(len);
+  if (snprintf(filename, len, "%s/%s", dir, rel) >= len)
+    error_at_line(1,0, __FILE__, __LINE__, "filename too large!!!");
+  char *thepath = realpath(filename, 0);
+  free(filename);
+  return thepath;
+}
+
 void read_bilge_file(struct all_targets **all, const char *path) {
   FILE *f = fopen(path, "r");
   if (!f) error(1, errno, "Unable to open file %s", path);
@@ -60,16 +70,22 @@ void read_bilge_file(struct all_targets **all, const char *path) {
       if (!therule)
         error_at_line(1, 0, path, linenum,
                       "\"<\" input lines must follow a \"|\" command line");
-      add_input(therule, create_target(all, one_line+2));
+      {
+        char *path = absolute_path(the_directory, one_line+2);
+        add_input(therule, create_target(all, path));
+        free(path);
+      }
       break;
     case '>':
       if (!therule)
         error_at_line(1, 0, path, linenum,
                       "\">\" output lines must follow a \"|\" command line");
       {
-        struct target *t = create_target(all, one_line+2);
+        char *path = absolute_path(the_directory, one_line+2);
+        struct target *t = create_target(all, path);
         t->rule = therule;
         add_output(therule, t);
+        free(path);
       }
       break;
     }
