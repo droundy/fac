@@ -93,6 +93,7 @@ void read_bilge_file(struct all_targets **all, const char *path) {
   free(one_line);
   if (!feof(f))
     error(1, errno, "Error reading file %s", path);
+  fclose(f);
 }
 
 void print_bilge_file(struct all_targets *tt) {
@@ -104,6 +105,10 @@ void print_bilge_file(struct all_targets *tt) {
   while (tt) {
     if (tt->t->rule && tt->t->rule->status == unknown) {
       printf("| %s\n", tt->t->rule->command);
+      if (tt->t->rule->working_directory &&
+          strcmp(tt->t->rule->working_directory, ".")) {
+        printf(". %s\n", tt->t->rule->working_directory);
+      }
       for (int i=0; i<tt->t->rule->num_inputs; i++) {
         printf("< %s\n", tt->t->rule->inputs[i]->path);
       }

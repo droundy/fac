@@ -64,7 +64,7 @@ void build_all(struct all_targets **all) {
                             tt->t->rule->bilgefile_path,
                             tt->t->rule->bilgefile_linenum,
                             "Error running \"%s\"", tt->t->rule->command);
-
+      /*
       printf("| %s\n", r->command);
       for (int i=0; i<r->num_inputs; i++) {
         printf("< %s\n", r->inputs[i]->path);
@@ -73,6 +73,7 @@ void build_all(struct all_targets **all) {
         printf("> %s\n", r->outputs[i]->path);
       }
       printf("\n");
+      */
       tt->t->rule->status = built;
     }
     tt = tt->next;

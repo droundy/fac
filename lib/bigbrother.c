@@ -156,6 +156,7 @@ static int save_syscall_access(pid_t child,
       if (interesting_path(filename)) {
         debugprintf("W: %s(%s)\n", syscalls[syscall], filename);
         insert_to_listset(written_to_files, filename);
+        delete_from_listset(read_from_files, filename);
         delete_from_listset(deleted_files, filename);
       } else {
         debugprintf("W~ %s(%s)\n", syscalls[syscall], filename);
@@ -168,7 +169,8 @@ static int save_syscall_access(pid_t child,
     if (fd >= 0) {
       char *filename = (char *)malloc(PATH_MAX);
       identify_fd(filename, child, fd);
-      if (interesting_path(filename)) {
+      if (interesting_path(filename) &&
+          !is_in_listset(*written_to_files, filename)) {
         debugprintf("R: %s(%s)\n", syscalls[syscall], filename);
         insert_to_listset(read_from_files, filename);
       } else {
@@ -179,7 +181,8 @@ static int save_syscall_access(pid_t child,
   }
   if (read_string[syscall] >= 0) {
     char *arg = read_a_path(child, get_syscall_arg(&regs, read_string[syscall]));
-    if (interesting_path(arg) && !access(arg, R_OK)) {
+    if (interesting_path(arg) && !access(arg, R_OK) &&
+        !is_in_listset(*written_to_files, arg)) {
       debugprintf("R: %s(%s)\n", syscalls[syscall], arg);
       insert_to_listset(read_from_files, arg);
     } else {
@@ -193,6 +196,7 @@ static int save_syscall_access(pid_t child,
       debugprintf("W: %s(%s)\n", syscalls[syscall], arg);
       insert_to_listset(written_to_files, arg);
       delete_from_listset(deleted_files, arg);
+      delete_from_listset(read_from_files, arg);
     } else {
       debugprintf("W~ %s(%s)\n", syscalls[syscall], arg);
       free(arg);
