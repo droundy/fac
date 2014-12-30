@@ -28,6 +28,7 @@ void go_to_bilge_top() {
     while (result) {
       if (!strcmp("top.bilge", entry.d_name)) {
         closedir(dir);
+        free(dirname);
         return;
       }
 
@@ -85,10 +86,11 @@ void find_bilge_files(struct all_targets **all, const char *dirname, int level) 
   return;
 }
 
+static struct all_targets *all = 0;
+
 int main(int argc, char **argv) {
   go_to_bilge_top();
 
-  struct all_targets *all = 0;
   find_bilge_files(&all, ".", 0);
 
   printf("NOW I AM PRINTING!!!\n");

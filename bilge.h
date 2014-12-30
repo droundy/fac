@@ -19,6 +19,8 @@ struct target {
   const char *path;
   enum target_status status;
   time_t last_modified;
+  off_t size;
+
   struct rule *rule;
 };
 

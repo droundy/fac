@@ -18,6 +18,7 @@ struct target *create_target(struct all_targets **all, const char *path) {
     t->status = unknown;
     t->rule = 0;
     t->last_modified = 0;
+    t->size = 0;
     insert_target(all, t);
   }
   return t;
@@ -36,12 +37,20 @@ struct rule *create_rule(const char *command, const char *working_directory) {
 }
 
 void add_input(struct rule *r, struct target *dep) {
+  for (int i=0;i<r->num_inputs;i++) {
+    if (r->inputs[i] == dep) return;
+  }
+
   r->inputs = realloc(r->inputs, sizeof(struct target *)*(r->num_inputs+1));
   r->inputs[r->num_inputs] = dep;
   r->num_inputs += 1;
 }
 
 void add_output(struct rule *r, struct target *dep) {
+  for (int i=0;i<r->num_outputs;i++) {
+    if (r->outputs[i] == dep) return;
+  }
+
   r->outputs = realloc(r->outputs, sizeof(struct target *)*(r->num_outputs+1));
   r->outputs[r->num_outputs] = dep;
   r->num_outputs += 1;

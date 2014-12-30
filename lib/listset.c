@@ -34,3 +34,11 @@ void insert_to_listset(listset **list, char *path) {
   *list = newhead;
 }
 
+void free_listset(listset *list) {
+  while (list != NULL) {
+    listset *d = list;
+    list = list->next;
+    free(d->path);
+    free(d);
+  }
+}

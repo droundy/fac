@@ -1,12 +1,16 @@
 #include "bilge.h"
 #include "lib/bigbrother.h"
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <error.h>
+#include <errno.h>
 
 struct rule *run_rule(struct all_targets **all, struct rule *r) {
-  struct rule *out = create_rule(r->command, r->working_directory);
+  struct rule *out = r; //create_rule(r->command, r->working_directory);
   listset *read_set = 0, *written_set = 0, *deleted_set = 0;
   const char **args = malloc(4*sizeof(char *));
   args[0] = "/bin/sh";
@@ -16,37 +20,42 @@ struct rule *run_rule(struct all_targets **all, struct rule *r) {
   int ret = bigbrother_process(r->working_directory,
                                (char **)args,
                                &read_set, &written_set, &deleted_set);
-  if (ret != 0) return 0;
+  free(args);
+  if (ret != 0) {
+    free_listset(read_set);
+    free_listset(written_set);
+    free_listset(deleted_set);
+    return 0;
+  }
 
   listset *s = read_set;
   while (s != NULL) {
-    add_input(out, create_target(all, s->path));
-    listset *d = s;
+    struct target *t = create_target(all, s->path);
+    struct stat st;
+    if (stat(t->path, &st))
+      error(1, errno, "Unable to stat file %s", t->path);
+    t->size = st.st_size;
+    t->last_modified = st.st_mtime;
+    add_input(out, t);
     s = s->next;
-    free(d->path);
-    free(d);
   }
-  read_set = NULL;
 
   s = written_set;
   while (s != NULL) {
     struct target *t = create_target(all, s->path);
     t->rule = out;
+    struct stat st;
+    if (stat(t->path, &st))
+      error(1, errno, "Unable to stat file %s", t->path);
+    t->size = st.st_size;
+    t->last_modified = st.st_mtime;
     add_output(out, t);
-    listset *d = s;
     s = s->next;
-    free(d->path);
-    free(d);
   }
 
-  s = deleted_set;
-  while (s != NULL) {
-    listset *d = s;
-    s = s->next;
-    free(d->path);
-    free(d);
-  }
-
+  free_listset(read_set);
+  free_listset(written_set);
+  free_listset(deleted_set);
   return out;
 }
 

@@ -42,8 +42,10 @@ void read_bilge_file(struct all_targets **all, const char *path) {
     rel_directory = ".";
   }
   char *the_directory = realpath(rel_directory, 0);
+  free(rel_directory);
 
   struct rule *therule = 0;
+  struct target *thetarget = 0;
 
   int linenum = 0;
   char *one_line = 0;
@@ -65,6 +67,7 @@ void read_bilge_file(struct all_targets **all, const char *path) {
       therule = create_rule(one_line+2, the_directory);
       therule->bilgefile_path = mycopy(path);
       therule->bilgefile_linenum = linenum;
+      thetarget = 0;
       break;
     case '<':
       if (!therule)
@@ -72,7 +75,8 @@ void read_bilge_file(struct all_targets **all, const char *path) {
                       "\"<\" input lines must follow a \"|\" command line");
       {
         char *path = absolute_path(the_directory, one_line+2);
-        add_input(therule, create_target(all, path));
+        thetarget = create_target(all, path);
+        add_input(therule, thetarget);
         free(path);
       }
       break;
@@ -82,15 +86,30 @@ void read_bilge_file(struct all_targets **all, const char *path) {
                       "\">\" output lines must follow a \"|\" command line");
       {
         char *path = absolute_path(the_directory, one_line+2);
-        struct target *t = create_target(all, path);
-        t->rule = therule;
-        add_output(therule, t);
+        thetarget = create_target(all, path);
+        thetarget->rule = therule;
+        add_output(therule, thetarget);
         free(path);
       }
+      break;
+    case 'T':
+      if (!thetarget)
+        error_at_line(1, 0, path, linenum,
+                      "\"T\" modification-time lines must follow a file specification");
+      if (sscanf(one_line+2, "%ld", &thetarget->last_modified) != 1)
+        error_at_line(1, 0, path, linenum, "Error parsing %s", one_line);
+      break;
+    case 'S':
+      if (!thetarget)
+        error_at_line(1, 0, path, linenum,
+                      "\"S\" file-size lines must follow a file specification");
+      if (sscanf(one_line+2, "%ld", &thetarget->size) != 1)
+        error_at_line(1, 0, path, linenum, "Error parsing %s", one_line);
       break;
     }
   }
   free(one_line);
+  free(the_directory);
   if (!feof(f))
     error(1, errno, "Error reading file %s", path);
   fclose(f);
@@ -111,9 +130,17 @@ void print_bilge_file(struct all_targets *tt) {
       }
       for (int i=0; i<tt->t->rule->num_inputs; i++) {
         printf("< %s\n", tt->t->rule->inputs[i]->path);
+        if (tt->t->rule->inputs[i]->last_modified) {
+          printf("T %ld\n", tt->t->rule->inputs[i]->last_modified);
+          printf("S %ld\n", tt->t->rule->inputs[i]->size);
+        }
       }
       for (int i=0; i<tt->t->rule->num_outputs; i++) {
         printf("> %s\n", tt->t->rule->outputs[i]->path);
+        if (tt->t->rule->outputs[i]->last_modified) {
+          printf("T %ld\n", tt->t->rule->outputs[i]->last_modified);
+          printf("S %ld\n", tt->t->rule->outputs[i]->size);
+        }
       }
       printf("\n");
       tt->t->rule->status = built;
