@@ -52,31 +52,22 @@ void read_bilge_file(struct all_targets **all, const char *path) {
                     "Second character of line should be a space");
     switch (one_line[0]) {
     case '|':
-      therule = create_rule(one_line+1, the_directory);
+      therule = create_rule(one_line+2, the_directory);
+      therule->bilgefile_path = mycopy(path);
+      therule->bilgefile_linenum = linenum;
       break;
     case '<':
       if (!therule)
         error_at_line(1, 0, path, linenum,
                       "\"<\" input lines must follow a \"|\" command line");
-      {
-        struct target *t = lookup_target(*all, one_line+1);
-        if (!t) {
-          t = create_target(one_line+1);
-          insert_target(all, t);
-        }
-        add_input(therule, t);
-      }
+      add_input(therule, create_target(all, one_line+2));
       break;
     case '>':
       if (!therule)
         error_at_line(1, 0, path, linenum,
                       "\">\" output lines must follow a \"|\" command line");
       {
-        struct target *t = lookup_target(*all, one_line+1);
-        if (!t) {
-          t = create_target(one_line+1);
-          insert_target(all, t);
-        }
+        struct target *t = create_target(all, one_line+2);
         t->rule = therule;
         add_output(therule, t);
       }
@@ -96,12 +87,12 @@ void print_bilge_file(struct all_targets *tt) {
   }
   while (tt) {
     if (tt->t->rule && tt->t->rule->status == unknown) {
-      printf("|%s\n", tt->t->rule->command);
+      printf("| %s\n", tt->t->rule->command);
       for (int i=0; i<tt->t->rule->num_inputs; i++) {
-        printf("<%s\n", tt->t->rule->inputs[i]->path);
+        printf("< %s\n", tt->t->rule->inputs[i]->path);
       }
       for (int i=0; i<tt->t->rule->num_outputs; i++) {
-        printf(">%s\n", tt->t->rule->outputs[i]->path);
+        printf("> %s\n", tt->t->rule->outputs[i]->path);
       }
       printf("\n");
       tt->t->rule->status = built;

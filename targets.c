@@ -10,12 +10,16 @@ static char *mycopy(const char *str) {
   return out;
 }
 
-struct target *create_target(const char *path) {
-  struct target *t = malloc(sizeof(struct target));
-  t->path = mycopy(path);
-  t->status = unknown;
-  t->rule = 0;
-  t->last_modified = 0;
+struct target *create_target(struct all_targets **all, const char *path) {
+  struct target *t = lookup_target(*all, path);
+  if (!t) {
+    t = malloc(sizeof(struct target));
+    t->path = mycopy(path);
+    t->status = unknown;
+    t->rule = 0;
+    t->last_modified = 0;
+    insert_target(all, t);
+  }
   return t;
 }
 
@@ -26,6 +30,8 @@ struct rule *create_rule(const char *command, const char *working_directory) {
   r->status = unknown;
   r->num_inputs = r->num_outputs = 0;
   r->inputs = r->outputs = 0;
+  r->bilgefile_path = 0;
+  r->bilgefile_linenum = 0;
   return r;
 }
 

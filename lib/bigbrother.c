@@ -1,9 +1,12 @@
+#define _XOPEN_SOURCE 700
+
 #include <sys/ptrace.h>
 #include <sys/user.h>
 #include <sys/wait.h>
 #include <sys/types.h>
 #include <sys/syscall.h>
 #include <linux/limits.h>
+
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -210,12 +213,14 @@ static int save_syscall_access(pid_t child,
 }
 
 
-int bigbrother_process(char **args,
+int bigbrother_process(const char *workingdir,
+                       char **args,
                        listset **read_from_files,
                        listset **written_to_files,
                        listset **deleted_files) {
   pid_t child = fork();
   if (child == 0) {
+    if (workingdir && chdir(workingdir) != 0) return -1;
     ptrace(PTRACE_TRACEME);
     kill(getpid(), SIGSTOP);
     return execvp(args[0], args);
@@ -236,7 +241,7 @@ int bigbrother_process(char **args,
           break;
         } else if (WIFEXITED(status)) {
           //debugprintf("got an exit from %d...\n", child);
-          if (--num_programs <= 0) return 0;
+          if (--num_programs <= 0) return WEXITSTATUS(status);
         } else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_EXEC<<8))) {
           pid_t newpid;
           ptrace(PTRACE_GETEVENTMSG, child, 0, &newpid);
@@ -289,7 +294,7 @@ int bigbrother_process(char **args,
           break;
         } else if (WIFEXITED(status)) {
           //debugprintf("we got an exit from %d...\n", child);
-          if (--num_programs <= 0) return 0;
+          if (--num_programs <= 0) return WEXITSTATUS(status);
           goto look_for_syscall; // no point looking any longer!
         } else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_EXEC<<8))) {
           pid_t newpid;

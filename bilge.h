@@ -26,6 +26,8 @@ struct target {
 struct rule {
   const char *command;
   const char *working_directory;
+  const char *bilgefile_path;
+  int bilgefile_linenum;
   enum target_status status;
 
   int num_inputs;
@@ -43,7 +45,7 @@ struct all_targets {
   struct all_targets *next;
 };
 
-struct target *create_target(const char *path);
+struct target *create_target(struct all_targets **all, const char *path);
 
 struct rule *create_rule(const char *command, const char *working_directory);
 void add_input(struct rule *t, struct target *inp);
@@ -55,5 +57,8 @@ void insert_target(struct all_targets **all, struct target *t);
 void read_bilge_file(struct all_targets **all, const char *path);
 
 void print_bilge_file(struct all_targets *all);
+
+struct rule *run_rule(struct all_targets **all, struct rule *r);
+void build_all(struct all_targets **all);
 
 #endif

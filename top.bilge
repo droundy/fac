@@ -1,2 +1,2 @@
-| gcc -g -o bilge bilge.c targets.c files.c
+| gcc -Wall -std=c11 -g -o bilge bilge.c targets.c files.c build.c lib/listset.c lib/bigbrother.c
 > bilge

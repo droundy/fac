@@ -17,7 +17,7 @@ int main(int argc, char **argv) {
   char **args = (char **)malloc(argc*sizeof(char*));
   memcpy(args, argv+1, (argc-1) * sizeof(char*));
   args[argc-1] = NULL;
-  bigbrother_process(args, &read_from_files, &written_to_files, &deleted_files);
+  bigbrother_process(".", args, &read_from_files, &written_to_files, &deleted_files);
   free(args);
 
   listset *s = read_from_files;

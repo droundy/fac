@@ -48,6 +48,7 @@ void find_bilge_files(const char *dirname, int level) {
   struct all_targets *all = 0;
   read_bilge_file(&all, "top.bilge");
   print_bilge_file(all);
+  build_all(&all);
   return;
 
   if (!dir) error(1, errno, "unable to opendir %s", dirname);
