@@ -25,6 +25,7 @@ struct target {
 /* A struct rule describes a single build process. */
 struct rule {
   const char *command;
+  const char *working_directory;
   enum target_status status;
 
   int num_inputs;
@@ -44,7 +45,7 @@ struct all_targets {
 
 struct target *create_target(const char *path);
 
-struct rule *create_rule(const char *command);
+struct rule *create_rule(const char *command, const char *working_directory);
 void add_input(struct rule *t, struct target *inp);
 void add_output(struct rule *t, struct target *out);
 

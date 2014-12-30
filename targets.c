@@ -19,9 +19,10 @@ struct target *create_target(const char *path) {
   return t;
 }
 
-struct rule *create_rule(const char *command) {
+struct rule *create_rule(const char *command, const char *working_directory) {
   struct rule *r = malloc(sizeof(struct rule));
   r->command = mycopy(command);
+  r->working_directory = mycopy(working_directory);
   r->status = unknown;
   r->num_inputs = r->num_outputs = 0;
   r->inputs = r->outputs = 0;
