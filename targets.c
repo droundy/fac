@@ -31,6 +31,8 @@ struct rule *create_rule(const char *command, const char *working_directory) {
   r->status = unknown;
   r->num_inputs = r->num_outputs = 0;
   r->inputs = r->outputs = 0;
+  r->input_times = r->output_times = 0;
+  r->input_sizes = r->output_sizes = 0;
   r->bilgefile_path = 0;
   r->bilgefile_linenum = 0;
   return r;
@@ -42,7 +44,11 @@ void add_input(struct rule *r, struct target *dep) {
   }
 
   r->inputs = realloc(r->inputs, sizeof(struct target *)*(r->num_inputs+1));
+  r->input_times = realloc(r->input_times, sizeof(time_t)*(r->num_inputs+1));
+  r->input_sizes = realloc(r->input_sizes, sizeof(off_t)*(r->num_inputs+1));
   r->inputs[r->num_inputs] = dep;
+  r->input_times[r->num_inputs] = 0;
+  r->input_sizes[r->num_inputs] = 0;
   r->num_inputs += 1;
 }
 
@@ -52,7 +58,11 @@ void add_output(struct rule *r, struct target *dep) {
   }
 
   r->outputs = realloc(r->outputs, sizeof(struct target *)*(r->num_outputs+1));
+  r->output_times = realloc(r->output_times, sizeof(time_t)*(r->num_outputs+1));
+  r->output_sizes = realloc(r->output_sizes, sizeof(off_t)*(r->num_outputs+1));
   r->outputs[r->num_outputs] = dep;
+  r->output_times[r->num_outputs] = 0;
+  r->output_sizes[r->num_outputs] = 0;
   r->num_outputs += 1;
 }
 

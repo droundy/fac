@@ -46,6 +46,8 @@ void read_bilge_file(struct all_targets **all, const char *path) {
 
   struct rule *therule = 0;
   struct target *thetarget = 0;
+  time_t *last_modified_last_file = 0;
+  off_t *size_last_file = 0;
 
   int linenum = 0;
   char *one_line = 0;
@@ -68,6 +70,8 @@ void read_bilge_file(struct all_targets **all, const char *path) {
       therule->bilgefile_path = mycopy(path);
       therule->bilgefile_linenum = linenum;
       thetarget = 0;
+      size_last_file = 0;
+      last_modified_last_file = 0;
       break;
     case '<':
       if (!therule)
@@ -77,6 +81,8 @@ void read_bilge_file(struct all_targets **all, const char *path) {
         char *path = absolute_path(the_directory, one_line+2);
         thetarget = create_target(all, path);
         add_input(therule, thetarget);
+        last_modified_last_file = &therule->input_times[therule->num_inputs-1];
+        size_last_file = &therule->input_sizes[therule->num_inputs-1];
         free(path);
       }
       break;
@@ -89,21 +95,23 @@ void read_bilge_file(struct all_targets **all, const char *path) {
         thetarget = create_target(all, path);
         thetarget->rule = therule;
         add_output(therule, thetarget);
+        last_modified_last_file = &therule->output_times[therule->num_outputs-1];
+        size_last_file = &therule->output_sizes[therule->num_outputs-1];
         free(path);
       }
       break;
     case 'T':
-      if (!thetarget)
+      if (!last_modified_last_file)
         error_at_line(1, 0, path, linenum,
                       "\"T\" modification-time lines must follow a file specification");
-      if (sscanf(one_line+2, "%ld", &thetarget->last_modified) != 1)
+      if (sscanf(one_line+2, "%ld", last_modified_last_file) != 1)
         error_at_line(1, 0, path, linenum, "Error parsing %s", one_line);
       break;
     case 'S':
-      if (!thetarget)
+      if (!size_last_file)
         error_at_line(1, 0, path, linenum,
                       "\"S\" file-size lines must follow a file specification");
-      if (sscanf(one_line+2, "%ld", &thetarget->size) != 1)
+      if (sscanf(one_line+2, "%ld", size_last_file) != 1)
         error_at_line(1, 0, path, linenum, "Error parsing %s", one_line);
       break;
     }
@@ -113,6 +121,44 @@ void read_bilge_file(struct all_targets **all, const char *path) {
   if (!feof(f))
     error(1, errno, "Error reading file %s", path);
   fclose(f);
+}
+
+void fprint_bilgefile(FILE *f, struct all_targets *tt, const char *bpath) {
+  struct all_targets *t = tt;
+  while (t) {
+    if (t->t->rule && !strcmp(t->t->rule->bilgefile_path, bpath))
+      t->t->rule->is_printed = false;
+    t = t->next;
+  }
+  while (tt) {
+    /* if (tt->t->rule)
+         printf("bpath is %s\n", tt->t->rule->bilgefile_path); */
+    if (tt->t->rule && !strcmp(tt->t->rule->bilgefile_path, bpath) &&
+        !tt->t->rule->is_printed) {
+      fprintf(f, "| %s\n", tt->t->rule->command);
+      if (tt->t->rule->working_directory &&
+          strcmp(tt->t->rule->working_directory, ".")) {
+        fprintf(f, ". %s\n", tt->t->rule->working_directory);
+      }
+      for (int i=0; i<tt->t->rule->num_inputs; i++) {
+        fprintf(f, "< %s\n", tt->t->rule->inputs[i]->path);
+        if (tt->t->rule->inputs[i]->last_modified) {
+          fprintf(f, "T %ld\n", tt->t->rule->inputs[i]->last_modified);
+          fprintf(f, "S %ld\n", tt->t->rule->inputs[i]->size);
+        }
+      }
+      for (int i=0; i<tt->t->rule->num_outputs; i++) {
+        fprintf(f, "> %s\n", tt->t->rule->outputs[i]->path);
+        if (tt->t->rule->outputs[i]->last_modified) {
+          fprintf(f, "T %ld\n", tt->t->rule->outputs[i]->last_modified);
+          fprintf(f, "S %ld\n", tt->t->rule->outputs[i]->size);
+        }
+      }
+      fprintf(f, "\n");
+      tt->t->rule->is_printed = true;
+    }
+    tt = tt->next;
+  }
 }
 
 void print_bilge_file(struct all_targets *tt) {

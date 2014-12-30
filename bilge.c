@@ -1,4 +1,4 @@
-#define _GNU_SOURCE
+#define _BSD_SOURCE
 
 #include <unistd.h>
 #include <dirent.h>
@@ -15,7 +15,7 @@
 void go_to_bilge_top() {
   while (1) {
     DIR *dir = opendir(".");
-    char *dirname = get_current_dir_name();
+    char *dirname = getcwd(0,0);
     struct dirent entry, *result;
 
     if (strcmp(dirname, "/") == 0)
@@ -100,7 +100,12 @@ int main(int argc, char **argv) {
   build_all(&all);
 
   printf("NOW I AM PRINTING!!!\n");
-  print_bilge_file(all);
+  {
+    FILE *f = fopen("top.bilge.done", "w");
+    if (!f) error(1,errno,"oopse");
+    fprint_bilgefile(f, all, "./top.bilge");
+    fclose(f);
+  }
 
   return 0;
 }

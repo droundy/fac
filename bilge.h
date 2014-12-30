@@ -1,6 +1,7 @@
 #ifndef BILGE_H
 #define BILGE_H
 
+#include <stdio.h>
 #include <stdbool.h>
 #include <sys/types.h>
 
@@ -31,12 +32,17 @@ struct rule {
   const char *bilgefile_path;
   int bilgefile_linenum;
   enum target_status status;
+  bool is_printed;
 
   int num_inputs;
   struct target **inputs;
+  time_t *input_times;
+  off_t *input_sizes;
 
   int num_outputs;
   struct target **outputs;
+  time_t *output_times;
+  off_t *output_sizes;
 };
 
 /* The struct all_targets should be an easily searchable set, or even
@@ -59,6 +65,7 @@ void insert_target(struct all_targets **all, struct target *t);
 void read_bilge_file(struct all_targets **all, const char *path);
 
 void print_bilge_file(struct all_targets *all);
+void fprint_bilgefile(FILE *f, struct all_targets *tt, const char *bilgefile_path);
 
 struct rule *run_rule(struct all_targets **all, struct rule *r);
 void build_all(struct all_targets **all);

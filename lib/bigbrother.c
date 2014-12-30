@@ -119,9 +119,11 @@ static int absolute_path(char *path_buffer, pid_t child, const char *path) {
     fprintf(stderr, "filename too large!!!\n");
     exit(1);
   }
+  char *dirname = getcwd(0, 0);
   chdir(filename);
   realpath(path, path_buffer);
-  chdir("/");
+  chdir(dirname);
+  free(dirname);
   free(filename);
   return 0;
 }
