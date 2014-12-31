@@ -51,7 +51,12 @@ struct rule *run_rule(struct all_targets **all, struct rule *r) {
 
   s = written_set;
   while (s != NULL) {
-    struct target *t = create_target_with_stat(all, s->path);
+    struct target *t = lookup_target(*all, s->path);
+    if (t) {
+      t->last_modified = 0;
+      t->size = 0;
+    }
+    create_target_with_stat(all, s->path);
     if (!t) error(1, errno, "Unable to stat file %s", t->path);
     t->rule = out;
     add_output(out, t);
@@ -75,16 +80,20 @@ void build_all(struct all_targets **all) {
   while (tt) {
     if (tt->t->rule && tt->t->rule->status == unknown) {
       struct rule *r = tt->t->rule;
+      printf("::: %s :::\n", r->command);
       for (int i=0;i<r->num_inputs;i++) {
         if (r->input_times[i]) {
           if (!create_target_with_stat(all, r->inputs[i]->path) ||
               r->input_times[i] != r->inputs[i]->last_modified ||
               r->input_sizes[i] != r->inputs[i]->size) {
+            printf(" - dirty because %s has wrong input time.\n",
+                   r->inputs[i]->path);
             r->status = dirty;
             num_to_build++;
             break; /* The file is out of date. */
           }
         } else {
+          printf(" - dirty because %s has no input time.", r->inputs[i]->path);
           r->status = dirty;
           num_to_build++;
           break; /* The file hasn't been built. */
@@ -95,11 +104,16 @@ void build_all(struct all_targets **all) {
           if (!create_target_with_stat(all, r->outputs[i]->path) ||
               r->output_times[i] != r->outputs[i]->last_modified ||
               r->output_sizes[i] != r->outputs[i]->size) {
+            printf(" - dirty because %s has wrong output time.\n",
+                   r->outputs[i]->path);
+            printf("   compare times %ld with %ld\n",
+                   r->outputs[i]->last_modified, r->output_times[i]);
             r->status = dirty;
             num_to_build++;
             break; /* The file is out of date. */
           }
         } else {
+          printf(" - dirty because %s has no output time.\n", r->outputs[i]->path);
           r->status = dirty;
           num_to_build++;
           break; /* The file hasn't been built. */
