@@ -56,7 +56,7 @@ struct rule *run_rule(struct all_targets **all, struct rule *r) {
       t->last_modified = 0;
       t->size = 0;
     }
-    create_target_with_stat(all, s->path);
+    t = create_target_with_stat(all, s->path);
     if (!t) error(1, errno, "Unable to stat file %s", t->path);
     t->rule = out;
     add_output(out, t);
@@ -99,7 +99,7 @@ void determine_rule_cleanliness(struct all_targets **all, struct rule *r,
       }
     } else {
       printf("::: %s :::\n", r->command);
-      printf(" - dirty because %s has no input time.", r->inputs[i]->path);
+      printf(" - dirty because %s has no input time.\n", r->inputs[i]->path);
       r->status = dirty;
       *num_to_build += 1;
       return; /* The file hasn't been built. */
