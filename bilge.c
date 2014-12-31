@@ -93,19 +93,11 @@ int main(int argc, char **argv) {
 
   find_bilge_files(&all, ".", 0);
 
-  printf("NOW I AM PRINTING!!!\n");
-  print_bilge_file(all);
+  /* printf("NOW I AM PRINTING!!!\n"); */
+  /* print_bilge_file(all); */
 
-  printf("NOW I AM BUILDING!!!\n");
+  /* printf("NOW I AM BUILDING!!!\n"); */
   build_all(&all);
-
-  printf("NOW I AM PRINTING!!!\n");
-  {
-    FILE *f = fopen("top.bilge.done", "w");
-    if (!f) error(1,errno,"oopse");
-    fprint_bilgefile(f, all, "./top.bilge");
-    fclose(f);
-  }
 
   return 0;
 }

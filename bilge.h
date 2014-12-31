@@ -56,6 +56,8 @@ struct all_targets {
 struct target *create_target(struct all_targets **all, const char *path);
 
 struct rule *create_rule(const char *command, const char *working_directory);
+struct rule *lookup_rule(struct all_targets *all, const char *command,
+                         const char *working_directory);
 void add_input(struct rule *t, struct target *inp);
 void add_output(struct rule *t, struct target *out);
 
@@ -69,5 +71,7 @@ void fprint_bilgefile(FILE *f, struct all_targets *tt, const char *bilgefile_pat
 
 struct rule *run_rule(struct all_targets **all, struct rule *r);
 void build_all(struct all_targets **all);
+
+char *done_name(const char *bilgefile);
 
 #endif

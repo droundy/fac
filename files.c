@@ -18,6 +18,7 @@ static char *mycopy(const char *str) {
 
 static char *absolute_path(const char *dir, const char *rel) {
   char *myrel = mycopy(rel);
+  if (*rel == '/') return myrel;
   int len = strlen(myrel);
   for (int i=len-1;i>=0;i--) {
     if (myrel[i] == '/') {
@@ -29,7 +30,8 @@ static char *absolute_path(const char *dir, const char *rel) {
         error_at_line(1,0, __FILE__, __LINE__, "filename too large!!!");
       char *thepath = realpath(filename, 0);
       if (!thepath)
-        error_at_line(1,errno, __FILE__, __LINE__, "filename trouble");
+        error_at_line(1,errno, __FILE__, __LINE__, "filename trouble: %s",
+                      filename);
       free(filename);
       free(myrel);
       len = strlen(thepath);
@@ -50,6 +52,13 @@ static char *absolute_path(const char *dir, const char *rel) {
   if (snprintf(thepath+dirlen, rel_len+2, "/%s", rel) >= rel_len+2)
     error_at_line(1,0, __FILE__, __LINE__, "bug!!!");
   return thepath;
+}
+
+char *done_name(const char *bilgefilename) {
+  int bflen = strlen(bilgefilename);
+  char *str = malloc(bflen+10);
+  sprintf(str, "%s.done", bilgefilename);
+  return str;
 }
 
 void read_bilge_file(struct all_targets **all, const char *path) {
@@ -142,11 +151,77 @@ void read_bilge_file(struct all_targets **all, const char *path) {
       break;
     }
   }
-  free(one_line);
-  free(the_directory);
   if (!feof(f))
     error(1, errno, "Error reading file %s", path);
   fclose(f);
+
+  char *donename = done_name(path);
+  f = fopen(donename, "r");
+  if (f) {
+    printf("Got done file %s\n", donename);
+    linenum = 0;
+    while (getline(&one_line, &buffer_length, f) >= 0) {
+      linenum++;
+      int line_length = strlen(one_line);
+      if (line_length > 0 && one_line[line_length-1] == '\n')
+        one_line[line_length-- -1] = 0; /* trim newline */
+
+      if (line_length < 2) continue;
+      if (one_line[0] == '#') continue; /* it is a comment! */
+
+      if (one_line[1] != ' ')
+        error_at_line(1, 0, donename, linenum,
+                    "Second character of line should be a space");
+      switch (one_line[0]) {
+      case '|':
+        therule = lookup_rule(*all, one_line+2, the_directory);
+        thetarget = 0;
+        size_last_file = 0;
+        last_modified_last_file = 0;
+        break;
+      case '<':
+        if (therule) {
+          char *path = absolute_path(the_directory, one_line+2);
+          thetarget = create_target(all, path);
+          add_input(therule, thetarget);
+          last_modified_last_file = &therule->input_times[therule->num_inputs-1];
+          size_last_file = &therule->input_sizes[therule->num_inputs-1];
+          free(path);
+        }
+        break;
+      case '>':
+        if (therule) {
+          char *path = absolute_path(the_directory, one_line+2);
+          thetarget = create_target(all, path);
+          thetarget->rule = therule;
+          add_output(therule, thetarget);
+          last_modified_last_file = &therule->output_times[therule->num_outputs-1];
+          size_last_file = &therule->output_sizes[therule->num_outputs-1];
+          free(path);
+        }
+        break;
+      case 'T':
+        if (last_modified_last_file) {
+          if (sscanf(one_line+2, "%ld", last_modified_last_file) != 1)
+            error_at_line(1, 0, path, linenum, "Error parsing %s", one_line);
+        }
+        break;
+      case 'S':
+        if (size_last_file) {
+          if (sscanf(one_line+2, "%ld", size_last_file) != 1)
+            error_at_line(1, 0, path, linenum, "Error parsing %s", one_line);
+        }
+        break;
+      }
+    }
+    if (!feof(f))
+      error(1, errno, "Error reading file %s", donename);
+    fclose(f);
+  }
+
+  free(donename);
+  free(one_line);
+  free(the_directory);
 }
 
 void fprint_bilgefile(FILE *f, struct all_targets *tt, const char *bpath) {

@@ -38,6 +38,18 @@ struct rule *create_rule(const char *command, const char *working_directory) {
   return r;
 }
 
+struct rule *lookup_rule(struct all_targets *all, const char *command,
+                         const char *working_directory) {
+  while (all) {
+    if (all->t->rule &&
+        !strcmp(all->t->rule->command, command) &&
+        !strcmp(all->t->rule->working_directory, working_directory))
+      return all->t->rule;
+    all = all->next;
+  }
+  return 0;
+}
+
 void add_input(struct rule *r, struct target *dep) {
   for (int i=0;i<r->num_inputs;i++) {
     if (r->inputs[i] == dep) return;

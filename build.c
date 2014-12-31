@@ -132,6 +132,13 @@ void build_all(struct all_targets **all) {
             printf("\n");
           */
           r->status = built;
+
+          char *donefile = done_name(r->bilgefile_path);
+          FILE *f = fopen(donefile, "w");
+          if (!f) error(1,errno,"oopse");
+          fprint_bilgefile(f, *all, r->bilgefile_path);
+          fclose(f);
+          free(donefile);
         }
         break;
       case clean:
