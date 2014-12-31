@@ -1,3 +1,10 @@
+| gcc -Wall -std=c11 -g -c listset.c
+> listset.o
+
+| gcc -Wall -std=c11 -g -c bigbrother.c
+> bigbrother.o
+
+
 | gcc -g -O2 -Wall -o fileaccesses fileaccesses.c listset.c bigbrother.c
 < syscalls.h
 > fileaccesses

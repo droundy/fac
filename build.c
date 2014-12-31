@@ -99,7 +99,7 @@ void determine_rule_cleanliness(struct all_targets **all, struct rule *r,
       }
     } else {
       printf("::: %s :::\n", r->command);
-      printf(" - dirty because %s has no input time.\n", r->inputs[i]->path);
+      printf(" - dirty because #%d %s has no input time.\n", i, r->inputs[i]->path);
       r->status = dirty;
       *num_to_build += 1;
       return; /* The file hasn't been built. */

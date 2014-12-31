@@ -174,6 +174,7 @@ void read_bilge_file(struct all_targets **all, const char *path) {
       switch (one_line[0]) {
       case '|':
         therule = lookup_rule(*all, one_line+2, the_directory);
+        //printf(":: %s\n", therule->command);
         thetarget = 0;
         size_last_file = 0;
         last_modified_last_file = 0;
@@ -181,10 +182,15 @@ void read_bilge_file(struct all_targets **all, const char *path) {
       case '<':
         if (therule) {
           char *path = absolute_path(the_directory, one_line+2);
+          //printf("  I see #%d %s\n", therule->num_inputs-1, path);
           thetarget = create_target(all, path);
           add_input(therule, thetarget);
-          last_modified_last_file = &therule->input_times[therule->num_inputs-1];
-          size_last_file = &therule->input_sizes[therule->num_inputs-1];
+          for (int i=0;i<therule->num_inputs;i++) {
+            if (!strcmp(therule->inputs[i]->path, one_line+2)) {
+              last_modified_last_file = &therule->input_times[i];
+              size_last_file = &therule->input_sizes[i];
+            }
+          }
           free(path);
         }
         break;

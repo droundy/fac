@@ -2,3 +2,4 @@ fileaccesses
 bilge
 *~
 *.done
+*.o
