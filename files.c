@@ -158,7 +158,6 @@ void read_bilge_file(struct all_targets **all, const char *path) {
   char *donename = done_name(path);
   f = fopen(donename, "r");
   if (f) {
-    printf("Got done file %s\n", donename);
     linenum = 0;
     while (getline(&one_line, &buffer_length, f) >= 0) {
       linenum++;
