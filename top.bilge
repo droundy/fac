@@ -1,20 +1,2 @@
-| gcc -Wall -std=c11 -g -c bilge.c
-> bilge.o
-
-| gcc -Wall -std=c11 -g -c files.c
-> files.o
-
-| gcc -Wall -std=c11 -g -c targets.c
-> targets.o
-
-| gcc -Wall -std=c11 -g -c build.c
-> build.o
-
-| gcc -Wall -std=c11 -g -o bilge bilge.o targets.o files.o build.o lib/listset.o lib/bigbrother.o
-< bilge.o
-< files.o
-< targets.o
-< build.o
-< lib/listset.o
-< lib/bigbrother.o
-> bilge
+| python2 top.py > .bilge
+> .bilge
