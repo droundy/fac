@@ -137,3 +137,6 @@ argument_table('read_string', {'rename': 1,
 
 argument_table('unlink_string', {'unlink': 0,
                                  'rename': 0})
+
+argument_table('readdir', {'getdents': 0,
+                           'getdents64': 0})
