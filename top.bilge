@@ -1,2 +1,5 @@
 | python2 top.py > .bilge
 > .bilge
+
+| true
+> lib/a.bilge

@@ -49,6 +49,12 @@ struct rule *run_rule(struct all_targets **all, struct rule *r) {
     s = s->next;
   }
 
+  for (int i=0;i<out->num_outputs;i++) {
+    /* The following handles the case where we have a command that
+       doesn't actually write to one of its "outputs." */
+    create_target_with_stat(all, out->outputs[i]->path);
+  }
+
   s = written_set;
   while (s != NULL) {
     struct target *t = lookup_target(*all, s->path);
