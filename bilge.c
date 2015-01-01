@@ -91,12 +91,13 @@ static struct all_targets *all = 0;
 int main(int argc, char **argv) {
   go_to_bilge_top();
 
-  find_bilge_files(&all, ".", 0);
+  //find_bilge_files(&all, ".", 0);
 
   /* printf("NOW I AM PRINTING!!!\n"); */
   /* print_bilge_file(all); */
 
   /* printf("NOW I AM BUILDING!!!\n"); */
+  read_bilge_file(&all, "top.bilge");
   build_all(&all);
 
   return 0;

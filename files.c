@@ -72,12 +72,14 @@ void read_bilge_file(struct all_targets **all, const char *path) {
       break;
     }
   }
+  char *the_directory = realpath(rel_directory, 0);
   if (strlen(rel_directory) == strlen(path)) {
     free(rel_directory);
     rel_directory = ".";
+    the_directory = realpath(rel_directory, 0);
+  } else {
+    free(rel_directory);
   }
-  char *the_directory = realpath(rel_directory, 0);
-  free(rel_directory);
 
   struct rule *therule = 0;
   struct target *thetarget = 0;
