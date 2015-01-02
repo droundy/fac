@@ -9,3 +9,5 @@
 - Tracking of environment variables
 - Store build time, and estimate remaining build time
 - Handle readdir
+
+- Enable bilge to call bilge recursively (requires ptrace effort)
