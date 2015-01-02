@@ -1,6 +1,6 @@
 #!/usr/bin/python2
 
-import string
+import string, glob
 
 flags = '-Wall -std=c11 -g'
 
@@ -19,3 +19,9 @@ for s in sources:
 for s in libsources:
     print '< lib/%s.o' % s
 print '> bilge'
+print
+
+for sh in glob.glob('tests/*.sh'):
+    print '| sh %s > %s.log' % (sh, sh[:-3])
+    print '> %s.log' % (sh[:-3])
+    print

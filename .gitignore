@@ -4,3 +4,4 @@ bilge
 *~
 *.done
 *.o
+*.log
