@@ -20,9 +20,3 @@ for s in libsources:
     print '< lib/%s.o' % s
 print '> bilge'
 print
-
-# for sh in glob.glob('tests/*.sh'):
-#     print '| bash %s &> %s.log' % (sh, sh[:-3])
-#     print '< bilge'
-#     print '> %s.log' % (sh[:-3])
-#     print

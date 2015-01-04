@@ -16,10 +16,10 @@ touch foo.message
 
 grep foo.message messages
 
-# touch bar.message
-# ../../bilge
+touch bar.message
+../../bilge
 
-# grep foo.message messages
-# grep bar.message messages
+grep foo.message messages
+grep bar.message messages
 
 exit 0
