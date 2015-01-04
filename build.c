@@ -54,6 +54,9 @@ struct rule *run_rule(struct all_targets **all, struct rule *r) {
   s = readdir_set;
   while (s != NULL) {
     printf("READDIR %s\n", s->path);
+    struct target *t = create_target_with_stat(all, s->path);
+    if (!t) error(1, errno, "Unable to stat file %s", t->path);
+    add_input(out, t);
     s = s->next;
   }
 

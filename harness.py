@@ -18,7 +18,7 @@ numpassed = 0
 numfailed = 0
 
 for sh in glob.glob('tests/*.sh'):
-    if os.system('bash %s > %s.log 2>&1' % (sh, sh[:-3])):
+    if os.system('bash %s > %s.log 2>&1' % (sh, sh)):
         print sh, ':', bcolors.FAIL, 'FAILED', bcolors.ENDC
         numfailed += 1
     else:
@@ -29,7 +29,7 @@ expectedfailures = 0
 unexpectedpasses = 0
 
 for sh in glob.glob('bugs/*.sh'):
-    if os.system('bash %s > %s.log 2>&1' % (sh, sh[:-3])):
+    if os.system('bash %s > %s.log 2>&1' % (sh, sh)):
         print sh, ':', bcolors.OKGREEN, 'expected failure', bcolors.ENDC
         expectedfailures += 1
     else:
