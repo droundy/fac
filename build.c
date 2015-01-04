@@ -40,9 +40,11 @@ struct rule *run_rule(struct all_targets **all, struct rule *r) {
     free_listset(read_set);
     free_listset(written_set);
     free_listset(deleted_set);
+    free_listset(readdir_set);
     return 0;
   }
 
+  out->num_inputs = 0; // clear the set of inputs so we only rebuild on actual ones.
   listset *s = read_set;
   while (s != NULL) {
     struct target *t = create_target_with_stat(all, s->path);
@@ -80,6 +82,7 @@ struct rule *run_rule(struct all_targets **all, struct rule *r) {
     s = s->next;
   }
 
+  free_listset(readdir_set);
   free_listset(read_set);
   free_listset(written_set);
   free_listset(deleted_set);

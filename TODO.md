@@ -1,7 +1,3 @@
-# Bug fixes
-
-- Clean out automagically added dependencies when rebuilding.  How?
-
 # Features
 
 - Parallel build
