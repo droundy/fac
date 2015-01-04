@@ -90,6 +90,7 @@ void determine_rule_cleanliness(struct all_targets **all, struct rule *r,
                r->inputs[i]->path);
         r->status = dirty;
         *num_to_build += 1;
+        printf("# dirty = %d\n", *num_to_build);
         return;
       }
     }
@@ -102,6 +103,7 @@ void determine_rule_cleanliness(struct all_targets **all, struct rule *r,
                r->inputs[i]->path);
         r->status = dirty;
         *num_to_build += 1;
+        printf("# dirty = %d\n", *num_to_build);
         return; /* The file is out of date. */
       }
     } else {
@@ -109,6 +111,7 @@ void determine_rule_cleanliness(struct all_targets **all, struct rule *r,
       printf(" - dirty because #%d %s has no input time.\n", i, r->inputs[i]->path);
       r->status = dirty;
       *num_to_build += 1;
+      printf("# dirty = %d\n", *num_to_build);
       return; /* The file hasn't been built. */
     }
   }
@@ -124,6 +127,7 @@ void determine_rule_cleanliness(struct all_targets **all, struct rule *r,
                r->outputs[i]->last_modified, r->output_times[i]);
         r->status = dirty;
         *num_to_build += 1;
+        printf("# dirty = %d\n", *num_to_build);
         return; /* The file is out of date. */
       }
     } else {
@@ -131,6 +135,7 @@ void determine_rule_cleanliness(struct all_targets **all, struct rule *r,
       printf(" - dirty because %s has no output time.\n", r->outputs[i]->path);
       r->status = dirty;
       *num_to_build += 1;
+      printf("# dirty = %d\n", *num_to_build);
       return; /* The file hasn't been built. */
     }
   }
@@ -182,8 +187,8 @@ void build_all(struct all_targets **all) {
     if (tt->t->rule) tt->t->rule->status = unknown;
     tt = tt->next;
   }
+  int num_to_build = 0, num_built = 0;
   while (!done) {
-    int num_to_build = 0, num_built = 0;
     tt = *all;
     while (tt) {
       determine_rule_cleanliness(all, tt->t->rule, &num_to_build);
@@ -192,23 +197,28 @@ void build_all(struct all_targets **all) {
     bool got_new_bilgefiles = false;
     tt = *all;
     while (tt) {
-      if (tt->t->rule && tt->t->rule->status == dirty) {
-        int len = strlen(tt->t->path);
-        if (len >= 6 && !strcmp(tt->t->path+len-6, ".bilge")) {
-          /* This is a dirty .bilge file, so we need to build it! */
-          build_rule_plus_dependencies(all, tt->t->rule, &num_to_build, &num_built);
+      int len = strlen(tt->t->path);
+      if (len >= 6 && !strcmp(tt->t->path+len-6, ".bilge")) {
+        if (tt->t->status == unknown &&
+            (!tt->t->rule || tt->t->rule->status != dirty)) {
+          /* This is a clean .bilge file, but we still need to parse it! */
           read_bilge_file(all, tt->t->path);
           got_new_bilgefiles = true;
-          break;
+          tt->t->status = built;
         }
       }
-      if (tt->t->rule && tt->t->rule->status == clean) {
-        int len = strlen(tt->t->path);
-        if (len >= 6 && !strcmp(tt->t->path+len-6, ".bilge")) {
+      tt = tt->next;
+    }
+    if (got_new_bilgefiles) continue;
+    tt = *all;
+    while (tt) {
+      int len = strlen(tt->t->path);
+      if (len >= 6 && !strcmp(tt->t->path+len-6, ".bilge")) {
+        if (tt->t->rule && tt->t->rule->status == dirty) {
           /* This is a dirty .bilge file, so we need to build it! */
-          read_bilge_file(all, tt->t->path);
+          build_rule_plus_dependencies(all, tt->t->rule,
+                                       &num_to_build, &num_built);
           got_new_bilgefiles = true;
-          tt->t->rule->status = built;
           break;
         }
       }

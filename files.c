@@ -102,6 +102,13 @@ void read_bilge_file(struct all_targets **all, const char *path) {
       error_at_line(1, 0, path, linenum,
                     "Second character of line should be a space");
     switch (one_line[0]) {
+    case '!':
+      create_target(all, one_line+2);
+      therule = 0;
+      thetarget = 0;
+      size_last_file = 0;
+      last_modified_last_file = 0;
+      break;
     case '|':
       therule = create_rule(one_line+2, the_directory);
       therule->bilgefile_path = mycopy(path);
