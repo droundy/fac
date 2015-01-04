@@ -7,6 +7,7 @@
    processes simultaneously in different threads.  */
 int bigbrother_process(const char *workingdir,
                        char **args,
+                       listset **readdir,
                        listset **read,
                        listset **written,
                        listset **deleted);

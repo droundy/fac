@@ -25,6 +25,7 @@ static struct target *create_target_with_stat(struct all_targets **all,
 struct rule *run_rule(struct all_targets **all, struct rule *r) {
   struct rule *out = r; //create_rule(r->command, r->working_directory);
   listset *read_set = 0, *written_set = 0, *deleted_set = 0;
+  listset *readdir_set = 0;
   const char **args = malloc(4*sizeof(char *));
   args[0] = "/bin/sh";
   args[1] = "-c";
@@ -32,7 +33,7 @@ struct rule *run_rule(struct all_targets **all, struct rule *r) {
   args[3] = 0;
   printf("%s\n", r->command);
   int ret = bigbrother_process(r->working_directory,
-                               (char **)args,
+                               (char **)args, &readdir_set,
                                &read_set, &written_set, &deleted_set);
   free(args);
   if (ret != 0) {
@@ -47,6 +48,12 @@ struct rule *run_rule(struct all_targets **all, struct rule *r) {
     struct target *t = create_target_with_stat(all, s->path);
     if (!t) error(1, errno, "Unable to stat file %s", t->path);
     add_input(out, t);
+    s = s->next;
+  }
+
+  s = readdir_set;
+  while (s != NULL) {
+    printf("READDIR %s\n", s->path);
     s = s->next;
   }
 

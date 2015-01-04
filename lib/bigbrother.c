@@ -137,6 +137,7 @@ static char *read_a_path(pid_t child, unsigned long addr) {
 }
 
 static int save_syscall_access(pid_t child,
+                               listset **read_from_directories,
                                listset **read_from_files,
                                listset **written_to_files,
                                listset **deleted_files) {
@@ -177,6 +178,21 @@ static int save_syscall_access(pid_t child,
         insert_to_listset(read_from_files, filename);
       } else {
         debugprintf("R~ %s(%s)\n", syscalls[syscall], filename);
+        free(filename);
+      }
+    }
+  }
+  if (readdir_fd[syscall] >= 0) {
+    int fd = get_syscall_arg(&regs, readdir_fd[syscall]);
+    debugprintf("!!!!!!!!! Got readdir with fd %d\n", fd);
+    if (fd >= 0) {
+      char *filename = (char *)malloc(PATH_MAX);
+      identify_fd(filename, child, fd);
+      if (interesting_path(filename)) {
+        debugprintf("readdir: %s(%s)\n", syscalls[syscall], filename);
+        insert_to_listset(read_from_directories, filename);
+      } else {
+        debugprintf("readdir~ %s(%s)\n", syscalls[syscall], filename);
         free(filename);
       }
     }
@@ -222,6 +238,7 @@ static int save_syscall_access(pid_t child,
 
 int bigbrother_process(const char *workingdir,
                        char **args,
+                       listset **read_from_directories,
                        listset **read_from_files,
                        listset **written_to_files,
                        listset **deleted_files) {
@@ -280,7 +297,11 @@ int bigbrother_process(const char *workingdir,
         }
       }
 
-      syscall = save_syscall_access(child, read_from_files, written_to_files, deleted_files);
+      syscall = save_syscall_access(child,
+                                    read_from_directories,
+                                    read_from_files,
+                                    written_to_files,
+                                    deleted_files);
 
       if (is_wait_or_exit[syscall]) {
         /* These syscalls may wait on a child process, so we cannot

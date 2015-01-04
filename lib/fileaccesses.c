@@ -12,15 +12,27 @@ int main(int argc, char **argv) {
 
   listset *written_to_files = 0;
   listset *read_from_files = 0;
+  listset *read_from_directories = 0;
   listset *deleted_files = 0;
 
   char **args = (char **)malloc(argc*sizeof(char*));
   memcpy(args, argv+1, (argc-1) * sizeof(char*));
   args[argc-1] = NULL;
-  bigbrother_process(".", args, &read_from_files, &written_to_files, &deleted_files);
+  bigbrother_process(".", args, &read_from_directories,
+                     &read_from_files, &written_to_files, &deleted_files);
   free(args);
 
-  listset *s = read_from_files;
+  listset *s = read_from_directories;
+  while (s != NULL) {
+    fprintf(stderr, "l: %s\n", s->path);
+    listset *d = s;
+    s = s->next;
+    free(d->path);
+    free(d);
+  }
+  read_from_directories = NULL;
+
+  s = read_from_files;
   while (s != NULL) {
     fprintf(stderr, "r: %s\n", s->path);
     listset *d = s;
