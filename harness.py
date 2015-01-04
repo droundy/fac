@@ -31,7 +31,7 @@ for sh in glob.glob('bugs/*.sh'):
         print sh, ':', bcolors.OKGREEN, 'expected failure', bcolors.ENDC
         expectedfailures += 1
     else:
-        print sh, ':', bcolors.FAILURE, 'unexpected pass', bcolors.ENDC
+        print sh, ':', bcolors.FAIL, 'unexpected pass', bcolors.ENDC
         unexpectedpasses += 1
 
 def pluralize(num, noun):

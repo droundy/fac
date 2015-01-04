@@ -9,6 +9,7 @@ enum target_status {
   unknown,
   clean,
   built,
+  failed,
   dirty
 };
 

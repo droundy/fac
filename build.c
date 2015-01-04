@@ -137,21 +137,32 @@ void determine_rule_cleanliness(struct all_targets **all, struct rule *r,
   if (r->status == unknown) r->status = clean;
 }
 
-void build_rule_plus_dependencies(struct all_targets **all, struct rule *r,
+bool build_rule_plus_dependencies(struct all_targets **all, struct rule *r,
                                   int *num_to_build, int *num_built) {
-  if (!r) return;
+  if (!r) return false;
   if (r->status == unknown) {
     determine_rule_cleanliness(all, r, num_to_build);
   }
+  if (r->status == failed) {
+    printf("already failed once: %s\n", r->command);
+    return true;
+  }
   if (r->status == dirty) {
-    for (int i=0;i<r->num_inputs;i++)
-      build_rule_plus_dependencies(all, r->inputs[i]->rule, num_to_build, num_built);
+    for (int i=0;i<r->num_inputs;i++) {
+      if (build_rule_plus_dependencies(all, r->inputs[i]->rule,
+                                       num_to_build, num_built)) {
+        return true;
+      }
+    }
 
     *num_built += 1;
     printf("%d/%d: ", *num_built, *num_to_build);
-    if (!run_rule(all, r))
-      error_at_line(1, 0, r->bilgefile_path, r->bilgefile_linenum,
-                    "Error running \"%s\"", r->command);
+    if (!run_rule(all, r)) {
+      printf("  Error running \"%s\" (%s:%d)\n",
+             r->command, r->bilgefile_path, r->bilgefile_linenum);
+      r->status = failed;
+      return true;
+    }
     r->status = built;
 
     char *donefile = done_name(r->bilgefile_path);
@@ -161,6 +172,7 @@ void build_rule_plus_dependencies(struct all_targets **all, struct rule *r,
     fclose(f);
     free(donefile);
   }
+  return false;
 }
 
 void build_all(struct all_targets **all) {
