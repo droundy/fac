@@ -46,7 +46,7 @@ def pluralize(num, noun):
 
 print
 if numfailed:
-    print 'Failed', str(numfailed)+'/'+str(numfailed+numpassed)
+    print bcolors.FAIL+'Failed', str(numfailed)+'/'+str(numfailed+numpassed)+bcolors.ENDC
 else:
     print 'All', pluralize(numpassed, 'test'), 'passed!'
 
@@ -54,4 +54,4 @@ if expectedfailures:
     print pluralize(expectedfailures, 'expected failure')
 
 if unexpectedpasses:
-    print pluralize(unexpectedpasses, 'unexpected pass')
+    print bcolors.FAIL+pluralize(unexpectedpasses, 'unexpected pass')+bcolors.ENDC
