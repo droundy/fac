@@ -19,10 +19,10 @@ numfailed = 0
 
 for sh in glob.glob('tests/*.sh'):
     if os.system('bash %s > %s.log 2>&1' % (sh, sh)):
-        print sh, ':', bcolors.FAIL, 'FAILED', bcolors.ENDC
+        print bcolors.FAIL+'FAIL:', bcolors.ENDC+sh
         numfailed += 1
     else:
-        print sh, ':', bcolors.OKGREEN, 'PASSED', bcolors.ENDC
+        print bcolors.OKGREEN+'PASS:', bcolors.ENDC+sh
         numpassed += 1
 
 expectedfailures = 0
@@ -30,10 +30,10 @@ unexpectedpasses = 0
 
 for sh in glob.glob('bugs/*.sh'):
     if os.system('bash %s > %s.log 2>&1' % (sh, sh)):
-        print sh, ':', bcolors.OKGREEN, 'expected failure', bcolors.ENDC
+        print bcolors.OKGREEN+'fail:', bcolors.ENDC+sh
         expectedfailures += 1
     else:
-        print sh, ':', bcolors.FAIL, 'unexpected pass', bcolors.ENDC
+        print bcolors.FAIL+'pass:', bcolors.ENDC, sh
         unexpectedpasses += 1
 
 def pluralize(num, noun):
