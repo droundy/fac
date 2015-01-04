@@ -155,14 +155,14 @@ bool build_rule_plus_dependencies(struct all_targets **all, struct rule *r,
       }
     }
 
-    *num_built += 1;
-    printf("%d/%d: ", *num_built, *num_to_build);
+    printf("%d/%d: ", *num_built+1, *num_to_build);
     if (!run_rule(all, r)) {
       printf("  Error running \"%s\" (%s:%d)\n",
              r->command, r->bilgefile_path, r->bilgefile_linenum);
       r->status = failed;
       return true;
     }
+    *num_built += 1;
     r->status = built;
 
     char *donefile = done_name(r->bilgefile_path);
@@ -220,6 +220,8 @@ void build_all(struct all_targets **all) {
       build_rule_plus_dependencies(all, tt->t->rule, &num_to_build, &num_built);
       tt = tt->next;
     }
+    if (num_built != num_to_build)
+      error(1,0,"Failed %d/%d builds", num_to_build-num_built, num_to_build);
     done = true;
   }
 }
