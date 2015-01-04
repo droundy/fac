@@ -10,7 +10,9 @@ class bcolors:
     FAIL = '\033[91m'
     ENDC = '\033[0m'
 
-os.system('./bilge')
+if os.system('./bilge'):
+    print 'Build failed!'
+    exit(1)
 
 numpassed = 0
 numfailed = 0
