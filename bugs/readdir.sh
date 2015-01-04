@@ -2,10 +2,9 @@
 
 set -ev
 
-cd tests
-rm -rf readdir
-mkdir readdir
-cd readdir
+rm -rf $0.dir
+mkdir $0.dir
+cd $0.dir
 cat > top.bilge <<EOF
 | echo *.message > messages
 > messages

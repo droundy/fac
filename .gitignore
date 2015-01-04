@@ -5,3 +5,4 @@ bilge
 *.done
 *.o
 *.log
+*.dir

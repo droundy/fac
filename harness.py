@@ -46,7 +46,7 @@ print
 if numfailed:
     print 'Failed', str(numfailed)+'/'+str(numfailed+numpassed)
 else:
-    print 'All', pluralize(numpassed, 'tests'), 'passed!'
+    print 'All', pluralize(numpassed, 'test'), 'passed!'
 
 if expectedfailures:
     print pluralize(expectedfailures, 'expected failure')
