@@ -13,7 +13,7 @@ for s in sources:
     print '> %s.o' % s
     print
 
-print '| gcc -o bilge', string.join(['%s.o' % s for s in sources]), string.join(['lib/%s.o' % s for s in libsources])
+print '| gcc -lpthread -o bilge', string.join(['%s.o' % s for s in sources]), string.join(['lib/%s.o' % s for s in libsources])
 for s in sources:
     print '< %s.o' % s
 for s in libsources:

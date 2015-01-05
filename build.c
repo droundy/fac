@@ -9,6 +9,7 @@
 #include <error.h>
 #include <errno.h>
 #include <string.h>
+#include <pthread.h>
 
 static struct target *create_target_with_stat(struct all_targets **all,
                                               const char *path) {
@@ -20,6 +21,43 @@ static struct target *create_target_with_stat(struct all_targets **all,
     t->last_modified = st.st_mtime;
   }
   return t;
+}
+
+struct building {
+  int all_done;
+  pthread_t thread;
+  struct rule *rule;
+  listset *readdir, *read, *written, *deleted;
+};
+
+void *run_parallel_rule(void *void_building) {
+  struct building *b = void_building;
+  const char **args = malloc(4*sizeof(char *));
+  b->readdir = 0;
+  b->read = 0;
+  b->written = 0;
+  b->deleted = 0;
+  b->all_done = dirty;
+
+  args[0] = "/bin/sh";
+  args[1] = "-c";
+  args[2] = b->rule->command;
+  args[3] = 0;
+
+  int ret = bigbrother_process(b->rule->working_directory,
+                               (char **)args, &b->readdir,
+                               &b->read, &b->written, &b->deleted);
+  if (ret != 0) {
+    free_listset(b->read);
+    free_listset(b->written);
+    free_listset(b->deleted);
+    free_listset(b->readdir);
+    b->all_done = failed;
+    return 0;
+  }
+
+  b->all_done = built;
+  return 0;
 }
 
 struct rule *run_rule(struct all_targets **all, struct rule *r) {
@@ -246,5 +284,160 @@ void build_all(struct all_targets **all) {
     if (num_built != num_to_build)
       error(1,0,"Failed %d/%d builds", num_to_build-num_built, num_to_build);
     done = true;
+  }
+}
+
+struct building *build_rule_or_dependency(struct all_targets **all,
+                                          struct rule *r,
+                                          int *num_to_build) {
+  if (!r) return 0;
+  if (r->status == unknown) {
+    determine_rule_cleanliness(all, r, num_to_build);
+  }
+  if (r->status == failed) {
+    printf("already failed once: %s\n", r->command);
+    return 0;
+  }
+  if (r->status == dirty) {
+    for (int i=0;i<r->num_inputs;i++) {
+      struct building *b = build_rule_or_dependency(all, r->inputs[i]->rule,
+                                                    num_to_build);
+      if (b) return b;
+    }
+
+    struct building *b = malloc(sizeof(struct building));
+    b->rule = r;
+    b->all_done = building;
+    return b;
+  }
+  return 0;
+}
+
+void let_us_build(struct all_targets **all, struct rule *r, int *num_to_build,
+                  struct building **bs, int num_threads) {
+  for (int i=0;i<num_threads;i++) {
+    if (!bs[i]) {
+      bs[i] = build_rule_or_dependency(all, r, num_to_build);
+      if (bs[i]) {
+        pthread_t th;
+        pthread_create(&th, 0, run_parallel_rule, bs[i]);
+        pthread_detach(th);
+      }
+      return;
+    }
+  }
+}
+
+void parallel_build_all(struct all_targets **all) {
+  int num_threads = 2;
+  struct building **bs = malloc(num_threads*sizeof(struct building *));
+  for (int i=0;i<num_threads;i++) bs[i] = 0;
+
+  int num_to_build = 0, num_built = 0;
+
+  struct all_targets *tt = *all;
+  while (tt) {
+    determine_rule_cleanliness(all, tt->t->rule, &num_to_build);
+    tt = tt->next;
+  }
+
+  while (1) {
+    int threads_available = 0;
+    for (int i=0;i<num_threads;i++) {
+      if (bs[i]) {
+        if (bs[i]->all_done != unknown) {
+          bs[i]->rule->status = bs[i]->all_done;
+          printf("%d/%d: %s\n", num_built+1, num_to_build, bs[i]->rule->command);
+
+          if (bs[i]->all_done == built) {
+            struct rule *r = bs[i]->rule;
+            r->num_inputs = 0; // clear the set of inputs so we only rebuild on actual ones.
+            listset *s = bs[i]->read;
+            while (s != NULL) {
+              struct target *t = create_target_with_stat(all, s->path);
+              if (!t) error(1, errno, "Unable to stat file %s", t->path);
+              add_input(r, t);
+              s = s->next;
+            }
+
+            s = bs[i]->readdir;
+            while (s != NULL) {
+              struct target *t = create_target_with_stat(all, s->path);
+              if (!t) error(1, errno, "Unable to stat file %s", t->path);
+              add_input(r, t);
+              s = s->next;
+            }
+
+            for (int i=0;i<r->num_outputs;i++) {
+              /* The following handles the case where we have a command that
+                 doesn't actually write to one of its "outputs." */
+              create_target_with_stat(all, r->outputs[i]->path);
+            }
+
+            s = bs[i]->written;
+            while (s != NULL) {
+              struct target *t = lookup_target(*all, s->path);
+              if (t) {
+                t->last_modified = 0;
+                t->size = 0;
+              }
+              t = create_target_with_stat(all, s->path);
+              if (!t) error(1, errno, "Unable to stat file %s", t->path);
+              t->rule = r;
+              add_output(r, t);
+              s = s->next;
+            }
+          }
+
+          free_listset(bs[i]->readdir);
+          free_listset(bs[i]->read);
+          free_listset(bs[i]->written);
+          free_listset(bs[i]->deleted);
+          free(bs[i]);
+          bs[i] = 0;
+          threads_available++;
+          num_built++;
+        }
+      } else {
+        threads_available++;
+      }
+    }
+
+    tt = *all;
+    while (tt) {
+      int len = strlen(tt->t->path);
+      if (len >= 6 && !strcmp(tt->t->path+len-6, ".bilge")) {
+        if (tt->t->status == unknown &&
+            (!tt->t->rule || (tt->t->rule->status != dirty &&
+                              tt->t->rule->status != building))) {
+          /* This is a clean .bilge file, but we still need to parse it! */
+          read_bilge_file(all, tt->t->path);
+          tt->t->status = built;
+        }
+      }
+      tt = tt->next;
+    }
+    if (threads_available == 0) {
+      sleep(1); /* FIXME HOKEY and slow */
+      continue;
+    }
+    tt = *all;
+    while (tt) {
+      int len = strlen(tt->t->path);
+      if (len >= 6 && !strcmp(tt->t->path+len-6, ".bilge")) {
+        if (tt->t->rule && tt->t->rule->status == dirty) {
+          /* This is a dirty .bilge file, so we need to build it! */
+          let_us_build(all, tt->t->rule, &num_to_build, bs, num_threads);
+        }
+      }
+      tt = tt->next;
+    }
+
+    tt = *all;
+    while (tt) {
+      let_us_build(all, tt->t->rule, &num_to_build, bs, num_threads);
+      tt = tt->next;
+    }
+    sleep(1);
   }
 }
