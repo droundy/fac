@@ -57,6 +57,10 @@ void *run_parallel_rule(void *void_building) {
     free_listset(b->written);
     free_listset(b->deleted);
     free_listset(b->readdir);
+    b->read = 0;
+    b->written = 0;
+    b->deleted = 0;
+    b->readdir = 0;
     b->all_done = failed;
     return 0;
   }
