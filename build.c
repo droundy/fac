@@ -316,6 +316,7 @@ struct building *build_rule_or_dependency(struct all_targets **all,
                               MAP_SHARED | MAP_ANONYMOUS, -1, 0);
     b->rule = r;
     b->all_done = building;
+    r->status = building;
     return b;
   }
   return 0;
@@ -412,6 +413,13 @@ void parallel_build_all(struct all_targets **all) {
               add_output(r, t);
               s = s->next;
             }
+
+            char *donefile = done_name(r->bilgefile_path);
+            FILE *f = fopen(donefile, "w");
+            if (!f) error(1,errno,"oopse");
+            fprint_bilgefile(f, *all, r->bilgefile_path);
+            fclose(f);
+            free(donefile);
           }
 
           free_listset(bs[i]->readdir);
