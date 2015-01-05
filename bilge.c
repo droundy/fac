@@ -48,7 +48,7 @@ int main(int argc, char **argv) {
   go_to_bilge_top();
 
   read_bilge_file(&all, "top.bilge");
-  build_all(&all);
+  parallel_build_all(&all);
 
   return 0;
 }

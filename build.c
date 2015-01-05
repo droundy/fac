@@ -1,8 +1,12 @@
+#define _GNU_SOURCE
+
 #include "bilge.h"
 #include "lib/bigbrother.h"
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/mman.h>
+#include <sys/wait.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -10,6 +14,7 @@
 #include <errno.h>
 #include <string.h>
 #include <pthread.h>
+#include <semaphore.h>
 
 static struct target *create_target_with_stat(struct all_targets **all,
                                               const char *path) {
@@ -305,7 +310,10 @@ struct building *build_rule_or_dependency(struct all_targets **all,
       if (b) return b;
     }
 
-    struct building *b = malloc(sizeof(struct building));
+    //struct building *b = malloc(sizeof(struct building));
+    struct building *b = mmap(NULL, sizeof(struct building),
+                              PROT_READ | PROT_WRITE,
+                              MAP_SHARED | MAP_ANONYMOUS, -1, 0);
     b->rule = r;
     b->all_done = building;
     return b;
@@ -319,9 +327,26 @@ void let_us_build(struct all_targets **all, struct rule *r, int *num_to_build,
     if (!bs[i]) {
       bs[i] = build_rule_or_dependency(all, r, num_to_build);
       if (bs[i]) {
-        pthread_t th;
-        pthread_create(&th, 0, run_parallel_rule, bs[i]);
-        pthread_detach(th);
+        if (0) {
+          pthread_t th;
+          pthread_create(&th, 0, run_parallel_rule, bs[i]);
+          pthread_detach(th);
+        } else if (0) {
+          pid_t pid = fork();
+          if (pid == 0) {
+            pid_t double_id = fork();
+            if (double_id == 0) {
+              run_parallel_rule(bs[i]);
+              exit(0);
+            } else {
+              exit(0);
+            }
+          } else {
+            waitpid(pid, 0, 0);
+          }
+        } else {
+          run_parallel_rule(bs[i]);
+        }
       }
       return;
     }
@@ -335,13 +360,13 @@ void parallel_build_all(struct all_targets **all) {
 
   int num_to_build = 0, num_built = 0;
 
-  struct all_targets *tt = *all;
-  while (tt) {
-    determine_rule_cleanliness(all, tt->t->rule, &num_to_build);
-    tt = tt->next;
-  }
-
   while (1) {
+    struct all_targets *tt = *all;
+    while (tt) {
+      determine_rule_cleanliness(all, tt->t->rule, &num_to_build);
+      tt = tt->next;
+    }
+
     int threads_available = 0;
     for (int i=0;i<num_threads;i++) {
       if (bs[i]) {
@@ -393,7 +418,8 @@ void parallel_build_all(struct all_targets **all) {
           free_listset(bs[i]->read);
           free_listset(bs[i]->written);
           free_listset(bs[i]->deleted);
-          free(bs[i]);
+          //free(bs[i]);
+          munmap(bs[i], sizeof(struct building));
           bs[i] = 0;
           threads_available++;
           num_built++;
@@ -433,11 +459,21 @@ void parallel_build_all(struct all_targets **all) {
       tt = tt->next;
     }
 
+    int num_to_go = 0;
     tt = *all;
     while (tt) {
-      let_us_build(all, tt->t->rule, &num_to_build, bs, num_threads);
+      determine_rule_cleanliness(all, tt->t->rule, &num_to_build);
+      if (tt->t->rule) {
+        if (tt->t->rule->status == dirty || tt->t->rule->status == building) {
+          let_us_build(all, tt->t->rule, &num_to_build, bs, num_threads);
+          num_to_go++;
+        }
+      }
       tt = tt->next;
     }
+    printf("I have %d still to build... vs %d\n", num_to_go, num_to_build);
+    if (num_to_go == 0) return;
     sleep(1);
+    printf("still working...\n");
   }
 }
