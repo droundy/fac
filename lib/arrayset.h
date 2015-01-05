@@ -2,11 +2,11 @@
 #define ARRAYSET_H
 
 #include <linux/limits.h>
-#define ARRAY_SIZE 4096;
+#define ARRAY_MAX 4000000
 
 typedef struct arrayset {
-  int num_elements;
-  char a[ARRAYSET][PATH_MAX];
+  int size;
+  char a[ARRAY_MAX];
 } arrayset;
 
 void insert_to_arrayset(arrayset *array, const char *path);

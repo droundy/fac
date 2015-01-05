@@ -6,7 +6,7 @@ flags = '-Wall -std=c11 -g'
 
 sources = ['bilge', 'files', 'targets', 'build']
 
-libsources = ['listset', 'bigbrother']
+libsources = ['listset', 'arrayset', 'bigbrother']
 
 for s in sources:
     print '| gcc %s -c %s.c' % (flags, s)

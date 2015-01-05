@@ -3,33 +3,47 @@
 #include <error.h>
 #include <string.h>
 
-void insert_to_arrayset(arrayset *array, const char *path) {
-  for (int i=array->num_elements-1;i>=0;i--) {
-    if (strcmp(array->a[i], path) == 0) return;
-  }
+int find_in_arrayset(const arrayset *array, const char *path) {
+  int len = strlen(path);
+  const char *a = array->a;
+  int size = array->size;
 
-  if (array->num_elements >= ARRAY_SIZE) {
-    error(1,0,"TOO MANY DEPENDENCIES!!!");
+  while (size > len) {
+    for (int i=0;i<len+1;i++) {
+      if (a[i] == 0) {
+        if (i == len) return a - array->a;
+        size -= i+1;
+        a += i+1;
+        break;
+      }
+      if (a[i] != path[i]) {
+        int alen = strlen(a+i) + 1 + i;
+        size -= alen;
+        a += alen;
+        break;
+      }
+    }
   }
-  strncpy(array->a[array->num_elements], path, PATH_MAX);
-  array->num_elements++;
+  return -1;
+}
+
+void insert_to_arrayset(arrayset *array, const char *path) {
+  if (is_in_arrayset(array, path)) return;
+  int len = strlen(path);
+  if (array->size + len + 1 > ARRAY_MAX)
+    error(1,0,"NOT ENOUGH ROOM IN ARRAY!");
+  strcpy(&array->a[array->size], path);
+  array->size += len+1;
 }
 
 void delete_from_arrayset(arrayset *array, const char *path) {
-  for (int i=array->num_elements-1;i>=0;i--) {
-    if (strcmp(array->a[i], path) == 0) {
-      memmove(&array->a[i], &array->a[i+1], PATH_MAX*(array->num_elements-i-1));
-      array->num_elements--;
-      return;
-    }
-  }
+  int where = find_in_arrayset(array, path);
+  if (where < 0) return;
+  int len = strlen(path);
+  memmove(&array->a[where], &array->a[where+len+1],
+          array->size-where-len-1);
 }
 
 int is_in_arrayset(const arrayset *array, const char *path) {
-  for (int i=0;i<array->num_elements;i++) {
-    if (strcmp(array->a[i], path) == 0) {
-      return 1;
-    }
-  }
-  return 0;
+  return find_in_arrayset(array, path) >= 0;
 }

@@ -1,6 +1,9 @@
 | gcc -Wall -std=c11 -g -c listset.c
 > listset.o
 
+| gcc -Wall -std=c11 -g -c arrayset.c
+> arrayset.o
+
 | gcc -Wall -std=c11 -g -c bigbrother.c
 > bigbrother.o
 
