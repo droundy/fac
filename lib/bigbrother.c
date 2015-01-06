@@ -163,8 +163,8 @@ static int save_syscall_access(pid_t child,
         delete_from_listset(deleted_files, filename);
       } else {
         debugprintf("W~ %s(%s)\n", syscalls[syscall], filename);
-        free(filename);
       }
+      free(filename);
     }
   }
   if (read_fd[syscall] >= 0) {
@@ -178,8 +178,8 @@ static int save_syscall_access(pid_t child,
         insert_to_listset(read_from_files, filename);
       } else {
         debugprintf("R~ %s(%s)\n", syscalls[syscall], filename);
-        free(filename);
       }
+      free(filename);
     }
   }
   if (readdir_fd[syscall] >= 0) {
@@ -193,8 +193,8 @@ static int save_syscall_access(pid_t child,
         insert_to_listset(read_from_directories, filename);
       } else {
         debugprintf("readdir~ %s(%s)\n", syscalls[syscall], filename);
-        free(filename);
       }
+      free(filename);
     }
   }
   if (read_string[syscall] >= 0) {
@@ -205,8 +205,8 @@ static int save_syscall_access(pid_t child,
       insert_to_listset(read_from_files, arg);
     } else {
       debugprintf("R~ %s(%s)\n", syscalls[syscall], arg);
-      free(arg);
     }
+    free(arg);
   }
   if (write_string[syscall] >= 0) {
     char *arg = read_a_path(child, get_syscall_arg(&regs, write_string[syscall]));
@@ -217,8 +217,8 @@ static int save_syscall_access(pid_t child,
       delete_from_listset(read_from_files, arg);
     } else {
       debugprintf("W~ %s(%s)\n", syscalls[syscall], arg);
-      free(arg);
     }
+    free(arg);
   }
   if (unlink_string[syscall] >= 0) {
     char *arg = read_a_path(child, get_syscall_arg(&regs, unlink_string[syscall]));
@@ -229,8 +229,8 @@ static int save_syscall_access(pid_t child,
       delete_from_listset(read_from_files, arg);
     } else {
       debugprintf("D~ %s(%s)\n", syscalls[syscall], arg);
-      free(arg);
     }
+    free(arg);
   }
   return syscall;
 }

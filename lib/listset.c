@@ -26,11 +26,13 @@ int is_in_listset(const listset *ptr, const char *path) {
   return 0;
 }
 
-void insert_to_listset(listset **list, char *path) {
+void insert_to_listset(listset **list, const char *path) {
   delete_from_listset(list, path);
   listset *newhead = (listset *)malloc(sizeof(listset));
   newhead->next = *list;
-  newhead->path = path;
+  newhead->path = malloc(strlen(path)+1);
+  strcpy(newhead->path, path);
+
   *list = newhead;
 }
 

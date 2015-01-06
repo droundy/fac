@@ -52,7 +52,7 @@ int is_in_arrayset(const arrayset *array, const char *path) {
 
 void print_arrayset(const arrayset *array) {
   int size = array->size;
-  char *a = array->a;
+  const char *a = array->a;
   printf("vvv (%d)\n", size);
   while (size > 0) {
     int len = strlen(a);

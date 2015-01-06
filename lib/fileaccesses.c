@@ -25,40 +25,30 @@ int main(int argc, char **argv) {
   listset *s = read_from_directories;
   while (s != NULL) {
     fprintf(stderr, "l: %s\n", s->path);
-    listset *d = s;
     s = s->next;
-    free(d->path);
-    free(d);
   }
-  read_from_directories = NULL;
 
   s = read_from_files;
   while (s != NULL) {
     fprintf(stderr, "r: %s\n", s->path);
-    listset *d = s;
     s = s->next;
-    free(d->path);
-    free(d);
   }
-  read_from_files = NULL;
 
   s = written_to_files;
   while (s != NULL) {
     fprintf(stderr, "w: %s\n", s->path);
-    listset *d = s;
     s = s->next;
-    free(d->path);
-    free(d);
   }
 
   s = deleted_files;
   while (s != NULL) {
     fprintf(stderr, "d: %s\n", s->path);
-    listset *d = s;
     s = s->next;
-    free(d->path);
-    free(d);
   }
 
+  free_listset(read_from_directories);
+  free_listset(read_from_files);
+  free_listset(written_to_files);
+  free_listset(deleted_files);
   return 0;
 }

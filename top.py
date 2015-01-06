@@ -1,8 +1,8 @@
 #!/usr/bin/python2
 
-import string, glob
+import string
 
-flags = '-Wall -std=c11 -g'
+flags = '-Wall -Werror -std=c11 -g'
 
 sources = ['bilge', 'files', 'targets', 'build']
 
