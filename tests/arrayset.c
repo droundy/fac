@@ -2,22 +2,145 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <error.h>
+#include <assert.h>
+
+/* void assert(int x) { */
+/*   if (!x) exit(1); */
+/* } */
+
+struct arrayset *a = 0;
+
+void has(const char *string, int line) {
+  if (!is_in_arrayset(a, string)) {
+    printf("FAIL Has not %s (line %d)!!!\n", string, line);
+    exit(1);
+  }
+}
+
+void hasnot(const char *string, int line) {
+  if (is_in_arrayset(a, string)) {
+    printf("FAIL Has %s (line %d)!!!\n", string, line);
+    exit(1);
+  }
+}
 
 int main(int argc, char **argv) {
   printf("This is silly!\n");
 
-  struct arrayset *a = malloc(sizeof(struct arrayset));
-  if (is_in_arrayset(a, "foo"))
-    error_at_line(1, 0, __FILE__, __LINE__, "foo shouldn't be here.");
+  a = malloc(sizeof(struct arrayset));
+  a->size = 0;
+
+  hasnot("foo", __LINE__);
   delete_from_arrayset(a, "foo"); // shouldn't crash
+
+  hasnot("foo", __LINE__);
+  hasnot("foobar", __LINE__);
+  hasnot("bar", __LINE__);
+  hasnot("", __LINE__);
 
   insert_to_arrayset(a, "foo");
 
-  if (is_in_arrayset(a, "bar"))
-    error_at_line(1, 0, __FILE__, __LINE__, "bar shouldn't be here.");
-  if (is_in_arrayset(a, "bar"))
-    error_at_line(1, 0, __FILE__, __LINE__, "bar shouldn't be here.");
+  has("foo", __LINE__);
+  hasnot("foobar", __LINE__);
+  hasnot("bar", __LINE__);
+  hasnot("", __LINE__);
+
+  insert_to_arrayset(a, "bar");
+
+  has("foo", __LINE__);
+  hasnot("foobar", __LINE__);
+  has("bar", __LINE__);
+  hasnot("", __LINE__);
+
+  insert_to_arrayset(a, "bar");
+
+  printf("\nJust added bar\n");
+  print_arrayset(a);
+
+  has("foo", __LINE__);
+  hasnot("foobar", __LINE__);
+  has("bar", __LINE__);
+  hasnot("", __LINE__);
+
+  insert_to_arrayset(a, "");
+
+  printf("\nJust added \"\"\n");
+  print_arrayset(a);
+
+  has("foo", __LINE__);
+  hasnot("foobar", __LINE__);
+  has("bar", __LINE__);
+  has("", __LINE__);
+
+  insert_to_arrayset(a, "foobar");
+
+  printf("\nJust added foobar\n");
+  print_arrayset(a);
+
+  has("foo", __LINE__);
+  has("foobar", __LINE__);
+  has("bar", __LINE__);
+  has("", __LINE__);
+
+  delete_from_arrayset(a, "bar");
+
+  printf("\nJust deleted bar\n");
+  print_arrayset(a);
+
+  has("foo", __LINE__);
+  has("foobar", __LINE__);
+  hasnot("bar", __LINE__);
+  has("", __LINE__);
+
+  delete_from_arrayset(a, "foobar");
+
+  printf("\nJust deleted foobar\n");
+  print_arrayset(a);
+
+  has("foo", __LINE__);
+  hasnot("foobar", __LINE__);
+  hasnot("bar", __LINE__);
+  has("", __LINE__);
+
+  insert_to_arrayset(a, "bar");
+
+  printf("\nJust added bar\n");
+  print_arrayset(a);
+
+  has("foo", __LINE__);
+  hasnot("foobar", __LINE__);
+  has("bar", __LINE__);
+  has("", __LINE__);
+
+  delete_from_arrayset(a, "");
+
+  printf("\nJust deleted ''\n");
+  print_arrayset(a);
+
+  has("foo", __LINE__);
+  hasnot("foobar", __LINE__);
+  has("bar", __LINE__);
+  hasnot("", __LINE__);
+
+  delete_from_arrayset(a, "foo");
+
+  printf("\nJust deleted foo\n");
+  print_arrayset(a);
+
+  hasnot("foo", __LINE__);
+  hasnot("foobar", __LINE__);
+  has("bar", __LINE__);
+  hasnot("", __LINE__);
+
+  delete_from_arrayset(a, "bar");
+
+  printf("\nJust deleted bar\n");
+  print_arrayset(a);
+
+  hasnot("foo", __LINE__);
+  hasnot("foobar", __LINE__);
+  hasnot("bar", __LINE__);
+  hasnot("", __LINE__);
 
   return 0;
 }

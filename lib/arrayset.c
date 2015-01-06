@@ -2,6 +2,7 @@
 
 #include <error.h>
 #include <string.h>
+#include <stdio.h>
 
 int find_in_arrayset(const arrayset *array, const char *path) {
   int len = strlen(path);
@@ -42,8 +43,22 @@ void delete_from_arrayset(arrayset *array, const char *path) {
   int len = strlen(path);
   memmove(&array->a[where], &array->a[where+len+1],
           array->size-where-len-1);
+  array->size -= len+1;
 }
 
 int is_in_arrayset(const arrayset *array, const char *path) {
   return find_in_arrayset(array, path) >= 0;
+}
+
+void print_arrayset(const arrayset *array) {
+  int size = array->size;
+  char *a = array->a;
+  printf("vvv (%d)\n", size);
+  while (size > 0) {
+    int len = strlen(a);
+    printf("%s\n", a);
+    a += len+1;
+    size -= len+1;
+  }
+  printf("^^^\n");
 }

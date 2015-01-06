@@ -13,4 +13,6 @@ void insert_to_arrayset(arrayset *array, const char *path);
 void delete_from_arrayset(arrayset *array, const char *path);
 int is_in_arrayset(const arrayset *array, const char *path);
 
+void print_arrayset(const arrayset *array);
+
 #endif
