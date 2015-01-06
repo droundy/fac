@@ -6,3 +6,4 @@ bilge
 *.o
 *.log
 *.dir
+*.test

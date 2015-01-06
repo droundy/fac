@@ -20,3 +20,18 @@ for s in libsources:
     print '< lib/%s.o' % s
 print '> bilge'
 print
+
+
+ctests = ['arrayset']
+
+for test in ctests:
+    print '| gcc -lpthread -o tests/%s.test' % test, 'tests/%s.o' % test, string.join(['lib/%s.o' % s for s in libsources])
+    print '> tests/%s.test' % test
+    print '< tests/%s.o' % test
+    for s in libsources:
+        print '< lib/%s.o' % s
+    print
+
+    print '| cd tests && gcc %s -c %s.c' % (flags, test)
+    print '> tests/%s.o' % s
+    print
