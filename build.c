@@ -61,6 +61,7 @@ void *run_parallel_rule(void *void_building) {
     b->written = 0;
     b->deleted = 0;
     b->readdir = 0;
+    printf("XX FAILED %s\n", b->rule->command);
     b->all_done = failed;
     return 0;
   }
@@ -363,9 +364,9 @@ void parallel_build_all(struct all_targets **all) {
   struct building **bs = malloc(num_threads*sizeof(struct building *));
   for (int i=0;i<num_threads;i++) bs[i] = 0;
 
-  int num_to_build = 0, num_built = 0;
+  int num_to_build = 0, num_built = 0, num_failed = 0, num_to_go = 0;
 
-  while (1) {
+  do {
     struct all_targets *tt = *all;
     while (tt) {
       determine_rule_cleanliness(all, tt->t->rule, &num_to_build);
@@ -381,7 +382,11 @@ void parallel_build_all(struct all_targets **all) {
 
           if (bs[i]->all_done == built) {
             struct rule *r = bs[i]->rule;
+
+            /* FIXME We should verify that the outputs specified were actually produced */
+            /* FIXME We should verify that the inputs specified were actually used */
             r->num_inputs = 0; // clear the set of inputs so we only rebuild on actual ones.
+            r->num_outputs = 0; // clear the set of outputs so we only rebuild on actual ones.
             listset *s = bs[i]->read;
             while (s != NULL) {
               struct target *t = create_target_with_stat(all, s->path);
@@ -424,6 +429,12 @@ void parallel_build_all(struct all_targets **all) {
             fprint_bilgefile(f, *all, r->bilgefile_path);
             fclose(f);
             free(donefile);
+            num_built++;
+          } else if (bs[i]->all_done == failed) {
+            printf("OOPS FAILED!\n");
+            num_failed++;
+          } else {
+            error(1,0,"what the heck? %d\n", bs[i]->all_done);
           }
 
           free_listset(bs[i]->readdir);
@@ -434,7 +445,6 @@ void parallel_build_all(struct all_targets **all) {
           munmap(bs[i], sizeof(struct building));
           bs[i] = 0;
           threads_available++;
-          num_built++;
         }
       } else {
         threads_available++;
@@ -471,7 +481,7 @@ void parallel_build_all(struct all_targets **all) {
       tt = tt->next;
     }
 
-    int num_to_go = 0;
+    num_to_go = 0;
     tt = *all;
     while (tt) {
       determine_rule_cleanliness(all, tt->t->rule, &num_to_build);
@@ -484,8 +494,13 @@ void parallel_build_all(struct all_targets **all) {
       tt = tt->next;
     }
     printf("I have %d still to build... vs %d\n", num_to_go, num_to_build);
-    if (num_to_go == 0) return;
     sleep(1);
     printf("still working...\n");
+  } while (num_to_go);
+  if (num_failed) {
+    printf("Failed %d/%d builds, succeeded %d/%d builds\n", num_failed, num_to_build, num_built, num_to_build);
+    exit(1);
+  } else {
+    printf("Build succeeded!\n");
   }
 }

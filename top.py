@@ -33,5 +33,5 @@ for test in ctests:
     print
 
     print '| cd tests && gcc %s -c %s.c' % (flags, test)
-    print '> tests/%s.o' % s
+    print '> tests/%s.o' % test
     print
