@@ -3,10 +3,18 @@
 
 #include <stdio.h>
 #include <stdbool.h>
+#include <stdarg.h>
 #include <sys/types.h>
 
 extern int num_jobs; /* number of jobs to run simultaneously */
 extern int verbose; /* true if user requests verbose output */
+
+inline void verbose_printf(const char *format, ...) {
+  va_list args;
+  va_start(args, format);
+  if (verbose) vfprintf(stderr, format, args);
+  va_end(args);
+}
 
 enum target_status {
   unknown,

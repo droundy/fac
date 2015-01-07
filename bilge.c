@@ -52,6 +52,7 @@ void usage(poptContext optCon, int exitcode, char *error, char *addl) {
 static struct all_targets *all = 0;
 
 int verbose = 0;
+extern inline void verbose_printf(const char *format, ...);
 
 int main(int argc, const char **argv) {
   struct poptOption optionsTable[] = {

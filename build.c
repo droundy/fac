@@ -144,7 +144,6 @@ void determine_rule_cleanliness(struct all_targets **all, struct rule *r,
                r->inputs[i]->path);
         r->status = dirty;
         *num_to_build += 1;
-        printf("# dirty = %d\n", *num_to_build);
         return;
       }
     }
@@ -356,7 +355,7 @@ int num_jobs = 0;
 
 void parallel_build_all(struct all_targets **all) {
   if (!num_jobs) num_jobs = sysconf(_SC_NPROCESSORS_ONLN);
-  printf("Using %d jobs\n", num_jobs);
+  verbose_printf("Using %d jobs\n", num_jobs);
 
   struct building **bs = malloc(num_jobs*sizeof(struct building *));
   for (int i=0;i<num_jobs;i++) bs[i] = 0;
