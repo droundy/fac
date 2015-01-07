@@ -9,4 +9,4 @@ lib/syscalls.h: lib/get_syscalls.py
 
 bilge: bilge.c bilge.h targets.c files.c build.c \
        lib/listset.c lib/bigbrother.c lib/syscalls.h lib/arrayset.c
-	gcc -lpthread -Wall -std=c11 -g -o bilge bilge.c targets.c files.c build.c lib/listset.c lib/bigbrother.c lib/arrayset.c
+	gcc -lpthread -lpopt -Wall -std=c11 -g -o bilge bilge.c targets.c files.c build.c lib/listset.c lib/bigbrother.c lib/arrayset.c

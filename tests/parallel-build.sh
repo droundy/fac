@@ -18,7 +18,7 @@ cat > top.bilge <<EOF
 < bar
 EOF
 
-/usr/bin/time -f '%e' ../../bilge 2> bilge.time
+/usr/bin/time -f '%e' ../../bilge -j2 2> bilge.time
 
 grep foo foobar
 grep bar foobar

@@ -9,6 +9,7 @@
 #include <error.h>
 #include <errno.h>
 #include <string.h>
+#include <popt.h>
 
 #include "bilge.h"
 
@@ -42,9 +43,31 @@ void go_to_bilge_top() {
   }
 }
 
+void usage(poptContext optCon, int exitcode, char *error, char *addl) {
+  poptPrintUsage(optCon, stderr, 0);
+  if (error) fprintf(stderr, "%s: %s\n", error, addl);
+  exit(exitcode);
+}
+
 static struct all_targets *all = 0;
 
-int main(int argc, char **argv) {
+int verbose = 0;
+
+int main(int argc, const char **argv) {
+  struct poptOption optionsTable[] = {
+    { "jobs", 'j', POPT_ARG_INT, &num_jobs, 0,
+      "the number of jobs to run simultaneously", "JOBS" },
+    { "verbose", 'v', POPT_ARG_NONE, &verbose, 0,
+      "give verbose output", 0 },
+    POPT_AUTOHELP
+    { NULL, 0, 0, NULL, 0 }
+  };
+
+  poptContext optCon = poptGetContext(NULL, argc, argv, optionsTable, 0);
+  poptSetOtherOptionHelp(optCon, "[OPTIONS]* [things to build maybe?]");
+
+  while (poptGetNextOpt(optCon) >= 0);
+
   go_to_bilge_top();
 
   read_bilge_file(&all, "top.bilge");

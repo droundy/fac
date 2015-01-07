@@ -5,6 +5,9 @@
 #include <stdbool.h>
 #include <sys/types.h>
 
+extern int num_jobs; /* number of jobs to run simultaneously */
+extern int verbose; /* true if user requests verbose output */
+
 enum target_status {
   unknown,
   clean,

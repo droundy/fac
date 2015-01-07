@@ -352,12 +352,14 @@ void let_us_build(struct all_targets **all, struct rule *r, int *num_to_build,
   }
 }
 
-void parallel_build_all(struct all_targets **all) {
-  int num_threads = sysconf(_SC_NPROCESSORS_ONLN);
-  printf("Using %d jobs\n", num_threads);
+int num_jobs = 0;
 
-  struct building **bs = malloc(num_threads*sizeof(struct building *));
-  for (int i=0;i<num_threads;i++) bs[i] = 0;
+void parallel_build_all(struct all_targets **all) {
+  if (!num_jobs) num_jobs = sysconf(_SC_NPROCESSORS_ONLN);
+  printf("Using %d jobs\n", num_jobs);
+
+  struct building **bs = malloc(num_jobs*sizeof(struct building *));
+  for (int i=0;i<num_jobs;i++) bs[i] = 0;
 
   int num_to_build = 0, num_built = 0, num_failed = 0, num_to_go = 0;
 
@@ -369,13 +371,13 @@ void parallel_build_all(struct all_targets **all) {
     }
 
     int threads_in_use = 0;
-    for (int i=0;i<num_threads;i++) {
+    for (int i=0;i<num_jobs;i++) {
       if (bs[i]) threads_in_use++;
     }
 
     if (threads_in_use) {
       pid_t pid = waitpid(-1, 0, 0);
-      for (int i=0;i<num_threads;i++) {
+      for (int i=0;i<num_jobs;i++) {
         if (bs[i] && bs[i]->pid == pid) {
           bs[i]->rule->status = bs[i]->all_done;
           printf("%d/%d: %s\n", num_built+1, num_to_build, bs[i]->rule->command);
@@ -451,7 +453,7 @@ void parallel_build_all(struct all_targets **all) {
       if (len >= 6 && !strcmp(tt->t->path+len-6, ".bilge")) {
         if (tt->t->rule && tt->t->rule->status == dirty) {
           /* This is a dirty .bilge file, so we need to build it! */
-          let_us_build(all, tt->t->rule, &num_to_build, bs, num_threads);
+          let_us_build(all, tt->t->rule, &num_to_build, bs, num_jobs);
         }
       }
       tt = tt->next;
@@ -463,7 +465,7 @@ void parallel_build_all(struct all_targets **all) {
       determine_rule_cleanliness(all, tt->t->rule, &num_to_build);
       if (tt->t->rule) {
         if (tt->t->rule->status == dirty || tt->t->rule->status == building) {
-          let_us_build(all, tt->t->rule, &num_to_build, bs, num_threads);
+          let_us_build(all, tt->t->rule, &num_to_build, bs, num_jobs);
           num_to_go++;
         }
       }
