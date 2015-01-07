@@ -13,7 +13,6 @@
 #include <error.h>
 #include <errno.h>
 #include <string.h>
-#include <pthread.h>
 #include <semaphore.h>
 
 static struct target *create_target_with_stat(struct all_targets **all,
@@ -30,7 +29,7 @@ static struct target *create_target_with_stat(struct all_targets **all,
 
 struct building {
   int all_done;
-  pthread_t thread;
+  pid_t pid;
   struct rule *rule;
   arrayset readdir, read, written, deleted;
 };
@@ -337,23 +336,13 @@ void let_us_build(struct all_targets **all, struct rule *r, int *num_to_build,
     if (!bs[i]) {
       bs[i] = build_rule_or_dependency(all, r, num_to_build);
       if (bs[i]) {
-        if (false) {
-          pthread_t th;
-          pthread_create(&th, 0, run_parallel_rule, bs[i]);
-          pthread_detach(th);
-        } else if (true) {
-          pid_t pid = fork();
-          if (pid == 0) {
-            pid_t double_id = fork();
-            if (double_id == 0) {
-              run_parallel_rule(bs[i]);
-              exit(0);
-            } else {
-              exit(0);
-            }
-          } else {
-            waitpid(pid, 0, 0);
+        if (true) {
+          pid_t new_pid = fork();
+          if (new_pid == 0) {
+            run_parallel_rule(bs[i]);
+            exit(0);
           }
+          bs[i]->pid = new_pid;
         } else {
           run_parallel_rule(bs[i]);
         }
@@ -377,10 +366,15 @@ void parallel_build_all(struct all_targets **all) {
       tt = tt->next;
     }
 
-    int threads_available = 0;
+    int threads_in_use = 0;
     for (int i=0;i<num_threads;i++) {
-      if (bs[i]) {
-        if (bs[i]->all_done != unknown) {
+      if (bs[i]) threads_in_use++;
+    }
+
+    if (threads_in_use) {
+      pid_t pid = waitpid(-1, 0, 0);
+      for (int i=0;i<num_threads;i++) {
+        if (bs[i] && bs[i]->pid == pid) {
           bs[i]->rule->status = bs[i]->all_done;
           printf("%d/%d: %s\n", num_built+1, num_to_build, bs[i]->rule->command);
 
@@ -431,10 +425,7 @@ void parallel_build_all(struct all_targets **all) {
           }
           munmap(bs[i], sizeof(struct building));
           bs[i] = 0;
-          threads_available++;
         }
-      } else {
-        threads_available++;
       }
     }
 
@@ -451,11 +442,6 @@ void parallel_build_all(struct all_targets **all) {
         }
       }
       tt = tt->next;
-    }
-    if (threads_available == 0) {
-      //waitpid(-1, 0, 0);
-      sleep(1); /* FIXME HOKEY and slow */
-      continue;
     }
     tt = *all;
     while (tt) {
@@ -481,9 +467,6 @@ void parallel_build_all(struct all_targets **all) {
       }
       tt = tt->next;
     }
-    printf("I have %d still to build... vs %d\n", num_to_go, num_to_build);
-    sleep(1);
-    printf("still working...\n");
   } while (num_to_go);
   if (num_failed) {
     printf("Failed %d/%d builds, succeeded %d/%d builds\n", num_failed, num_to_build, num_built, num_to_build);

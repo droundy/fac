@@ -24,6 +24,6 @@ grep foo foobar
 grep bar foobar
 
 cat bilge.time
-perl -e 'if ($ARGV[0] > 3) { print "FAIL: $ARGV[0] too big\n"; exit 1; }' `cat bilge.time`
+perl -e 'if ($ARGV[0] > 3.5) { print "FAIL: $ARGV[0] too big\n"; exit 1; }' `cat bilge.time`
 
 exit 0

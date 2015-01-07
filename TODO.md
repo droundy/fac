@@ -1,6 +1,5 @@
 # Features
 
-- Parallel build
 - Hashing of inputs
 - Tracking of environment variables
 - Store build time, and estimate remaining build time
