@@ -353,7 +353,9 @@ void let_us_build(struct all_targets **all, struct rule *r, int *num_to_build,
 }
 
 void parallel_build_all(struct all_targets **all) {
-  int num_threads = 2;
+  int num_threads = sysconf(_SC_NPROCESSORS_ONLN);
+  printf("Using %d jobs\n", num_threads);
+
   struct building **bs = malloc(num_threads*sizeof(struct building *));
   for (int i=0;i<num_threads;i++) bs[i] = 0;
 
