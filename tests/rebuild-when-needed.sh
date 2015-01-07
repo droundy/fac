@@ -10,12 +10,13 @@ echo foo > foo
 echo bar > bar
 
 cat > top.bilge <<EOF
-| cat input > foo
-> foo
-
 | cat foo > bar
 > bar
 < foo
+
+| cat input > foo
+> foo
+
 EOF
 
 echo good > input

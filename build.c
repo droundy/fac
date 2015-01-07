@@ -137,7 +137,9 @@ void determine_rule_cleanliness(struct all_targets **all, struct rule *r,
     if (r->inputs[i]->rule) {
       if (r->inputs[i]->rule->status == unknown)
         determine_rule_cleanliness(all, r->inputs[i]->rule, num_to_build);
-      if (r->inputs[i]->rule->status == dirty) {
+      if (r->inputs[i]->rule->status == dirty ||
+          r->inputs[i]->rule->status == built ||
+          r->inputs[i]->rule->status == building) {
         printf("::: %s :::\n", r->command);
         printf(" - dirty because %s needs to be rebuilt.\n",
                r->inputs[i]->path);
@@ -335,11 +337,11 @@ void let_us_build(struct all_targets **all, struct rule *r, int *num_to_build,
     if (!bs[i]) {
       bs[i] = build_rule_or_dependency(all, r, num_to_build);
       if (bs[i]) {
-        if (0) {
+        if (false) {
           pthread_t th;
           pthread_create(&th, 0, run_parallel_rule, bs[i]);
           pthread_detach(th);
-        } else if (0) {
+        } else if (true) {
           pid_t pid = fork();
           if (pid == 0) {
             pid_t double_id = fork();
@@ -451,6 +453,7 @@ void parallel_build_all(struct all_targets **all) {
       tt = tt->next;
     }
     if (threads_available == 0) {
+      //waitpid(-1, 0, 0);
       sleep(1); /* FIXME HOKEY and slow */
       continue;
     }

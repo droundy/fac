@@ -22,7 +22,7 @@ print '> bilge'
 print
 
 
-ctests = ['arrayset', 'listset']
+ctests = ['arrayset', 'listset', 'spinner']
 
 for test in ctests:
     print '| gcc -lpthread -o tests/%s.test' % test, 'tests/%s.o' % test, string.join(['lib/%s.o' % s for s in libsources])
