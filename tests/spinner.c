@@ -9,8 +9,13 @@ int main(int argc, char ** argv) {
     ticks = seconds*CLOCKS_PER_SEC;
   }
   printf("Starting timing for %lg seconds...\n", ticks/(double)CLOCKS_PER_SEC);
-  while (clock() < ticks);
-  printf("All done spinning!\n");
+  double foo = 0;
+  while (clock() < ticks) {
+    for (int i=0;i<1000000;i++) {
+      foo += 1;
+    }
+  }
+  printf("All done spinning! %g\n", foo);
   return 0;
 }
 
