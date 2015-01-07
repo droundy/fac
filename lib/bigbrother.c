@@ -493,6 +493,11 @@ int bigbrother_process_arrayset(const char *workingdir,
                                 arrayset *read_from_files,
                                 arrayset *written_to_files,
                                 arrayset *deleted_files) {
+  initialize_arrayset(read_from_directories);
+  initialize_arrayset(read_from_files);
+  initialize_arrayset(written_to_files);
+  initialize_arrayset(deleted_files);
+
   pid_t child = fork();
   if (child == 0) {
     if (workingdir && chdir(workingdir) != 0) return -1;

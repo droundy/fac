@@ -4,6 +4,10 @@
 #include <string.h>
 #include <stdio.h>
 
+void initialize_arrayset(arrayset *array) {
+  array->size = 0;
+}
+
 int find_in_arrayset(const arrayset *array, const char *path) {
   int len = strlen(path);
   const char *a = array->a;
@@ -53,7 +57,7 @@ int is_in_arrayset(const arrayset *array, const char *path) {
 void print_arrayset(const arrayset *array) {
   int size = array->size;
   const char *a = array->a;
-  printf("vvv (%d)\n", size);
+  printf("vvv (%p = %d)\n", array, size);
   while (size > 0) {
     int len = strlen(a);
     printf("%s\n", a);
@@ -61,4 +65,18 @@ void print_arrayset(const arrayset *array) {
     size -= len+1;
   }
   printf("^^^\n");
+}
+
+char *start_iterating(arrayset *array) {
+  array->iterator = 0;
+  return iterate(array);
+}
+
+char *iterate(arrayset *array) {
+  if (array->iterator < array->size) {
+    char *out = array->a + array->iterator;
+    array->iterator += strlen(out) + 1;
+    return out;
+  }
+  return 0;
 }

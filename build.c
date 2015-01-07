@@ -32,16 +32,16 @@ struct building {
   int all_done;
   pthread_t thread;
   struct rule *rule;
-  listset *readdir, *read, *written, *deleted;
+  arrayset readdir, read, written, deleted;
 };
 
 void *run_parallel_rule(void *void_building) {
   struct building *b = void_building;
   const char **args = malloc(4*sizeof(char *));
-  b->readdir = 0;
-  b->read = 0;
-  b->written = 0;
-  b->deleted = 0;
+  initialize_arrayset(&b->readdir);
+  initialize_arrayset(&b->read);
+  initialize_arrayset(&b->written);
+  initialize_arrayset(&b->deleted);
   b->all_done = dirty;
 
   args[0] = "/bin/sh";
@@ -49,18 +49,10 @@ void *run_parallel_rule(void *void_building) {
   args[2] = b->rule->command;
   args[3] = 0;
 
-  int ret = bigbrother_process(b->rule->working_directory,
-                               (char **)args, &b->readdir,
-                               &b->read, &b->written, &b->deleted);
+  int ret = bigbrother_process_arrayset(b->rule->working_directory,
+                                        (char **)args, &b->readdir,
+                                        &b->read, &b->written, &b->deleted);
   if (ret != 0) {
-    free_listset(b->read);
-    free_listset(b->written);
-    free_listset(b->deleted);
-    free_listset(b->readdir);
-    b->read = 0;
-    b->written = 0;
-    b->deleted = 0;
-    b->readdir = 0;
     printf("XX FAILED %s\n", b->rule->command);
     b->all_done = failed;
     return 0;
@@ -309,20 +301,30 @@ struct building *build_rule_or_dependency(struct all_targets **all,
     return 0;
   }
   if (r->status == dirty) {
+    bool ready_to_go = true;
     for (int i=0;i<r->num_inputs;i++) {
+      if (r->inputs[i]->rule && r->inputs[i]->rule->status == failed) {
+        r->status = failed;
+        return 0;
+      }
       struct building *b = build_rule_or_dependency(all, r->inputs[i]->rule,
                                                     num_to_build);
       if (b) return b;
+      if (r->inputs[i]->rule && !(r->inputs[i]->rule->status == clean || r->inputs[i]->rule->status == built)) {
+        ready_to_go = false;
+      }
     }
 
-    //struct building *b = malloc(sizeof(struct building));
-    struct building *b = mmap(NULL, sizeof(struct building),
-                              PROT_READ | PROT_WRITE,
-                              MAP_SHARED | MAP_ANONYMOUS, -1, 0);
-    b->rule = r;
-    b->all_done = building;
-    r->status = building;
-    return b;
+    if (ready_to_go) {
+      //struct building *b = malloc(sizeof(struct building));
+      struct building *b = mmap(NULL, sizeof(struct building),
+                                PROT_READ | PROT_WRITE,
+                                MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+      b->rule = r;
+      b->all_done = building;
+      r->status = building;
+      return b;
+    }
   }
   return 0;
 }
@@ -387,40 +389,29 @@ void parallel_build_all(struct all_targets **all) {
             /* FIXME We should verify that the inputs specified were actually used */
             r->num_inputs = 0; // clear the set of inputs so we only rebuild on actual ones.
             r->num_outputs = 0; // clear the set of outputs so we only rebuild on actual ones.
-            listset *s = bs[i]->read;
-            while (s != NULL) {
-              struct target *t = create_target_with_stat(all, s->path);
-              if (!t) error(1, errno, "Unable to stat file %s", t->path);
+            for (char *path = start_iterating(&bs[i]->read); path; path = iterate(&bs[i]->read)) {
+              struct target *t = create_target_with_stat(all, path);
+              if (!t) error(1, errno, "Unable to stat file %s", path);
               add_input(r, t);
-              s = s->next;
             }
 
-            s = bs[i]->readdir;
-            while (s != NULL) {
-              struct target *t = create_target_with_stat(all, s->path);
-              if (!t) error(1, errno, "Unable to stat file %s", t->path);
+            for (char *path = start_iterating(&bs[i]->readdir); path; path = iterate(&bs[i]->readdir)) {
+              struct target *t = create_target_with_stat(all, path);
+              if (!t) error(1, errno, "Unable to stat directory %s", path);
               add_input(r, t);
-              s = s->next;
             }
 
-            for (int i=0;i<r->num_outputs;i++) {
-              /* The following handles the case where we have a command that
-                 doesn't actually write to one of its "outputs." */
-              create_target_with_stat(all, r->outputs[i]->path);
-            }
-
-            s = bs[i]->written;
-            while (s != NULL) {
-              struct target *t = lookup_target(*all, s->path);
+            for (char *path = start_iterating(&bs[i]->written); path; path = iterate(&bs[i]->written)) {
+              struct target *t = lookup_target(*all, path);
               if (t) {
                 t->last_modified = 0;
                 t->size = 0;
               }
-              t = create_target_with_stat(all, s->path);
-              if (!t) error(1, errno, "Unable to stat file %s", t->path);
+              t = create_target_with_stat(all, path);
+              if (!t) error(1, errno, "Unable to stat file %s", path);
               t->rule = r;
               add_output(r, t);
-              s = s->next;
+              fflush(stdout);
             }
 
             char *donefile = done_name(r->bilgefile_path);
@@ -436,12 +427,6 @@ void parallel_build_all(struct all_targets **all) {
           } else {
             error(1,0,"what the heck? %d\n", bs[i]->all_done);
           }
-
-          free_listset(bs[i]->readdir);
-          free_listset(bs[i]->read);
-          free_listset(bs[i]->written);
-          free_listset(bs[i]->deleted);
-          //free(bs[i]);
           munmap(bs[i], sizeof(struct building));
           bs[i] = 0;
           threads_available++;

@@ -24,11 +24,19 @@ void hasnot(const char *string, int line) {
   }
 }
 
+void testiter(int line) {
+  for (char *v = start_iterating(a); v; v = iterate(a)) {
+    has(v, line);
+  }
+}
+
 int main(int argc, char **argv) {
   printf("This is silly!\n");
 
   a = malloc(sizeof(struct arrayset));
-  a->size = 0;
+  initialize_arrayset(a);
+
+  testiter(__LINE__);
 
   hasnot("foo", __LINE__);
   delete_from_arrayset(a, "foo"); // shouldn't crash
@@ -39,6 +47,7 @@ int main(int argc, char **argv) {
   hasnot("", __LINE__);
 
   insert_to_arrayset(a, "foo");
+  testiter(__LINE__);
 
   has("foo", __LINE__);
   hasnot("foobar", __LINE__);
@@ -46,6 +55,7 @@ int main(int argc, char **argv) {
   hasnot("", __LINE__);
 
   insert_to_arrayset(a, "bar");
+  testiter(__LINE__);
 
   has("foo", __LINE__);
   hasnot("foobar", __LINE__);
@@ -53,6 +63,7 @@ int main(int argc, char **argv) {
   hasnot("", __LINE__);
 
   insert_to_arrayset(a, "bar");
+  testiter(__LINE__);
 
   printf("\nJust added bar\n");
   print_arrayset(a);
@@ -63,6 +74,7 @@ int main(int argc, char **argv) {
   hasnot("", __LINE__);
 
   insert_to_arrayset(a, "");
+  testiter(__LINE__);
 
   printf("\nJust added \"\"\n");
   print_arrayset(a);
