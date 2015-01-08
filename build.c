@@ -156,7 +156,6 @@ void determine_rule_cleanliness(struct all_targets **all, struct rule *r,
                r->inputs[i]->path);
         r->status = dirty;
         *num_to_build += 1;
-        printf("# dirty = %d\n", *num_to_build);
         return; /* The file is out of date. */
       }
     } else {
