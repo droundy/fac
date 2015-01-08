@@ -14,7 +14,7 @@ cat > top.bilge <<EOF
 > foo
 EOF
 
-../../bilge > bilge.out
+../../bilge -v > bilge.out
 cat bilge.out
 if grep dirty bilge.out; then
     echo It is dirty, as it should be.
@@ -25,7 +25,7 @@ fi
 
 cat top.bilge.done
 
-../../bilge > bilge.out
+../../bilge -v > bilge.out
 cat bilge.out
 if grep dirty bilge.out; then
     echo It is dirty, but should not be!!!

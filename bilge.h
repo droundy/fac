@@ -12,7 +12,7 @@ extern int verbose; /* true if user requests verbose output */
 inline void verbose_printf(const char *format, ...) {
   va_list args;
   va_start(args, format);
-  if (verbose) vfprintf(stderr, format, args);
+  if (verbose) vfprintf(stdout, format, args);
   va_end(args);
 }
 

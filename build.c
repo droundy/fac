@@ -139,9 +139,9 @@ void determine_rule_cleanliness(struct all_targets **all, struct rule *r,
       if (r->inputs[i]->rule->status == dirty ||
           r->inputs[i]->rule->status == built ||
           r->inputs[i]->rule->status == building) {
-        printf("::: %s :::\n", r->command);
-        printf(" - dirty because %s needs to be rebuilt.\n",
-               r->inputs[i]->path);
+        verbose_printf("::: %s :::\n", r->command);
+        verbose_printf(" - dirty because %s needs to be rebuilt.\n",
+                       r->inputs[i]->path);
         r->status = dirty;
         *num_to_build += 1;
         return;
@@ -151,19 +151,18 @@ void determine_rule_cleanliness(struct all_targets **all, struct rule *r,
       if (!create_target_with_stat(all, r->inputs[i]->path) ||
           r->input_times[i] != r->inputs[i]->last_modified ||
           r->input_sizes[i] != r->inputs[i]->size) {
-        printf("::: %s :::\n", r->command);
-        printf(" - dirty because %s has wrong input time.\n",
+        verbose_printf("::: %s :::\n", r->command);
+        verbose_printf(" - dirty because %s has wrong input time.\n",
                r->inputs[i]->path);
         r->status = dirty;
         *num_to_build += 1;
         return; /* The file is out of date. */
       }
     } else {
-      printf("::: %s :::\n", r->command);
-      printf(" - dirty because #%d %s has no input time.\n", i, r->inputs[i]->path);
+      verbose_printf("::: %s :::\n", r->command);
+      verbose_printf(" - dirty because #%d %s has no input time.\n", i, r->inputs[i]->path);
       r->status = dirty;
       *num_to_build += 1;
-      printf("# dirty = %d\n", *num_to_build);
       return; /* The file hasn't been built. */
     }
   }
@@ -172,22 +171,20 @@ void determine_rule_cleanliness(struct all_targets **all, struct rule *r,
       if (!create_target_with_stat(all, r->outputs[i]->path) ||
           r->output_times[i] != r->outputs[i]->last_modified ||
           r->output_sizes[i] != r->outputs[i]->size) {
-        printf("::: %s :::\n", r->command);
-        printf(" - dirty because %s has wrong output time.\n",
+        verbose_printf("::: %s :::\n", r->command);
+        verbose_printf(" - dirty because %s has wrong output time.\n",
                r->outputs[i]->path);
         printf("   compare times %ld with %ld\n",
                r->outputs[i]->last_modified, r->output_times[i]);
         r->status = dirty;
         *num_to_build += 1;
-        printf("# dirty = %d\n", *num_to_build);
         return; /* The file is out of date. */
       }
     } else {
-      printf("::: %s :::\n", r->command);
-      printf(" - dirty because %s has no output time.\n", r->outputs[i]->path);
+      verbose_printf("::: %s :::\n", r->command);
+      verbose_printf(" - dirty because %s has no output time.\n", r->outputs[i]->path);
       r->status = dirty;
       *num_to_build += 1;
-      printf("# dirty = %d\n", *num_to_build);
       return; /* The file hasn't been built. */
     }
   }
