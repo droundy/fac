@@ -110,6 +110,9 @@ argument_table('string_argument', { 'open': 0,
 
 bool_table('is_wait_or_exit', ['wait4',
                                'waitid',
+                               'epoll_pwait',
+                               'epoll_wait',
+                               'futex',
                                'exit',
                                'exit_group'])
 

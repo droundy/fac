@@ -150,6 +150,7 @@ static int save_syscall_access(pid_t child,
     exit(1);
   }
   syscall = regs.orig_rax;
+  debugprintf(">> %d >> %s()\n", child, syscalls[syscall]);
 
   if (write_fd[syscall] >= 0) {
     int fd = get_syscall_arg(&regs, write_fd[syscall]);
@@ -250,7 +251,7 @@ int bigbrother_process(const char *workingdir,
     return execvp(args[0], args);
   } else {
     int num_programs = 1;
-    waitpid(-1, 0, 0);
+    waitpid(-1, 0, __WALL);
     ptrace(PTRACE_SETOPTIONS, child, 0, my_ptrace_options);
     ptrace_syscall(child); // run until a sycall is attempted
 
@@ -260,7 +261,7 @@ int bigbrother_process(const char *workingdir,
     look_for_syscall:
       while (1) {
         //debugprintf("waiting for any syscall...\n");
-        child = waitpid(-1, &status, 0);
+        child = waitpid(-1, &status, __WALL);
         if (WIFSTOPPED(status) && WSTOPSIG(status) & 0x80) {
           break;
         } else if (WIFEXITED(status)) {
@@ -309,6 +310,7 @@ int bigbrother_process(const char *workingdir,
            processing the child processes.  So my simple
            (non-threaded) approach is just to ignore their return
            value. */
+        debugprintf("%d GOT waiting or exiting syscall\n", child);
         ptrace(PTRACE_SYSCALL, child, 0, 0); // ignore return value
         goto look_for_syscall;
       }
@@ -317,7 +319,7 @@ int bigbrother_process(const char *workingdir,
 
       while (1) {
         //debugprintf("waiting for syscall from %d...\n", child);
-        waitpid(child, &status, 0);
+        waitpid(child, &status, __WALL);
         if (WIFSTOPPED(status) && WSTOPSIG(status) & 0x80) {
           break;
         } else if (WIFEXITED(status)) {
@@ -331,12 +333,12 @@ int bigbrother_process(const char *workingdir,
         } else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_VFORK_DONE<<8))) {
           debugprintf("vfork is done in %d\n", child);
           ptrace_syscall(child); // skip over return value of vfork
-          waitpid(child, &status, 0);
+          waitpid(child, &status, __WALL);
         } else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_FORK<<8))) {
           pid_t newpid;
           ptrace(PTRACE_GETEVENTMSG, child, 0, &newpid);
           //debugprintf("\nforked %d from %d!!!\n", newpid, child);
-          waitpid(newpid, 0, 0);
+          waitpid(newpid, 0, __WALL);
           //debugprintf("waitpid %d worked!!!\n", newpid);
           if (ptrace(PTRACE_SETOPTIONS, newpid, 0, my_ptrace_options)) {
             debugprintf("error ptracing setoptions n %d\n", newpid);
@@ -349,8 +351,8 @@ int bigbrother_process(const char *workingdir,
           pid_t newpid;
           ptrace(PTRACE_GETEVENTMSG, child, 0, &newpid);
           debugprintf("\ncloned %d from %d!!!\n", newpid, child);
-          waitpid(newpid, 0, 0);
-          //debugprintf("waitpid %d worked!!!\n", newpid);
+          waitpid(newpid, 0, __WALL);
+          //debugprintf("now waitpid %d worked!!!\n", newpid);
           if (ptrace(PTRACE_SETOPTIONS, newpid, 0, my_ptrace_options)) {
             debugprintf("error ptracing setoptions n %d\n", newpid);
           }
@@ -362,7 +364,7 @@ int bigbrother_process(const char *workingdir,
           pid_t newpid;
           ptrace(PTRACE_GETEVENTMSG, child, 0, &newpid);
           //debugprintf("\nvforked %d from %d!!!\n", newpid, child);
-          waitpid(newpid, 0, 0);
+          waitpid(newpid, 0, __WALL);
           //debugprintf("waitpid %d worked!!!\n", newpid);
           if (ptrace(PTRACE_SETOPTIONS, newpid, 0, my_ptrace_options)) {
             debugprintf("error ptracing setoptions n %d\n", newpid);
@@ -506,7 +508,7 @@ int bigbrother_process_arrayset(const char *workingdir,
     return execvp(args[0], args);
   } else {
     int num_programs = 1;
-    waitpid(-1, 0, 0);
+    waitpid(-1, 0, __WALL);
     ptrace(PTRACE_SETOPTIONS, child, 0, my_ptrace_options);
     ptrace_syscall(child); // run until a sycall is attempted
 
@@ -516,7 +518,7 @@ int bigbrother_process_arrayset(const char *workingdir,
     look_for_syscall:
       while (1) {
         //debugprintf("waiting for any syscall...\n");
-        child = waitpid(-1, &status, 0);
+        child = waitpid(-1, &status, __WALL);
         if (WIFSTOPPED(status) && WSTOPSIG(status) & 0x80) {
           break;
         } else if (WIFEXITED(status)) {
@@ -573,7 +575,7 @@ int bigbrother_process_arrayset(const char *workingdir,
 
       while (1) {
         //debugprintf("waiting for syscall from %d...\n", child);
-        waitpid(child, &status, 0);
+        waitpid(child, &status, __WALL);
         if (WIFSTOPPED(status) && WSTOPSIG(status) & 0x80) {
           break;
         } else if (WIFEXITED(status)) {
@@ -587,12 +589,12 @@ int bigbrother_process_arrayset(const char *workingdir,
         } else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_VFORK_DONE<<8))) {
           debugprintf("vfork is done in %d\n", child);
           ptrace_syscall(child); // skip over return value of vfork
-          waitpid(child, &status, 0);
+          waitpid(child, &status, __WALL);
         } else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_FORK<<8))) {
           pid_t newpid;
           ptrace(PTRACE_GETEVENTMSG, child, 0, &newpid);
           //debugprintf("\nforked %d from %d!!!\n", newpid, child);
-          waitpid(newpid, 0, 0);
+          waitpid(newpid, 0, __WALL);
           //debugprintf("waitpid %d worked!!!\n", newpid);
           if (ptrace(PTRACE_SETOPTIONS, newpid, 0, my_ptrace_options)) {
             debugprintf("error ptracing setoptions n %d\n", newpid);
@@ -605,7 +607,7 @@ int bigbrother_process_arrayset(const char *workingdir,
           pid_t newpid;
           ptrace(PTRACE_GETEVENTMSG, child, 0, &newpid);
           debugprintf("\ncloned %d from %d!!!\n", newpid, child);
-          waitpid(newpid, 0, 0);
+          waitpid(newpid, 0, __WALL);
           //debugprintf("waitpid %d worked!!!\n", newpid);
           if (ptrace(PTRACE_SETOPTIONS, newpid, 0, my_ptrace_options)) {
             debugprintf("error ptracing setoptions n %d\n", newpid);
@@ -618,7 +620,7 @@ int bigbrother_process_arrayset(const char *workingdir,
           pid_t newpid;
           ptrace(PTRACE_GETEVENTMSG, child, 0, &newpid);
           //debugprintf("\nvforked %d from %d!!!\n", newpid, child);
-          waitpid(newpid, 0, 0);
+          waitpid(newpid, 0, __WALL);
           //debugprintf("waitpid %d worked!!!\n", newpid);
           if (ptrace(PTRACE_SETOPTIONS, newpid, 0, my_ptrace_options)) {
             debugprintf("error ptracing setoptions n %d\n", newpid);
