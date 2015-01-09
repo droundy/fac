@@ -184,8 +184,8 @@ void determine_rule_cleanliness(struct all_targets **all, struct rule *r,
         verbose_printf("::: %s :::\n", r->command);
         verbose_printf(" - dirty because %s has wrong output time.\n",
                r->outputs[i]->path);
-        printf("   compare times %ld with %ld\n",
-               r->outputs[i]->last_modified, r->output_times[i]);
+        /* printf("   compare times %ld with %ld\n", */
+        /*        r->outputs[i]->last_modified, r->output_times[i]); */
         r->status = dirty;
         *num_to_build += 1;
         return; /* The file is out of date. */
