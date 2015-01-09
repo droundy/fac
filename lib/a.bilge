@@ -7,6 +7,14 @@
 | gcc -std=c11 -Wall -std=c11 -g -c bigbrother.c
 > bigbrother.o
 
+| gcc -m32 -std=c11 -Wall -std=c11 -g -o listset-32.o -c listset.c
+> listset-32.o
+
+| gcc -m32 -std=c11 -Wall -std=c11 -g -o arrayset-32.o -c arrayset.c
+> arrayset-32.o
+
+# | gcc -m32 -std=c11 -Wall -std=c11 -g -o bigbrother-32.o -c bigbrother.c
+# > bigbrother-32.o
 
 | gcc -std=c11 -g -O2 -Wall -o fileaccesses fileaccesses.c listset.c bigbrother.c arrayset.c
 < syscalls.h
