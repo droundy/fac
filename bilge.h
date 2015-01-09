@@ -18,6 +18,7 @@ inline void verbose_printf(const char *format, ...) {
 
 enum target_status {
   unknown,
+  being_determined,
   clean,
   built,
   building,

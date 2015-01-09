@@ -131,11 +131,21 @@ struct rule *run_rule(struct all_targets **all, struct rule *r) {
 void determine_rule_cleanliness(struct all_targets **all, struct rule *r,
                                 int *num_to_build) {
   if (!r) return;
+  if (r->status == being_determined) {
+    verbose_printf("Looks like a cycle! %s\n",
+                   r->outputs[0]->path);
+  }
   if (r->status != unknown) return;
+  r->status = being_determined;
   for (int i=0;i<r->num_inputs;i++) {
     if (r->inputs[i]->rule) {
       if (r->inputs[i]->rule->status == unknown)
         determine_rule_cleanliness(all, r->inputs[i]->rule, num_to_build);
+      if (r->inputs[i]->rule->status == being_determined)
+        verbose_printf("CYCLE INVOLVING %s and %s\n  and %s\n",
+                       r->outputs[0]->path,
+                       r->inputs[i]->path,
+                       r->inputs[i]->rule->outputs[0]->path);
       if (r->inputs[i]->rule->status == dirty ||
           r->inputs[i]->rule->status == built ||
           r->inputs[i]->rule->status == building) {
@@ -188,7 +198,7 @@ void determine_rule_cleanliness(struct all_targets **all, struct rule *r,
       return; /* The file hasn't been built. */
     }
   }
-  if (r->status == unknown) r->status = clean;
+  r->status = clean;
 }
 
 bool build_rule_plus_dependencies(struct all_targets **all, struct rule *r,
@@ -380,10 +390,27 @@ void parallel_build_all(struct all_targets **all) {
           if (bs[i]->all_done == built) {
             struct rule *r = bs[i]->rule;
 
-            /* FIXME We should verify that the outputs specified were actually produced */
             /* FIXME We should verify that the inputs specified were actually used */
-            r->num_inputs = 0; // clear the set of inputs so we only rebuild on actual ones.
-            r->num_outputs = 0; // clear the set of outputs so we only rebuild on actual ones.
+            for (int ii=0;ii<r->num_inputs;ii++) {
+              struct target *t = create_target_with_stat(all, r->inputs[ii]->path);
+              if (!t) error(1, errno, "Unable to stat file %s", r->inputs[ii]->path);
+              add_input(r, t);
+              delete_from_arrayset(&bs[i]->read, r->inputs[ii]->path);
+              delete_from_arrayset(&bs[i]->written, r->inputs[ii]->path);
+            }
+            for (int ii=0;ii<r->num_outputs;ii++) {
+              struct target *t = lookup_target(*all, r->outputs[ii]->path);
+              if (t) {
+                t->last_modified = 0;
+                t->size = 0;
+              }
+              t = create_target_with_stat(all, r->outputs[ii]->path);
+              if (!t) error(1, errno, "Unable to stat file %s", r->outputs[ii]->path);
+              t->rule = r;
+              add_output(r, t);
+              delete_from_arrayset(&bs[i]->read, r->outputs[ii]->path);
+              delete_from_arrayset(&bs[i]->written, r->outputs[ii]->path);
+            }
             for (char *path = start_iterating(&bs[i]->read); path; path = iterate(&bs[i]->read)) {
               struct target *t = create_target_with_stat(all, path);
               if (!t) error(1, errno, "Unable to stat file %s", path);
@@ -457,8 +484,8 @@ void parallel_build_all(struct all_targets **all) {
     num_to_go = 0;
     tt = *all;
     while (tt) {
-      determine_rule_cleanliness(all, tt->t->rule, &num_to_build);
       if (tt->t->rule) {
+        determine_rule_cleanliness(all, tt->t->rule, &num_to_build);
         if (tt->t->rule->status == dirty || tt->t->rule->status == building) {
           let_us_build(all, tt->t->rule, &num_to_build, bs, num_jobs);
           num_to_go++;

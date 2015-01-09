@@ -191,13 +191,32 @@ void read_bilge_file(struct all_targets **all, const char *path) {
       case '<':
         if (therule) {
           char *path = absolute_path(the_directory, one_line+2);
-          //printf("  I see #%d %s\n", therule->num_inputs-1, path);
           thetarget = create_target(all, path);
-          add_input(therule, thetarget);
-          for (int i=0;i<therule->num_inputs;i++) {
-            if (!strcmp(therule->inputs[i]->path, one_line+2)) {
-              last_modified_last_file = &therule->input_times[i];
-              size_last_file = &therule->input_sizes[i];
+          /* The following check is to deal with the case where a
+             given file might actually be an output of a command, but
+             was only read when being built, by a program that tries
+             to be friendly to make by avoiding touching a file that
+             would end up being identical when built. */
+          if (thetarget->rule == therule) {
+            /* It was actually an output, so let's trust the user and
+               treat it as such. */
+            add_output(therule, thetarget);
+            for (int i=0; i<therule->num_outputs; i++) {
+              if (thetarget == therule->outputs[i]) {
+                last_modified_last_file = &therule->output_times[i];
+                size_last_file = &therule->output_sizes[i];
+                break;
+              }
+            }
+          } else {
+            //printf("  I see #%d %s\n", therule->num_inputs-1, path);
+            add_input(therule, thetarget);
+            for (int i=0;i<therule->num_inputs;i++) {
+              if (thetarget == therule->inputs[i]) {
+                last_modified_last_file = &therule->input_times[i];
+                size_last_file = &therule->input_sizes[i];
+                break;
+              }
             }
           }
           free(path);
@@ -209,8 +228,13 @@ void read_bilge_file(struct all_targets **all, const char *path) {
           thetarget = create_target(all, path);
           thetarget->rule = therule;
           add_output(therule, thetarget);
-          last_modified_last_file = &therule->output_times[therule->num_outputs-1];
-          size_last_file = &therule->output_sizes[therule->num_outputs-1];
+          for (int i=0; i<therule->num_outputs; i++) {
+            if (thetarget == therule->outputs[i]) {
+              last_modified_last_file = &therule->output_times[i];
+              size_last_file = &therule->output_sizes[i];
+              break;
+            }
+          }
           free(path);
         }
         break;
@@ -255,18 +279,18 @@ void fprint_bilgefile(FILE *f, struct all_targets *tt, const char *bpath) {
           strcmp(tt->t->rule->working_directory, ".")) {
         fprintf(f, ". %s\n", tt->t->rule->working_directory);
       }
-      for (int i=0; i<tt->t->rule->num_inputs; i++) {
-        fprintf(f, "< %s\n", tt->t->rule->inputs[i]->path);
-        if (tt->t->rule->inputs[i]->last_modified) {
-          fprintf(f, "T %ld\n", tt->t->rule->inputs[i]->last_modified);
-          fprintf(f, "S %ld\n", tt->t->rule->inputs[i]->size);
-        }
-      }
       for (int i=0; i<tt->t->rule->num_outputs; i++) {
         fprintf(f, "> %s\n", tt->t->rule->outputs[i]->path);
         if (tt->t->rule->outputs[i]->last_modified) {
           fprintf(f, "T %ld\n", tt->t->rule->outputs[i]->last_modified);
           fprintf(f, "S %ld\n", tt->t->rule->outputs[i]->size);
+        }
+      }
+      for (int i=0; i<tt->t->rule->num_inputs; i++) {
+        fprintf(f, "< %s\n", tt->t->rule->inputs[i]->path);
+        if (tt->t->rule->inputs[i]->last_modified) {
+          fprintf(f, "T %ld\n", tt->t->rule->inputs[i]->last_modified);
+          fprintf(f, "S %ld\n", tt->t->rule->inputs[i]->size);
         }
       }
       fprintf(f, "\n");
