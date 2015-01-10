@@ -1,3 +1,4 @@
+#include <sys/types.h>
 
 #include "listset.h"
 #include "arrayset.h"
@@ -15,6 +16,7 @@ int bigbrother_process(const char *workingdir,
 
 int bigbrother_process_arrayset(const char *workingdir,
                                 char **args,
+                                pid_t *store_child_pid_here,
                                 arrayset *readdir,
                                 arrayset *read,
                                 arrayset *written,

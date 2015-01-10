@@ -16,7 +16,7 @@
 #include <error.h>
 #include <errno.h>
 #include <string.h>
-#include <semaphore.h>
+#include <signal.h>
 
 static struct target *create_target_with_stat(struct all_targets **all,
                                               const char *path) {
@@ -33,6 +33,7 @@ static struct target *create_target_with_stat(struct all_targets **all,
 struct building {
   int all_done;
   pid_t pid;
+  pid_t grandchild_pid;
   int stdouterrfd;
   clock_t build_time;
   clock_t overhead_time;
@@ -60,7 +61,9 @@ void *run_parallel_rule(void *void_building) {
   args[3] = 0;
 
   int ret = bigbrother_process_arrayset(b->rule->working_directory,
-                                        (char **)args, &b->readdir,
+                                        (char **)args,
+                                        &b->grandchild_pid,
+                                        &b->readdir,
                                         &b->read, &b->written, &b->deleted);
   struct tms thetimes;
   if (times(&thetimes) != -1) {
@@ -228,7 +231,7 @@ bool build_rule_plus_dependencies(struct all_targets **all, struct rule *r,
     determine_rule_cleanliness(all, r, num_to_build);
   }
   if (r->status == failed) {
-    printf("already failed once: %s\n", r->command);
+    verbose_printf("already failed once: %s\n", r->command);
     return true;
   }
   if (r->status == dirty) {
@@ -386,6 +389,11 @@ int num_jobs = 0;
 
 static struct timeval starting;
 static double elapsed_seconds, elapsed_minutes;
+static bool am_interrupted = false;
+
+static void handle_interrupt(int sig) {
+  am_interrupted = true;
+}
 
 static void find_elapsed_time() {
   struct timeval now;
@@ -402,6 +410,11 @@ void parallel_build_all(struct all_targets **all) {
 
   struct building **bs = malloc(num_jobs*sizeof(struct building *));
   for (int i=0;i<num_jobs;i++) bs[i] = 0;
+  struct sigaction act, oldact;
+  act.sa_handler = handle_interrupt;
+  sigemptyset(&act.sa_mask);
+  act.sa_flags = 0;
+  sigaction(SIGINT, &act, &oldact);
 
   int num_to_build = 0, num_built = 0, num_failed = 0, num_to_go = 0;
   double clocks_per_second = sysconf(_SC_CLK_TCK);
@@ -521,7 +534,10 @@ void parallel_build_all(struct all_targets **all) {
             printf("OOPS FAILED!\n");
             num_failed++;
           } else {
-            error(1,0,"what the heck? %d\n", bs[i]->all_done);
+            printf("INTERRUPTED!\n");
+            bs[i]->rule->status = failed;
+            am_interrupted = true;
+            num_failed++;
           }
           munmap(bs[i], sizeof(struct building));
           bs[i] = 0;
@@ -571,6 +587,18 @@ void parallel_build_all(struct all_targets **all) {
       }
       tt = tt->next;
     }
+    if (am_interrupted) {
+      for (int i=0;i<num_jobs;i++) {
+        if (bs[i]) {
+          kill(bs[i]->grandchild_pid, SIGTERM);
+          kill(bs[i]->pid, SIGTERM);
+          munmap(bs[i], sizeof(struct building));
+          bs[i] = 0;
+        }
+      }
+      printf("Interrupted!                    \n");
+      exit(1);
+    }
   } while (num_to_go || have_read_bilge);
   if (num_failed) {
     printf("Failed %d/%d builds, succeeded %d/%d builds\n", num_failed, num_to_build, num_built, num_to_build);
@@ -586,4 +614,5 @@ void parallel_build_all(struct all_targets **all) {
              elapsed_minutes, elapsed_seconds);
     }
   }
+  sigaction(SIGINT, &oldact, 0);
 }
