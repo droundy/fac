@@ -9,6 +9,7 @@
 #include <sys/wait.h>
 #include <sys/times.h>
 #include <sys/time.h>
+#include <sys/sendfile.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -32,6 +33,7 @@ static struct target *create_target_with_stat(struct all_targets **all,
 struct building {
   int all_done;
   pid_t pid;
+  int stdouterrfd;
   clock_t build_time;
   clock_t overhead_time;
   struct rule *rule;
@@ -46,6 +48,11 @@ void *run_parallel_rule(void *void_building) {
   initialize_arrayset(&b->written);
   initialize_arrayset(&b->deleted);
   b->all_done = dirty;
+
+  close(1);
+  close(2);
+  dup(b->stdouterrfd);
+  dup(b->stdouterrfd);
 
   args[0] = "/bin/sh";
   args[1] = "-c";
@@ -340,6 +347,12 @@ struct building *build_rule_or_dependency(struct all_targets **all,
                                 PROT_READ | PROT_WRITE,
                                 MAP_SHARED | MAP_ANONYMOUS, -1, 0);
       b->rule = r;
+      const char *templ = "/tmp/bilge-XXXXXX";
+      char *namebuf = malloc(strlen(templ)+1);
+      strcpy(namebuf, templ);
+      b->stdouterrfd = mkstemp(namebuf);
+      unlink(namebuf);
+      free(namebuf);
       b->all_done = building;
       r->status = building;
       return b;
@@ -443,6 +456,10 @@ void parallel_build_all(struct all_targets **all) {
           bs[i]->rule->status = bs[i]->all_done;
           printf("%d/%d [%.2fs]: %s\n", num_built+1, num_to_build,
                  bs[i]->rule->build_time/clocks_per_second, bs[i]->rule->command);
+          off_t stdoutlen = lseek(bs[i]->stdouterrfd, 0, SEEK_END);
+          off_t myoffset = 0;
+          sendfile(1, bs[i]->stdouterrfd, &myoffset, stdoutlen);
+          close(bs[i]->stdouterrfd);
 
           if (bs[i]->all_done == built) {
             struct rule *r = bs[i]->rule;
