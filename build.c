@@ -151,14 +151,14 @@ struct rule *run_rule(struct all_targets **all, struct rule *r) {
   return out;
 }
 
-void determine_rule_cleanliness(struct all_targets **all, struct rule *r,
+bool determine_rule_cleanliness(struct all_targets **all, struct rule *r,
                                 int *num_to_build) {
-  if (!r) return;
+  if (!r) return false;
   if (r->status == being_determined) {
     verbose_printf("Looks like a cycle! %s\n",
                    r->outputs[0]->path);
   }
-  if (r->status != unknown) return;
+  if (r->status != unknown) return false;
   r->status = being_determined;
   for (int i=0;i<r->num_inputs;i++) {
     if (r->inputs[i]->rule) {
@@ -177,7 +177,7 @@ void determine_rule_cleanliness(struct all_targets **all, struct rule *r,
                        r->inputs[i]->path);
         r->status = dirty;
         *num_to_build += 1;
-        return;
+        return true;
       }
     }
     if (r->input_times[i]) {
@@ -189,14 +189,14 @@ void determine_rule_cleanliness(struct all_targets **all, struct rule *r,
                r->inputs[i]->path);
         r->status = dirty;
         *num_to_build += 1;
-        return; /* The file is out of date. */
+        return true; /* The file is out of date. */
       }
     } else {
       verbose_printf("::: %s :::\n", r->command);
       verbose_printf(" - dirty because #%d %s has no input time.\n", i, r->inputs[i]->path);
       r->status = dirty;
       *num_to_build += 1;
-      return; /* The file hasn't been built. */
+      return true; /* The file hasn't been built. */
     }
   }
   for (int i=0;i<r->num_outputs;i++) {
@@ -211,17 +211,18 @@ void determine_rule_cleanliness(struct all_targets **all, struct rule *r,
         /*        r->outputs[i]->last_modified, r->output_times[i]); */
         r->status = dirty;
         *num_to_build += 1;
-        return; /* The file is out of date. */
+        return true; /* The file is out of date. */
       }
     } else {
       verbose_printf("::: %s :::\n", r->command);
       verbose_printf(" - dirty because %s has no output time.\n", r->outputs[i]->path);
       r->status = dirty;
       *num_to_build += 1;
-      return; /* The file hasn't been built. */
+      return true; /* The file hasn't been built. */
     }
   }
   r->status = clean;
+  return false;
 }
 
 bool build_rule_plus_dependencies(struct all_targets **all, struct rule *r,
@@ -315,6 +316,23 @@ void build_all(struct all_targets **all) {
     if (num_built != num_to_build)
       error(1,0,"Failed %d/%d builds", num_to_build-num_built, num_to_build);
     done = true;
+  }
+}
+
+static void add_latency(struct rule *r, clock_t lat) {
+  if (!r) return;
+  if (r->status != dirty) return;
+  r->latency_estimate += lat;
+  for (int i=0;i<r->num_inputs;i++) add_latency(r->inputs[i]->rule, lat);
+}
+
+static void find_latencies(struct all_targets *all) {
+  while (all) {
+    if (all->t->rule && !all->t->rule->latency_handled) {
+      all->t->rule->latency_handled = true;
+      add_latency(all->t->rule, all->t->rule->build_time);
+    }
+    all = all->next;
   }
 }
 
@@ -422,18 +440,25 @@ void parallel_build_all(struct all_targets **all) {
   clock_t total_cpu_time_spent = 0, total_cpu_time_overhead = 0;
   bool have_read_bilge = false;
   do {
-    struct all_targets *tt = *all;
-    while (tt) {
-      determine_rule_cleanliness(all, tt->t->rule, &num_to_build);
-      tt = tt->next;
+    bool newstufftobuild = false;
+    for (struct all_targets *tt = *all; tt; tt = tt->next) {
+      newstufftobuild |=
+        determine_rule_cleanliness(all, tt->t->rule, &num_to_build);
+    }
+    struct rule_list *rules = 0;
+    if (newstufftobuild) {
+      find_latencies(*all);
+      for (struct all_targets *tt = *all; tt; tt = tt->next) {
+        if (tt->t->rule) {
+          delete_rule(&rules, tt->t->rule); // way hokey
+          insert_rule_by_latency(&rules, tt->t->rule);
+        }
+      }
     }
     clock_t total_build_time = 0;
-    tt = *all;
-    while (tt) {
-      if (tt->t->rule && (tt->t->rule->status == dirty ||
-                          tt->t->rule->status == building))
-        total_build_time += tt->t->rule->build_time;
-      tt = tt->next;
+    for (struct rule_list *rr = rules; rr; rr = rr->next) {
+      if (rr->r->status == dirty || rr->r->status == building)
+        total_build_time += rr->r->build_time;
     }
     if (total_build_time/clocks_per_second/num_jobs > 1.0) {
       double build_seconds = total_build_time/clocks_per_second/num_jobs;
@@ -546,8 +571,7 @@ void parallel_build_all(struct all_targets **all) {
     }
 
     have_read_bilge = false;
-    tt = *all;
-    while (tt) {
+    for (struct all_targets *tt = *all; tt; tt = tt->next) {
       int len = strlen(tt->t->path);
       if (len >= 6 && !strcmp(tt->t->path+len-6, ".bilge")) {
         if (tt->t->status == unknown &&
@@ -559,10 +583,8 @@ void parallel_build_all(struct all_targets **all) {
           tt->t->status = built;
         }
       }
-      tt = tt->next;
     }
-    tt = *all;
-    while (tt) {
+    for (struct all_targets *tt = *all; tt; tt = tt->next) {
       int len = strlen(tt->t->path);
       if (len >= 6 && !strcmp(tt->t->path+len-6, ".bilge")) {
         if (tt->t->rule && tt->t->rule->status == dirty) {
@@ -571,13 +593,11 @@ void parallel_build_all(struct all_targets **all) {
           have_read_bilge = true;
         }
       }
-      tt = tt->next;
     }
     if (have_read_bilge) continue;
 
     num_to_go = 0;
-    tt = *all;
-    while (tt) {
+    for (struct all_targets *tt = *all; tt; tt = tt->next) {
       if (tt->t->rule) {
         determine_rule_cleanliness(all, tt->t->rule, &num_to_build);
         if (tt->t->rule->status == dirty || tt->t->rule->status == building) {
@@ -585,7 +605,6 @@ void parallel_build_all(struct all_targets **all) {
           num_to_go++;
         }
       }
-      tt = tt->next;
     }
     if (am_interrupted) {
       for (int i=0;i<num_jobs;i++) {

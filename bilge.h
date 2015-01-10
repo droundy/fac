@@ -60,6 +60,8 @@ struct rule {
   off_t *output_sizes;
 
   clock_t build_time;
+  clock_t latency_estimate;
+  bool latency_handled;
 };
 
 /* The struct all_targets should be an easily searchable set, or even
@@ -68,6 +70,15 @@ struct rule {
 struct all_targets {
   struct target *t;
   struct all_targets *next;
+};
+
+/* The struct rule_list is just for optimizing the build.
+   Hypothetically, we could add a rule_list to the all_targets
+   equivalent, so the rule_list was automagically built when adding
+   targets with rules to all_targets. */
+struct rule_list {
+  struct rule *r;
+  struct rule_list *next;
 };
 
 struct target *create_target(struct all_targets **all, const char *path);
@@ -91,5 +102,9 @@ void build_all(struct all_targets **all);
 void parallel_build_all(struct all_targets **all);
 
 char *done_name(const char *bilgefile);
+
+void insert_rule_by_latency(struct rule_list **list, struct rule *r);
+void delete_rule(struct rule_list **list, struct rule *r);
+void delete_rule_list(struct rule_list **list);
 
 #endif

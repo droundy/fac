@@ -36,6 +36,8 @@ struct rule *create_rule(const char *command, const char *working_directory) {
   r->bilgefile_path = 0;
   r->bilgefile_linenum = 0;
   r->build_time = 0;
+  r->latency_estimate = 0;
+  r->latency_handled = false;
   return r;
 }
 
@@ -95,3 +97,34 @@ void insert_target(struct all_targets **all, struct target *t) {
   *all = n;
 }
 
+void insert_rule_by_latency(struct rule_list **list, struct rule *r) {
+  while (*list && (*list)->r->latency_estimate > r->latency_estimate) {
+    list = &(*list)->next;
+  }
+  struct rule_list *n = malloc(sizeof(struct rule_list));
+  n->next = *list;
+  n->r = r;
+  *list = n;
+}
+
+void delete_rule(struct rule_list **list, struct rule *r) {
+  while (*list) {
+    if ((*list)->r == r) {
+      struct rule_list *to_be_deleted = *list;
+      *list = (*list)->next;
+      free(to_be_deleted);
+      return;
+    }
+    list = &((*list)->next);
+  }
+}
+
+void delete_rule_list(struct rule_list **list) {
+  struct rule_list *l = *list;
+  *list = 0;
+  while (l) {
+    struct rule_list *to_be_deleted = l;
+    l = l->next;
+    free(to_be_deleted);
+  }
+}
