@@ -365,7 +365,6 @@ void let_us_build(struct all_targets **all, struct rule *r, int *num_to_build,
           run_parallel_rule(bs[i]);
         }
       }
-      return;
     }
   }
 }
@@ -392,11 +391,10 @@ void parallel_build_all(struct all_targets **all) {
   for (int i=0;i<num_jobs;i++) bs[i] = 0;
 
   int num_to_build = 0, num_built = 0, num_failed = 0, num_to_go = 0;
-  bool have_read_bilge = false;
-
   double clocks_per_second = sysconf(_SC_CLK_TCK);
 
   clock_t total_cpu_time_spent = 0, total_cpu_time_overhead = 0;
+  bool have_read_bilge = false;
   do {
     struct all_targets *tt = *all;
     while (tt) {
@@ -537,10 +535,12 @@ void parallel_build_all(struct all_targets **all) {
         if (tt->t->rule && tt->t->rule->status == dirty) {
           /* This is a dirty .bilge file, so we need to build it! */
           let_us_build(all, tt->t->rule, &num_to_build, bs, num_jobs);
+          have_read_bilge = true;
         }
       }
       tt = tt->next;
     }
+    if (have_read_bilge) continue;
 
     num_to_go = 0;
     tt = *all;
