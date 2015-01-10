@@ -380,10 +380,6 @@ static void find_elapsed_time() {
   gettimeofday(&now, 0);
   elapsed_seconds = ((now.tv_sec - starting.tv_sec) % 60) + (now.tv_usec - starting.tv_usec)*1e-6;
   elapsed_minutes = (now.tv_sec - starting.tv_sec) / 60;
-  if (elapsed_seconds > 60) {
-    elapsed_seconds -= 60;
-    elapsed_minutes += 1;
-  }
 }
 
 void parallel_build_all(struct all_targets **all) {
