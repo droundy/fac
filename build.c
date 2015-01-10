@@ -8,6 +8,7 @@
 #include <sys/mman.h>
 #include <sys/wait.h>
 #include <sys/times.h>
+#include <sys/time.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -32,6 +33,7 @@ struct building {
   int all_done;
   pid_t pid;
   clock_t build_time;
+  clock_t overhead_time;
   struct rule *rule;
   arrayset readdir, read, written, deleted;
 };
@@ -57,8 +59,10 @@ void *run_parallel_rule(void *void_building) {
   if (times(&thetimes) != -1) {
     b->build_time = thetimes.tms_utime + thetimes.tms_stime +
       thetimes.tms_cutime + thetimes.tms_cstime;
+    b->overhead_time = thetimes.tms_utime + thetimes.tms_stime;
   } else {
     b->build_time = 0;
+    b->overhead_time = 0;
   }
   if (ret != 0) {
     printf("XX FAILED %s\n", b->rule->command);
@@ -379,6 +383,10 @@ void parallel_build_all(struct all_targets **all) {
 
   double clocks_per_second = sysconf(_SC_CLK_TCK);
 
+  clock_t total_cpu_time_spent = 0;
+  clock_t total_cpu_time_overhead = 0;
+  struct timeval starting;
+  gettimeofday(&starting, 0);
   do {
     struct all_targets *tt = *all;
     while (tt) {
@@ -400,14 +408,18 @@ void parallel_build_all(struct all_targets **all) {
         build_minutes++;
         build_seconds -= 60;
       }
-      if (build_minutes > 10) {
-        printf("Build time remaining: %.0fm      \r", build_minutes);
-      } else if (build_minutes) {
-        printf("Build time remaining: %.0fm %.0fs      \r",
-               build_minutes, build_seconds);
-      } else {
-        printf("Build time remaining: %.0fs      \r", build_seconds);
+      struct timeval now;
+      gettimeofday(&now, 0);
+      double spent_seconds = (now.tv_sec - starting.tv_sec) % 60;
+      double spent_minutes = (now.tv_sec - starting.tv_sec) / 60;
+      double total_seconds = spent_seconds + build_seconds;
+      double total_minutes = spent_minutes + build_minutes;
+      if (total_seconds > 60) {
+        total_minutes += 1;
+        total_seconds -= 60;
       }
+      printf("Build time remaining: %.0f:%02.0f / %.0f:%02.0f      \r",
+             build_minutes, build_seconds, total_minutes, total_seconds);
       fflush(stdout);
     }
 
@@ -421,6 +433,8 @@ void parallel_build_all(struct all_targets **all) {
       for (int i=0;i<num_jobs;i++) {
         if (bs[i] && bs[i]->pid == pid) {
           bs[i]->rule->build_time = bs[i]->build_time;
+          total_cpu_time_spent += bs[i]->build_time;
+          total_cpu_time_overhead += bs[i]->overhead_time;
           bs[i]->rule->status = bs[i]->all_done;
           printf("%d/%d [%.2fs]: %s\n", num_built+1, num_to_build,
                  bs[i]->rule->build_time/clocks_per_second, bs[i]->rule->command);
@@ -536,6 +550,17 @@ void parallel_build_all(struct all_targets **all) {
     printf("Failed %d/%d builds, succeeded %d/%d builds\n", num_failed, num_to_build, num_built, num_to_build);
     exit(1);
   } else {
-    printf("Build succeeded!\n");
+    struct timeval now;
+    gettimeofday(&now, 0);
+    double spent_seconds = (now.tv_sec - starting.tv_sec) % 60;
+    double spent_minutes = (now.tv_sec - starting.tv_sec) / 60;
+    if (total_cpu_time_overhead > 0.001*total_cpu_time_spent) {
+      printf("Build succeeded! %.0f:%02.0f (%.1f%% wasted)\n",
+             spent_minutes, spent_seconds,
+             total_cpu_time_overhead/(double)total_cpu_time_spent);
+    } else {
+      printf("Build succeeded! %.0f:%02.0f      \n",
+             spent_minutes, spent_seconds);
+    }
   }
 }
