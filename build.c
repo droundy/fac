@@ -319,19 +319,23 @@ void build_all(struct all_targets **all) {
   }
 }
 
-static void add_latency(struct rule *r, clock_t lat) {
+static void find_latency(struct rule *r) {
   if (!r) return;
   if (r->status != dirty) return;
-  r->latency_estimate += lat;
-  for (int i=0;i<r->num_inputs;i++) add_latency(r->inputs[i]->rule, lat);
+  if (r->latency_handled) return;
+  r->latency_handled = true;
+  clock_t maxchild = 0;
+  for (int i=0;i<r->num_outputs;i++) {
+    find_latency(r->outputs[i]->rule);
+    if (r->outputs[i]->rule->latency_estimate > maxchild)
+      maxchild = r->outputs[i]->rule->latency_estimate;
+  }
+  r->latency_estimate = r->build_time + maxchild;
 }
 
 static void find_latencies(struct all_targets *all) {
   while (all) {
-    if (all->t->rule && !all->t->rule->latency_handled) {
-      all->t->rule->latency_handled = true;
-      add_latency(all->t->rule, all->t->rule->build_time);
-    }
+    find_latency(all->t->rule);
     all = all->next;
   }
 }
