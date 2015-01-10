@@ -654,8 +654,8 @@ int bigbrother_process_arrayset(const char *workingdir,
           ptrace_syscall(newpid);
           goto look_for_syscall;
         } else {
-          fprintf(stderr, "I do not understand this event %d\n\n", status);
-          exit(1);
+          debugprintf("I do not understand this event %d\n\n", status);
+          /* exit(1); */
         }
         ptrace_syscall(child); // we don't understand id, so keep trying
       }
