@@ -276,8 +276,18 @@ int bigbrother_process(const char *workingdir,
           //debugprintf("foo vfork done!!! %d\n", child);
           ptrace_syscall(child); // keep going!
         } else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_CLONE<<8))) {
-          fprintf(stderr, "foo cloned!!! %d\n", child);
-          exit(1);
+          pid_t newpid;
+          ptrace(PTRACE_GETEVENTMSG, child, 0, &newpid);
+          debugprintf("\ncloned %d from %d!!!\n", newpid, child);
+          waitpid(newpid, 0, __WALL);
+          //debugprintf("now waitpid %d worked!!!\n", newpid);
+          if (ptrace(PTRACE_SETOPTIONS, newpid, 0, my_ptrace_options)) {
+            debugprintf("error ptracing setoptions n %d\n", newpid);
+          }
+          //debugprintf("ptrace setoptions %d worked!!!\n", newpid);
+          num_programs++;
+
+          ptrace_syscall(newpid);
         } else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_VFORK<<8))) {
           fprintf(stderr, "foo vforked!!! %d\n", child);
           exit(1);
@@ -533,8 +543,18 @@ int bigbrother_process_arrayset(const char *workingdir,
           //debugprintf("foo vfork done!!! %d\n", child);
           ptrace_syscall(child); // keep going!
         } else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_CLONE<<8))) {
-          fprintf(stderr, "foo cloned!!! %d\n", child);
-          exit(1);
+          pid_t newpid;
+          ptrace(PTRACE_GETEVENTMSG, child, 0, &newpid);
+          debugprintf("\ncloned %d from %d!!!\n", newpid, child);
+          waitpid(newpid, 0, __WALL);
+          //debugprintf("now waitpid %d worked!!!\n", newpid);
+          if (ptrace(PTRACE_SETOPTIONS, newpid, 0, my_ptrace_options)) {
+            debugprintf("error ptracing setoptions n %d\n", newpid);
+          }
+          //debugprintf("ptrace setoptions %d worked!!!\n", newpid);
+          num_programs++;
+
+          ptrace_syscall(newpid);
         } else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_VFORK<<8))) {
           fprintf(stderr, "foo vforked!!! %d\n", child);
           exit(1);
