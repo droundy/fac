@@ -400,14 +400,15 @@ void parallel_build_all(struct all_targets **all) {
         build_minutes++;
         build_seconds -= 60;
       }
-      if (build_minutes > 4) {
-        printf("Build time remaining: %.0fm\n", build_minutes);
+      if (build_minutes > 10) {
+        printf("Build time remaining: %.0fm      \r", build_minutes);
       } else if (build_minutes) {
-        printf("Build time remaining: %.0fm %.0fs\n",
+        printf("Build time remaining: %.0fm %.0fs      \r",
                build_minutes, build_seconds);
       } else {
-        printf("Build time remaining: %.0fs\n", build_seconds);
+        printf("Build time remaining: %.0fs      \r", build_seconds);
       }
+      fflush(stdout);
     }
 
     int threads_in_use = 0;
