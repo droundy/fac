@@ -439,17 +439,17 @@ void parallel_build_all(struct all_targets **all) {
 
   clock_t total_cpu_time_spent = 0, total_cpu_time_overhead = 0;
   bool have_read_bilge = false;
+  struct rule_list *rules = 0;
   do {
     bool newstufftobuild = false;
     for (struct all_targets *tt = *all; tt; tt = tt->next) {
       newstufftobuild |=
         determine_rule_cleanliness(all, tt->t->rule, &num_to_build);
     }
-    struct rule_list *rules = 0;
     if (newstufftobuild) {
       find_latencies(*all);
       for (struct all_targets *tt = *all; tt; tt = tt->next) {
-        if (tt->t->rule) {
+        if (tt->t->rule && tt->t->rule->status != clean) {
           delete_rule(&rules, tt->t->rule); // way hokey
           insert_rule_by_latency(&rules, tt->t->rule);
         }
@@ -501,6 +501,7 @@ void parallel_build_all(struct all_targets **all) {
 
           if (bs[i]->all_done == built) {
             struct rule *r = bs[i]->rule;
+            delete_rule(&rules, r);
 
             /* FIXME We should verify that the inputs specified were actually used */
             for (int ii=0;ii<r->num_inputs;ii++) {
@@ -597,13 +598,10 @@ void parallel_build_all(struct all_targets **all) {
     if (have_read_bilge) continue;
 
     num_to_go = 0;
-    for (struct all_targets *tt = *all; tt; tt = tt->next) {
-      if (tt->t->rule) {
-        determine_rule_cleanliness(all, tt->t->rule, &num_to_build);
-        if (tt->t->rule->status == dirty || tt->t->rule->status == building) {
-          let_us_build(all, tt->t->rule, &num_to_build, bs, num_jobs);
-          num_to_go++;
-        }
+    for (struct rule_list *rr = rules; rr; rr = rr->next) {
+      if (rr->r->status == dirty || rr->r->status == building) {
+        let_us_build(all, rr->r, &num_to_build, bs, num_jobs);
+        num_to_go++;
       }
     }
     if (am_interrupted) {
@@ -619,6 +617,7 @@ void parallel_build_all(struct all_targets **all) {
       exit(1);
     }
   } while (num_to_go || have_read_bilge);
+  delete_rule_list(&rules);
   if (num_failed) {
     printf("Failed %d/%d builds, succeeded %d/%d builds\n", num_failed, num_to_build, num_built, num_to_build);
     exit(1);

@@ -66,6 +66,7 @@ int main(int argc, const char **argv) {
   poptSetOtherOptionHelp(optCon, "[OPTIONS]* [things to build maybe?]");
 
   while (poptGetNextOpt(optCon) >= 0);
+  poptFreeContext(optCon);
 
   go_to_bilge_top();
 
