@@ -7,6 +7,7 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <sys/wait.h>
+#include <sys/times.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -30,6 +31,7 @@ static struct target *create_target_with_stat(struct all_targets **all,
 struct building {
   int all_done;
   pid_t pid;
+  clock_t build_time;
   struct rule *rule;
   arrayset readdir, read, written, deleted;
 };
@@ -51,6 +53,13 @@ void *run_parallel_rule(void *void_building) {
   int ret = bigbrother_process_arrayset(b->rule->working_directory,
                                         (char **)args, &b->readdir,
                                         &b->read, &b->written, &b->deleted);
+  struct tms thetimes;
+  if (times(&thetimes) != -1) {
+    b->build_time = thetimes.tms_utime + thetimes.tms_stime +
+      thetimes.tms_cutime + thetimes.tms_cstime;
+  } else {
+    b->build_time = 0;
+  }
   if (ret != 0) {
     printf("XX FAILED %s\n", b->rule->command);
     b->all_done = failed;
@@ -368,11 +377,37 @@ void parallel_build_all(struct all_targets **all) {
 
   int num_to_build = 0, num_built = 0, num_failed = 0, num_to_go = 0;
 
+  double clocks_per_second = sysconf(_SC_CLK_TCK);
+
   do {
     struct all_targets *tt = *all;
     while (tt) {
       determine_rule_cleanliness(all, tt->t->rule, &num_to_build);
       tt = tt->next;
+    }
+    clock_t total_build_time = 0;
+    tt = *all;
+    while (tt) {
+      if (tt->t->rule && (tt->t->rule->status == dirty ||
+                          tt->t->rule->status == building))
+        total_build_time += tt->t->rule->build_time;
+      tt = tt->next;
+    }
+    if (total_build_time/clocks_per_second/num_jobs > 1.0) {
+      double build_seconds = total_build_time/clocks_per_second/num_jobs;
+      double build_minutes = 0;
+      while (build_seconds > 60) {
+        build_minutes++;
+        build_seconds -= 60;
+      }
+      if (build_minutes > 4) {
+        printf("Build time remaining: %.0fm\n", build_minutes);
+      } else if (build_minutes) {
+        printf("Build time remaining: %.0fm %.0fs\n",
+               build_minutes, build_seconds);
+      } else {
+        printf("Build time remaining: %.0fs\n", build_seconds);
+      }
     }
 
     int threads_in_use = 0;
@@ -384,8 +419,10 @@ void parallel_build_all(struct all_targets **all) {
       pid_t pid = waitpid(-1, 0, 0);
       for (int i=0;i<num_jobs;i++) {
         if (bs[i] && bs[i]->pid == pid) {
+          bs[i]->rule->build_time = bs[i]->build_time;
           bs[i]->rule->status = bs[i]->all_done;
-          printf("%d/%d: %s\n", num_built+1, num_to_build, bs[i]->rule->command);
+          printf("%d/%d [%.2fs]: %s\n", num_built+1, num_to_build,
+                 bs[i]->rule->build_time/clocks_per_second, bs[i]->rule->command);
 
           if (bs[i]->all_done == built) {
             struct rule *r = bs[i]->rule;

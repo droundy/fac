@@ -35,6 +35,7 @@ struct rule *create_rule(const char *command, const char *working_directory) {
   r->input_sizes = r->output_sizes = 0;
   r->bilgefile_path = 0;
   r->bilgefile_linenum = 0;
+  r->build_time = 0;
   return r;
 }
 

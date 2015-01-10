@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <stdarg.h>
 #include <sys/types.h>
+#include <time.h>
 
 extern int num_jobs; /* number of jobs to run simultaneously */
 extern int verbose; /* true if user requests verbose output */
@@ -57,6 +58,8 @@ struct rule {
   struct target **outputs;
   time_t *output_times;
   off_t *output_sizes;
+
+  clock_t build_time;
 };
 
 /* The struct all_targets should be an easily searchable set, or even
