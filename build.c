@@ -372,7 +372,23 @@ void let_us_build(struct all_targets **all, struct rule *r, int *num_to_build,
 
 int num_jobs = 0;
 
+static struct timeval starting;
+static double elapsed_seconds, elapsed_minutes;
+
+static void find_elapsed_time() {
+  struct timeval now;
+  gettimeofday(&now, 0);
+  elapsed_seconds = ((now.tv_sec - starting.tv_sec) % 60) + (now.tv_usec - starting.tv_usec)*1e-6;
+  elapsed_minutes = (now.tv_sec - starting.tv_sec) / 60;
+  if (elapsed_seconds > 60) {
+    elapsed_seconds -= 60;
+    elapsed_minutes += 1;
+  }
+}
+
 void parallel_build_all(struct all_targets **all) {
+  gettimeofday(&starting, 0);
+
   if (!num_jobs) num_jobs = sysconf(_SC_NPROCESSORS_ONLN);
   verbose_printf("Using %d jobs\n", num_jobs);
 
@@ -380,13 +396,11 @@ void parallel_build_all(struct all_targets **all) {
   for (int i=0;i<num_jobs;i++) bs[i] = 0;
 
   int num_to_build = 0, num_built = 0, num_failed = 0, num_to_go = 0;
+  bool have_read_bilge = false;
 
   double clocks_per_second = sysconf(_SC_CLK_TCK);
 
-  clock_t total_cpu_time_spent = 0;
-  clock_t total_cpu_time_overhead = 0;
-  struct timeval starting;
-  gettimeofday(&starting, 0);
+  clock_t total_cpu_time_spent = 0, total_cpu_time_overhead = 0;
   do {
     struct all_targets *tt = *all;
     while (tt) {
@@ -408,12 +422,9 @@ void parallel_build_all(struct all_targets **all) {
         build_minutes++;
         build_seconds -= 60;
       }
-      struct timeval now;
-      gettimeofday(&now, 0);
-      double spent_seconds = (now.tv_sec - starting.tv_sec) % 60;
-      double spent_minutes = (now.tv_sec - starting.tv_sec) / 60;
-      double total_seconds = spent_seconds + build_seconds;
-      double total_minutes = spent_minutes + build_minutes;
+      find_elapsed_time();
+      double total_seconds = elapsed_seconds + build_seconds;
+      double total_minutes = elapsed_minutes + build_minutes;
       if (total_seconds > 60) {
         total_minutes += 1;
         total_seconds -= 60;
@@ -507,6 +518,7 @@ void parallel_build_all(struct all_targets **all) {
       }
     }
 
+    have_read_bilge = false;
     tt = *all;
     while (tt) {
       int len = strlen(tt->t->path);
@@ -516,6 +528,7 @@ void parallel_build_all(struct all_targets **all) {
                               tt->t->rule->status != building))) {
           /* This is a clean .bilge file, but we still need to parse it! */
           read_bilge_file(all, tt->t->path);
+          have_read_bilge = true;
           tt->t->status = built;
         }
       }
@@ -545,22 +558,19 @@ void parallel_build_all(struct all_targets **all) {
       }
       tt = tt->next;
     }
-  } while (num_to_go);
+  } while (num_to_go || have_read_bilge);
   if (num_failed) {
     printf("Failed %d/%d builds, succeeded %d/%d builds\n", num_failed, num_to_build, num_built, num_to_build);
     exit(1);
   } else {
-    struct timeval now;
-    gettimeofday(&now, 0);
-    double spent_seconds = (now.tv_sec - starting.tv_sec) % 60;
-    double spent_minutes = (now.tv_sec - starting.tv_sec) / 60;
+    find_elapsed_time();
     if (total_cpu_time_overhead > 0.001*total_cpu_time_spent) {
-      printf("Build succeeded! %.0f:%02.0f (%.1f%% wasted)\n",
-             spent_minutes, spent_seconds,
+      printf("Build succeeded! %.0f:%05.2f (%.1f%% wasted)\n",
+             elapsed_minutes, elapsed_seconds,
              total_cpu_time_overhead/(double)total_cpu_time_spent);
     } else {
-      printf("Build succeeded! %.0f:%02.0f      \n",
-             spent_minutes, spent_seconds);
+      printf("Build succeeded! %.0f:%05.2f      \n",
+             elapsed_minutes, elapsed_seconds);
     }
   }
 }

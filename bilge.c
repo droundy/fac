@@ -49,8 +49,6 @@ void usage(poptContext optCon, int exitcode, char *error, char *addl) {
   exit(exitcode);
 }
 
-static struct all_targets *all = 0;
-
 int verbose = 0;
 extern inline void verbose_printf(const char *format, ...);
 
@@ -71,7 +69,8 @@ int main(int argc, const char **argv) {
 
   go_to_bilge_top();
 
-  read_bilge_file(&all, "top.bilge");
+  struct all_targets *all = 0;
+  create_target(&all, "top.bilge");
   parallel_build_all(&all);
 
   return 0;
