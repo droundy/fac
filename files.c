@@ -10,14 +10,8 @@
 #include <limits.h>
 #include <stdlib.h>
 
-static char *mycopy(const char *str) {
-  char *out = malloc(strlen(str)+1);
-  strcpy(out, str);
-  return out;
-}
-
 static char *absolute_path(const char *dir, const char *rel) {
-  char *myrel = mycopy(rel);
+  char *myrel = strdup(rel);
   if (*rel == '/') return myrel;
   int len = strlen(myrel);
   for (int i=len-1;i>=0;i--) {
@@ -65,7 +59,7 @@ void read_bilge_file(struct all_targets **all, const char *path) {
   FILE *f = fopen(path, "r");
   if (!f) error(1, errno, "Unable to open file %s", path);
 
-  char *rel_directory = mycopy(path);
+  char *rel_directory = strdup(path);
   for (int i=strlen(rel_directory)-1;i>=0;i--) {
     if (rel_directory[i] == '/') {
       rel_directory[i] = 0;
@@ -111,7 +105,7 @@ void read_bilge_file(struct all_targets **all, const char *path) {
       break;
     case '|':
       therule = create_rule(one_line+2, the_directory);
-      therule->bilgefile_path = mycopy(path);
+      therule->bilgefile_path = strdup(path);
       therule->bilgefile_linenum = linenum;
       thetarget = 0;
       size_last_file = 0;

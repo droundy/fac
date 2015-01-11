@@ -1,20 +1,16 @@
+#define _XOPEN_SOURCE 700
+
 #include "bilge.h"
 
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
 
-static char *mycopy(const char *str) {
-  char *out = malloc(strlen(str)+1);
-  strcpy(out, str);
-  return out;
-}
-
 struct target *create_target(struct all_targets **all, const char *path) {
   struct target *t = lookup_target(*all, path);
   if (!t) {
     t = malloc(sizeof(struct target));
-    t->path = mycopy(path);
+    t->path = strdup(path);
     t->status = unknown;
     t->rule = 0;
     t->last_modified = 0;
@@ -26,8 +22,8 @@ struct target *create_target(struct all_targets **all, const char *path) {
 
 struct rule *create_rule(const char *command, const char *working_directory) {
   struct rule *r = malloc(sizeof(struct rule));
-  r->command = mycopy(command);
-  r->working_directory = mycopy(working_directory);
+  r->command = strdup(command);
+  r->working_directory = strdup(working_directory);
   r->status = unknown;
   r->num_inputs = r->num_outputs = 0;
   r->input_array_size = 0;
