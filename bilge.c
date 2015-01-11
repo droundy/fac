@@ -71,12 +71,15 @@ int main(int argc, const char **argv) {
   go_to_bilge_top();
 
   /* the following loop it to make profiling easier */
-  for (int repeats=0;repeats<1;repeats++) {
+  const int num_runs_to_profile = 1;
+  for (int repeats=0;repeats<num_runs_to_profile;repeats++) {
     struct all_targets *all = 0;
     create_target(&all, "top.bilge");
     parallel_build_all(&all);
-    free_all_targets(&all);
-  }
+    /* profiling shows that as much as a third of our CPU time can be
+       spent freeing, so we will only do it if we are repeating the
+       computation. */
+    if (repeats < num_runs_to_profile-1) free_all_targets(&all); }
 
   return 0;
 }

@@ -96,6 +96,7 @@ void free_all_targets(struct all_targets **all) {
     t = t->next;
     if (to_be_deleted->t->rule) {
       struct rule *r = to_be_deleted->t->rule;
+      delete_rule(&rules, r); // way hokey
       insert_rule_by_latency(&rules, r);
     }
     free((char *)to_be_deleted->t->path);
