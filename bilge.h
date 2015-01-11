@@ -86,6 +86,7 @@ struct rule_list {
 };
 
 struct target *create_target(struct all_targets **all, const char *path);
+void free_all_targets(struct all_targets **all);
 
 struct rule *create_rule(const char *command, const char *working_directory);
 struct rule *lookup_rule(struct all_targets *all, const char *command,

@@ -636,5 +636,6 @@ void parallel_build_all(struct all_targets **all) {
              elapsed_minutes, elapsed_seconds);
     }
   }
+  free(bs);
   sigaction(SIGINT, &oldact, 0);
 }

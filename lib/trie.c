@@ -43,3 +43,10 @@ void delete_from_trie(struct trie **trie, const char *str) {
   }
   if (t) t->data = 0;
 }
+
+void free_trie(struct trie **trie) {
+  if (!*trie) return;
+  for (int i=0;i<256;i++) free_trie(&(*trie)->children[i]);
+  free(*trie);
+  *trie = 0;
+}

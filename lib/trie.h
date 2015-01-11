@@ -25,4 +25,6 @@ void add_to_trie(struct trie **trie, const char *str, void *data);
    free any other memory. */
 void delete_from_trie(struct trie **trie, const char *str);
 
+void free_trie(struct trie **trie);
+
 #endif

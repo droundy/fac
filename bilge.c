@@ -75,6 +75,7 @@ int main(int argc, const char **argv) {
     struct all_targets *all = 0;
     create_target(&all, "top.bilge");
     parallel_build_all(&all);
+    free_all_targets(&all);
   }
 
   return 0;

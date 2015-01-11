@@ -69,6 +69,7 @@ void read_bilge_file(struct all_targets **all, const char *path) {
   char *the_directory = realpath(rel_directory, 0);
   if (strlen(rel_directory) == strlen(path)) {
     free(rel_directory);
+    free(the_directory);
     rel_directory = ".";
     the_directory = realpath(rel_directory, 0);
   } else {
