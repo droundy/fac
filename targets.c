@@ -91,16 +91,19 @@ void add_output(struct rule *r, struct target *dep) {
 }
 
 struct target *lookup_target(struct all_targets *all, const char *path) {
-  while (all) {
-    if (!strcmp(all->t->path, path)) return all->t;
-    all = all->next;
-  }
-  return 0;
+  if (!all) return 0;
+  return lookup_in_trie(&all->tr, path);
 }
 
 void insert_target(struct all_targets **all, struct target *t) {
   assert(!lookup_target(*all, t->path));
   struct all_targets *n = malloc(sizeof(struct all_targets));
+  if (*all) {
+    n->tr = (*all)->tr;
+  } else {
+    n->tr = 0;
+  }
+  add_to_trie(&n->tr, t->path, t);
   n->next = *all;
   n->t = t;
   *all = n;

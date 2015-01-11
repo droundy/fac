@@ -7,6 +7,8 @@
 #include <sys/types.h>
 #include <time.h>
 
+#include "lib/trie.h"
+
 extern int num_jobs; /* number of jobs to run simultaneously */
 extern int verbose; /* true if user requests verbose output */
 
@@ -69,6 +71,7 @@ struct rule {
    better a map from string to struct target.  Instead, I'm just using
    a simple linked list for now. */
 struct all_targets {
+  struct trie *tr;
   struct target *t;
   struct all_targets *next;
 };
