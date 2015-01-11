@@ -7,3 +7,4 @@ bilge
 *.log
 *.dir
 *.test
+gmon.out
