@@ -510,7 +510,7 @@ void parallel_build_all(struct all_targets **all) {
             /* FIXME We should verify that the inputs specified were actually used */
             for (int ii=0;ii<r->num_inputs;ii++) {
               struct target *t = create_target_with_stat(all, r->inputs[ii]->path);
-              if (!t) error(1, errno, "Unable to stat file %s", r->inputs[ii]->path);
+              if (!t) error(1, errno, "Unable to stat input file %s", r->inputs[ii]->path);
               add_input(r, t);
               delete_from_arrayset(&bs[i]->read, r->inputs[ii]->path);
               delete_from_arrayset(&bs[i]->written, r->inputs[ii]->path);
@@ -522,7 +522,7 @@ void parallel_build_all(struct all_targets **all) {
                 t->size = 0;
               }
               t = create_target_with_stat(all, r->outputs[ii]->path);
-              if (!t) error(1, errno, "Unable to stat file %s", r->outputs[ii]->path);
+              if (!t) error(1, errno, "Unable to stat output file %s", r->outputs[ii]->path);
               t->rule = r;
               add_output(r, t);
               delete_from_arrayset(&bs[i]->read, r->outputs[ii]->path);
@@ -530,7 +530,7 @@ void parallel_build_all(struct all_targets **all) {
             }
             for (char *path = start_iterating(&bs[i]->read); path; path = iterate(&bs[i]->read)) {
               struct target *t = create_target_with_stat(all, path);
-              if (!t) error(1, errno, "Unable to stat file %s", path);
+              if (!t) error(1, errno, "Unable to input stat file %s", path);
               add_input(r, t);
             }
 
@@ -547,10 +547,10 @@ void parallel_build_all(struct all_targets **all) {
                 t->size = 0;
               }
               t = create_target_with_stat(all, path);
-              if (!t) error(1, errno, "Unable to stat file %s", path);
-              t->rule = r;
-              add_output(r, t);
-              fflush(stdout);
+              if (t) {
+                t->rule = r;
+                add_output(r, t);
+              }
             }
 
             char *donefile = done_name(r->bilgefile_path);
