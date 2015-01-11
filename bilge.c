@@ -70,9 +70,12 @@ int main(int argc, const char **argv) {
 
   go_to_bilge_top();
 
-  struct all_targets *all = 0;
-  create_target(&all, "top.bilge");
-  parallel_build_all(&all);
+  /* the following loop it to make profiling easier */
+  for (int repeats=0;repeats<1;repeats++) {
+    struct all_targets *all = 0;
+    create_target(&all, "top.bilge");
+    parallel_build_all(&all);
+  }
 
   return 0;
 }
