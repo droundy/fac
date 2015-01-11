@@ -30,6 +30,7 @@ struct rule *create_rule(const char *command, const char *working_directory) {
   r->working_directory = mycopy(working_directory);
   r->status = unknown;
   r->num_inputs = r->num_outputs = 0;
+  r->input_array_size = 0;
   r->inputs = r->outputs = 0;
   r->input_times = r->output_times = 0;
   r->input_sizes = r->output_sizes = 0;
@@ -58,9 +59,17 @@ void add_input(struct rule *r, struct target *dep) {
     if (r->inputs[i] == dep) return;
   }
 
-  r->inputs = realloc(r->inputs, sizeof(struct target *)*(r->num_inputs+1));
-  r->input_times = realloc(r->input_times, sizeof(time_t)*(r->num_inputs+1));
-  r->input_sizes = realloc(r->input_sizes, sizeof(off_t)*(r->num_inputs+1));
+  if (r->input_array_size == r->num_inputs) {
+    if (r->input_array_size) {
+      r->input_array_size *= 2;
+    } else {
+      r->input_array_size = 16;
+    }
+    r->inputs = realloc(r->inputs, sizeof(struct target *)*(r->input_array_size));
+    r->input_times = realloc(r->input_times, sizeof(time_t)*(r->input_array_size));
+    r->input_sizes = realloc(r->input_sizes, sizeof(off_t)*(r->input_array_size));
+  }
+
   r->inputs[r->num_inputs] = dep;
   r->input_times[r->num_inputs] = 0;
   r->input_sizes[r->num_inputs] = 0;

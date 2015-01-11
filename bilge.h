@@ -50,6 +50,7 @@ struct rule {
   bool is_printed;
 
   int num_inputs;
+  int input_array_size;
   struct target **inputs;
   time_t *input_times;
   off_t *input_sizes;
