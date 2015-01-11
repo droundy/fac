@@ -258,11 +258,10 @@ void read_bilge_file(struct all_targets **all, const char *path) {
         }
         break;
       case 'B':
-        if (!therule)
-          error_at_line(1, 0, path, linenum,
-                        "\"B\" build-time lines must follow a \"|\" command line");
-        if (sscanf(one_line+2, "%ld", &therule->build_time) != 1)
-          error_at_line(1, 0, path, linenum, "Error parsing %s", one_line);
+        if (therule) {
+          if (sscanf(one_line+2, "%ld", &therule->build_time) != 1)
+            error_at_line(1, 0, path, linenum, "Error parsing %s", one_line);
+        }
         break;
       }
     }
