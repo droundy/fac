@@ -444,6 +444,7 @@ void parallel_build_all(struct all_targets **all) {
   clock_t total_cpu_time_spent = 0, total_cpu_time_overhead = 0;
   bool have_read_bilge = false;
   struct rule_list *rules = 0;
+  listset *bilgefiles_used = 0;
   do {
     bool newstufftobuild = false;
     for (struct all_targets *tt = *all; tt; tt = tt->next) {
@@ -506,6 +507,7 @@ void parallel_build_all(struct all_targets **all) {
           if (bs[i]->all_done == built) {
             struct rule *r = bs[i]->rule;
             delete_rule(&rules, r);
+            insert_to_listset(&bilgefiles_used, r->bilgefile_path);
 
             /* FIXME We should verify that the inputs specified were actually used */
             for (int ii=0;ii<r->num_inputs;ii++) {
@@ -553,12 +555,6 @@ void parallel_build_all(struct all_targets **all) {
               }
             }
 
-            char *donefile = done_name(r->bilgefile_path);
-            FILE *f = fopen(donefile, "w");
-            if (!f) error(1,errno,"oopse");
-            fprint_bilgefile(f, *all, r->bilgefile_path);
-            fclose(f);
-            free(donefile);
             num_built++;
           } else if (bs[i]->all_done == failed) {
             printf("OOPS FAILED!\n");
@@ -618,9 +614,31 @@ void parallel_build_all(struct all_targets **all) {
         }
       }
       printf("Interrupted!                    \n");
+
+      while (bilgefiles_used) {
+        char *donefile = done_name(bilgefiles_used->path);
+        FILE *f = fopen(donefile, "w");
+        if (!f) error(1,errno,"oopse");
+        fprint_bilgefile(f, *all, bilgefiles_used->path);
+        fclose(f);
+        free(donefile);
+        bilgefiles_used = bilgefiles_used->next;
+      }
+
       exit(1);
     }
   } while (num_to_go || have_read_bilge);
+
+  while (bilgefiles_used) {
+    char *donefile = done_name(bilgefiles_used->path);
+    FILE *f = fopen(donefile, "w");
+    if (!f) error(1,errno,"oopse");
+    fprint_bilgefile(f, *all, bilgefiles_used->path);
+    fclose(f);
+    free(donefile);
+    bilgefiles_used = bilgefiles_used->next;
+  }
+
   delete_rule_list(&rules);
   if (num_failed) {
     printf("Failed %d/%d builds, succeeded %d/%d builds\n", num_failed, num_to_build, num_built, num_to_build);
