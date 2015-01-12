@@ -65,7 +65,7 @@ clean:
         funcs = ''
         include_deps = ''
         for xx in [i+ii for ii in range(10)]:
-            includes += '#include <%s.h>\n' % make_name(hash_integer(xx) % 10**n, n)
+            includes += '#include "%s.h"\n' % make_name(hash_integer(xx) % 10**n, n)
             funcs += '    %s();\n' % hashid(hash_integer(xx) % 10**n)
             include_deps += ' %s.h' % make_name(hash_integer(xx) % 10**n, n)
         makef.write("""
@@ -87,7 +87,7 @@ clean:
         f.write('\n')
         f.write("""/* c file %s */
 
-%s#include <%s>
+%s#include "%s"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -193,8 +193,9 @@ def time_command(nnn, builder):
 
     cleanit = 'cd %s && make clean > clean_output 2>&1 && rm -rf .tup' % make_basedir(nnn)
 
+    repeats = 1
     print 'building'
-    for i in range(3):
+    for i in range(repeats):
         os.system(cleanit)
         start = time.time()
         #print(cmd)
@@ -204,7 +205,7 @@ def time_command(nnn, builder):
 
     rebuild = 'cd %s && make clean > clean_output 2>&1' % make_basedir(nnn)
     print 'rebuilding'
-    for i in range(3):
+    for i in range(repeats):
         os.system(rebuild)
         start = time.time()
         #print(cmd)
@@ -214,8 +215,19 @@ def time_command(nnn, builder):
 
     touch = 'touch %s/number-0.h' % make_basedir(nnn)
 
-    print 'touching'
-    for i in range(3):
+    print 'touching header'
+    for i in range(repeats):
+        os.system(touch)
+        start = time.time()
+        #print(cmd)
+        os.system(cmd)
+        stop = time.time()
+        print '%s took %g seconds.' % (builder, stop - start)
+
+    touch = 'touch %s/number-0.c' % make_basedir(nnn)
+
+    print 'touching c'
+    for i in range(repeats):
         os.system(touch)
         start = time.time()
         #print(cmd)
@@ -225,7 +237,7 @@ def time_command(nnn, builder):
 
 
 
-for nnn in range(1, 3):
+for nnn in range(1, 4):
     create_bench(nnn)
 
     print
