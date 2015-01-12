@@ -8,3 +8,4 @@ bilge
 *.dir
 *.test
 gmon.out
+temp
