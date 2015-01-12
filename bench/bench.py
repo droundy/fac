@@ -1,6 +1,6 @@
 #!/usr/bin/python2
 
-import os, hashlib
+import os, hashlib, time
 
 def make_basedir(n):
     return 'bench/temp/test-%d/' % n
@@ -8,8 +8,6 @@ def make_basedir(n):
 def make_name(i, n):
     path = '.'
     digits = '%d' % i
-    while len(digits) < n:
-        digits = '0'+digits
     for d in digits:
         path = path+'/number-'+d
     return path[2:]
@@ -17,8 +15,6 @@ def make_name(i, n):
 def make_path(i, n):
     path = 'bench/temp'
     digits = '%d' % i
-    while len(digits) < n:
-        digits = '0'+digits
     for d in ['test-%d' % n]+['number-'+x for x in digits]:
         try:
             os.mkdir(path)
@@ -33,9 +29,9 @@ def hashid(n):
     m = hashlib.sha1()
     m.update(str(n))
     name = ''
-    for i in m.digest()[:16]:
+    for i in m.digest()[:24]:
         name += allowed_chars[ord(i) % len(allowed_chars)]
-    return name
+    return name+('_%d' % n)
 
 def hash_integer(n):
     m = hashlib.sha1()
@@ -69,7 +65,7 @@ clean:
         funcs = ''
         include_deps = ''
         for xx in [i+ii for ii in range(10)]:
-            includes += '#include "%s.h"\n' % make_name(hash_integer(xx) % 10**n, n)
+            includes += '#include <%s.h>\n' % make_name(hash_integer(xx) % 10**n, n)
             funcs += '    %s();\n' % hashid(hash_integer(xx) % 10**n)
             include_deps += ' %s.h' % make_name(hash_integer(xx) % 10**n, n)
         makef.write("""
@@ -91,7 +87,7 @@ clean:
         f.write('\n')
         f.write("""/* c file %s */
 
-%s#include "%s"
+%s#include <%s>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -191,5 +187,50 @@ void %s();
        hashid(i), hashid(i), hashid(i), hashid(i)))
         f.close()
 
-for nnn in range(1, 5):
+def time_command(nnn, builder):
+    cmd = 'cd %s && %s' % (make_basedir(nnn), builder)
+    cmd = 'cd %s && %s > output 2>&1' % (make_basedir(nnn), builder)
+
+    cleanit = 'cd %s && make clean > clean_output 2>&1 && rm -rf .tup' % make_basedir(nnn)
+
+    print 'building'
+    for i in range(3):
+        os.system(cleanit)
+        start = time.time()
+        #print(cmd)
+        os.system(cmd)
+        stop = time.time()
+        print '%s took %g seconds.' % (builder, stop - start)
+
+    rebuild = 'cd %s && make clean > clean_output 2>&1' % make_basedir(nnn)
+    print 'rebuilding'
+    for i in range(3):
+        os.system(rebuild)
+        start = time.time()
+        #print(cmd)
+        os.system(cmd)
+        stop = time.time()
+        print '%s took %g seconds.' % (builder, stop - start)
+
+    touch = 'touch %s/number-0.h' % make_basedir(nnn)
+
+    print 'touching'
+    for i in range(3):
+        os.system(touch)
+        start = time.time()
+        #print(cmd)
+        os.system(cmd)
+        stop = time.time()
+        print '%s took %g seconds.' % (builder, stop - start)
+
+
+
+for nnn in range(1, 3):
     create_bench(nnn)
+
+    print
+    print 'timing number', nnn
+    print
+    time_command(nnn, 'make -j4')
+    time_command(nnn, 'bilge')
+    time_command(nnn, 'tup')
