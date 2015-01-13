@@ -200,15 +200,18 @@ the_time = {}
 
 def time_command(nnn, builder):
     global the_time
-    the_time[builder] = {}
+    if not builder in the_time:
+        the_time[builder] = {}
 
     cmd = 'cd %s && %s' % (make_basedir(nnn), builder)
     cmd = 'cd %s && %s > output 2>&1' % (make_basedir(nnn), builder)
 
-    cleanit = 'cd %s && sleep 1 && make clean > clean_output 2>&1 && rm -rf .tup && rm -f *.done && rm -f .sco* || true' % make_basedir(nnn)
+    cleanit = 'cd %s && make clean > clean_output 2>&1 && rm -rf .tup && rm -f *.done && rm -f .sco* || true' % make_basedir(nnn)
 
     repeats = 1
     verb = 'building'
+    if not verb in the_time[builder]:
+        the_time[builder][verb] = {}
     for i in range(repeats):
         os.system(cleanit)
         start = time.time()
@@ -216,10 +219,12 @@ def time_command(nnn, builder):
         assert(not os.system(cmd))
         stop = time.time()
         print '%s %s took %g seconds.' % (verb, builder, stop - start)
-        the_time[builder][verb] = stop - start
+        the_time[builder][verb][nnn] = stop - start
 
     rebuild = 'cd %s && touch *.c */*.c */*/*.c */*/*/*.c */*/*/*/*.c > touch_output 2>&1' % make_basedir(nnn)
     verb = 'rebuilding'
+    if not verb in the_time[builder]:
+        the_time[builder][verb] = {}
     for i in range(repeats):
         os.system(rebuild)
         start = time.time()
@@ -227,11 +232,13 @@ def time_command(nnn, builder):
         assert(not os.system(cmd))
         stop = time.time()
         print '%s %s took %g seconds.' % (verb, builder, stop - start)
-        the_time[builder][verb] = stop - start
+        the_time[builder][verb][nnn] = stop - start
 
     touch = 'echo >> %s/number-0.h' % make_basedir(nnn)
 
     verb = 'touching header'
+    if not verb in the_time[builder]:
+        the_time[builder][verb] = {}
     for i in range(repeats):
         os.system(touch)
         start = time.time()
@@ -239,11 +246,13 @@ def time_command(nnn, builder):
         assert(not os.system(cmd))
         stop = time.time()
         print '%s %s took %g seconds.' % (verb, builder, stop - start)
-        the_time[builder][verb] = stop - start
+        the_time[builder][verb][nnn] = stop - start
 
     touch = 'echo >> %s/number-0.c' % make_basedir(nnn)
 
     verb = 'touching c'
+    if not verb in the_time[builder]:
+        the_time[builder][verb] = {}
     for i in range(repeats):
         os.system(touch)
         start = time.time()
@@ -251,20 +260,22 @@ def time_command(nnn, builder):
         assert(not os.system(cmd))
         stop = time.time()
         print '%s %s took %g seconds.' % (verb, builder, stop - start)
-        the_time[builder][verb] = stop - start
+        the_time[builder][verb][nnn] = stop - start
 
     verb = 'doing nothing'
+    if not verb in the_time[builder]:
+        the_time[builder][verb] = {}
     for i in range(repeats):
         start = time.time()
         #print(cmd)
         assert(not os.system(cmd))
         stop = time.time()
         print '%s %s took %g seconds.' % (verb, builder, stop - start)
-        the_time[builder][verb] = stop - start
+        the_time[builder][verb][nnn] = stop - start
 
 
-
-for nnn in range(2, 3):
+nmax = 3
+for nnn in range(0, nmax+1):
     create_bench(nnn)
 
     print
@@ -284,10 +295,12 @@ for verb in ['building', 'rebuilding', 'touching header', 'touching c', 'doing n
     plt.xlabel('$\log_{10}N$')
     plt.ylabel('$t$ (s)')
     for cmd in ['make -j4', 'bilge', 'tup', 'scons']:
-        nums = range(0,4)
-        times = range(0,4)
+        nums = range(0,nmax+1)
+        times = range(0,nmax+1)
         for n in nums:
-            times[n] = the_time[cmd][verb]
-            plt.plot(nums, times)
+            times[n] = 1.0*the_time[cmd][verb][n]
+        plt.semilogy(nums, times, 'o-', label=cmd)
+        print verb, cmd, nums, times
+    plt.legend()
 
 plt.show()
