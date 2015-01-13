@@ -236,7 +236,7 @@ def time_command(nnn, builder):
 
     touch = 'echo >> %s/number-0.h' % make_basedir(nnn)
 
-    verb = 'touching header'
+    verb = 'touching-header'
     if not verb in the_time[builder]:
         the_time[builder][verb] = {}
     for i in range(repeats):
@@ -250,7 +250,7 @@ def time_command(nnn, builder):
 
     touch = 'echo >> %s/number-0.c' % make_basedir(nnn)
 
-    verb = 'touching c'
+    verb = 'touching-c'
     if not verb in the_time[builder]:
         the_time[builder][verb] = {}
     for i in range(repeats):
@@ -262,7 +262,7 @@ def time_command(nnn, builder):
         print '%s %s took %g seconds.' % (verb, builder, stop - start)
         the_time[builder][verb][nnn] = stop - start
 
-    verb = 'doing nothing'
+    verb = 'doing-nothing'
     if not verb in the_time[builder]:
         the_time[builder][verb] = {}
     for i in range(repeats):
@@ -273,34 +273,43 @@ def time_command(nnn, builder):
         print '%s %s took %g seconds.' % (verb, builder, stop - start)
         the_time[builder][verb][nnn] = stop - start
 
-
-nmax = 3
+tools = [cmd+' -j4' for cmd in ['make', 'bilge', 'tup', 'scons']]
+nmax = 4
 for nnn in range(0, nmax+1):
     create_bench(nnn)
 
     print
     print 'timing number', nnn
     print
-    time_command(nnn, 'scons')
-    print
-    time_command(nnn, 'make -j4')
-    print
-    time_command(nnn, 'bilge')
-    print
-    time_command(nnn, 'tup')
+    for tool in tools:
+        time_command(nnn, tool)
+        print
 
-for verb in ['building', 'rebuilding', 'touching header', 'touching c', 'doing nothing']:
+legends = {
+    'touching-header': 'touching header',
+    'touching-c': 'touching c',
+    'doing-nothing': 'doing nothing',
+}
+
+for verb in ['building', 'rebuilding', 'touching-header', 'touching-c', 'doing-nothing']:
     plt.figure()
     plt.title('Time spent '+verb)
+    if verb in legends:
+        plt.title('Time spent '+legends[verb])
     plt.xlabel('$\log_{10}N$')
     plt.ylabel('$t$ (s)')
-    for cmd in ['make -j4', 'bilge', 'tup', 'scons']:
+    for cmd in tools:
         nums = range(0,nmax+1)
         times = range(0,nmax+1)
         for n in nums:
             times[n] = 1.0*the_time[cmd][verb][n]
         plt.semilogy(nums, times, 'o-', label=cmd)
         print verb, cmd, nums, times
-    plt.legend()
+    plt.legend(loc='best')
+    def cleanup(c):
+        if c == ' ':
+            return '-'
+        return c
+    plt.savefig(verb+'.pdf')
 
 plt.show()

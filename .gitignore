@@ -9,3 +9,4 @@ bilge
 *.test
 gmon.out
 temp
+*.pdf
