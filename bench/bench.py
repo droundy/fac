@@ -1,6 +1,7 @@
 #!/usr/bin/python2
 
-import os, hashlib, time
+import os, hashlib, time, numpy
+import matplotlib.pyplot as plt
 
 def make_basedir(n):
     return 'bench/temp/test-%d/' % n
@@ -10,7 +11,7 @@ def make_name(i, n):
     digits = '%d' % i
     for d in digits:
         path = path+'/number-'+d
-    return path[2:]
+    return path[2:]+('_%d' % i)
 
 def make_path(i, n):
     path = 'bench/temp'
@@ -45,10 +46,14 @@ os.system('rm -rf bench/temp')
 
 def create_bench(n):
     make_path(0, n)
+    sconsf = open(make_basedir(n)+'SConstruct', 'w')
     bilgef = open(make_basedir(n)+'top.bilge', 'w')
     tupf = open(make_basedir(n)+'Tupfile', 'w')
     makef = open(make_basedir(n)+'Makefile', 'w')
     open(make_basedir(n)+'Tupfile.ini', 'w')
+    sconsf.write("""
+env = Environment(CPPPATH=['.'])
+""")
     makef.write('all:')
     for i in range(10**n):
         makef.write(' %s.o' % make_name(i, n))
@@ -58,7 +63,8 @@ clean:
 \trm -f *.o */*.o */*/*.o */*/*/*.o */*/*/*/*.o
 """)
     for i in range(10**n):
-        base = make_path(i, n)
+        make_path(i, n)
+        base = 'bench/temp/test-%d/' % n + make_name(i, n)
         cname = make_name(i, n) + '.c'
         hname = make_name(i, n) + '.h'
         includes = ''
@@ -71,7 +77,7 @@ clean:
         makef.write("""
 # %d
 %s.o: %s.c %s
-\tgcc -I. -O2 -c -o %s.o %s.c
+\tgcc -Wall -Werror -I. -O2 -c -o %s.o %s.c
 """ % (i, make_name(i, n), make_name(i, n), include_deps,
        make_name(i, n), make_name(i, n)))
         tupf.write("""
@@ -83,6 +89,9 @@ clean:
 | gcc -I. -O2 -c -o %s.o %s.c
 > %s.o
 """ % (i, make_name(i, n), make_name(i, n), make_name(i, n)))
+        sconsf.write("""
+env.Object('%s.c')
+""" % make_name(i,n))
         f = open(base+'.c', 'w')
         f.write('\n')
         f.write("""/* c file %s */
@@ -187,62 +196,98 @@ void %s();
        hashid(i), hashid(i), hashid(i), hashid(i)))
         f.close()
 
+the_time = {}
+
 def time_command(nnn, builder):
+    global the_time
+    the_time[builder] = {}
+
     cmd = 'cd %s && %s' % (make_basedir(nnn), builder)
     cmd = 'cd %s && %s > output 2>&1' % (make_basedir(nnn), builder)
 
-    cleanit = 'cd %s && make clean > clean_output 2>&1 && rm -rf .tup' % make_basedir(nnn)
+    cleanit = 'cd %s && sleep 1 && make clean > clean_output 2>&1 && rm -rf .tup && rm -f *.done && rm -f .sco* || true' % make_basedir(nnn)
 
     repeats = 1
-    print 'building'
+    verb = 'building'
     for i in range(repeats):
         os.system(cleanit)
         start = time.time()
         #print(cmd)
-        os.system(cmd)
+        assert(not os.system(cmd))
         stop = time.time()
-        print '%s took %g seconds.' % (builder, stop - start)
+        print '%s %s took %g seconds.' % (verb, builder, stop - start)
+        the_time[builder][verb] = stop - start
 
-    rebuild = 'cd %s && make clean > clean_output 2>&1' % make_basedir(nnn)
-    print 'rebuilding'
+    rebuild = 'cd %s && touch *.c */*.c */*/*.c */*/*/*.c */*/*/*/*.c > touch_output 2>&1' % make_basedir(nnn)
+    verb = 'rebuilding'
     for i in range(repeats):
         os.system(rebuild)
         start = time.time()
         #print(cmd)
-        os.system(cmd)
+        assert(not os.system(cmd))
         stop = time.time()
-        print '%s took %g seconds.' % (builder, stop - start)
+        print '%s %s took %g seconds.' % (verb, builder, stop - start)
+        the_time[builder][verb] = stop - start
 
-    touch = 'touch %s/number-0.h' % make_basedir(nnn)
+    touch = 'echo >> %s/number-0.h' % make_basedir(nnn)
 
-    print 'touching header'
+    verb = 'touching header'
     for i in range(repeats):
         os.system(touch)
         start = time.time()
         #print(cmd)
-        os.system(cmd)
+        assert(not os.system(cmd))
         stop = time.time()
-        print '%s took %g seconds.' % (builder, stop - start)
+        print '%s %s took %g seconds.' % (verb, builder, stop - start)
+        the_time[builder][verb] = stop - start
 
-    touch = 'touch %s/number-0.c' % make_basedir(nnn)
+    touch = 'echo >> %s/number-0.c' % make_basedir(nnn)
 
-    print 'touching c'
+    verb = 'touching c'
     for i in range(repeats):
         os.system(touch)
         start = time.time()
         #print(cmd)
-        os.system(cmd)
+        assert(not os.system(cmd))
         stop = time.time()
-        print '%s took %g seconds.' % (builder, stop - start)
+        print '%s %s took %g seconds.' % (verb, builder, stop - start)
+        the_time[builder][verb] = stop - start
+
+    verb = 'doing nothing'
+    for i in range(repeats):
+        start = time.time()
+        #print(cmd)
+        assert(not os.system(cmd))
+        stop = time.time()
+        print '%s %s took %g seconds.' % (verb, builder, stop - start)
+        the_time[builder][verb] = stop - start
 
 
 
-for nnn in range(1, 4):
+for nnn in range(2, 3):
     create_bench(nnn)
 
     print
     print 'timing number', nnn
     print
+    time_command(nnn, 'scons')
+    print
     time_command(nnn, 'make -j4')
+    print
     time_command(nnn, 'bilge')
+    print
     time_command(nnn, 'tup')
+
+for verb in ['building', 'rebuilding', 'touching header', 'touching c', 'doing nothing']:
+    plt.figure()
+    plt.title('Time spent '+verb)
+    plt.xlabel('$\log_{10}N$')
+    plt.ylabel('$t$ (s)')
+    for cmd in ['make -j4', 'bilge', 'tup', 'scons']:
+        nums = range(0,4)
+        times = range(0,4)
+        for n in nums:
+            times[n] = the_time[cmd][verb]
+            plt.plot(nums, times)
+
+plt.show()
