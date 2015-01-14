@@ -311,5 +311,6 @@ for verb in ['building', 'rebuilding', 'touching-header', 'touching-c', 'doing-n
             return '-'
         return c
     plt.savefig(verb+'.pdf')
+    plt.savefig(verb+'.png', dpi=100)
 
 plt.show()
