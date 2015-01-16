@@ -1,2 +1,8 @@
 | python2 top.py > .bilge
 > .bilge
+
+| python web/mkdown.py
+> web/index.html
+
+| sass web/style.scss web/style.css
+> web/style.css

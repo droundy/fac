@@ -1,0 +1,45 @@
+
+@import "web/normalize.scss";
+
+*, *:after, *:before {
+  -webkit-box-sizing: border-box;
+  -moz-box-sizing: border-box;
+  box-sizing: border-box;
+}
+
+$black: #000;
+$white: #fff;
+
+$highlight: #1f8dd6;
+$backhighlight: #cbe7f8;
+
+$hoverfocus: #f00;
+
+$menuback: #191818;
+$menuhoverback: #444;
+$menufore: #999;
+$menuitem: #333;
+$menushadow: #000;
+$menuwidth: 150px;
+$leftboxsize: 1.0em; /* actually circle in menu */
+
+$contentcolor: #555;
+
+$maintoc: #999;
+$secondtoc: #666;
+
+html { /* make scrollbar always visible */
+overflow: -moz-scrollbars-vertical;
+overflow-y: scroll;
+}
+
+body { /* just define the font once! */
+    font:normal 1em Helvetica, Verdana, Arial, sans-serif;
+}
+
+@mixin border-radius($radius) {
+    -webkit-border-radius: $radius;
+    -moz-border-radius: $radius;
+    -ms-border-radius: $radius;
+    border-radius: $radius;
+}

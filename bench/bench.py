@@ -310,7 +310,7 @@ for verb in ['building', 'rebuilding', 'touching-header', 'touching-c', 'doing-n
         if c == ' ':
             return '-'
         return c
-    plt.savefig(verb+'.pdf')
-    plt.savefig(verb+'.png', dpi=100)
+    plt.savefig('web/'+verb+'.pdf')
+    plt.savefig('web/'+verb+'.png', dpi=100)
 
-plt.show()
+#plt.show()

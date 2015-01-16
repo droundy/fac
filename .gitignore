@@ -11,3 +11,7 @@ gmon.out
 temp
 *.pdf
 *.png
+*.html
+.sass-cache
+*.pyc
+web/style.css
