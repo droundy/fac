@@ -250,17 +250,40 @@ pid_t wait_for_syscall(int *num_programs) {
     } else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_EXEC<<8))) {
       pid_t newpid;
       ptrace(PTRACE_GETEVENTMSG, child, 0, &newpid);
-      fprintf(stderr, "foo execed!!! %d from %d\n", newpid, child);
-      exit(1);
+      //debugprintf("\nexeced!!! %d from %d\n", newpid, child);
     } else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_VFORK_DONE<<8))) {
-      //debugprintf("foo vfork done!!! %d\n", child);
+      debugprintf("vfork is done in %d\n", child);
       ptrace_syscall(child); // keep going!
     } else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_CLONE<<8))) {
       pid_t newpid;
       ptrace(PTRACE_GETEVENTMSG, child, 0, &newpid);
       debugprintf("\ncloned %d from %d!!!\n", newpid, child);
       waitpid(newpid, 0, __WALL);
-      //debugprintf("now waitpid %d worked!!!\n", newpid);
+      if (ptrace(PTRACE_SETOPTIONS, newpid, 0, my_ptrace_options)) {
+        debugprintf("error ptracing setoptions n %d\n", newpid);
+      }
+      //debugprintf("ptrace setoptions %d worked!!!\n", newpid);
+      num_programs++;
+
+      ptrace_syscall(newpid);
+    } else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_VFORK<<8))) {
+      pid_t newpid;
+      ptrace(PTRACE_GETEVENTMSG, child, 0, &newpid);
+      //debugprintf("\nvforked %d from %d!!!\n", newpid, child);
+      waitpid(newpid, 0, __WALL);
+      if (ptrace(PTRACE_SETOPTIONS, newpid, 0, my_ptrace_options)) {
+        debugprintf("error ptracing setoptions n %d\n", newpid);
+      }
+      //debugprintf("ptrace setoptions %d worked!!!\n", newpid);
+      (*num_programs)++;
+
+      ptrace_syscall(child);
+      ptrace_syscall(newpid);
+    } else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_FORK<<8))) {
+      pid_t newpid;
+      ptrace(PTRACE_GETEVENTMSG, child, 0, &newpid);
+      //debugprintf("\nforked %d from %d!!!\n", newpid, child);
+      waitpid(newpid, 0, __WALL);
       if (ptrace(PTRACE_SETOPTIONS, newpid, 0, my_ptrace_options)) {
         debugprintf("error ptracing setoptions n %d\n", newpid);
       }
@@ -268,23 +291,15 @@ pid_t wait_for_syscall(int *num_programs) {
       (*num_programs)++;
 
       ptrace_syscall(newpid);
-    } else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_VFORK<<8))) {
-      fprintf(stderr, "foo vforked!!! %d\n", child);
-      exit(1);
-    } else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_FORK<<8))) {
-      fprintf(stderr, "foo forked!!! %d\n", child);
-      exit(1);
     } else if (WIFSIGNALED(status)) {
-      fprintf(stderr, "foo signaled!!! %d\n", child);
-      exit(1);
+      debugprintf("foo signaled!!! %d\n", child);
+      ptrace_syscall(child); // we don't understand it, so keep trying
     } else if (WIFCONTINUED(status)) {
-      fprintf(stderr, "foo continued!!! %d\n", child);
-      exit(1);
+      debugprintf("foo continued!!! %d\n", child);
+      ptrace_syscall(child); // we don't understand it, so keep trying
     } else {
-      /* debugprintf("I do not understand on child %d this %x also %x compare %x... :(\n",
-         child, status, status >> 8, SIGTRAP);
-         exit(1); */
-      ptrace_syscall(child);
+      debugprintf("I do not understand this event %d\n\n", status);
+      ptrace_syscall(child); // we don't understand it, so keep trying
     }
   }
   return child;
