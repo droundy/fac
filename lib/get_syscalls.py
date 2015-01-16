@@ -113,6 +113,7 @@ bool_table('is_wait_or_exit', ['wait4',
                                'epoll_pwait',
                                'epoll_wait',
                                'futex',
+                               'select',
                                'exit',
                                'exit_group'])
 
