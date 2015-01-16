@@ -243,17 +243,17 @@ pid_t wait_for_syscall(int *num_programs) {
     //debugprintf("waiting for any syscall...\n");
     child = waitpid(-1, &status, __WALL);
     if (WIFSTOPPED(status) && WSTOPSIG(status) & 0x80) {
-      break;
+      return child;
     } else if (WIFEXITED(status)) {
       //debugprintf("got an exit from %d...\n", child);
       if (--(*num_programs) <= 0) return -WEXITSTATUS(status);
+      continue; /* no need to do anything more for this guy */
     } else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_EXEC<<8))) {
       pid_t newpid;
       ptrace(PTRACE_GETEVENTMSG, child, 0, &newpid);
-      //debugprintf("\nexeced!!! %d from %d\n", newpid, child);
+      debugprintf("\nexeced!!! %d from %d\n", newpid, child);
     } else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_VFORK_DONE<<8))) {
       debugprintf("vfork is done in %d\n", child);
-      ptrace_syscall(child); // keep going!
     } else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_CLONE<<8))) {
       pid_t newpid;
       ptrace(PTRACE_GETEVENTMSG, child, 0, &newpid);
@@ -277,7 +277,6 @@ pid_t wait_for_syscall(int *num_programs) {
       //debugprintf("ptrace setoptions %d worked!!!\n", newpid);
       (*num_programs)++;
 
-      ptrace_syscall(child);
       ptrace_syscall(newpid);
     } else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_FORK<<8))) {
       pid_t newpid;
@@ -293,16 +292,13 @@ pid_t wait_for_syscall(int *num_programs) {
       ptrace_syscall(newpid);
     } else if (WIFSIGNALED(status)) {
       debugprintf("foo signaled!!! %d\n", child);
-      ptrace_syscall(child); // we don't understand it, so keep trying
     } else if (WIFCONTINUED(status)) {
       debugprintf("foo continued!!! %d\n", child);
-      ptrace_syscall(child); // we don't understand it, so keep trying
     } else {
       debugprintf("I do not understand this event %d\n\n", status);
-      ptrace_syscall(child); // we don't understand it, so keep trying
     }
+    ptrace_syscall(child); // keep going!
   }
-  return child;
 }
 
 int bigbrother_process(const char *workingdir,
