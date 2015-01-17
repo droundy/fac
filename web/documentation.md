@@ -11,6 +11,12 @@ Hello world
 
 3. It seems that bilge hangs when running latex (at least sometimes)
 
+5. Separate explicit from autodetermined inputs and outputs.
+
+6. Check that explicit inputs either exist and are in git or have rules.
+
+
+
 <a href="building.pdf"><img src="building.png" alt="build times"></a>
 <a href="rebuilding.pdf"><img src="rebuilding.png" alt="rebuild times"></a>
 <a href="touching-c.pdf"><img src="touching-c.png" alt="more build times"></a>

@@ -13,7 +13,7 @@
 
 #include "bilge.h"
 
-void go_to_bilge_top() {
+char *go_to_bilge_top() {
   while (1) {
     DIR *dir = opendir(".");
     char *dirname = getcwd(0,0);
@@ -29,8 +29,7 @@ void go_to_bilge_top() {
     while (result) {
       if (!strcmp("top.bilge", entry.d_name)) {
         closedir(dir);
-        free(dirname);
-        return;
+        return dirname;
       }
 
       if (readdir_r(dir, &entry, &result))
@@ -68,14 +67,14 @@ int main(int argc, const char **argv) {
   while (poptGetNextOpt(optCon) >= 0);
   poptFreeContext(optCon);
 
-  go_to_bilge_top();
+  char *root = go_to_bilge_top();
 
   /* the following loop it to make profiling easier */
   const int num_runs_to_profile = 1;
   for (int repeats=0;repeats<num_runs_to_profile;repeats++) {
     struct all_targets *all = 0;
     create_target(&all, "top.bilge");
-    parallel_build_all(&all);
+    parallel_build_all(&all, root);
     /* profiling shows that as much as a third of our CPU time can be
        spent freeing, so we will only do it if we are repeating the
        computation. */

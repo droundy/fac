@@ -18,6 +18,15 @@
 #include <string.h>
 #include <signal.h>
 
+static const char *root = 0;
+static const char *pretty_path(const char *path) {
+  int len = strlen(root);
+  if (!memcmp(path, root, len) && path[len] == '/') {
+    return path + len + 1;
+  }
+  return path;
+}
+
 static struct target *create_target_with_stat(struct all_targets **all,
                                               const char *path) {
   struct target *t = create_target(all, path);
@@ -75,7 +84,6 @@ void *run_parallel_rule(void *void_building) {
     b->overhead_time = 0;
   }
   if (ret != 0) {
-    printf("XX FAILED %s\n", b->rule->command);
     b->all_done = failed;
     return 0;
   }
@@ -263,62 +271,6 @@ bool build_rule_plus_dependencies(struct all_targets **all, struct rule *r,
   return false;
 }
 
-void build_all(struct all_targets **all) {
-  bool done = false;
-  struct all_targets *tt = *all;
-  while (tt) {
-    if (tt->t->rule) tt->t->rule->status = unknown;
-    tt = tt->next;
-  }
-  int num_to_build = 0, num_built = 0;
-  while (!done) {
-    tt = *all;
-    while (tt) {
-      determine_rule_cleanliness(all, tt->t->rule, &num_to_build);
-      tt = tt->next;
-    }
-    bool got_new_bilgefiles = false;
-    tt = *all;
-    while (tt) {
-      int len = strlen(tt->t->path);
-      if (len >= 6 && !strcmp(tt->t->path+len-6, ".bilge")) {
-        if (tt->t->status == unknown &&
-            (!tt->t->rule || tt->t->rule->status != dirty)) {
-          /* This is a clean .bilge file, but we still need to parse it! */
-          read_bilge_file(all, tt->t->path);
-          got_new_bilgefiles = true;
-          tt->t->status = built;
-        }
-      }
-      tt = tt->next;
-    }
-    if (got_new_bilgefiles) continue;
-    tt = *all;
-    while (tt) {
-      int len = strlen(tt->t->path);
-      if (len >= 6 && !strcmp(tt->t->path+len-6, ".bilge")) {
-        if (tt->t->rule && tt->t->rule->status == dirty) {
-          /* This is a dirty .bilge file, so we need to build it! */
-          build_rule_plus_dependencies(all, tt->t->rule,
-                                       &num_to_build, &num_built);
-          got_new_bilgefiles = true;
-          break;
-        }
-      }
-      tt = tt->next;
-    }
-    if (got_new_bilgefiles) continue;
-    tt = *all;
-    while (tt) {
-      build_rule_plus_dependencies(all, tt->t->rule, &num_to_build, &num_built);
-      tt = tt->next;
-    }
-    if (num_built != num_to_build)
-      error(1,0,"Failed %d/%d builds", num_to_build-num_built, num_to_build);
-    done = true;
-  }
-}
-
 static void find_latency(struct rule *r) {
   if (!r) return;
   if (r->status != dirty) return;
@@ -348,7 +300,7 @@ struct building *build_rule_or_dependency(struct all_targets **all,
     determine_rule_cleanliness(all, r, num_to_build);
   }
   if (r->status == failed) {
-    printf("already failed once: %s\n", r->command);
+    verbose_printf("already failed once: %s\n", r->command);
     return 0;
   }
   if (r->status == dirty) {
@@ -392,7 +344,6 @@ void let_us_build(struct all_targets **all, struct rule *r, int *num_to_build,
     if (!bs[i]) {
       bs[i] = build_rule_or_dependency(all, r, num_to_build);
       if (bs[i]) {
-        printf("starting %s\n", bs[i]->rule->command);
         if (true) {
           pid_t new_pid = fork();
           if (new_pid == 0) {
@@ -425,7 +376,8 @@ static void find_elapsed_time() {
   elapsed_minutes = (now.tv_sec - starting.tv_sec) / 60;
 }
 
-void parallel_build_all(struct all_targets **all) {
+void parallel_build_all(struct all_targets **all, const char *root_) {
+  root = root_;
   gettimeofday(&starting, 0);
 
   if (!num_jobs) num_jobs = sysconf(_SC_NPROCESSORS_ONLN);
@@ -443,7 +395,8 @@ void parallel_build_all(struct all_targets **all) {
   double clocks_per_second = sysconf(_SC_CLK_TCK);
 
   clock_t total_cpu_time_spent = 0, total_cpu_time_overhead = 0;
-  bool have_read_bilge = false;
+  bool have_finished_building_and_reading_bilges = false;
+  bool have_checked_for_impossibilities = false;
   struct rule_list *rules = 0;
   listset *bilgefiles_used = 0;
   do {
@@ -505,9 +458,7 @@ void parallel_build_all(struct all_targets **all) {
           sendfile(1, bs[i]->stdouterrfd, &myoffset, stdoutlen);
           close(bs[i]->stdouterrfd);
 
-          printf("build finished!!!\n");
           if (bs[i]->all_done == built) {
-            printf("build worked!!!\n");
             struct rule *r = bs[i]->rule;
             delete_rule(&rules, r);
             insert_to_listset(&bilgefiles_used, r->bilgefile_path);
@@ -516,7 +467,7 @@ void parallel_build_all(struct all_targets **all) {
             for (int ii=0;ii<r->num_inputs;ii++) {
               struct target *t = create_target_with_stat(all, r->inputs[ii]->path);
               if (!t) {
-                fprintf(stderr, "Unable to stat input file %s\n", r->inputs[ii]->path);
+                printf("Unable to stat input file %s\n", r->inputs[ii]->path);
               } else {
                 add_input(r, t);
                 delete_from_arrayset(&bs[i]->read, r->inputs[ii]->path);
@@ -531,7 +482,8 @@ void parallel_build_all(struct all_targets **all) {
               }
               t = create_target_with_stat(all, r->outputs[ii]->path);
               if (!t) {
-                fprintf(stderr, "Unable to stat output file %s\n", r->outputs[ii]->path);
+                printf("Unable to stat output file %s\n",
+                       pretty_path(r->outputs[ii]->path));
               } else {
                 t->rule = r;
                 add_output(r, t);
@@ -566,7 +518,12 @@ void parallel_build_all(struct all_targets **all) {
 
             num_built++;
           } else if (bs[i]->all_done == failed) {
-            printf("OOPS FAILED!\n");
+            if (bs[i]->rule->num_outputs == 1) {
+              printf("build failed: %s\n",
+                     pretty_path(bs[i]->rule->outputs[0]->path));
+            } else {
+              printf("build failed: %s\n", bs[i]->rule->command);
+            }
             num_failed++;
           } else {
             printf("INTERRUPTED!\n");
@@ -580,7 +537,7 @@ void parallel_build_all(struct all_targets **all) {
       }
     }
 
-    have_read_bilge = false;
+    have_finished_building_and_reading_bilges = true;
     for (struct all_targets *tt = *all; tt; tt = tt->next) {
       int len = strlen(tt->t->path);
       if (len >= 6 && !strcmp(tt->t->path+len-6, ".bilge")) {
@@ -589,7 +546,7 @@ void parallel_build_all(struct all_targets **all) {
                               tt->t->rule->status != building))) {
           /* This is a clean .bilge file, but we still need to parse it! */
           read_bilge_file(all, tt->t->path);
-          have_read_bilge = true;
+          have_finished_building_and_reading_bilges = false;
           tt->t->status = built;
         }
       }
@@ -600,17 +557,35 @@ void parallel_build_all(struct all_targets **all) {
         if (tt->t->rule && tt->t->rule->status == dirty) {
           /* This is a dirty .bilge file, so we need to build it! */
           let_us_build(all, tt->t->rule, &num_to_build, bs, num_jobs);
-          have_read_bilge = true;
+          have_finished_building_and_reading_bilges = false;
         }
       }
     }
-    if (have_read_bilge) continue;
+    if (!have_finished_building_and_reading_bilges) continue;
+
+    if (!have_checked_for_impossibilities) {
+      for (struct rule_list *rr = rules; rr; rr = rr->next) {
+        if (rr->r->status == dirty || rr->r->status == unknown) {
+          for (int i=0;i<rr->r->num_inputs;i++) {
+            if (!rr->r->inputs[i]->rule && access(rr->r->inputs[i]->path, R_OK)) {
+              printf("cannot build: %s due to missing input %s\n",
+                     pretty_path(rr->r->outputs[0]->path),
+                     pretty_path(rr->r->inputs[i]->path));
+              rr->r->status = failed;
+              num_failed++;
+              //XXX add to let_us_build a repeat check... or above anyhow
+            }
+          }
+        }
+      }
+      have_checked_for_impossibilities = true;
+    }
 
     num_to_go = 0;
     for (struct rule_list *rr = rules; rr; rr = rr->next) {
       if (rr->r->status == dirty || rr->r->status == building) {
         let_us_build(all, rr->r, &num_to_build, bs, num_jobs);
-        printf("still need to build %s\n", rr->r->command);
+        //printf("still need to build %s\n", rr->r->command);
         num_to_go++;
       }
     }
@@ -637,8 +612,7 @@ void parallel_build_all(struct all_targets **all) {
 
       exit(1);
     }
-    printf("num_to_go %d and have_read_bilge %d\n", num_to_go, have_read_bilge);
-  } while (num_to_go || have_read_bilge);
+  } while (num_to_go || !have_finished_building_and_reading_bilges);
 
   while (bilgefiles_used) {
     char *donefile = done_name(bilgefiles_used->path);
