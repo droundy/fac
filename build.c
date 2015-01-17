@@ -392,6 +392,7 @@ void let_us_build(struct all_targets **all, struct rule *r, int *num_to_build,
     if (!bs[i]) {
       bs[i] = build_rule_or_dependency(all, r, num_to_build);
       if (bs[i]) {
+        printf("starting %s\n", bs[i]->rule->command);
         if (true) {
           pid_t new_pid = fork();
           if (new_pid == 0) {
@@ -504,7 +505,9 @@ void parallel_build_all(struct all_targets **all) {
           sendfile(1, bs[i]->stdouterrfd, &myoffset, stdoutlen);
           close(bs[i]->stdouterrfd);
 
+          printf("build finished!!!\n");
           if (bs[i]->all_done == built) {
+            printf("build worked!!!\n");
             struct rule *r = bs[i]->rule;
             delete_rule(&rules, r);
             insert_to_listset(&bilgefiles_used, r->bilgefile_path);
@@ -512,10 +515,13 @@ void parallel_build_all(struct all_targets **all) {
             /* FIXME We should verify that the inputs specified were actually used */
             for (int ii=0;ii<r->num_inputs;ii++) {
               struct target *t = create_target_with_stat(all, r->inputs[ii]->path);
-              if (!t) error(1, errno, "Unable to stat input file %s", r->inputs[ii]->path);
-              add_input(r, t);
-              delete_from_arrayset(&bs[i]->read, r->inputs[ii]->path);
-              delete_from_arrayset(&bs[i]->written, r->inputs[ii]->path);
+              if (!t) {
+                fprintf(stderr, "Unable to stat input file %s\n", r->inputs[ii]->path);
+              } else {
+                add_input(r, t);
+                delete_from_arrayset(&bs[i]->read, r->inputs[ii]->path);
+                delete_from_arrayset(&bs[i]->written, r->inputs[ii]->path);
+              }
             }
             for (int ii=0;ii<r->num_outputs;ii++) {
               struct target *t = lookup_target(*all, r->outputs[ii]->path);
@@ -524,11 +530,14 @@ void parallel_build_all(struct all_targets **all) {
                 t->size = 0;
               }
               t = create_target_with_stat(all, r->outputs[ii]->path);
-              if (!t) error(1, errno, "Unable to stat output file %s", r->outputs[ii]->path);
-              t->rule = r;
-              add_output(r, t);
-              delete_from_arrayset(&bs[i]->read, r->outputs[ii]->path);
-              delete_from_arrayset(&bs[i]->written, r->outputs[ii]->path);
+              if (!t) {
+                fprintf(stderr, "Unable to stat output file %s\n", r->outputs[ii]->path);
+              } else {
+                t->rule = r;
+                add_output(r, t);
+                delete_from_arrayset(&bs[i]->read, r->outputs[ii]->path);
+                delete_from_arrayset(&bs[i]->written, r->outputs[ii]->path);
+              }
             }
             for (char *path = start_iterating(&bs[i]->read); path; path = iterate(&bs[i]->read)) {
               struct target *t = create_target_with_stat(all, path);
@@ -601,6 +610,7 @@ void parallel_build_all(struct all_targets **all) {
     for (struct rule_list *rr = rules; rr; rr = rr->next) {
       if (rr->r->status == dirty || rr->r->status == building) {
         let_us_build(all, rr->r, &num_to_build, bs, num_jobs);
+        printf("still need to build %s\n", rr->r->command);
         num_to_go++;
       }
     }
@@ -627,6 +637,7 @@ void parallel_build_all(struct all_targets **all) {
 
       exit(1);
     }
+    printf("num_to_go %d and have_read_bilge %d\n", num_to_go, have_read_bilge);
   } while (num_to_go || have_read_bilge);
 
   while (bilgefiles_used) {
