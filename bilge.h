@@ -11,6 +11,7 @@
 
 extern int num_jobs; /* number of jobs to run simultaneously */
 extern int verbose; /* true if user requests verbose output */
+extern int show_output; /* true if user requests to see command output */
 
 inline void verbose_printf(const char *format, ...) {
   va_list args;

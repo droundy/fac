@@ -49,6 +49,7 @@ void usage(poptContext optCon, int exitcode, char *error, char *addl) {
 }
 
 int verbose = 0;
+int show_output = 0;
 extern inline void verbose_printf(const char *format, ...);
 
 int main(int argc, const char **argv) {
@@ -57,6 +58,8 @@ int main(int argc, const char **argv) {
       "the number of jobs to run simultaneously", "JOBS" },
     { "verbose", 'v', POPT_ARG_NONE, &verbose, 0,
       "give verbose output", 0 },
+    { "show-output", 'V', POPT_ARG_NONE, &show_output, 0,
+      "show command output", 0 },
     POPT_AUTOHELP
     { NULL, 0, 0, NULL, 0 }
   };

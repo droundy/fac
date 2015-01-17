@@ -455,7 +455,8 @@ void parallel_build_all(struct all_targets **all, const char *root_) {
                  bs[i]->rule->build_time/clocks_per_second, bs[i]->rule->command);
           off_t stdoutlen = lseek(bs[i]->stdouterrfd, 0, SEEK_END);
           off_t myoffset = 0;
-          sendfile(1, bs[i]->stdouterrfd, &myoffset, stdoutlen);
+          if (bs[i]->all_done != built || show_output)
+            sendfile(1, bs[i]->stdouterrfd, &myoffset, stdoutlen);
           close(bs[i]->stdouterrfd);
 
           if (bs[i]->all_done == built) {

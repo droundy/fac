@@ -14,18 +14,20 @@ cd $0.dir
 mkdir subdir
 
 cat > top.bilge <<EOF
-| cat message; echo foo > foo
+| cat message; false
 > foo
 
 EOF
 
 echo done > message
 
-../../bilge > bilge.out
+if ../../bilge > bilge.out; then
+    cat bilge.out
+    echo this should have failed
+    exit 1
+fi
 cat bilge.out
 
 grep done bilge.out
-
-grep foo foo
 
 exit 0
