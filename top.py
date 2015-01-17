@@ -4,7 +4,7 @@ import string
 
 flags = '-Wall -Werror -O2 -std=c11 -g'
 
-sources = ['bilge', 'files', 'targets', 'build']
+sources = ['bilge', 'files', 'targets', 'build', 'git']
 
 libsources = ['trie', 'listset', 'arrayset', 'bigbrother']
 

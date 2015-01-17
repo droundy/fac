@@ -7,6 +7,6 @@ lib/fileaccesses: lib/fileaccesses.c lib/listset.c lib/bigbrother.c lib/arrayset
 lib/syscalls.h: lib/get_syscalls.py
 	python $< /usr/src/linux-headers-3.2.0-4-common > $@
 
-bilge: bilge.c bilge.h targets.c files.c build.c \
+bilge: bilge.c bilge.h targets.c files.c build.c git.c \
        lib/listset.c lib/bigbrother.c lib/syscalls.h lib/arrayset.c lib/trie.c lib/trie.h
-	gcc -lpthread -lpopt -Wall -std=c11 -g -o bilge bilge.c targets.c files.c build.c lib/listset.c lib/bigbrother.c lib/arrayset.c lib/trie.c
+	gcc -lpthread -lpopt -Wall -std=c11 -g -o bilge bilge.c targets.c files.c build.c git.c lib/listset.c lib/bigbrother.c lib/arrayset.c lib/trie.c

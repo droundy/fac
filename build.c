@@ -27,6 +27,11 @@ static const char *pretty_path(const char *path) {
   return path;
 }
 
+static struct trie *git_files_content = 0;
+static bool is_in_git(const char *path) {
+  return lookup_in_trie(&git_files_content, pretty_path(path)) != 0;
+}
+
 static struct target *create_target_with_stat(struct all_targets **all,
                                               const char *path) {
   struct target *t = create_target(all, path);
@@ -378,6 +383,7 @@ static void find_elapsed_time() {
 
 void parallel_build_all(struct all_targets **all, const char *root_) {
   root = root_;
+  git_files_content = git_ls_files();
   gettimeofday(&starting, 0);
 
   if (!num_jobs) num_jobs = sysconf(_SC_NPROCESSORS_ONLN);
@@ -575,12 +581,21 @@ void parallel_build_all(struct all_targets **all, const char *root_) {
       for (struct rule_list *rr = rules; rr; rr = rr->next) {
         if (rr->r->status == dirty || rr->r->status == unknown) {
           for (int i=0;i<rr->r->num_inputs;i++) {
-            if (!rr->r->inputs[i]->rule && access(rr->r->inputs[i]->path, R_OK)) {
-              printf("cannot build: %s due to missing input %s\n",
-                     pretty_path(rr->r->outputs[0]->path),
-                     pretty_path(rr->r->inputs[i]->path));
-              rr->r->status = failed;
-              num_failed++;
+            if (!rr->r->inputs[i]->rule) {
+              if (access(rr->r->inputs[i]->path, R_OK)) {
+                printf("cannot build: %s due to missing input %s\n",
+                       pretty_path(rr->r->outputs[0]->path),
+                       pretty_path(rr->r->inputs[i]->path));
+                rr->r->status = failed;
+                num_failed++;
+              }
+              const char *p = rr->r->inputs[i]->path;
+              if (p != pretty_path(p) && git_files_content &&
+                  !is_in_git(rr->r->inputs[i]->path)) {
+                printf("error: %s should be in git\n",
+                       pretty_path(rr->r->inputs[i]->path));
+                num_failed++;
+              }
               //XXX add to let_us_build a repeat check... or above anyhow
             }
           }

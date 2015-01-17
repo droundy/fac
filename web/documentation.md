@@ -4,8 +4,6 @@ Hello world
 
 ### To do:
 
-1. Verify that inputs within the source directory are git added using `git ls-files`.
-
 2. Around line 524 of build.c, we need to throw out outputs that were
    not human-specified, that only existed in a .done file.
 
