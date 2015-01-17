@@ -119,7 +119,7 @@ void read_bilge_file(struct all_targets **all, const char *path) {
       {
         char *path = absolute_path(the_directory, one_line+2);
         thetarget = create_target(all, path);
-        add_input(therule, thetarget);
+        add_explicit_input(therule, thetarget);
         last_modified_last_file = &therule->input_times[therule->num_inputs-1];
         size_last_file = &therule->input_sizes[therule->num_inputs-1];
         free(path);
@@ -133,7 +133,7 @@ void read_bilge_file(struct all_targets **all, const char *path) {
         char *path = absolute_path(the_directory, one_line+2);
         thetarget = create_target(all, path);
         thetarget->rule = therule;
-        add_output(therule, thetarget);
+        add_explicit_output(therule, thetarget);
         last_modified_last_file = &therule->output_times[therule->num_outputs-1];
         size_last_file = &therule->output_sizes[therule->num_outputs-1];
         free(path);

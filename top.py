@@ -2,7 +2,7 @@
 
 import string
 
-flags = '-Wall -Werror -O2 -std=c11'
+flags = '-Wall -Werror -O2 -std=c11 -g'
 
 sources = ['bilge', 'files', 'targets', 'build']
 

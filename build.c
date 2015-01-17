@@ -482,8 +482,15 @@ void parallel_build_all(struct all_targets **all, const char *root_) {
               }
               t = create_target_with_stat(all, r->outputs[ii]->path);
               if (!t) {
-                printf("Unable to stat output file %s\n",
-                       pretty_path(r->outputs[ii]->path));
+                if (ii < r->num_explicit_outputs) {
+                  printf("build failed to create: %s\n",
+                         pretty_path(r->outputs[ii]->path));
+                  r->status = failed;
+                  num_failed++;
+                } else {
+                  printf("build failed to recreate: %s\n",
+                         pretty_path(r->outputs[ii]->path));
+                }
               } else {
                 t->rule = r;
                 add_output(r, t);

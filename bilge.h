@@ -51,13 +51,13 @@ struct rule {
   enum target_status status;
   bool is_printed;
 
-  int num_inputs;
+  int num_inputs, num_explicit_inputs;
   int input_array_size;
   struct target **inputs;
   time_t *input_times;
   off_t *input_sizes;
 
-  int num_outputs;
+  int num_outputs, num_explicit_outputs;
   struct target **outputs;
   time_t *output_times;
   off_t *output_sizes;
@@ -93,6 +93,8 @@ struct rule *lookup_rule(struct all_targets *all, const char *command,
                          const char *working_directory);
 void add_input(struct rule *t, struct target *inp);
 void add_output(struct rule *t, struct target *out);
+void add_explicit_input(struct rule *r, struct target *dep);
+void add_explicit_output(struct rule *r, struct target *dep);
 
 struct target *lookup_target(struct all_targets *, const char *path);
 void insert_target(struct all_targets **all, struct target *t);

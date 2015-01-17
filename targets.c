@@ -26,6 +26,7 @@ struct rule *create_rule(const char *command, const char *working_directory) {
   r->working_directory = strdup(working_directory);
   r->status = unknown;
   r->num_inputs = r->num_outputs = 0;
+  r->num_explicit_inputs = r->num_explicit_outputs = 0;
   r->input_array_size = 0;
   r->inputs = r->outputs = 0;
   r->input_times = r->output_times = 0;
@@ -84,6 +85,16 @@ void add_output(struct rule *r, struct target *dep) {
   r->output_times[r->num_outputs] = 0;
   r->output_sizes[r->num_outputs] = 0;
   r->num_outputs += 1;
+}
+
+void add_explicit_output(struct rule *r, struct target *dep) {
+  add_output(r, dep);
+  r->num_explicit_outputs = r->num_outputs;
+}
+
+void add_explicit_input(struct rule *r, struct target *dep) {
+  add_input(r, dep);
+  r->num_explicit_inputs = r->num_inputs;
 }
 
 void free_all_targets(struct all_targets **all) {

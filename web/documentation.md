@@ -11,8 +11,6 @@ Hello world
 
 3. It seems that bilge hangs when running latex (at least sometimes)
 
-5. Separate explicit from autodetermined inputs and outputs.
-
 6. Check that explicit inputs either exist and are in git or have rules.
 
 
