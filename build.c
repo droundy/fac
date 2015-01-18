@@ -581,7 +581,7 @@ void parallel_build_all(struct all_targets **all, const char *root_) {
       for (struct rule_list *rr = rules; rr; rr = rr->next) {
         if (rr->r->status == dirty || rr->r->status == unknown) {
           for (int i=0;i<rr->r->num_inputs;i++) {
-            if (!rr->r->inputs[i]->rule) {
+            if (!rr->r->inputs[i]->rule && i < rr->r->num_explicit_inputs) {
               if (access(rr->r->inputs[i]->path, R_OK)) {
                 printf("cannot build: %s due to missing input %s\n",
                        pretty_path(rr->r->outputs[0]->path),
