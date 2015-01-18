@@ -171,6 +171,7 @@ bool determine_rule_cleanliness(struct all_targets **all, struct rule *r,
     verbose_printf("Looks like a cycle! %s\n",
                    r->outputs[0]->path);
   }
+  if (r->status == unready) r->status = dirty; /* reset to dirty! */
   if (r->status != unknown) return false;
   r->status = being_determined;
   for (int i=0;i<r->num_inputs;i++) {
@@ -238,44 +239,6 @@ bool determine_rule_cleanliness(struct all_targets **all, struct rule *r,
   return false;
 }
 
-bool build_rule_plus_dependencies(struct all_targets **all, struct rule *r,
-                                  int *num_to_build, int *num_built) {
-  if (!r) return false;
-  if (r->status == unknown) {
-    determine_rule_cleanliness(all, r, num_to_build);
-  }
-  if (r->status == failed) {
-    verbose_printf("already failed once: %s\n", r->command);
-    return true;
-  }
-  if (r->status == dirty) {
-    for (int i=0;i<r->num_inputs;i++) {
-      if (build_rule_plus_dependencies(all, r->inputs[i]->rule,
-                                       num_to_build, num_built)) {
-        return true;
-      }
-    }
-
-    printf("%d/%d: ", *num_built+1, *num_to_build);
-    if (!run_rule(all, r)) {
-      printf("  Error running \"%s\" (%s:%d)\n",
-             r->command, r->bilgefile_path, r->bilgefile_linenum);
-      r->status = failed;
-      return true;
-    }
-    *num_built += 1;
-    r->status = built;
-
-    char *donefile = done_name(r->bilgefile_path);
-    FILE *f = fopen(donefile, "w");
-    if (!f) error(1,errno,"oopse");
-    fprint_bilgefile(f, *all, r->bilgefile_path);
-    fclose(f);
-    free(donefile);
-  }
-  return false;
-}
-
 static void find_latency(struct rule *r) {
   if (!r) return;
   if (r->status != dirty) return;
@@ -301,6 +264,7 @@ struct building *build_rule_or_dependency(struct all_targets **all,
                                           struct rule *r,
                                           int *num_to_build) {
   if (!r) return 0;
+  if (r->status == unready) return 0; /* we already tried this */
   if (r->status == unknown) {
     determine_rule_cleanliness(all, r, num_to_build);
   }
@@ -309,6 +273,7 @@ struct building *build_rule_or_dependency(struct all_targets **all,
     return 0;
   }
   if (r->status == dirty) {
+    r->status = unready; /* We will change this if we start building */
     bool ready_to_go = true;
     for (int i=0;i<r->num_inputs;i++) {
       if (r->inputs[i]->rule && r->inputs[i]->rule->status == failed) {

@@ -10,6 +10,12 @@ Hello world
    for both outputs and inputs.  sass is an example that uses such a
    cache directory that is likely to be in the tree.
 
+8. Change timing of commands to use elapsed wall-clock time rather
+   than CPU time, to get better estimates.
+
+9. Optimize `parallel_build_all` better by eliminating loops over
+   targets where possible and reusing `rules` list.
+
 - Kill jobs on SIGINT (attempted, but not quite working)
 - Hashing of inputs
 - Tracking of environment variables

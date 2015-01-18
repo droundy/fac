@@ -27,6 +27,7 @@ enum target_status {
   built,
   building,
   failed,
+  unready, // means that it is dirty but we cannot yet build it
   dirty
 };
 
