@@ -9,6 +9,7 @@ bilge
 *.test
 gmon.out
 temp
+temp-dep
 *.pdf
 *.png
 *.html

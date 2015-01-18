@@ -4,7 +4,7 @@ import os, hashlib, time, numpy
 import matplotlib.pyplot as plt
 
 def make_basedir(n):
-    return 'bench/temp/dep-%d/' % n
+    return 'bench/temp-dep/dep-%d/' % n
 
 allowed_chars = 'abcdefghijklmnopqrstuvwxyz_ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
@@ -24,11 +24,11 @@ def hash_integer(n):
         name = name*256 + ord(i)
     return name
 
-os.system('rm -rf bench/temp')
+os.system('rm -rf bench/temp-dep')
 
 def create_bench(n):
     try:
-        os.mkdir('bench/temp')
+        os.mkdir('bench/temp-dep')
     except:
         pass
     os.mkdir(make_basedir(n))
@@ -45,9 +45,9 @@ final.exe: final.c %s-generated.h
 \tgcc -o final.exe final.c
 
 clean:
-\trm -f *.o *.exe *-generated.h
+\tmv %s-generated.h backup && rm -f *.o *.exe *-generated.h && mv backup %s-generated.h
 
-""" % hashid(n))
+""" % (hashid(n), hashid(0), hashid(0)))
     bilgef.write("""
 | gcc -o final.exe final.c
 > final.exe
@@ -55,7 +55,7 @@ clean:
 < %s-generated.h
 
 """ % hashid(n))
-    f = open('bench/temp/dep-%d/final.c' % n, 'w')
+    f = open('bench/temp-dep/dep-%d/final.c' % n, 'w')
     f.write("""
 #include "%s-generated.h"
 #include <stdio.h>
@@ -65,17 +65,17 @@ void main() {
 }
 """ % (hashid(n), hashid(n)))
     f.close()
-    f = open('bench/temp/dep-%d/%s-generated.h' % (n, hashid(0)), 'w')
+    f = open('bench/temp-dep/dep-%d/%s-generated.h' % (n, hashid(0)), 'w')
     f.write("""
 const char *%s = "Hello world";
 
 """ % hashid(0))
     f.close()
     for i in range(1,n+1):
-        base = 'bench/temp/dep-%d/' % n + hashid(i)
+        base = 'bench/temp-dep/dep-%d/' % n + hashid(i)
         cname = hashid(i) + '.c'
         hname = hashid(i) + '-generated.h'
-        f = open('bench/temp/dep-%d/%s.c' % (n, hashid(i)), 'w')
+        f = open('bench/temp-dep/dep-%d/%s.c' % (n, hashid(i)), 'w')
         f.write("""
 #include <stdio.h>
 
@@ -114,8 +114,9 @@ int main() {
 """ % (i, hashid(i), hashid(i), hashid(i), hashid(i-1),
        hashid(i), hashid(i), hashid(i), hashid(i)))
         sconsf.write("""
-env.Object('%s.c')
-""" % hashid(i))
+env.Program('%s.exe', '%s.c')
+env.Command('%s-generated.h', '%s.exe', './$SOURCE > $TARGET')
+""" % (hashid(i), hashid(i), hashid(i), hashid(i)))
 
 the_time = {}
 
@@ -155,7 +156,7 @@ def time_command(nnn, builder):
         print '%s %s took %g seconds.' % (verb, builder, stop - start)
         the_time[builder][verb][nnn] = stop - start
 
-    touch = 'echo >> %s/number-0.h' % make_basedir(nnn)
+    touch = 'echo >> %s/%s-generated.h' % (make_basedir(nnn), hashid(nnn))
 
     verb = 'touching-header'
     if not verb in the_time[builder]:
@@ -169,7 +170,7 @@ def time_command(nnn, builder):
         print '%s %s took %g seconds.' % (verb, builder, stop - start)
         the_time[builder][verb][nnn] = stop - start
 
-    touch = 'echo >> %s/number-0.c' % make_basedir(nnn)
+    touch = 'echo >> %s/%s.c' % (make_basedir(nnn), hashid(1))
 
     verb = 'touching-c'
     if not verb in the_time[builder]:
@@ -195,8 +196,10 @@ def time_command(nnn, builder):
         the_time[builder][verb][nnn] = stop - start
 
 tools = [cmd+' -j4' for cmd in ['make', 'bilge', 'tup', 'scons']]
-nmax = 4
-for nnn in range(1, nmax+1):
+
+all_nums_to_do = range(1, 11) + range(12, 25, 3) + range(30, 99, 10)
+all_nums_to_do += [int(100*3**N) for N in range(1, 3)]
+for nnn in all_nums_to_do:
     create_bench(nnn)
 
     print
@@ -217,21 +220,19 @@ for verb in ['building', 'rebuilding', 'touching-header', 'touching-c', 'doing-n
     plt.title('Time spent '+verb)
     if verb in legends:
         plt.title('Time spent '+legends[verb])
-    plt.xlabel('$\log_{10}N$')
+    plt.xlabel('$N$')
     plt.ylabel('$t$ (s)')
     for cmd in tools:
-        nums = range(0,nmax+1)
-        times = range(0,nmax+1)
-        for n in nums:
-            times[n] = 1.0*the_time[cmd][verb][n]
-        plt.semilogy(nums, times, 'o-', label=cmd)
-        print verb, cmd, nums, times
+        times = range(len(all_nums_to_do))
+        for ii in range(len(all_nums_to_do)):
+            times[ii] = 1.0*the_time[cmd][verb][all_nums_to_do[ii]]
+        plt.loglog(all_nums_to_do, times, 'o-', label=cmd)
     plt.legend(loc='best')
     def cleanup(c):
         if c == ' ':
             return '-'
         return c
-    plt.savefig('web/'+verb+'.pdf')
-    plt.savefig('web/'+verb+'.png', dpi=100)
+    plt.savefig('web/flat-dependent-'+verb+'.pdf')
+    plt.savefig('web/flat-dependent-'+verb+'.png', dpi=100)
 
 #plt.show()

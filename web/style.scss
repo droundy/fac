@@ -43,3 +43,13 @@ body { /* just define the font once! */
     -ms-border-radius: $radius;
     border-radius: $radius;
 }
+
+main {
+   margin-left: auto;
+   margin-right: auto;
+   max-width: 45em;
+
+   img {
+      max-width: 45em;
+   }
+}
