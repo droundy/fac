@@ -1,8 +1,33 @@
 #!/usr/bin/python2
 
-import string
+import string, os
 
-flags = '-Wall -Werror -O2 -std=c11 -g'
+
+os.mkdir('testing-flags');
+with open('testing-flags/test.c', 'w') as f:
+    f.write("""int main() {
+  return 0;
+}
+""")
+flags = ''
+for flag in ['-Wall', '-Werror', '-O2', '-std=c11', '-g']:
+    if not os.system('cd testing-flags && gcc %s %s -c test.c' %
+                     (flags, flag)):
+        flags += ' ' + flag
+    else:
+        print '# gcc cannot use flag:', flag
+if len(flags) > 0:
+    flags = flags[1:]
+linkflags = ''
+for flag in ['-lpopt', '-lprofiler']:
+    if not os.system('cd testing-flags && gcc %s %s -o test test.c' %
+                     (flags, flag)):
+        linkflags += ' ' + flag
+    else:
+        print '# gcc linking cannot use flag:', flag
+if len(linkflags) > 0:
+    linkflags = linkflags[1:]
+os.system('rm -rf testing-flags')
 
 sources = ['bilge', 'files', 'targets', 'build', 'git']
 
@@ -31,7 +56,7 @@ print """
 > lib/syscalls.h
 """
 
-print '| gcc -lpthread -pg -lpopt -o bilge', string.join(['%s.o' % s for s in sources] + ['lib/%s.o' % s for s in libsources])
+print '| gcc '+linkflags+' -o bilge', string.join(['%s.o' % s for s in sources] + ['lib/%s.o' % s for s in libsources])
 for s in sources:
     print '< %s.o' % s
 for s in libsources:
@@ -39,7 +64,7 @@ for s in libsources:
 print '> bilge'
 print
 
-print '| cd lib && gcc -lpthread -pg -lpopt -o fileaccesses fileaccesses.o', string.join(['%s.o' % s for s in libsources])
+print '| cd lib && gcc '+linkflags+' -o fileaccesses fileaccesses.o', string.join(['%s.o' % s for s in libsources])
 for s in libsources:
     print '< lib/%s.o' % s
 print '> lib/fileaccesses'
