@@ -140,7 +140,14 @@ argument_table('read_string', {'rename': 1,
                                'truncate': 0})
 
 argument_table('unlink_string', {'unlink': 0,
+                                 'rmdir': 0,
                                  'rename': 0})
+
+# The following two are challenging and annoying and require special
+# attention.
+argument_table('unlinkat_string', {'unlinkat': 0,
+                                   'renameat': 0})
+argument_table('renameat_string', {'unlinkat': 2})
 
 argument_table('readdir_fd', {'getdents': 0,
                               'getdents64': 0})

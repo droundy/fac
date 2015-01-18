@@ -128,10 +128,30 @@ static int absolute_path(char *path_buffer, pid_t child, const char *path) {
   return 0;
 }
 
+static int absolute_path_at(char *path_buffer, pid_t child, int dirfd, const char *path) {
+  char *filename = malloc(PATH_MAX);
+  identify_fd(filename, child, dirfd);
+  char *dirname = getcwd(0, 0);
+  chdir(filename);
+  realpath(path, path_buffer);
+  chdir(dirname);
+  free(dirname);
+  free(filename);
+  return 0;
+}
+
 static char *read_a_path(pid_t child, unsigned long addr) {
   char *foo = read_a_string(child, addr);
   char *abspath = malloc(PATH_MAX);
   absolute_path(abspath, child, foo);
+  free(foo);
+  return abspath;
+}
+
+static char *read_a_path_at(pid_t child, int dirfd, unsigned long addr) {
+  char *foo = read_a_string(child, addr);
+  char *abspath = malloc(PATH_MAX);
+  absolute_path_at(abspath, child, dirfd, foo);
   free(foo);
   return abspath;
 }
@@ -228,8 +248,38 @@ static int save_syscall_access(pid_t child,
       insert_to_listset(deleted_files, arg);
       delete_from_listset(written_to_files, arg);
       delete_from_listset(read_from_files, arg);
+      delete_from_listset(read_from_directories, arg);
     } else {
       debugprintf("D~ %s(%s)\n", syscalls[syscall], arg);
+    }
+    free(arg);
+  }
+  if (unlinkat_string[syscall] >= 0) {
+    char *arg = read_a_path_at(child,
+                               get_syscall_arg(&regs, 0) /* dirfd */,
+                               get_syscall_arg(&regs, 1) /* path */);
+    if (interesting_path(arg) && !access(arg, W_OK)) {
+      debugprintf("D: %s(%s)\n", syscalls[syscall], arg);
+      insert_to_listset(deleted_files, arg);
+      delete_from_listset(written_to_files, arg);
+      delete_from_listset(read_from_files, arg);
+      delete_from_listset(read_from_directories, arg);
+    } else {
+      debugprintf("D~ %s(%s)\n", syscalls[syscall], arg);
+    }
+    free(arg);
+  }
+  if (renameat_string[syscall] >= 0) {
+    char *arg = read_a_path_at(child,
+                               get_syscall_arg(&regs, 2) /* dirfd */,
+                               get_syscall_arg(&regs, 3) /* path */);
+    if (interesting_path(arg) && !access(arg, W_OK)) {
+      debugprintf("W: %s(%s)\n", syscalls[syscall], arg);
+      insert_to_listset(written_to_files, arg);
+      delete_from_listset(deleted_files, arg);
+      delete_from_listset(read_from_files, arg);
+    } else {
+      debugprintf("W~ %s(%s)\n", syscalls[syscall], arg);
     }
     free(arg);
   }
@@ -508,8 +558,38 @@ static int save_syscall_access_arrayset(pid_t child,
       insert_to_arrayset(deleted_files, arg);
       delete_from_arrayset(written_to_files, arg);
       delete_from_arrayset(read_from_files, arg);
+      delete_from_arrayset(read_from_directories, arg);
     } else {
       debugprintf("D~ %s(%s)\n", syscalls[syscall], arg);
+    }
+    free(arg);
+  }
+  if (unlinkat_string[syscall] >= 0) {
+    char *arg = read_a_path_at(child,
+                               get_syscall_arg(&regs, 0) /* dirfd */,
+                               get_syscall_arg(&regs, 1) /* path */);
+    if (interesting_path(arg) && !access(arg, W_OK)) {
+      debugprintf("D: %s(%s)\n", syscalls[syscall], arg);
+      insert_to_arrayset(deleted_files, arg);
+      delete_from_arrayset(written_to_files, arg);
+      delete_from_arrayset(read_from_files, arg);
+      delete_from_arrayset(read_from_directories, arg);
+    } else {
+      debugprintf("D~ %s(%s)\n", syscalls[syscall], arg);
+    }
+    free(arg);
+  }
+  if (renameat_string[syscall] >= 0) {
+    char *arg = read_a_path_at(child,
+                               get_syscall_arg(&regs, 2) /* dirfd */,
+                               get_syscall_arg(&regs, 3) /* path */);
+    if (interesting_path(arg) && !access(arg, W_OK)) {
+      debugprintf("W: %s(%s)\n", syscalls[syscall], arg);
+      insert_to_arrayset(written_to_files, arg);
+      delete_from_arrayset(deleted_files, arg);
+      delete_from_arrayset(read_from_files, arg);
+    } else {
+      debugprintf("W~ %s(%s)\n", syscalls[syscall], arg);
     }
     free(arg);
   }
