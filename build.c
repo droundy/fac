@@ -314,26 +314,22 @@ void let_us_build(struct all_targets **all, struct rule *r, int *num_to_build,
     if (!bs[i]) {
       bs[i] = build_rule_or_dependency(all, r, num_to_build);
       if (bs[i]) {
-        if (true) {
-          pid_t new_pid = fork();
-          if (new_pid == 0) {
-            run_parallel_rule(bs[i]);
-
-            /* The following is extremely hokey and stupid.  Rather
-               than exiting the forked process, we exec /bin/true
-               (which has the same effect, but less efficiently) so
-               that profilers won't get confused by us forking but not
-               calling exec. */
-            char **args = malloc(2*sizeof(char *));
-            args[0] = "/bin/true";
-            args[1] = 0;
-            execv("/bin/true", args);
-            exit(0);
-          }
-          bs[i]->pid = new_pid;
-        } else {
+        pid_t new_pid = fork();
+        if (new_pid == 0) {
           run_parallel_rule(bs[i]);
+
+          /* The following is extremely hokey and stupid.  Rather
+             than exiting the forked process, we exec /bin/true
+             (which has the same effect, but less efficiently) so
+             that profilers won't get confused by us forking but not
+             calling exec. */
+          char **args = malloc(2*sizeof(char *));
+          args[0] = "/bin/true";
+          args[1] = 0;
+          execv("/bin/true", args);
+          exit(0);
         }
+        bs[i]->pid = new_pid;
       }
     }
   }
