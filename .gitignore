@@ -10,6 +10,7 @@ bilge
 gmon.out
 temp
 temp-dep
+temp-cat
 *.pdf
 *.png
 *.html
