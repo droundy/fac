@@ -293,9 +293,9 @@ legends = {
 
 for verb in ['building', 'rebuilding', 'touching-header', 'touching-c', 'doing-nothing']:
     plt.figure()
-    plt.title('Time spent '+verb)
+    plt.title('Time spent '+verb+' hierarchy')
     if verb in legends:
-        plt.title('Time spent '+legends[verb])
+        plt.title('Time spent '+legends[verb]+' hierarchy')
     plt.xlabel('$\log_{10}N$')
     plt.ylabel('$t$ (s)')
     for cmd in tools:

@@ -1,6 +1,27 @@
 # Documentation
 
-Hello world
+To configure this build system, you create a file called `top.bilge`.
+This file specifies the rules to build your project.  For most
+moderately complex projects, your `top.bilge` file will only specify
+rules needed to create one or more additional `.bilge` files, which
+will contain the rules for doing the actual build.  Each `.bilge` file
+consists of:
+
+1. Comments beginning with `"# "` (a pound sign followed by a space).
+
+2. Rules beginning with `"| "` (a pipe character followed by a
+   space).  The remainder of the line is the actual command to perform
+   the build.  Following this line (possibly separated by blank lines
+   and comments) are one or more of the following directives.
+
+3. Output specifications beginning with `"> "` followed by the name of
+   the file that is output.  There is no escaping performed, and only
+   newlines and null characters are disallowed in the file name.
+
+4. Input specifications beginning with `"< "` followed by the name of
+   the file that is required.  You only need specify inputs when they
+   are generated files.  Even then, you need only specify the inputs
+   if you wish to have the build reliably succeed on the first attempt.
 
 ### To do:
 

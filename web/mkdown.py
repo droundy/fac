@@ -49,16 +49,20 @@ def mkdown(mdfile):
         title = mmdd.markdown(title[0][0])
         title = title[3:len(title)-4]
     sidebar = sidebarstr
+
     template = string.Template(templatestr)
 
     f = open(htfile, 'w')
-    f.write(template.safe_substitute(
-            title = title,
-            #content = mmdd.markdown(mkstr, extensions=['mathjax']),
-            #sidebar = mmdd.markdown(sidebar, extensions=['mathjax'])))
-            content = mmdd.markdown(mkstr),
-            sidebar = mmdd.markdown(sidebar)))
+    f.write(string.replace(template.safe_substitute(
+                title = title,
+                #content = mmdd.markdown(mkstr, extensions=['mathjax']),
+                #sidebar = mmdd.markdown(sidebar, extensions=['mathjax'])))
+                content = mmdd.markdown(mkstr),
+                sidebar = mmdd.markdown(sidebar)),
+                           '<li><a href="'+mdfile[4:-3],
+                           '<li><a class="current" href="'+mdfile[4:-3]))
     f.close()
 
 mkdown('web/index.md')
 mkdown('web/documentation.md')
+mkdown('web/benchmarks.md')

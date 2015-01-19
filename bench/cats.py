@@ -100,7 +100,7 @@ def time_command(nnn, builder):
         print '%s %s took %g seconds.' % (verb, builder, stop - start)
         the_time[builder][verb][nnn] = stop - start
 
-    rebuild = 'cd %s && touch %s.txt' % (make_basedir(nnn), hashid(0))
+    rebuild = 'cd %s && sleep 1 && touch %s.txt' % (make_basedir(nnn), hashid(0))
     verb = 'rebuilding'
     if not verb in the_time[builder]:
         the_time[builder][verb] = {}
@@ -128,7 +128,7 @@ tools = [cmd+' -j4' for cmd in ['make', 'bilge', 'tup', 'scons']]
 
 all_nums_to_do = []
 num_to_do = 1.7782795
-while num_to_do < 101:
+while num_to_do < 10001:
     all_nums_to_do.append(int(num_to_do))
     num_to_do *= 1.7782795
 
