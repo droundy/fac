@@ -59,8 +59,8 @@ def mkdown(mdfile):
             title = title,
             #content = mmdd.markdown(mkstr, extensions=['mathjax']),
             #sidebar = mmdd.markdown(sidebar, extensions=['mathjax'])))
-            content = mmdd.markdown(mkstr),
-            sidebar = mmdd.markdown(sidebar)),
+            content = mmdd.markdown(mkstr, extensions=['def_list']),
+            sidebar = mmdd.markdown(sidebar, extensions=['def_list'])),
                             '<li><a href="'+mdfile[4:-3],
                             '<li><a class="current" href="'+mdfile[4:-3])
 

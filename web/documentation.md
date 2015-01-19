@@ -1,5 +1,7 @@
 # Documentation
 
+## Bilge file format
+
 To configure this build system, you create a file called `top.bilge`.
 This file specifies the rules to build your project.  For most
 moderately complex projects, your `top.bilge` file will only specify
@@ -25,7 +27,25 @@ consists of:
    are generated files.  Even then, you need only specify the inputs
    if you wish to have the build reliably succeed on the first attempt.
 
-### To do:
+## Running noname
+
+To run noname, you simply execute
+
+    noname [options] [filenames]
+
+with the following options.
+
+--jobs=N, -jN
+: Specify the number of jobs to run simultaneousy.
+
+--verbose, -v
+: Provide extra debugging output.
+
+--show-output, -V
+: Show the output of every command (stdout and stderr), even if that
+  command succeeds.
+
+## To do list
 
 7. Add syntax for specifying a cache directory, which will be ignored
    for both outputs and inputs.  sass is an example that uses such a
