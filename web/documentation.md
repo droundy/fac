@@ -36,7 +36,8 @@ To run noname, you simply execute
 with the following options.
 
 --jobs=N, -jN
-: Specify the number of jobs to run simultaneousy.
+: Specify the number of jobs to run simultaneousy.  This defaults to
+  the number of processors available on your computer.
 
 --verbose, -v
 : Provide extra debugging output.
