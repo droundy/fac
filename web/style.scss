@@ -120,11 +120,13 @@ main {
         p:nth-of-type(even) {
             img {
                 margin-right: -20em;
+                margin-top: -2em; /* This means pictures can overlap by a bit.  :( */
             }
         }
         p:nth-of-type(odd) {
             img {
                 margin-left: -20em;
+                margin-top: -2em; /* This means pictures can overlap by a bit.  :( */
             }
         }
     }
