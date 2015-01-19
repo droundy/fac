@@ -64,8 +64,8 @@ struct rule {
   time_t *output_times;
   off_t *output_sizes;
 
-  clock_t build_time;
-  clock_t latency_estimate;
+  double build_time;
+  double latency_estimate;
   bool latency_handled;
 };
 

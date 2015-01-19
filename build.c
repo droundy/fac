@@ -49,8 +49,7 @@ struct building {
   pid_t pid;
   pid_t grandchild_pid;
   int stdouterrfd;
-  clock_t build_time;
-  clock_t overhead_time;
+  double build_time;
   struct rule *rule;
   arrayset readdir, read, written, deleted;
 };
@@ -74,20 +73,16 @@ void *run_parallel_rule(void *void_building) {
   args[2] = b->rule->command;
   args[3] = 0;
 
+  struct timeval started;
+  gettimeofday(&started, 0);
   int ret = bigbrother_process_arrayset(b->rule->working_directory,
                                         (char **)args,
                                         &b->grandchild_pid,
                                         &b->readdir,
                                         &b->read, &b->written, &b->deleted);
-  struct tms thetimes;
-  if (times(&thetimes) != -1) {
-    b->build_time = thetimes.tms_utime + thetimes.tms_stime +
-      thetimes.tms_cutime + thetimes.tms_cstime;
-    b->overhead_time = thetimes.tms_utime + thetimes.tms_stime;
-  } else {
-    b->build_time = 0;
-    b->overhead_time = 0;
-  }
+  struct timeval stopped;
+  gettimeofday(&stopped, 0);
+  b->build_time = stopped.tv_sec - started.tv_sec + 1e-6*(stopped.tv_usec - started.tv_usec);
   if (ret != 0) {
     b->all_done = failed;
     return 0;
@@ -244,7 +239,7 @@ static void find_latency(struct rule *r) {
   if (r->status != dirty) return;
   if (r->latency_handled) return;
   r->latency_handled = true;
-  clock_t maxchild = 0;
+  double maxchild = 0;
   for (int i=0;i<r->num_outputs;i++) {
     find_latency(r->outputs[i]->rule);
     if (r->outputs[i]->rule->latency_estimate > maxchild)
@@ -369,9 +364,8 @@ void parallel_build_all(struct all_targets **all, const char *root_) {
   sigaction(SIGINT, &act, &oldact);
 
   int num_to_build = 0, num_built = 0, num_failed = 0, num_to_go = 0;
-  double clocks_per_second = sysconf(_SC_CLK_TCK);
 
-  clock_t total_cpu_time_spent = 0, total_cpu_time_overhead = 0;
+  double total_cpu_time_spent = 0;
   bool have_finished_building_and_reading_bilges = false;
   bool have_checked_for_impossibilities = false;
   struct rule_list *rules = 0;
@@ -391,18 +385,14 @@ void parallel_build_all(struct all_targets **all, const char *root_) {
         }
       }
     }
-    clock_t total_build_time = 0;
+    double total_build_time = 0;
     for (struct rule_list *rr = rules; rr; rr = rr->next) {
       if (rr->r->status == dirty || rr->r->status == building)
         total_build_time += rr->r->build_time;
     }
-    if (total_build_time/clocks_per_second/num_jobs > 1.0) {
-      double build_seconds = total_build_time/clocks_per_second/num_jobs;
-      double build_minutes = 0;
-      while (build_seconds > 60) {
-        build_minutes++;
-        build_seconds -= 60;
-      }
+    if (total_build_time/num_jobs > 1.0) {
+      int build_minutes = (int)(total_build_time/num_jobs);
+      double build_seconds = total_build_time/num_jobs - 60*build_minutes;
       find_elapsed_time();
       double total_seconds = elapsed_seconds + build_seconds;
       double total_minutes = elapsed_minutes + build_minutes;
@@ -410,7 +400,7 @@ void parallel_build_all(struct all_targets **all, const char *root_) {
         total_minutes += 1;
         total_seconds -= 60;
       }
-      printf("Build time remaining: %.0f:%02.0f / %.0f:%02.0f      \r",
+      printf("Build time remaining: %d:%02.0f / %.0f:%02.0f      \r",
              build_minutes, build_seconds, total_minutes, total_seconds);
       fflush(stdout);
     }
@@ -426,10 +416,9 @@ void parallel_build_all(struct all_targets **all, const char *root_) {
         if (bs[i] && bs[i]->pid == pid) {
           bs[i]->rule->build_time = bs[i]->build_time;
           total_cpu_time_spent += bs[i]->build_time;
-          total_cpu_time_overhead += bs[i]->overhead_time;
           bs[i]->rule->status = bs[i]->all_done;
           printf("%d/%d [%.2fs]: %s\n", num_built+1, num_to_build,
-                 bs[i]->rule->build_time/clocks_per_second, bs[i]->rule->command);
+                 bs[i]->rule->build_time, bs[i]->rule->command);
           off_t stdoutlen = lseek(bs[i]->stdouterrfd, 0, SEEK_END);
           off_t myoffset = 0;
           if (bs[i]->all_done != built || show_output)
@@ -624,14 +613,8 @@ void parallel_build_all(struct all_targets **all, const char *root_) {
     exit(1);
   } else {
     find_elapsed_time();
-    if (total_cpu_time_overhead > 0.001*total_cpu_time_spent) {
-      printf("Build succeeded! %.0f:%05.2f (%.1f%% wasted)\n",
-             elapsed_minutes, elapsed_seconds,
-             total_cpu_time_overhead/(double)total_cpu_time_spent);
-    } else {
-      printf("Build succeeded! %.0f:%05.2f      \n",
-             elapsed_minutes, elapsed_seconds);
-    }
+    printf("Build succeeded! %.0f:%05.2f      \n",
+           elapsed_minutes, elapsed_seconds);
   }
   free(bs);
   sigaction(SIGINT, &oldact, 0);

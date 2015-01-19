@@ -157,7 +157,7 @@ void read_bilge_file(struct all_targets **all, const char *path) {
       if (!therule)
         error_at_line(1, 0, path, linenum,
                       "\"B\" build-time lines must follow a \"|\" command line");
-      if (sscanf(one_line+2, "%ld", &therule->build_time) != 1)
+      if (sscanf(one_line+2, "%lg", &therule->build_time) != 1)
         error_at_line(1, 0, path, linenum, "Error parsing %s", one_line);
       break;
     }
@@ -254,7 +254,7 @@ void read_bilge_file(struct all_targets **all, const char *path) {
         break;
       case 'B':
         if (therule) {
-          if (sscanf(one_line+2, "%ld", &therule->build_time) != 1)
+          if (sscanf(one_line+2, "%lg", &therule->build_time) != 1)
             error_at_line(1, 0, path, linenum, "Error parsing %s", one_line);
         }
         break;
@@ -288,7 +288,7 @@ void fprint_bilgefile(FILE *f, struct all_targets *tt, const char *bpath) {
         fprintf(f, ". %s\n", tt->t->rule->working_directory);
       }
       if (tt->t->rule->build_time) {
-        fprintf(f, "B %ld\n", tt->t->rule->build_time);
+        fprintf(f, "B %g\n", tt->t->rule->build_time);
       }
       for (int i=0; i<tt->t->rule->num_outputs; i++) {
         fprintf(f, "> %s\n", tt->t->rule->outputs[i]->path);
