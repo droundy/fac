@@ -197,8 +197,12 @@ def time_command(nnn, builder):
 
 tools = [cmd+' -j4' for cmd in ['make', 'bilge', 'tup', 'scons']]
 
-all_nums_to_do = range(1, 11) + range(12, 25, 3) + range(30, 99, 10)
-all_nums_to_do += [int(100*3**N) for N in range(1, 3)]
+all_nums_to_do = []
+num_to_do = 1.7782795
+while num_to_do < 10001:
+    all_nums_to_do.append(int(num_to_do))
+    num_to_do *= 1.7782795
+
 for nnn in all_nums_to_do:
     create_bench(nnn)
 
