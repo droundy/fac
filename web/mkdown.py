@@ -2,6 +2,8 @@
 import re, string, os
 import markdown as mmdd
 
+import xml.etree.ElementTree as ET
+
 
 toupload = set()
 def Upload(env, source):
@@ -53,14 +55,35 @@ def mkdown(mdfile):
     template = string.Template(templatestr)
 
     f = open(htfile, 'w')
-    f.write(string.replace(template.safe_substitute(
-                title = title,
-                #content = mmdd.markdown(mkstr, extensions=['mathjax']),
-                #sidebar = mmdd.markdown(sidebar, extensions=['mathjax'])))
-                content = mmdd.markdown(mkstr),
-                sidebar = mmdd.markdown(sidebar)),
-                           '<li><a href="'+mdfile[4:-3],
-                           '<li><a class="current" href="'+mdfile[4:-3]))
+    myhtml = string.replace(template.safe_substitute(
+            title = title,
+            #content = mmdd.markdown(mkstr, extensions=['mathjax']),
+            #sidebar = mmdd.markdown(sidebar, extensions=['mathjax'])))
+            content = mmdd.markdown(mkstr),
+            sidebar = mmdd.markdown(sidebar)),
+                            '<li><a href="'+mdfile[4:-3],
+                            '<li><a class="current" href="'+mdfile[4:-3])
+
+    ff = open('temp.html', 'w')
+    ff.write(myhtml)
+    ff.close()
+    etree = ET.fromstring(myhtml)
+    for main in etree.iter('article'):
+        lastheader = None
+        for p in list(main):
+            if p.tag == 'h2' or not lastheader:
+                lastheader = ET.SubElement(main, 'div', {'class': 'indivisible'})
+                lastheader.append(p)
+                main.remove(p)
+            elif lastheader:
+                lastheader.append(p)
+                main.remove(p)
+        #f.write('XXX '+ET.tostring(main, encoding='utf-8', method='html')+'\n')
+        #etree.remove(main)
+
+    f.write(ET.tostring(etree, encoding='utf-8', method='html'))
+
+    #f.write(myhtml)
     f.close()
 
 mkdown('web/index.md')
