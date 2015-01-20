@@ -435,16 +435,24 @@ void parallel_build_all(struct all_targets **all, const char *root_) {
             insert_to_listset(&bilgefiles_used, r->bilgefile_path);
 
             /* FIXME We should verify that the inputs specified were actually used */
+
+            /* Forget the non-explicit imputs, as we will re-add those
+               inputs that were actually used in the build */
+            r->num_inputs = r->num_explicit_inputs;
             for (int ii=0;ii<r->num_inputs;ii++) {
               struct target *t = create_target_with_stat(all, r->inputs[ii]->path);
               if (!t) {
-                printf("Unable to stat input file %s\n", r->inputs[ii]->path);
+                error(1, 0, "Unable to stat input file %s (this should be impossible)\n",
+                      r->inputs[ii]->path);
               } else {
                 add_input(r, t);
                 delete_from_arrayset(&bs[i]->read, r->inputs[ii]->path);
                 delete_from_arrayset(&bs[i]->written, r->inputs[ii]->path);
               }
             }
+            /* Forget the non-explicit outputs, as we will re-add
+               those inputs that were actually created in the build */
+            r->num_outputs = r->num_explicit_outputs;
             for (int ii=0;ii<r->num_outputs;ii++) {
               struct target *t = lookup_target(*all, r->outputs[ii]->path);
               if (t) {
@@ -453,15 +461,10 @@ void parallel_build_all(struct all_targets **all, const char *root_) {
               }
               t = create_target_with_stat(all, r->outputs[ii]->path);
               if (!t) {
-                if (ii < r->num_explicit_outputs) {
-                  printf("build failed to create: %s\n",
-                         pretty_path(r->outputs[ii]->path));
-                  r->status = failed;
-                  num_failed++;
-                } else {
-                  printf("build failed to recreate: %s\n",
-                         pretty_path(r->outputs[ii]->path));
-                }
+                printf("build failed to create: %s\n",
+                       pretty_path(r->outputs[ii]->path));
+                r->status = failed;
+                num_failed++;
               } else {
                 t->rule = r;
                 add_output(r, t);
