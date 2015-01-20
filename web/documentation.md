@@ -48,6 +48,8 @@ with the following options.
 
 ## To do list
 
+1. Add option to output a Makefile for the build.
+
 7. Add syntax for specifying a cache directory, which will be ignored
    for both outputs and inputs.  sass is an example that uses such a
    cache directory that is likely to be in the tree.
