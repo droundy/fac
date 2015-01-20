@@ -351,7 +351,7 @@ static void find_elapsed_time() {
   }
 }
 
-void parallel_build_all(struct all_targets **all, const char *root_) {
+void parallel_build_all(struct all_targets **all, const char *root_, bool bilgefiles_only) {
   root = root_;
   git_files_content = git_ls_files();
   gettimeofday(&starting, 0);
@@ -545,6 +545,11 @@ void parallel_build_all(struct all_targets **all, const char *root_) {
     if (!have_finished_building_and_reading_bilges) continue;
 
     if (!have_checked_for_impossibilities) {
+      if (bilgefiles_only) {
+        /* We are only building and parsing the bilgefiles. */
+        delete_rule_list(&rules);
+        return;
+      }
       for (struct rule_list *rr = rules; rr; rr = rr->next) {
         if (rr->r->status == dirty || rr->r->status == unknown) {
           for (int i=0;i<rr->r->num_inputs;i++) {
@@ -625,4 +630,22 @@ void parallel_build_all(struct all_targets **all, const char *root_) {
   }
   free(bs);
   sigaction(SIGINT, &oldact, 0);
+}
+
+void clean_all(struct all_targets **all, const char *root_) {
+  root = root_;
+  for (struct all_targets *tt = *all; tt; tt = tt->next) {
+    tt->t->status = unknown;
+  }
+  for (struct all_targets *tt = *all; tt; tt = tt->next) {
+    if (tt->t->rule) {
+      struct rule *r = tt->t->rule;
+      for (int i=0;i<r->num_outputs;i++) {
+        if (r->outputs[i]->status == unknown) {
+          printf("rm %s\n", pretty_path(r->outputs[i]->path));
+          unlink(r->outputs[i]->path);
+        }
+      }
+    }
+  }
 }

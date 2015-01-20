@@ -50,12 +50,15 @@ void usage(poptContext optCon, int exitcode, char *error, char *addl) {
 
 int verbose = 0;
 int show_output = 0;
+static int clean_me = 0;
 extern inline void verbose_printf(const char *format, ...);
 
 int main(int argc, const char **argv) {
   struct poptOption optionsTable[] = {
     { "jobs", 'j', POPT_ARG_INT, &num_jobs, 0,
       "the number of jobs to run simultaneously", "JOBS" },
+    { "clean", 'c', POPT_ARG_NONE, &clean_me, 0,
+      "clean the build outputs", 0 },
     { "verbose", 'v', POPT_ARG_NONE, &verbose, 0,
       "give verbose output", 0 },
     { "show-output", 'V', POPT_ARG_NONE, &show_output, 0,
@@ -77,7 +80,12 @@ int main(int argc, const char **argv) {
   for (int repeats=0;repeats<num_runs_to_profile;repeats++) {
     struct all_targets *all = 0;
     create_target(&all, "top.bilge");
-    parallel_build_all(&all, root);
+    if (clean_me) {
+      parallel_build_all(&all, root, true);
+      clean_all(&all, root);
+    } else {
+      parallel_build_all(&all, root, false);
+    }
     /* profiling shows that as much as a third of our CPU time can be
        spent freeing, so we will only do it if we are repeating the
        computation. */

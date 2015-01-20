@@ -39,6 +39,10 @@ with the following options.
 : Specify the number of jobs to run simultaneousy.  This defaults to
   the number of processors available on your computer.
 
+--clean, -c
+: Clean up build output.  This deletes every file (but not directory)
+  that is output by the build.
+
 --verbose, -v
 : Provide extra debugging output.
 
@@ -64,7 +68,6 @@ with the following options.
 - Hashing of inputs
 - Tracking of environment variables
 
-- clean command?
 - files to build on the command line
 
 - Enable bilge to call bilge recursively (requires ptrace effort)

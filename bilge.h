@@ -107,7 +107,8 @@ void print_bilge_file(struct all_targets *all);
 void fprint_bilgefile(FILE *f, struct all_targets *tt, const char *bilgefile_path);
 
 struct rule *run_rule(struct all_targets **all, struct rule *r);
-void parallel_build_all(struct all_targets **all, const char *root);
+void parallel_build_all(struct all_targets **all, const char *root, bool bilgefiles_only);
+void clean_all(struct all_targets **all, const char *root);
 
 char *done_name(const char *bilgefile);
 
