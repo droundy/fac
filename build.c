@@ -345,6 +345,10 @@ static void find_elapsed_time() {
   gettimeofday(&now, 0);
   elapsed_seconds = ((now.tv_sec - starting.tv_sec) % 60) + (now.tv_usec - starting.tv_usec)*1e-6;
   elapsed_minutes = (now.tv_sec - starting.tv_sec) / 60;
+  if (elapsed_seconds < 0) {
+    elapsed_seconds += 60;
+    elapsed_minutes -= 1;
+  }
 }
 
 void parallel_build_all(struct all_targets **all, const char *root_) {
@@ -391,7 +395,7 @@ void parallel_build_all(struct all_targets **all, const char *root_) {
         total_build_time += rr->r->build_time;
     }
     if (total_build_time/num_jobs > 1.0) {
-      int build_minutes = (int)(total_build_time/num_jobs);
+      int build_minutes = (int)(total_build_time/num_jobs/60);
       double build_seconds = total_build_time/num_jobs - 60*build_minutes;
       find_elapsed_time();
       double total_seconds = elapsed_seconds + build_seconds;
