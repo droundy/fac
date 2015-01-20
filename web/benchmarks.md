@@ -1,8 +1,9 @@
 # Benchmarks
 
-We present here a large number of benchmarks.
-
-Have fun!
+We present here a large number of benchmarks.  The main conclusion is
+that `noname` is generally a factor of two or three times slower than
+make.  But do keep in mind that `noname` does a lot more than make
+does, and is considerably easier to use in a robustly correct manner.
 
 ## Deep hierarchy
 
