@@ -65,7 +65,7 @@ print '> bilge'
 print
 
 print '| cd lib && gcc '+linkflags+' -o fileaccesses fileaccesses.o', string.join(['%s.o' % s for s in libsources])
-for s in libsources:
+for s in libsources + ['fileaccesses']:
     print '< lib/%s.o' % s
 print '> lib/fileaccesses'
 print
