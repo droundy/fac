@@ -14,6 +14,10 @@ rootdirnames = ['home', 'tmpfs']
 rootdirs = {'home': os.getcwd()+'/bench/temp',
             'tmpfs': '/tmp/benchmarking'}
 
+minute = 60
+hour = 60*minute
+time_limit = 10*minute
+
 tools = [cmd+' -j4' for cmd in ['make', 'bilge', 'tup', 'scons']]
 
 def find_mount_point(path):
@@ -49,7 +53,8 @@ def time_command(mod, builder):
 for mod in modules:
     Ns = []
     Nfloat = 1.7782795
-    while Nfloat < 1001:
+    start_module = time.time()
+    while time.time() < start_module + time_limit:
         N = int(Nfloat)
         Ns.append(N)
         Nfloat *= 1.7782795
