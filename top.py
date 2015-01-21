@@ -44,6 +44,8 @@ for s in sources:
 for s in libsources + ['fileaccesses']:
     print '| cd lib && gcc %s -c %s.c' % (flags, s)
     print '> lib/%s.o' % s
+    if s in ['bigbrother']:
+        print '< lib/syscalls.h'
     print
     if s in ['bigbrother', 'fileaccesses']:
         continue
