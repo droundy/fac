@@ -67,6 +67,8 @@ with the following options.
    identify rules that need to be rebuilt due to a changed input.
    This is especially appealing for the continuous build mode.
 
+5. On BSD and Darwin systems, use ktrace rather than ptrace.
+
 7. Add syntax for specifying a cache directory, which will be ignored
    for both outputs and inputs.  sass is an example that uses such a
    cache directory that is likely to be in the tree.
