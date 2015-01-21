@@ -10,9 +10,10 @@ datadir = os.getcwd()+'/bench/data/'
 os.makedirs(datadir, exist_ok=True)
 modules = [catmod]
 
-rootdirnames = ['home', 'tmpfs']
+rootdirnames = ['home', 'tmp', 'vartmp']
 rootdirs = {'home': os.getcwd()+'/bench/temp',
-            'tmpfs': '/tmp/benchmarking'}
+            'tmp': '/tmp/benchmarking',
+            'vartmp': '/var/tmp/benchmarking'}
 
 minute = 60
 hour = 60*minute
@@ -29,12 +30,14 @@ def identify_filesystem(path):
     path = find_mount_point(path)
     with open('/proc/mounts') as f:
         x = f.read()
-    x = x[x.find(path+' ')+len(path)+1:]
+    x = x[10:] # to skip "rootfs / rootfs" which I do not understand.
+    x = x[x.find(' '+path+' ')+len(path)+2:]
     return x[:x.find(' ')]
 
 filesystems = {}
 for r in rootdirnames:
     filesystems[r] = identify_filesystem(rootdirs[r])
+print(filesystems)
 
 def time_command(mod, builder):
     the_time = {}
