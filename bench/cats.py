@@ -1,7 +1,15 @@
 #!/usr/bin/python2
 
-import os, hashlib, time, numpy
+import os, hashlib, time, numpy, sys, datetime
 import matplotlib.pyplot as plt
+
+extra_name = ''
+if len(sys.argv) == 2:
+    extra_name = sys.argv[1]
+    print 'extra_name is', extra_name
+
+date = str(datetime.datetime.now())[:10]
+print 'date is', date
 
 def make_basedir(n):
     return 'bench/temp-cat/cat-%d/' % n
@@ -148,9 +156,9 @@ legends = {
 
 for verb in ['building', 'rebuilding', 'doing-nothing']:
     plt.figure()
-    plt.title('Time spent '+verb+' cats')
+    plt.title('Time spent '+verb+' cats (%s)' % date)
     if verb in legends:
-        plt.title('Time spent '+legends[verb]+' cats')
+        plt.title('Time spent '+legends[verb]+' cats (%s)' % date)
     plt.xlabel('$N$')
     plt.ylabel('$t$ (s)')
     for cmd in tools:
@@ -164,7 +172,7 @@ for verb in ['building', 'rebuilding', 'doing-nothing']:
         if c == ' ':
             return '-'
         return c
-    plt.savefig('web/flat-cats-'+verb+'.pdf')
-    plt.savefig('web/flat-cats-'+verb+'.png', dpi=100)
+    plt.savefig('web/flat-cats-'+verb+extra_name+'.pdf')
+    plt.savefig('web/flat-cats-'+verb+extra_name+'.png', dpi=100)
 
 #plt.show()

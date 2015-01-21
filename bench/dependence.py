@@ -1,7 +1,15 @@
 #!/usr/bin/python2
 
-import os, hashlib, time, numpy
+import os, hashlib, time, numpy, sys, datetime
 import matplotlib.pyplot as plt
+
+extra_name = ''
+if len(sys.argv) == 2:
+    extra_name = sys.argv[1]
+    print 'extra_name is', extra_name
+
+date = str(datetime.datetime.now())[:10]
+print 'date is', date
 
 def make_basedir(n):
     return 'bench/temp-dep/dep-%d/' % n
@@ -221,9 +229,9 @@ legends = {
 
 for verb in ['building', 'rebuilding', 'touching-header', 'touching-c', 'doing-nothing']:
     plt.figure()
-    plt.title('Time spent '+verb+' linear chain')
+    plt.title('Time spent '+verb+' linear chain (%s)' % date)
     if verb in legends:
-        plt.title('Time spent '+legends[verb]+' linear chain')
+        plt.title('Time spent '+legends[verb]+' linear chain (%s)' % date)
     plt.xlabel('$N$')
     plt.ylabel('$t$ (s)')
     for cmd in tools:
@@ -236,7 +244,7 @@ for verb in ['building', 'rebuilding', 'touching-header', 'touching-c', 'doing-n
         if c == ' ':
             return '-'
         return c
-    plt.savefig('web/flat-dependent-'+verb+'.pdf')
-    plt.savefig('web/flat-dependent-'+verb+'.png', dpi=100)
+    plt.savefig('web/flat-dependent-'+verb+extra_name+'.pdf')
+    plt.savefig('web/flat-dependent-'+verb+extra_name+'.png', dpi=100)
 
 #plt.show()
