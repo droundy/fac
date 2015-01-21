@@ -54,12 +54,22 @@ with the following options.
 
 1. Add option to output a Makefile for the build.
 
+2. Teach the benchmarking scripts to save their data in text files and
+   separate out plotting.  Thus the (small) files could be added to
+   the git repository.  This could also enable creation of (slightly
+   arbitrary) quantitative benchmark metrics through averaging.
+
+3. Add continuous build mode, in which we monitor input files for
+   changes and rebuild as needed.  Ideally we would use inotify or
+   similar to handle this with minimal CPU overhead.
+
+4. Experment with a reverse tree, which would enable us to quickly
+   identify rules that need to be rebuilt due to a changed input.
+   This is especially appealing for the continuous build mode.
+
 7. Add syntax for specifying a cache directory, which will be ignored
    for both outputs and inputs.  sass is an example that uses such a
    cache directory that is likely to be in the tree.
-
-8. Change timing of commands to use elapsed wall-clock time rather
-   than CPU time, to get better estimates.
 
 9. Optimize `parallel_build_all` better by eliminating loops over
    targets where possible and reusing `rules` list.
