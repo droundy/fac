@@ -44,8 +44,8 @@ def time_command(mod, builder):
 
     cmd = '%s > output 2>&1' % builder
     for verb in mod.verbs:
-        if verb in mod.prepare:
-            assert(not os.system(mod.prepare[verb]))
+        if verb in mod.prepare():
+            assert(not os.system(mod.prepare()[verb]))
         start = time.time()
         assert(not os.system(cmd))
         stop = time.time()

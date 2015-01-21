@@ -66,4 +66,5 @@ env.Command('%s.txt', '%s.txt', 'cat $SOURCE > $TARGET')
 
 verbs = ['building', 'rebuilding', 'doing-nothing']
 
-prepare = {'rebuilding': 'sleep 1 && touch %s.txt' % hashid(0)}
+def prepare():
+    return {'rebuilding': 'sleep 1 && touch %s.txt' % hashid(0)}
