@@ -1,7 +1,15 @@
 #!/usr/bin/python2
 
-import os, hashlib, time, numpy
+import os, hashlib, time, numpy, sys, datetime
 import matplotlib.pyplot as plt
+
+extra_name = ''
+if len(sys.argv) == 2:
+    extra_name = sys.argv[1]
+    print 'extra_name is', extra_name
+
+date = str(datetime.datetime.now())[:10]
+print 'date is', date
 
 def make_basedir(n):
     return 'bench/temp/test-%d/' % n
@@ -45,6 +53,7 @@ def hash_integer(n):
 os.system('rm -rf bench/temp')
 
 def create_bench(n):
+    N = 0 # number of actual C files
     make_path(0, n)
     sconsf = open(make_basedir(n)+'SConstruct', 'w')
     bilgef = open(make_basedir(n)+'top.bilge', 'w')
@@ -92,6 +101,7 @@ clean:
         sconsf.write("""
 env.Object('%s.c')
 """ % make_name(i,n))
+        N += 1 # I'm about to make another file!!!
         f = open(base+'.c', 'w')
         f.write('\n')
         f.write("""/* c file %s */
@@ -195,6 +205,7 @@ void %s();
        hashid(i), hashid(i), hashid(i), hashid(i), hashid(i),
        hashid(i), hashid(i), hashid(i), hashid(i)))
         f.close()
+    return N
 
 the_time = {}
 
@@ -221,7 +232,7 @@ def time_command(nnn, builder):
         print '%s %s took %g seconds.' % (verb, builder, stop - start)
         the_time[builder][verb][nnn] = stop - start
 
-    rebuild = 'cd %s && touch *.c */*.c */*/*.c */*/*/*.c */*/*/*/*.c > touch_output 2>&1' % make_basedir(nnn)
+    rebuild = 'cd %s && sleep 2 && touch *.c */*.c */*/*.c */*/*/*.c */*/*/*/*.c > touch_output 2>&1' % make_basedir(nnn)
     verb = 'rebuilding'
     if not verb in the_time[builder]:
         the_time[builder][verb] = {}
@@ -275,8 +286,9 @@ def time_command(nnn, builder):
 
 tools = [cmd+' -j4' for cmd in ['make', 'bilge', 'tup', 'scons']]
 nmax = 4
+Ns = range(0, nmax+1)
 for nnn in range(0, nmax+1):
-    create_bench(nnn)
+    Ns[nnn] = create_bench(nnn)
 
     print
     print 'timing number', nnn
@@ -293,9 +305,9 @@ legends = {
 
 for verb in ['building', 'rebuilding', 'touching-header', 'touching-c', 'doing-nothing']:
     plt.figure()
-    plt.title('Time spent '+verb+' hierarchy')
+    plt.title('Time spent '+verb+' hierarchy (%s)' % date)
     if verb in legends:
-        plt.title('Time spent '+legends[verb]+' hierarchy')
+        plt.title('Time spent '+legends[verb]+' hierarchy (%s)' % date)
     plt.xlabel('$\log_{10}N$')
     plt.ylabel('$t$ (s)')
     for cmd in tools:
@@ -303,14 +315,13 @@ for verb in ['building', 'rebuilding', 'touching-header', 'touching-c', 'doing-n
         times = range(0,nmax+1)
         for n in nums:
             times[n] = 1.0*the_time[cmd][verb][n]
-        plt.semilogy(nums, times, 'o-', label=cmd)
-        print verb, cmd, nums, times
+        plt.loglog(Ns, times, 'o-', label=cmd)
     plt.legend(loc='best')
     def cleanup(c):
         if c == ' ':
             return '-'
         return c
-    plt.savefig('web/hierarchical-'+verb+'.pdf')
-    plt.savefig('web/hierarchical-'+verb+'.png', dpi=100)
+    plt.savefig('web/hierarchical-'+verb+extra_name+'.pdf')
+    plt.savefig('web/hierarchical-'+verb+extra_name+'.png', dpi=100)
 
 #plt.show()
