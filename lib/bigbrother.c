@@ -40,7 +40,9 @@ static int interesting_path(const char *path) {
   if (path[0] != '/') return 0;
   if (strlen(path) > 4) {
     if (memcmp(path, "/dev/", 5) == 0) return 0;
-    if (memcmp(path, "/tmp/", 5) == 0) return 0;
+    /* the following seems like a good idea, but causes trouble when
+       the entire source tree happens to reside in /tmp.  */
+    //if (memcmp(path, "/tmp/", 5) == 0) return 0;
     if (memcmp(path, "/proc/", 6) == 0) return 0;
   }
   return 1;
