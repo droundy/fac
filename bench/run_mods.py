@@ -8,7 +8,7 @@ import depmod
 
 minute = 60
 hour = 60*minute
-time_limit = 60*minute
+time_limit = 8*hour
 
 tools = [cmd+' -j4' for cmd in ['make', 'bilge', 'tup', 'scons']]
 
@@ -56,16 +56,15 @@ def time_command(mod, builder):
         the_time[verb] = stop - start
     return the_time
 
-for mod in modules:
-    Ns = []
-    Nfloat = 1.7782795
-    start_module = time.time()
-    while time.time() < start_module + time_limit:
-        N = int(Nfloat)
-        Ns.append(N)
-        Nfloat *= 1.7782795
+Ns = []
+Nfloat = 1.7782795
+start_benchmarking = time.time()
+while time.time() < start_benchmarking + time_limit:
+    N = int(Nfloat)
+    Ns.append(N)
+    Nfloat *= 1.7782795
+    for mod in modules:
         print('\nWorking on %s with N = %d' % (mod.name, N))
-
         for rootdirname in rootdirnames:
             rootdir = rootdirs[rootdirname]
             print('\n### Using rootdir', rootdirname)

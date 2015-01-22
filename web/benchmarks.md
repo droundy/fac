@@ -1,9 +1,16 @@
 # Benchmarks
 
-We present here a large number of benchmarks.  The main conclusion is
-that `noname` is generally a factor of two or three times slower than
-make.  But do keep in mind that `noname` does a lot more than make
-does, and is considerably easier to use in a robustly correct manner.
+We present here a large number of benchmarks.  Each test was done
+using multiple file systems, to see how sensitive the result is to
+file system speed.  Also note that you can click on each plot to view
+a high-resolution version of that plot.
+
+One major conclusion is that `noname` is generally a factor of two or
+three times slower than make.  But do keep in mind that `noname` does
+a lot more than make does, and is considerably easier to use in a
+robustly correct manner.  There are also still some remaining scaling
+issues that should be addressed, which arise when there are 10k or so
+files involved.
 
 ## Deep hierarchy
 
@@ -28,11 +35,9 @@ src="hierarchy-rebuilding.png" alt="rebuild times"/></a>
 
 ### Rebuild (hierarchy)
 
-For the rebuild, we remove all the generated files.  The cost is still
-$\O{N}$ at best, but by caching it is possible to
-dramatically reduce the cost of the rebuild, which allows scons to
-win this contest.
-<a href="hierarchy-touching-c.pdf"><img
+For the rebuild, we touch all the C files.  The cost is still $\O{N}$
+at best, but by caching it is possible to dramatically reduce the cost
+of the rebuild.  <a href="hierarchy-touching-c.pdf"><img
 src="hierarchy-touching-c.png" alt="more build times"/></a>
 
 ### Touch a C file (hierarchy)

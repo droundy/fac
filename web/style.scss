@@ -49,6 +49,8 @@ nav {
     max-width: 45em;
     margin-left: auto;
     margin-right: auto;
+    padding-left: .5em;
+    padding-right: .5em;
 
     ul {
         margin:0;
@@ -85,6 +87,8 @@ background:$menuhoverback;}
 main {
    margin-left: auto;
    margin-right: auto;
+   padding-left: .5em;
+   padding-right: .5em;
    max-width: 45em;
    text-align: justify;
    h3:nth-of-type(even) {
@@ -150,9 +154,9 @@ main {
 
         -webkit-column-gap: 5em; /* Chrome, Safari, Opera */
         -moz-column-gap: 5em; /* Firefox */
-        column-gap: 5em;
-        margin-left: 5em;
-        margin-right: 5em;
+        column-gap: 4em;
+        margin-left: 4em;
+        margin-right: 4em;
         max-width: none;
 
         .indivisible {
