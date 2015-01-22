@@ -17,7 +17,7 @@ rootdirs = {'home': os.getcwd()+'/bench/temp',
 
 minute = 60
 hour = 60*minute
-time_limit = 10*minute
+time_limit = 60*minute
 
 tools = [cmd+' -j4' for cmd in ['make', 'bilge', 'tup', 'scons']]
 
