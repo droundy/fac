@@ -59,6 +59,8 @@ for mod in modules:
                            tool_patterns[tool],
                            color=fs_colors[fs],
                            label='%s on %s' % (tool, fs))
+        plt.xlabel('$N$')
+        plt.ylabel('$t$ (s)')
         plt.legend(fshandles+toolhandles, fslabels+toollabels, loc='best')
         plt.savefig('web/%s-%s.pdf' % (mod.name, verb))
         plt.savefig('web/%s-%s.png' % (mod.name, verb), dpi=100)

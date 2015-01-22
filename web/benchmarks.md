@@ -36,9 +36,11 @@ src="hierarchy-rebuilding.png" alt="rebuild times"/></a>
 ### Rebuild (hierarchy)
 
 For the rebuild, we touch all the C files.  The cost is still $\O{N}$
-at best, but by caching it is possible to dramatically reduce the cost
-of the rebuild.  <a href="hierarchy-touching-c.pdf"><img
-src="hierarchy-touching-c.png" alt="more build times"/></a>
+at best, but by remembering a hash of file content it is possible to
+dramatically reduce the cost of the rebuild, which allows scons to win
+in this case by more than an order of magnitude.  <a
+href="hierarchy-touching-c.pdf"><img src="hierarchy-touching-c.png"
+alt="more build times"/></a>
 
 ### Touch a C file (hierarchy)
 
