@@ -3,23 +3,25 @@
 import os, hashlib, time, numpy, sys, datetime
 
 import catmod
-
-date = str(datetime.datetime.now())[:10]
-
-datadir = os.getcwd()+'/bench/data/'
-os.makedirs(datadir, exist_ok=True)
-modules = [catmod]
-
-rootdirnames = ['home', 'tmp', 'vartmp']
-rootdirs = {'home': os.getcwd()+'/bench/temp',
-            'tmp': '/tmp/benchmarking',
-            'vartmp': '/var/tmp/benchmarking'}
+import hiermod
+import depmod
 
 minute = 60
 hour = 60*minute
 time_limit = 60*minute
 
 tools = [cmd+' -j4' for cmd in ['make', 'bilge', 'tup', 'scons']]
+
+date = str(datetime.datetime.now())[:10]
+
+datadir = os.getcwd()+'/bench/data/'
+os.makedirs(datadir, exist_ok=True)
+modules = [depmod, hiermod, catmod]
+
+rootdirnames = ['home', 'tmp'] # , 'vartmp']
+rootdirs = {'home': os.getcwd()+'/bench/temp',
+            'tmp': '/tmp/benchmarking',
+            'vartmp': '/var/tmp/benchmarking'}
 
 def find_mount_point(path):
     path = os.path.abspath(path)
@@ -42,6 +44,7 @@ print(filesystems)
 def time_command(mod, builder):
     the_time = {}
 
+    cmd = '%s' % builder
     cmd = '%s > output 2>&1' % builder
     for verb in mod.verbs:
         if verb in mod.prepare():
@@ -61,7 +64,7 @@ for mod in modules:
         N = int(Nfloat)
         Ns.append(N)
         Nfloat *= 1.7782795
-        print('\nWorking with N = %d' % N)
+        print('\nWorking on %s with N = %d' % (mod.name, N))
 
         for rootdirname in rootdirnames:
             rootdir = rootdirs[rootdirname]
