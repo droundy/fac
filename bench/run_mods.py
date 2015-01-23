@@ -22,8 +22,9 @@ tools = [cmd+' -j4' for cmd in ['make', 'bilge', 'tup', 'scons']]
 # Also note that this will fail if we checkout an old version of the
 # code.
 
-date = subprocess.check_output(['git', 'log', '--pretty=%ci', '-n',  '1'], stderr=subprocess.STDOUT)
-date = date[:10]+'_' + subprocess.check_output(['git', 'log', '--pretty=%h', '-n',  '1'], stderr=subprocess.STDOUT)
+date = subprocess.check_output(['git', 'log', '--pretty=%ci', '-n',  '1'], stderr=subprocess.STDOUT).decode('utf-8')
+date = date[:10]+'_'
+date += subprocess.check_output(['git', 'log', '--pretty=%h', '-n',  '1'], stderr=subprocess.STDOUT).decode('utf-8')[:-1]
 
 datadir = os.getcwd()+'/bench/data/'
 os.makedirs(datadir, exist_ok=True)
