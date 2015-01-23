@@ -31,7 +31,7 @@ os.system('rm -rf testing-flags')
 
 sources = ['bilge', 'files', 'targets', 'build', 'git']
 
-libsources = ['trie', 'listset', 'arrayset', 'bigbrother']
+libsources = ['trie', 'listset', 'iterablehash', 'arrayset', 'bigbrother']
 
 for s in sources:
     print '| gcc %s -c %s.c' % (flags, s)
@@ -73,7 +73,7 @@ print '> lib/fileaccesses'
 print
 
 
-ctests = ['arrayset', 'listset', 'trie', 'spinner']
+ctests = ['arrayset', 'listset', 'trie', 'spinner', 'iterable_hash_test']
 
 for test in ctests:
     print '| gcc -lpthread -o tests/%s.test' % test, 'tests/%s.o' % test, string.join(['lib/%s.o' % s for s in libsources])

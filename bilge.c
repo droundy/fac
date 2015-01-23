@@ -78,7 +78,9 @@ int main(int argc, const char **argv) {
   /* the following loop it to make profiling easier */
   const int num_runs_to_profile = 1;
   for (int repeats=0;repeats<num_runs_to_profile;repeats++) {
-    struct all_targets *all = 0;
+    struct all_targets all;
+    init_hash_table(&all.r, 1000);
+    init_hash_table(&all.t, 10000);
     create_target(&all, "top.bilge");
     if (clean_me) {
       parallel_build_all(&all, root, true);

@@ -55,7 +55,7 @@ char *done_name(const char *bilgefilename) {
   return str;
 }
 
-void read_bilge_file(struct all_targets **all, const char *path) {
+void read_bilge_file(struct all_targets *all, const char *path) {
   FILE *f = fopen(path, "r");
   if (!f) error(1, errno, "Unable to open file %s", path);
 
@@ -105,7 +105,7 @@ void read_bilge_file(struct all_targets **all, const char *path) {
       last_modified_last_file = 0;
       break;
     case '|':
-      therule = create_rule(one_line+2, the_directory);
+      therule = create_rule(all, one_line+2, the_directory);
       therule->bilgefile_path = strdup(path);
       therule->bilgefile_linenum = linenum;
       thetarget = 0;
@@ -184,7 +184,7 @@ void read_bilge_file(struct all_targets **all, const char *path) {
                     "Second character of line should be a space");
       switch (one_line[0]) {
       case '|':
-        therule = lookup_rule(*all, one_line+2, the_directory);
+        therule = lookup_rule(all, one_line+2, the_directory);
         //printf(":: %s\n", therule->command);
         thetarget = 0;
         size_last_file = 0;
@@ -271,76 +271,63 @@ void read_bilge_file(struct all_targets **all, const char *path) {
 }
 
 void fprint_bilgefile(FILE *f, struct all_targets *tt, const char *bpath) {
-  struct all_targets *t = tt;
-  while (t) {
-    if (t->t->rule && !strcmp(t->t->rule->bilgefile_path, bpath))
-      t->t->rule->is_printed = false;
-    t = t->next;
-  }
-  while (tt) {
-    /* if (tt->t->rule)
-         printf("bpath is %s\n", tt->t->rule->bilgefile_path); */
-    if (tt->t->rule && !strcmp(tt->t->rule->bilgefile_path, bpath) &&
-        !tt->t->rule->is_printed) {
-      fprintf(f, "| %s\n", tt->t->rule->command);
-      if (tt->t->rule->working_directory &&
-          strcmp(tt->t->rule->working_directory, ".")) {
-        fprintf(f, ". %s\n", tt->t->rule->working_directory);
+  for (struct rule *r = (struct rule *)tt->r.first; r; r = (struct rule *)r->e.next) {
+    if (!strcmp(r->bilgefile_path, bpath)) {
+      fprintf(f, "| %s\n", r->command);
+      if (r->working_directory &&
+          strcmp(r->working_directory, ".")) {
+        fprintf(f, ". %s\n", r->working_directory);
       }
-      if (tt->t->rule->build_time) {
-        fprintf(f, "B %g\n", tt->t->rule->build_time);
+      if (r->build_time) {
+        fprintf(f, "B %g\n", r->build_time);
       }
-      for (int i=0; i<tt->t->rule->num_outputs; i++) {
-        fprintf(f, "> %s\n", tt->t->rule->outputs[i]->path);
-        if (tt->t->rule->outputs[i]->last_modified) {
-          fprintf(f, "T %ld\n", tt->t->rule->outputs[i]->last_modified);
-          fprintf(f, "S %ld\n", tt->t->rule->outputs[i]->size);
+      for (int i=0; i<r->num_outputs; i++) {
+        fprintf(f, "> %s\n", r->outputs[i]->path);
+        if (r->outputs[i]->last_modified) {
+          fprintf(f, "T %ld\n", r->outputs[i]->last_modified);
+          fprintf(f, "S %ld\n", r->outputs[i]->size);
         }
       }
-      for (int i=0; i<tt->t->rule->num_inputs; i++) {
-        fprintf(f, "< %s\n", tt->t->rule->inputs[i]->path);
-        if (tt->t->rule->inputs[i]->last_modified) {
-          fprintf(f, "T %ld\n", tt->t->rule->inputs[i]->last_modified);
-          fprintf(f, "S %ld\n", tt->t->rule->inputs[i]->size);
+      for (int i=0; i<r->num_inputs; i++) {
+        fprintf(f, "< %s\n", r->inputs[i]->path);
+        if (r->inputs[i]->last_modified) {
+          fprintf(f, "T %ld\n", r->inputs[i]->last_modified);
+          fprintf(f, "S %ld\n", r->inputs[i]->size);
         }
       }
       fprintf(f, "\n");
-      tt->t->rule->is_printed = true;
     }
-    tt = tt->next;
   }
 }
 
 void print_bilge_file(struct all_targets *tt) {
-  struct all_targets *t = tt;
-  while (t) {
-    if (t->t->rule) t->t->rule->status = unknown;
-    t = t->next;
+  for (struct rule *r = (struct rule *)tt->r.first; r; r = (struct rule *)r->e.next) {
+    r->status = unknown;
   }
-  while (tt) {
-    if (tt->t->rule && tt->t->rule->status == unknown) {
-      printf("| %s\n", tt->t->rule->command);
-      if (tt->t->rule->working_directory &&
-          strcmp(tt->t->rule->working_directory, ".")) {
-        printf(". %s\n", tt->t->rule->working_directory);
+  for (struct rule *r = (struct rule *)tt->r.first; r; r = (struct rule *)r->e.next) {
+    r->status = unknown;
+    if (r->status == unknown) {
+      printf("| %s\n", r->command);
+      if (r->working_directory &&
+          strcmp(r->working_directory, ".")) {
+        printf(". %s\n", r->working_directory);
       }
-      for (int i=0; i<tt->t->rule->num_inputs; i++) {
-        printf("< %s\n", tt->t->rule->inputs[i]->path);
-        if (tt->t->rule->inputs[i]->last_modified) {
-          printf("T %ld\n", tt->t->rule->inputs[i]->last_modified);
-          printf("S %ld\n", tt->t->rule->inputs[i]->size);
+      for (int i=0; i<r->num_inputs; i++) {
+        printf("< %s\n", r->inputs[i]->path);
+        if (r->inputs[i]->last_modified) {
+          printf("T %ld\n", r->inputs[i]->last_modified);
+          printf("S %ld\n", r->inputs[i]->size);
         }
       }
-      for (int i=0; i<tt->t->rule->num_outputs; i++) {
-        printf("> %s\n", tt->t->rule->outputs[i]->path);
-        if (tt->t->rule->outputs[i]->last_modified) {
-          printf("T %ld\n", tt->t->rule->outputs[i]->last_modified);
-          printf("S %ld\n", tt->t->rule->outputs[i]->size);
+      for (int i=0; i<r->num_outputs; i++) {
+        printf("> %s\n", r->outputs[i]->path);
+        if (r->outputs[i]->last_modified) {
+          printf("T %ld\n", r->outputs[i]->last_modified);
+          printf("S %ld\n", r->outputs[i]->size);
         }
       }
       printf("\n");
-      tt->t->rule->status = built;
+      r->status = built;
     }
-    tt = tt->next;
   }
 }

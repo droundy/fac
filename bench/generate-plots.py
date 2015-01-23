@@ -61,6 +61,7 @@ for mod in modules:
                            tool_patterns[tool],
                            color=fs_colors[fs],
                            label='%s on %s' % (tool, fs))
+        plt.gca().grid(True)
         plt.xlabel('$N$')
         plt.ylabel('$t$ (s)')
         plt.legend(fshandles+toolhandles, fslabels+toollabels, loc='best')
