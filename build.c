@@ -32,7 +32,7 @@ static bool is_in_git(const char *path) {
   return lookup_in_trie(&git_files_content, pretty_path(path)) != 0;
 }
 
-static struct target *create_target_with_stat(struct all_targets **all,
+static struct target *create_target_with_stat(struct all_targets *all,
                                               const char *path) {
   struct target *t = create_target(all, path);
   if (!t->last_modified) {
@@ -92,7 +92,7 @@ void *run_parallel_rule(void *void_building) {
   return 0;
 }
 
-struct rule *run_rule(struct all_targets **all, struct rule *r) {
+struct rule *run_rule(struct all_targets *all, struct rule *r) {
   struct rule *out = r; //create_rule(r->command, r->working_directory);
   listset *read_set = 0, *written_set = 0, *deleted_set = 0;
   listset *readdir_set = 0;
@@ -140,7 +140,7 @@ struct rule *run_rule(struct all_targets **all, struct rule *r) {
 
   s = written_set;
   while (s != NULL) {
-    struct target *t = lookup_target(*all, s->path);
+    struct target *t = lookup_target(all, s->path);
     if (t) {
       t->last_modified = 0;
       t->size = 0;
@@ -159,7 +159,7 @@ struct rule *run_rule(struct all_targets **all, struct rule *r) {
   return out;
 }
 
-bool determine_rule_cleanliness(struct all_targets **all, struct rule *r,
+bool determine_rule_cleanliness(struct all_targets *all, struct rule *r,
                                 int *num_to_build) {
   if (!r) return false;
   if (r->status == being_determined) {
@@ -248,14 +248,7 @@ static void find_latency(struct rule *r) {
   r->latency_estimate = r->build_time + maxchild;
 }
 
-static void find_latencies(struct all_targets *all) {
-  while (all) {
-    find_latency(all->t->rule);
-    all = all->next;
-  }
-}
-
-struct building *build_rule_or_dependency(struct all_targets **all,
+struct building *build_rule_or_dependency(struct all_targets *all,
                                           struct rule *r,
                                           int *num_to_build) {
   if (!r) return 0;
@@ -303,7 +296,7 @@ struct building *build_rule_or_dependency(struct all_targets **all,
   return 0;
 }
 
-void let_us_build(struct all_targets **all, struct rule *r, int *num_to_build,
+void let_us_build(struct all_targets *all, struct rule *r, int *num_to_build,
                   struct building **bs, int num_threads) {
   for (int i=0;i<num_threads;i++) {
     if (!bs[i]) {
@@ -351,7 +344,7 @@ static void find_elapsed_time() {
   }
 }
 
-void parallel_build_all(struct all_targets **all, const char *root_, bool bilgefiles_only) {
+void parallel_build_all(struct all_targets *all, const char *root_, bool bilgefiles_only) {
   root = root_;
   git_files_content = git_ls_files();
   gettimeofday(&starting, 0);
@@ -376,17 +369,15 @@ void parallel_build_all(struct all_targets **all, const char *root_, bool bilgef
   listset *bilgefiles_used = 0;
   do {
     bool newstufftobuild = false;
-    for (struct all_targets *tt = *all; tt; tt = tt->next) {
-      newstufftobuild |=
-        determine_rule_cleanliness(all, tt->t->rule, &num_to_build);
+    for (struct rule *r = (struct rule *)all->r.first; r; r = (struct rule *)r->e.next) {
+      newstufftobuild |= determine_rule_cleanliness(all, r, &num_to_build);
     }
     if (newstufftobuild) {
-      find_latencies(*all);
-      for (struct all_targets *tt = *all; tt; tt = tt->next) {
-        if (tt->t->rule && tt->t->rule->status != clean) {
-          delete_rule(&rules, tt->t->rule); // way hokey
-          insert_rule_by_latency(&rules, tt->t->rule);
-        }
+      delete_rule_list(&rules);
+      for (struct rule *r = (struct rule *)all->r.first; r; r = (struct rule *)r->e.next) {
+        find_latency(r);
+        /* sadly, the following is O(N^2) */
+        if (r->status != clean) insert_rule_by_latency(&rules, r);
       }
     }
     double total_build_time = 0;
@@ -454,7 +445,7 @@ void parallel_build_all(struct all_targets **all, const char *root_, bool bilgef
                those inputs that were actually created in the build */
             r->num_outputs = r->num_explicit_outputs;
             for (int ii=0;ii<r->num_outputs;ii++) {
-              struct target *t = lookup_target(*all, r->outputs[ii]->path);
+              struct target *t = lookup_target(all, r->outputs[ii]->path);
               if (t) {
                 t->last_modified = 0;
                 t->size = 0;
@@ -485,7 +476,7 @@ void parallel_build_all(struct all_targets **all, const char *root_, bool bilgef
             }
 
             for (char *path = start_iterating(&bs[i]->written); path; path = iterate(&bs[i]->written)) {
-              struct target *t = lookup_target(*all, path);
+              struct target *t = lookup_target(all, path);
               if (t) {
                 t->last_modified = 0;
                 t->size = 0;
@@ -519,25 +510,24 @@ void parallel_build_all(struct all_targets **all, const char *root_, bool bilgef
     }
 
     have_finished_building_and_reading_bilges = true;
-    for (struct all_targets *tt = *all; tt; tt = tt->next) {
-      int len = strlen(tt->t->path);
-      if (len >= 6 && !strcmp(tt->t->path+len-6, ".bilge")) {
-        if (tt->t->status == unknown &&
-            (!tt->t->rule || (tt->t->rule->status != dirty &&
-                              tt->t->rule->status != building))) {
+    for (struct target *t = (struct target *)all->t.first; t; t = (struct target *)t->e.next) {
+      int len = strlen(t->path);
+      if (len >= 6 && !strcmp(t->path+len-6, ".bilge")) {
+        if (t->status == unknown &&
+            (!t->rule || (t->rule->status != dirty && t->rule->status != building))) {
           /* This is a clean .bilge file, but we still need to parse it! */
-          read_bilge_file(all, tt->t->path);
+          read_bilge_file(all, t->path);
           have_finished_building_and_reading_bilges = false;
-          tt->t->status = built;
+          t->status = built;
         }
       }
     }
-    for (struct all_targets *tt = *all; tt; tt = tt->next) {
-      int len = strlen(tt->t->path);
-      if (len >= 6 && !strcmp(tt->t->path+len-6, ".bilge")) {
-        if (tt->t->rule && tt->t->rule->status == dirty) {
+    for (struct target *t = (struct target *)all->t.first; t; t = (struct target *)t->e.next) {
+      int len = strlen(t->path);
+      if (len >= 6 && !strcmp(t->path+len-6, ".bilge")) {
+        if (t->rule && t->rule->status == dirty) {
           /* This is a dirty .bilge file, so we need to build it! */
-          let_us_build(all, tt->t->rule, &num_to_build, bs, num_jobs);
+          let_us_build(all, t->rule, &num_to_build, bs, num_jobs);
           have_finished_building_and_reading_bilges = false;
         }
       }
@@ -599,7 +589,7 @@ void parallel_build_all(struct all_targets **all, const char *root_, bool bilgef
         char *donefile = done_name(bilgefiles_used->path);
         FILE *f = fopen(donefile, "w");
         if (!f) error(1,errno,"oopse");
-        fprint_bilgefile(f, *all, bilgefiles_used->path);
+        fprint_bilgefile(f, all, bilgefiles_used->path);
         fclose(f);
         free(donefile);
         bilgefiles_used = bilgefiles_used->next;
@@ -613,7 +603,7 @@ void parallel_build_all(struct all_targets **all, const char *root_, bool bilgef
     char *donefile = done_name(bilgefiles_used->path);
     FILE *f = fopen(donefile, "w");
     if (!f) error(1,errno,"oopse");
-    fprint_bilgefile(f, *all, bilgefiles_used->path);
+    fprint_bilgefile(f, all, bilgefiles_used->path);
     fclose(f);
     free(donefile);
     bilgefiles_used = bilgefiles_used->next;
@@ -632,19 +622,16 @@ void parallel_build_all(struct all_targets **all, const char *root_, bool bilgef
   sigaction(SIGINT, &oldact, 0);
 }
 
-void clean_all(struct all_targets **all, const char *root_) {
+void clean_all(struct all_targets *all, const char *root_) {
   root = root_;
-  for (struct all_targets *tt = *all; tt; tt = tt->next) {
-    tt->t->status = unknown;
+  for (struct target *t = (struct target *)all->t.first; t; t = (struct target *)t->e.next) {
+    t->status = unknown;
   }
-  for (struct all_targets *tt = *all; tt; tt = tt->next) {
-    if (tt->t->rule) {
-      struct rule *r = tt->t->rule;
-      for (int i=0;i<r->num_outputs;i++) {
-        if (r->outputs[i]->status == unknown) {
-          printf("rm %s\n", pretty_path(r->outputs[i]->path));
-          unlink(r->outputs[i]->path);
-        }
+  for (struct rule *r = (struct rule *)all->r.first; r; r = (struct rule *)r->e.next) {
+    for (int i=0;i<r->num_outputs;i++) {
+      if (r->outputs[i]->status == unknown) {
+        printf("rm %s\n", pretty_path(r->outputs[i]->path));
+        unlink(r->outputs[i]->path);
       }
     }
   }

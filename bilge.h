@@ -8,6 +8,7 @@
 #include <time.h>
 
 #include "lib/trie.h"
+#include "lib/iterablehash.h"
 
 extern int num_jobs; /* number of jobs to run simultaneously */
 extern int verbose; /* true if user requests verbose output */
@@ -36,6 +37,7 @@ struct rule;
 /* A struct target describes a single thing that could be built.  Or
    it might describe a source file. */
 struct target {
+  struct hash_entry e;
   const char *path;
   enum target_status status;
   time_t last_modified;
@@ -46,12 +48,12 @@ struct target {
 
 /* A struct rule describes a single build process. */
 struct rule {
+  struct hash_entry e;
   const char *command;
   const char *working_directory;
   const char *bilgefile_path;
   int bilgefile_linenum;
   enum target_status status;
-  bool is_printed;
 
   int num_inputs, num_explicit_inputs;
   int input_array_size;
@@ -73,9 +75,7 @@ struct rule {
    better a map from string to struct target.  Instead, I'm just using
    a simple linked list for now. */
 struct all_targets {
-  struct trie *tr, *rules;
-  struct target *t;
-  struct all_targets *next;
+  struct hash_table t, r;
 };
 
 /* The struct rule_list is just for optimizing the build.
@@ -87,10 +87,10 @@ struct rule_list {
   struct rule_list *next;
 };
 
-struct target *create_target(struct all_targets **all, const char *path);
-void free_all_targets(struct all_targets **all);
+struct target *create_target(struct all_targets *all, const char *path);
+void free_all_targets(struct all_targets *all);
 
-struct rule *create_rule(struct all_targets **all,
+struct rule *create_rule(struct all_targets *all,
                          const char *command, const char *working_directory);
 struct rule *lookup_rule(struct all_targets *all, const char *command,
                          const char *working_directory);
@@ -101,14 +101,14 @@ void add_explicit_output(struct rule *r, struct target *dep);
 
 struct target *lookup_target(struct all_targets *, const char *path);
 
-void read_bilge_file(struct all_targets **all, const char *path);
+void read_bilge_file(struct all_targets *all, const char *path);
 
 void print_bilge_file(struct all_targets *all);
 void fprint_bilgefile(FILE *f, struct all_targets *tt, const char *bilgefile_path);
 
-struct rule *run_rule(struct all_targets **all, struct rule *r);
-void parallel_build_all(struct all_targets **all, const char *root, bool bilgefiles_only);
-void clean_all(struct all_targets **all, const char *root);
+struct rule *run_rule(struct all_targets *all, struct rule *r);
+void parallel_build_all(struct all_targets *all, const char *root, bool bilgefiles_only);
+void clean_all(struct all_targets *all, const char *root);
 
 char *done_name(const char *bilgefile);
 
