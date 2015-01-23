@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-import os, hashlib, time, numpy, sys, datetime
+import os, hashlib, time, numpy, sys, datetime, subprocess
 
 import catmod
 import hiermod
@@ -8,11 +8,22 @@ import depmod
 
 minute = 60
 hour = 60*minute
-time_limit = 8*hour
+day = 24*hour
+time_limit = 3*day
 
 tools = [cmd+' -j4' for cmd in ['make', 'bilge', 'tup', 'scons']]
 
-date = str(datetime.datetime.now())[:10]
+# The variable "date" actually contains the date and short hash of the
+# commit information.  This could lead to confusion and incorrectness
+# if we run benchmarking without actually committing, but if used
+# properly it should enable us to more accurately track which version
+# of the code corresponded to which benchmarking data.
+
+# Also note that this will fail if we checkout an old version of the
+# code.
+
+date = subprocess.check_output(['git', 'log', '--pretty=%ci', '-n',  '1'], stderr=subprocess.STDOUT)
+date = date[:10]+'_' + subprocess.check_output(['git', 'log', '--pretty=%h', '-n',  '1'], stderr=subprocess.STDOUT)
 
 datadir = os.getcwd()+'/bench/data/'
 os.makedirs(datadir, exist_ok=True)
