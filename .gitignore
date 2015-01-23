@@ -17,3 +17,4 @@ temp-cat
 .sass-cache
 *.pyc
 web/style.css
+bench/data
