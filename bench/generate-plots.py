@@ -13,7 +13,7 @@ datadir = os.getcwd()+'/bench/data/'
 modules = [depmod, catmod, hiermod]
 
 allcolors = ['r','b','g','k','c','y']
-allpatterns = ['o-', 'x--', '*:', '.-', '<-', '>-', 'v-']
+allpatterns = ['o-', 's:', '*-.', 'x--', '<-', '>-', 'v-']
 
 fs_colors = {}
 tool_patterns = {}
@@ -32,7 +32,9 @@ for mod in modules:
         plt.title('%s %s on %s' % (verb, mod.name, date))
         have_handled = {}
 
-        for tool in os.listdir(datadir+date+'/'+mod.name):
+        tools = os.listdir(datadir+date+'/'+mod.name)
+        tools.sort()
+        for tool in tools:
             if not tool in tool_patterns:
                 tool_patterns[tool] = allpatterns[0]
                 allpatterns = allpatterns[1:]
