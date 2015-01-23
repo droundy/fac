@@ -6,6 +6,8 @@
 #include <string.h>
 #include <assert.h>
 
+void insert_target(struct all_targets **all, struct target *t);
+
 struct target *create_target(struct all_targets **all, const char *path) {
   struct target *t = lookup_target(*all, path);
   if (!t) {
@@ -20,7 +22,8 @@ struct target *create_target(struct all_targets **all, const char *path) {
   return t;
 }
 
-struct rule *create_rule(const char *command, const char *working_directory) {
+struct rule *create_rule(struct all_targets **all,
+                         const char *command, const char *working_directory) {
   struct rule *r = malloc(sizeof(struct rule));
   r->command = strdup(command);
   r->working_directory = strdup(working_directory);
@@ -36,19 +39,15 @@ struct rule *create_rule(const char *command, const char *working_directory) {
   r->build_time = 0;
   r->latency_estimate = 0;
   r->latency_handled = false;
+
+  add_to_trie_pair(&(*all)->rules, r->working_directory, r->command, r);
   return r;
 }
 
 struct rule *lookup_rule(struct all_targets *all, const char *command,
                          const char *working_directory) {
-  while (all) {
-    if (all->t->rule &&
-        !strcmp(all->t->rule->command, command) &&
-        !strcmp(all->t->rule->working_directory, working_directory))
-      return all->t->rule;
-    all = all->next;
-  }
-  return 0;
+  if (!all) return 0;
+  return lookup_in_trie_pair(&all->rules, working_directory, command);
 }
 
 void add_input(struct rule *r, struct target *dep) {
@@ -101,6 +100,7 @@ void free_all_targets(struct all_targets **all) {
   if (!*all) return;
   struct rule_list *rules = 0;
   free_trie(&(*all)->tr);
+  free_trie(&(*all)->rules);
   struct all_targets *t = *all;
   while (t) {
     struct all_targets *to_be_deleted = t;
@@ -147,8 +147,10 @@ void insert_target(struct all_targets **all, struct target *t) {
   struct all_targets *n = malloc(sizeof(struct all_targets));
   if (*all) {
     n->tr = (*all)->tr;
+    n->rules = (*all)->rules;
   } else {
     n->tr = 0;
+    n->rules = 0;
   }
   add_to_trie(&n->tr, t->path, t);
   n->next = *all;

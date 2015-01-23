@@ -73,7 +73,7 @@ struct rule {
    better a map from string to struct target.  Instead, I'm just using
    a simple linked list for now. */
 struct all_targets {
-  struct trie *tr;
+  struct trie *tr, *rules;
   struct target *t;
   struct all_targets *next;
 };
@@ -90,7 +90,8 @@ struct rule_list {
 struct target *create_target(struct all_targets **all, const char *path);
 void free_all_targets(struct all_targets **all);
 
-struct rule *create_rule(const char *command, const char *working_directory);
+struct rule *create_rule(struct all_targets **all,
+                         const char *command, const char *working_directory);
 struct rule *lookup_rule(struct all_targets *all, const char *command,
                          const char *working_directory);
 void add_input(struct rule *t, struct target *inp);
@@ -99,7 +100,6 @@ void add_explicit_input(struct rule *r, struct target *dep);
 void add_explicit_output(struct rule *r, struct target *dep);
 
 struct target *lookup_target(struct all_targets *, const char *path);
-void insert_target(struct all_targets **all, struct target *t);
 
 void read_bilge_file(struct all_targets **all, const char *path);
 

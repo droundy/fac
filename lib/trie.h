@@ -25,6 +25,20 @@ void add_to_trie(struct trie **trie, const char *str, void *data);
    free any other memory. */
 void delete_from_trie(struct trie **trie, const char *str);
 
+
+
+void ** place_in_trie_pair(struct trie **trie, const char *str1, const char *str2);
+
+/* Find the data stored under str in the trie */
+void * lookup_in_trie_pair(struct trie **trie, const char *str1, const char *str2);
+
+/* Add the data stored under str in the trie */
+void add_to_trie_pair(struct trie **trie, const char *str1, const char *str2, void *data);
+
+/* Delete the data stored under str in the trie.  Doesn't actually
+   free any other memory. */
+void delete_from_trie_pair(struct trie **trie, const char *str1, const char *str2);
+
 void free_trie(struct trie **trie);
 
 #endif

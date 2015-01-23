@@ -85,7 +85,8 @@ src="dependent-chain-building.png" alt="build times"/></a>
 
 Obviously again this must be $\O{N}$.  As usual, scons and tup have a
 noticeable $\O{1}$ contribution, which is much more significant for
-tup.
+tup.  FIXME I think there must be a bug in the scons benchmarking in
+this case.
 <a href="dependent-chain-rebuilding.pdf"><img
 src="dependent-chain-rebuilding.png" alt="rebuild times"/></a>
 

@@ -105,7 +105,7 @@ void read_bilge_file(struct all_targets **all, const char *path) {
       last_modified_last_file = 0;
       break;
     case '|':
-      therule = create_rule(one_line+2, the_directory);
+      therule = create_rule(all, one_line+2, the_directory);
       therule->bilgefile_path = strdup(path);
       therule->bilgefile_linenum = linenum;
       thetarget = 0;
