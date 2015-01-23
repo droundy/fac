@@ -17,6 +17,7 @@
 #include <errno.h>
 #include <string.h>
 #include <signal.h>
+#include <assert.h>
 
 static const char *root = 0;
 static const char *pretty_path(const char *path) {
@@ -54,7 +55,7 @@ struct building {
   arrayset readdir, read, written, deleted;
 };
 
-void *run_parallel_rule(void *void_building) {
+static void *run_parallel_rule(void *void_building) {
   struct building *b = void_building;
   const char **args = malloc(4*sizeof(char *));
   initialize_arrayset(&b->readdir);
@@ -92,79 +93,11 @@ void *run_parallel_rule(void *void_building) {
   return 0;
 }
 
-struct rule *run_rule(struct all_targets *all, struct rule *r) {
-  struct rule *out = r; //create_rule(r->command, r->working_directory);
-  listset *read_set = 0, *written_set = 0, *deleted_set = 0;
-  listset *readdir_set = 0;
-  const char **args = malloc(4*sizeof(char *));
-  args[0] = "/bin/sh";
-  args[1] = "-c";
-  args[2] = r->command;
-  args[3] = 0;
-  printf("%s\n", r->command);
-  int ret = bigbrother_process(r->working_directory,
-                               (char **)args, &readdir_set,
-                               &read_set, &written_set, &deleted_set);
-  free(args);
-  if (ret != 0) {
-    free_listset(read_set);
-    free_listset(written_set);
-    free_listset(deleted_set);
-    free_listset(readdir_set);
-    return 0;
-  }
-
-  out->num_inputs = 0; // clear the set of inputs so we only rebuild on actual ones.
-  listset *s = read_set;
-  while (s != NULL) {
-    struct target *t = create_target_with_stat(all, s->path);
-    if (!t) error(1, errno, "Unable to stat file %s", t->path);
-    add_input(out, t);
-    s = s->next;
-  }
-
-  s = readdir_set;
-  while (s != NULL) {
-    printf("READDIR %s\n", s->path);
-    struct target *t = create_target_with_stat(all, s->path);
-    if (!t) error(1, errno, "Unable to stat file %s", t->path);
-    add_input(out, t);
-    s = s->next;
-  }
-
-  for (int i=0;i<out->num_outputs;i++) {
-    /* The following handles the case where we have a command that
-       doesn't actually write to one of its "outputs." */
-    create_target_with_stat(all, out->outputs[i]->path);
-  }
-
-  s = written_set;
-  while (s != NULL) {
-    struct target *t = lookup_target(all, s->path);
-    if (t) {
-      t->last_modified = 0;
-      t->size = 0;
-    }
-    t = create_target_with_stat(all, s->path);
-    if (!t) error(1, errno, "Unable to stat file %s", t->path);
-    t->rule = out;
-    add_output(out, t);
-    s = s->next;
-  }
-
-  free_listset(readdir_set);
-  free_listset(read_set);
-  free_listset(written_set);
-  free_listset(deleted_set);
-  return out;
-}
-
-bool determine_rule_cleanliness(struct all_targets *all, struct rule *r,
-                                int *num_to_build) {
-  if (!r) return false;
+static bool determine_rule_cleanliness(struct all_targets *all, struct rule *r,
+                                       int *num_to_build) {
+  assert(r);
   if (r->status == being_determined) {
-    verbose_printf("Looks like a cycle! %s\n",
-                   r->outputs[0]->path);
+    verbose_printf("Looks like a cycle! %s\n", r->outputs[0]->path);
   }
   if (r->status == unready) r->status = dirty; /* reset to dirty! */
   if (r->status != unknown) return false;
@@ -248,10 +181,10 @@ static void find_latency(struct rule *r) {
   r->latency_estimate = r->build_time + maxchild;
 }
 
-struct building *build_rule_or_dependency(struct all_targets *all,
-                                          struct rule *r,
-                                          int *num_to_build) {
-  if (!r) return 0;
+static struct building *build_rule_or_dependency(struct all_targets *all,
+                                                 struct rule *r,
+                                                 int *num_to_build) {
+  assert(r);
   if (r->status == unready) return 0; /* we already tried this */
   if (r->status == unknown) {
     determine_rule_cleanliness(all, r, num_to_build);
@@ -268,10 +201,10 @@ struct building *build_rule_or_dependency(struct all_targets *all,
         r->status = failed;
         return 0;
       }
-      struct building *b = build_rule_or_dependency(all, r->inputs[i]->rule,
-                                                    num_to_build);
-      if (b) return b;
       if (r->inputs[i]->rule && !(r->inputs[i]->rule->status == clean || r->inputs[i]->rule->status == built)) {
+        struct building *b = build_rule_or_dependency(all, r->inputs[i]->rule,
+                                                      num_to_build);
+        if (b) return b;
         ready_to_go = false;
       }
     }
