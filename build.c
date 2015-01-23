@@ -509,30 +509,32 @@ void parallel_build_all(struct all_targets *all, const char *root_, bool bilgefi
       }
     }
 
-    have_finished_building_and_reading_bilges = true;
-    for (struct target *t = (struct target *)all->t.first; t; t = (struct target *)t->e.next) {
-      int len = strlen(t->path);
-      if (len >= 6 && !strcmp(t->path+len-6, ".bilge")) {
-        if (t->status == unknown &&
-            (!t->rule || (t->rule->status != dirty && t->rule->status != building))) {
-          /* This is a clean .bilge file, but we still need to parse it! */
-          read_bilge_file(all, t->path);
-          have_finished_building_and_reading_bilges = false;
-          t->status = built;
+    if (!have_finished_building_and_reading_bilges) {
+      have_finished_building_and_reading_bilges = true;
+      for (struct target *t = (struct target *)all->t.first; t; t = (struct target *)t->e.next) {
+        int len = strlen(t->path);
+        if (len >= 6 && !strcmp(t->path+len-6, ".bilge")) {
+          if (t->status == unknown &&
+              (!t->rule || (t->rule->status != dirty && t->rule->status != building))) {
+            /* This is a clean .bilge file, but we still need to parse it! */
+            read_bilge_file(all, t->path);
+            have_finished_building_and_reading_bilges = false;
+            t->status = built;
+          }
         }
       }
-    }
-    for (struct target *t = (struct target *)all->t.first; t; t = (struct target *)t->e.next) {
-      int len = strlen(t->path);
-      if (len >= 6 && !strcmp(t->path+len-6, ".bilge")) {
-        if (t->rule && t->rule->status == dirty) {
-          /* This is a dirty .bilge file, so we need to build it! */
-          let_us_build(all, t->rule, &num_to_build, bs, num_jobs);
-          have_finished_building_and_reading_bilges = false;
+      for (struct target *t = (struct target *)all->t.first; t; t = (struct target *)t->e.next) {
+        int len = strlen(t->path);
+        if (len >= 6 && !strcmp(t->path+len-6, ".bilge")) {
+          if (t->rule && t->rule->status == dirty) {
+            /* This is a dirty .bilge file, so we need to build it! */
+            let_us_build(all, t->rule, &num_to_build, bs, num_jobs);
+            have_finished_building_and_reading_bilges = false;
+          }
         }
       }
+      if (!have_finished_building_and_reading_bilges) continue;
     }
-    if (!have_finished_building_and_reading_bilges) continue;
 
     if (!have_checked_for_impossibilities) {
       if (bilgefiles_only) {
