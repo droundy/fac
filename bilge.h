@@ -104,6 +104,7 @@ void add_explicit_input(struct rule *r, struct target *dep);
 void add_explicit_output(struct rule *r, struct target *dep);
 void add_cache_prefix(struct rule *r, const char *prefix);
 void add_cache_suffix(struct rule *r, const char *suffix);
+bool is_interesting_path(struct rule *r, const char *path);
 
 struct target *lookup_target(struct all_targets *, const char *path);
 
@@ -111,6 +112,9 @@ void read_bilge_file(struct all_targets *all, const char *path);
 
 void print_bilge_file(struct all_targets *all);
 void fprint_bilgefile(FILE *f, struct all_targets *tt, const char *bilgefile_path);
+
+void fprint_makefile(FILE *f, struct all_targets *tt, const char *root);
+void fprint_script(FILE *f, struct all_targets *tt, const char *root);
 
 struct rule *run_rule(struct all_targets *all, struct rule *r);
 void parallel_build_all(struct all_targets *all, const char *root, bool bilgefiles_only);

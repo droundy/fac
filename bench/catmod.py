@@ -26,16 +26,10 @@ def create_bench(n):
     sconsf = open('SConstruct', 'w')
     bilgef = open('top.bilge', 'w')
     tupf = open('Tupfile', 'w')
-    makef = open('Makefile', 'w')
     open('Tupfile.ini', 'w')
     sconsf.write("""
 env = Environment()
 """)
-    makef.write("""
-final.txt: %s.txt
-\tcat $< > $@
-
-""" % hashid(n))
     bilgef.write("""
 | cat %s.txt > final.txt
 > final.txt
@@ -45,11 +39,6 @@ final.txt: %s.txt
     f = open('%s.txt' % hashid(0), 'w')
     f.write("Hello world\n")
     for i in range(1,n+1):
-        makef.write("""
-# %d
-%s.txt: %s.txt
-\tcat $< > $@
-""" % (i, hashid(i), hashid(i-1)))
         tupf.write("""
 # %d
 : %s.txt |> cat %%f > %%o |> %s.txt

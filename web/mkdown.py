@@ -71,7 +71,7 @@ def mkdown(mdfile):
     for main in etree.iter('article'):
         lastheader = None
         for p in list(main):
-            if p.tag == 'h2' or not lastheader:
+            if p.tag == 'h2' or lastheader is None:
                 lastheader = ET.SubElement(main, 'div', {'class': 'indivisible'})
                 lastheader.append(p)
                 main.remove(p)

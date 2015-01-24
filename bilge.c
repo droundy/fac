@@ -53,6 +53,9 @@ int show_output = 0;
 static int clean_me = 0;
 extern inline void verbose_printf(const char *format, ...);
 
+char *create_makefile = 0;
+char *create_script = 0;
+
 int main(int argc, const char **argv) {
   struct poptOption optionsTable[] = {
     { "jobs", 'j', POPT_ARG_INT, &num_jobs, 0,
@@ -63,6 +66,10 @@ int main(int argc, const char **argv) {
       "give verbose output", 0 },
     { "show-output", 'V', POPT_ARG_NONE, &show_output, 0,
       "show command output", 0 },
+    { "makefile", 0, POPT_ARG_STRING, &create_makefile, 0,
+      "create a makefile", "Makefile" },
+    { "script", 0, POPT_ARG_STRING, &create_script, 0,
+      "create a build script", "SCRIPTFILE" },
     POPT_AUTOHELP
     { NULL, 0, 0, NULL, 0 }
   };
@@ -88,10 +95,24 @@ int main(int argc, const char **argv) {
     } else {
       parallel_build_all(&all, root, false);
     }
+
+    if (create_makefile) {
+      FILE *f = fopen(create_makefile, "w");
+      if (!f) error(1,errno, "Unable to create makefile: %s", create_makefile);
+      fprint_makefile(f, &all, root);
+      fclose(f);
+    }
+    if (create_script) {
+      FILE *f = fopen(create_script, "w");
+      if (!f) error(1,errno, "Unable to create script: %s", create_script);
+      fprint_script(f, &all, root);
+      fclose(f);
+    }
+
     /* profiling shows that as much as a third of our CPU time can be
        spent freeing, so we will only do it if we are repeating the
        computation. */
-    if (repeats < num_runs_to_profile-1) free_all_targets(&all); }
-
+    if (repeats < num_runs_to_profile-1) free_all_targets(&all);
+  }
   return 0;
 }

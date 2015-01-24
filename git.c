@@ -6,6 +6,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <string.h>
+#include <fcntl.h>
 
 #include <stdlib.h>
 
@@ -21,6 +22,8 @@ struct trie *git_ls_files() {
   if (new_pid == 0) {
     char **args = malloc(3*sizeof(char *));
     close(1); dup(out);
+    close(2);
+    open("/dev/null", O_WRONLY);
     args[0] = "git";
     args[1] = "ls-files";
     args[2] = 0;

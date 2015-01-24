@@ -6,6 +6,7 @@
 
 | sass web/style.scss web/style.css
 > web/style.css
+C .sass-cache
 
 | python2 bench/generate-plots.py
 > web/hierarchy-building.pdf

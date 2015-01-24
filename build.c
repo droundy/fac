@@ -23,7 +23,7 @@
 static const char *root = 0;
 static const char *pretty_path(const char *path) {
   int len = strlen(root);
-  if (!memcmp(path, root, len) && path[len] == '/') {
+  if (path[len] == '/' && !memcmp(path, root, len)) {
     return path + len + 1;
   }
   return path;
@@ -278,7 +278,7 @@ static void find_elapsed_time() {
   }
 }
 
-static bool is_interesting_path(struct rule *r, const char *path) {
+bool is_interesting_path(struct rule *r, const char *path) {
   const int len = strlen(path);
   for (int i=0;i<r->num_cache_prefixes;i++) {
     bool matches = true;

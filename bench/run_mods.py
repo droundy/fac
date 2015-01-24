@@ -11,7 +11,7 @@ hour = 60*minute
 day = 24*hour
 time_limit = 3*day
 
-tools = [cmd+' -j4' for cmd in ['make', 'bilge', 'tup', 'scons']]
+tools = [cmd+' -j4' for cmd in ['make', 'bilge', 'tup', 'scons']] + ['sh build.sh']
 
 # The variable "date" actually contains the date and short hash of the
 # commit information.  This could lead to confusion and incorrectness
@@ -82,12 +82,18 @@ while time.time() < start_benchmarking + time_limit:
             print('\n### Using rootdir', rootdirname)
             os.makedirs(rootdir, exist_ok=True)
             os.chdir(rootdir)
+            # here we create the source directory
+            os.system('rm -rf '+mod.name+'-%d'%N)
+            os.makedirs(mod.name+'-%d'%N)
+            os.chdir(mod.name+'-%d'%N)
+            mod.create_bench(N)
+            os.system('bilge --makefile Makefile --script build.sh > /dev/null && bilge -c > /dev/null && rm -f *.done')
+            os.chdir('..')
             for tool in tools:
                 print('')
-                os.system('rm -rf '+mod.name+'-%d'%N)
-                os.makedirs(mod.name+'-%d'%N)
-                os.chdir(mod.name+'-%d'%N)
-                mod.create_bench(N)
+                # we do each tool's build in a fresh copy of the source
+                os.system('rm -rf working && cp -a %s-%d working' % (mod.name, N))
+                os.chdir('working')
                 times = time_command(mod, tool)
                 os.chdir('..')
                 datadirname = datadir+'/%s/%s/%s/%s/' % (date, mod.name, tool, filesystems[rootdirname])

@@ -13,7 +13,7 @@ datadir = os.getcwd()+'/bench/data/'
 modules = [depmod, catmod, hiermod]
 
 allcolors = ['r','b','g','k','c','y']
-allpatterns = ['o-', 's:', '*-.', 'x--', '<-', '>-', 'v-']
+allpatterns = ['o-', 's:', '*-.', '.-', 'x--', '<-', '>-', 'v-']
 
 fs_colors = {}
 tool_patterns = {}

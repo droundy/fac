@@ -63,6 +63,14 @@ with the following options.
 : Show the output of every command (stdout and stderr), even if that
   command succeeds.
 
+--makefile MAKEFILE
+: After building, create a makefile with name MAKEFILE, which can be
+  used to perform this build if noname is unavailable.
+
+--script BUILD.SH
+: After building, create a shell script with name BUILD.SH, which can
+  be used to perform this build if noname is unavailable.
+
 ## To do list
 
 1. Add option to output a Makefile for the build.

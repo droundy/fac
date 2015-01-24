@@ -215,31 +215,33 @@ void read_bilge_file(struct all_targets *all, const char *path) {
       case '<':
         if (therule) {
           char *path = absolute_path(the_directory, one_line+2);
-          thetarget = create_target(all, path);
-          /* The following check is to deal with the case where a
-             given file might actually be an output of a command, but
-             was only read when being built, by a program that tries
-             to be friendly to make by avoiding touching a file that
-             would end up being identical when built. */
-          if (thetarget->rule == therule) {
-            /* It was actually an output, so let's trust the user and
-               treat it as such. */
-            add_output(therule, thetarget);
-            for (int i=0; i<therule->num_outputs; i++) {
-              if (thetarget == therule->outputs[i]) {
-                last_modified_last_file = &therule->output_times[i];
-                size_last_file = &therule->output_sizes[i];
-                break;
+          if (is_interesting_path(therule, path)) {
+            thetarget = create_target(all, path);
+            /* The following check is to deal with the case where a
+               given file might actually be an output of a command, but
+               was only read when being built, by a program that tries
+               to be friendly to make by avoiding touching a file that
+               would end up being identical when built. */
+            if (thetarget->rule == therule) {
+              /* It was actually an output, so let's trust the user and
+                 treat it as such. */
+              add_output(therule, thetarget);
+              for (int i=0; i<therule->num_outputs; i++) {
+                if (thetarget == therule->outputs[i]) {
+                  last_modified_last_file = &therule->output_times[i];
+                  size_last_file = &therule->output_sizes[i];
+                  break;
+                }
               }
-            }
-          } else {
-            //printf("  I see #%d %s\n", therule->num_inputs-1, path);
-            add_input(therule, thetarget);
-            for (int i=0;i<therule->num_inputs;i++) {
-              if (thetarget == therule->inputs[i]) {
-                last_modified_last_file = &therule->input_times[i];
-                size_last_file = &therule->input_sizes[i];
-                break;
+            } else {
+              //printf("  I see #%d %s\n", therule->num_inputs-1, path);
+              add_input(therule, thetarget);
+              for (int i=0;i<therule->num_inputs;i++) {
+                if (thetarget == therule->inputs[i]) {
+                  last_modified_last_file = &therule->input_times[i];
+                  size_last_file = &therule->input_sizes[i];
+                  break;
+                }
               }
             }
           }
@@ -249,15 +251,17 @@ void read_bilge_file(struct all_targets *all, const char *path) {
       case '>':
         if (therule) {
           char *path = absolute_path(the_directory, one_line+2);
-          thetarget = create_target(all, path);
-          if (!thetarget->rule || thetarget->rule == therule) {
-            thetarget->rule = therule;
-            add_output(therule, thetarget);
-            for (int i=0; i<therule->num_outputs; i++) {
-              if (thetarget == therule->outputs[i]) {
-                last_modified_last_file = &therule->output_times[i];
-                size_last_file = &therule->output_sizes[i];
-                break;
+          if (is_interesting_path(therule, path)) {
+            thetarget = create_target(all, path);
+            if (!thetarget->rule || thetarget->rule == therule) {
+              thetarget->rule = therule;
+              add_output(therule, thetarget);
+              for (int i=0; i<therule->num_outputs; i++) {
+                if (thetarget == therule->outputs[i]) {
+                  last_modified_last_file = &therule->output_times[i];
+                  size_last_file = &therule->output_sizes[i];
+                  break;
+                }
               }
             }
           }
@@ -298,10 +302,6 @@ void fprint_bilgefile(FILE *f, struct all_targets *tt, const char *bpath) {
   for (struct rule *r = (struct rule *)tt->r.first; r; r = (struct rule *)r->e.next) {
     if (!strcmp(r->bilgefile_path, bpath)) {
       fprintf(f, "| %s\n", r->command);
-      if (r->working_directory &&
-          strcmp(r->working_directory, ".")) {
-        fprintf(f, ". %s\n", r->working_directory);
-      }
       if (r->build_time) {
         fprintf(f, "B %g\n", r->build_time);
       }
@@ -321,6 +321,112 @@ void fprint_bilgefile(FILE *f, struct all_targets *tt, const char *bpath) {
       }
       fprintf(f, "\n");
     }
+  }
+}
+
+static bool is_in_root(const char *path, const char *root) {
+  int lenpath = strlen(path);
+  int lenroot = strlen(root);
+  if (lenpath < lenroot + 1) return false;
+  return path[lenroot] == '/' && !memcmp(path, root, lenroot);
+}
+
+static void fprint_makefile_escape(FILE *f, const char *path) {
+  while (*path) {
+    switch (*path) {
+    case ' ':
+    case '$':
+    case '\\':
+    case '"':
+    case '\'':
+      fputc('\\', f);
+      fputc(*path, f);
+      break;
+    default:
+      fputc(*path, f);
+    }
+    path++;
+  }
+}
+
+static void fprint_makefile_rule(FILE *f, struct rule *r, const char *root) {
+  if (r->status == built) return;
+  r->status = built;
+  const int lenroot = strlen(root);
+  for (int i=0; i<r->num_inputs; i++) {
+    if (r->inputs[i]->rule) fprint_makefile_rule(f, r->inputs[i]->rule, root);
+  }
+  for (int i=0; i<r->num_outputs; i++) {
+    fprint_makefile_escape(f, r->outputs[i]->path + lenroot+1);
+    fprintf(f, " ");
+  }
+  fprintf(f, ":");
+  for (int i=0; i<r->num_inputs; i++) {
+    if (is_in_root(r->inputs[i]->path, root)) {
+      fprintf(f, " ");
+      fprint_makefile_escape(f, r->inputs[i]->path + lenroot+1);
+    }
+  }
+  if (is_in_root(r->working_directory, root)) {
+    fprintf(f, "\n\tcd ");
+    fprint_makefile_escape(f, r->working_directory + lenroot+1);
+    fprintf(f, " && %s\n\n", r->command);
+  } else {
+    fprintf(f, "\n\t%s\n\n", r->command);
+  }
+}
+
+void fprint_makefile(FILE *f, struct all_targets *all, const char *root) {
+  /* First, let's identify any intermediate output, so it won't need
+     to be included in the "all" target. */
+  for (struct rule *r = (struct rule *)all->r.first; r; r = (struct rule *)r->e.next) {
+    r->status = unknown;
+  }
+  for (struct rule *r = (struct rule *)all->r.first; r; r = (struct rule *)r->e.next) {
+    for (int i=0;i<r->num_inputs;i++) {
+      if (r->inputs[i]->rule) r->inputs[i]->rule->status = clean;
+    }
+  }
+
+  const int lenroot = strlen(root);
+  fprintf(f, "all:");
+  for (struct target *t = (struct target *)all->t.first; t; t = (struct target *)t->e.next) {
+    if (t->rule && t->rule->status == unknown) {
+      fprintf(f, " %s", t->path + lenroot+1);
+    }
+  }
+  fprintf(f, "\n\n");
+  for (struct rule *r = (struct rule *)all->r.first; r; r = (struct rule *)r->e.next) {
+    r->status = unknown;
+  }
+  for (struct rule *r = (struct rule *)all->r.first; r; r = (struct rule *)r->e.next) {
+    fprint_makefile_rule(f, r, root);
+  }
+}
+
+static void fprint_script_rule(FILE *f, struct rule *r, const char *root) {
+  if (r->status == built) return;
+  r->status = built;
+  const int lenroot = strlen(root);
+  for (int i=0; i<r->num_inputs; i++) {
+    if (r->inputs[i]->rule) fprint_script_rule(f, r->inputs[i]->rule, root);
+  }
+  if (is_in_root(r->working_directory, root)) {
+    fprintf(f, "cd ");
+    fprint_makefile_escape(f, r->working_directory + lenroot+1);
+    fprintf(f, " && %s\n\n", r->command);
+  } else {
+    fprintf(f, "%s\n\n", r->command);
+  }
+}
+
+void fprint_script(FILE *f, struct all_targets *all, const char *root) {
+  fprintf(f, "#!/bin/sh\n\n");
+  for (struct rule *r = (struct rule *)all->r.first; r; r = (struct rule *)r->e.next) {
+    r->status = unknown;
+  }
+  for (struct rule *r = (struct rule *)all->r.first; r; r = (struct rule *)r->e.next) {
+    fprint_script_rule(f, r, root);
   }
 }
 

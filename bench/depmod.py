@@ -18,16 +18,10 @@ def create_bench(n):
     sconsf = open('SConstruct', 'w')
     bilgef = open('top.bilge', 'w')
     tupf = open('Tupfile', 'w')
-    makef = open('Makefile', 'w')
     open('Tupfile.ini', 'w')
     sconsf.write("""
 env = Environment(CPPPATH=['.'])
 """)
-    makef.write("""
-final.exe: final.c %s-generated.h
-\tgcc -o final.exe final.c
-
-""" % hashid(n))
     bilgef.write("""
 | gcc -o final.exe final.c
 > final.exe
@@ -65,15 +59,6 @@ int main() {
 
 """ % hashid(i))
         f.close()
-        makef.write("""
-# %d
-%s.exe: %s.c %s-generated.h
-\tgcc -o %s.exe %s.c
-
-%s-generated.h: %s.exe
-\t./%s.exe > %s-generated.h
-""" % (i, hashid(i), hashid(i), hashid(i-1), hashid(i), hashid(i),
-       hashid(i), hashid(i), hashid(i), hashid(i)))
         tupf.write("""
 # %d
 : %s.c | %s-generated.h |> gcc -o %%o %%f |> %s.exe

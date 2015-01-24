@@ -33,14 +33,10 @@ def create_bench(N):
     sconsf = open('SConstruct', 'w')
     bilgef = open('top.bilge', 'w')
     tupf = open('Tupfile', 'w')
-    makef = open('Makefile', 'w')
     open('Tupfile.ini', 'w')
     sconsf.write("""
 env = Environment(CPPPATH=['.'])
 """)
-    makef.write('all:')
-    for i in range(N):
-        makef.write(' %s.o' % make_name(i))
     for i in range(N):
         if i > 9:
             os.makedirs(os.path.dirname(make_name(i)), exist_ok=True)
@@ -48,18 +44,10 @@ env = Environment(CPPPATH=['.'])
         hname = make_name(i) + '.h'
         includes = ''
         funcs = ''
-        include_deps = ''
         for xx in [i+ii for ii in range(10)]:
             nhere = hash_integer(xx) % N
             includes += '#include "%s.h"\n' % make_name(nhere)
             funcs += '    %s();\n' % hashid(nhere)
-            include_deps += ' %s.h' % make_name(nhere)
-        makef.write("""
-# %d
-%s.o: %s.c %s
-\tgcc -Wall -Werror -I. -O2 -c -o %s.o %s.c
-""" % (i, make_name(i), make_name(i), include_deps,
-       make_name(i), make_name(i)))
         tupf.write("""
 # %d
 : %s.c |> gcc -I. -O2 -c -o %%o %%f |> %s.o
