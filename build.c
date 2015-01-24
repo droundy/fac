@@ -2,6 +2,7 @@
 
 #include "bilge.h"
 #include "lib/bigbrother.h"
+#include "lib/listset.h"
 
 #include <sys/types.h>
 #include <sys/stat.h>
