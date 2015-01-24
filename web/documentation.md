@@ -84,7 +84,6 @@ with the following options.
 
 - Enable bilge to call bilge recursively (requires ptrace effort)
 
-- Check if output files are outside the directory tree
 - Create .gitignore files?
 
 - Support for ~ as home directory? :(
