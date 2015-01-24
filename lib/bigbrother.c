@@ -162,62 +162,18 @@ pid_t wait_for_syscall(int *num_programs) {
   pid_t child = 0;
   int status = 0;
   while (1) {
-    //debugprintf("waiting for any syscall...\n");
     child = waitpid(-1, &status, __WALL);
     if (WIFSTOPPED(status) && WSTOPSIG(status) & 0x80) {
       return child;
     } else if (WIFEXITED(status)) {
-      //debugprintf("got an exit from %d...\n", child);
       if (--(*num_programs) <= 0) return -WEXITSTATUS(status);
       continue; /* no need to do anything more for this guy */
-    } else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_EXEC<<8))) {
-      pid_t newpid;
-      ptrace(PTRACE_GETEVENTMSG, child, 0, &newpid);
-      debugprintf("\nexeced!!! %d from %d\n", newpid, child);
-    } else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_VFORK_DONE<<8))) {
-      debugprintf("vfork is done in %d\n", child);
     } else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_CLONE<<8))) {
-      pid_t newpid;
-      ptrace(PTRACE_GETEVENTMSG, child, 0, &newpid);
-      debugprintf("\ncloned %d from %d!!!\n", newpid, child);
-      waitpid(newpid, 0, __WALL);
-      //if (ptrace(PTRACE_SETOPTIONS, newpid, 0, my_ptrace_options)) {
-      //  debugprintf("error ptracing setoptions n %d\n", newpid);
-      //}
-      //debugprintf("ptrace setoptions %d worked!!!\n", newpid);
-      num_programs++;
-
-      ptrace_syscall(newpid);
+      (*num_programs)++;
     } else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_VFORK<<8))) {
-      pid_t newpid;
-      ptrace(PTRACE_GETEVENTMSG, child, 0, &newpid);
-      //debugprintf("\nvforked %d from %d!!!\n", newpid, child);
-      waitpid(newpid, 0, __WALL);
-      //if (ptrace(PTRACE_SETOPTIONS, newpid, 0, my_ptrace_options)) {
-      //  debugprintf("error ptracing setoptions n %d\n", newpid);
-      //}
-      //debugprintf("ptrace setoptions %d worked!!!\n", newpid);
       (*num_programs)++;
-
-      ptrace_syscall(newpid);
     } else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_FORK<<8))) {
-      pid_t newpid;
-      ptrace(PTRACE_GETEVENTMSG, child, 0, &newpid);
-      //debugprintf("\nforked %d from %d!!!\n", newpid, child);
-      waitpid(newpid, 0, __WALL);
-      //if (ptrace(PTRACE_SETOPTIONS, newpid, 0, my_ptrace_options)) {
-      //  debugprintf("error ptracing setoptions n %d\n", newpid);
-      //}
-      //debugprintf("ptrace setoptions %d worked!!!\n", newpid);
       (*num_programs)++;
-
-      ptrace_syscall(newpid);
-    } else if (WIFSIGNALED(status)) {
-      debugprintf("foo signaled!!! %d\n", child);
-    } else if (WIFCONTINUED(status)) {
-      debugprintf("foo continued!!! %d\n", child);
-    } else {
-      debugprintf("I do not understand this event %d\n\n", status);
     }
     ptrace_syscall(child); // keep going!
   }

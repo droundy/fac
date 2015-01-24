@@ -8,5 +8,5 @@
 > web/style.css
 C .sass-cache
 
-| python2 bench/generate-plots.py
-> web/hierarchy-building.pdf
+# | python2 bench/generate-plots.py
+# > web/hierarchy-building.pdf

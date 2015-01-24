@@ -17,7 +17,6 @@ def hashid(n):
 def create_bench(n):
     sconsf = open('SConstruct', 'w')
     bilgef = open('top.bilge', 'w')
-    tupf = open('Tupfile', 'w')
     open('Tupfile.ini', 'w')
     sconsf.write("""
 env = Environment(CPPPATH=['.'])
@@ -59,13 +58,6 @@ int main() {
 
 """ % hashid(i))
         f.close()
-        tupf.write("""
-# %d
-: %s.c | %s-generated.h |> gcc -o %%o %%f |> %s.exe
-
-: %s.exe |> ./%%f > %%o |> %s-generated.h
-""" % (i, hashid(i), hashid(i-1), hashid(i),
-       hashid(i), hashid(i)))
         bilgef.write("""
 # %d
 | gcc -o %s.exe %s.c

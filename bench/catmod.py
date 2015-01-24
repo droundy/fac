@@ -25,7 +25,6 @@ def hash_integer(n):
 def create_bench(n):
     sconsf = open('SConstruct', 'w')
     bilgef = open('top.bilge', 'w')
-    tupf = open('Tupfile', 'w')
     open('Tupfile.ini', 'w')
     sconsf.write("""
 env = Environment()
@@ -39,19 +38,14 @@ env = Environment()
     f = open('%s.txt' % hashid(0), 'w')
     f.write("Hello world\n")
     for i in range(1,n+1):
-        tupf.write("""
-# %d
-: %s.txt |> cat %%f > %%o |> %s.txt
-""" % (i, hashid(i-1), hashid(i)))
-        bilgef.write("""
-# %d
-| cat %s.txt > %s.txt
-> %s.txt
-< %s.txt
-""" % (i, hashid(i-1), hashid(i), hashid(i), hashid(i-1)))
         sconsf.write("""
 env.Command('%s.txt', '%s.txt', 'cat $SOURCE > $TARGET')
 """ % (hashid(i), hashid(i-1)))
+        bilgef.write("""
+| cat %s.txt > %s.txt
+< %s.txt
+> %s.txt
+""" % (hashid(i-1), hashid(i), hashid(i-1), hashid(i)))
 
 verbs = ['building', 'rebuilding', 'doing-nothing']
 

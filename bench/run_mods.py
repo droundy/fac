@@ -5,6 +5,7 @@ import os, hashlib, time, numpy, sys, datetime, subprocess
 import catmod
 import hiermod
 import depmod
+import sleepy
 
 minute = 60
 hour = 60*minute
@@ -28,9 +29,9 @@ date += subprocess.check_output(['git', 'log', '--pretty=%h', '-n',  '1'], stder
 
 datadir = os.getcwd()+'/bench/data/'
 os.makedirs(datadir, exist_ok=True)
-modules = [depmod, hiermod, catmod]
+modules = [sleepy, depmod, hiermod, catmod]
 
-rootdirnames = ['home', 'tmp'] # , 'vartmp']
+rootdirnames = ['tmp'] # , 'home'] # , 'vartmp']
 rootdirs = {'home': os.getcwd()+'/bench/temp',
             'tmp': '/tmp/benchmarking',
             'vartmp': '/var/tmp/benchmarking'}
@@ -87,7 +88,7 @@ while time.time() < start_benchmarking + time_limit:
             os.makedirs(mod.name+'-%d'%N)
             os.chdir(mod.name+'-%d'%N)
             mod.create_bench(N)
-            os.system('bilge --makefile Makefile --script build.sh > /dev/null && bilge -c > /dev/null && rm -f *.done')
+            os.system('bilge --makefile Makefile --script build.sh --tupfile Tupfile > /dev/null && bilge -c > /dev/null && rm -f *.done')
             os.chdir('..')
             for tool in tools:
                 print('')

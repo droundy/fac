@@ -8,9 +8,10 @@ import numpy as np
 import catmod
 import hiermod
 import depmod
+import sleepy
 
 datadir = os.getcwd()+'/bench/data/'
-modules = [depmod, catmod, hiermod]
+modules = [depmod, catmod, hiermod, sleepy]
 
 allcolors = ['r','b','g','k','c','y']
 allpatterns = ['o-', 's:', '*-.', '.-', 'x--', '<-', '>-', 'v-']

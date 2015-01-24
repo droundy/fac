@@ -86,8 +86,6 @@ gcc -m32 -Wall -Werror -O2 -std=c11 -g -o files-32.o -c files.c
 
 gcc -m32 -Wall -Werror -O2 -std=c11 -g -o bilge-32.o -c bilge.c
 
-python2 bench/generate-plots.py
-
 sass web/style.scss web/style.css
 
 python web/mkdown.py

@@ -32,7 +32,6 @@ def hash_integer(n):
 def create_bench(N):
     sconsf = open('SConstruct', 'w')
     bilgef = open('top.bilge', 'w')
-    tupf = open('Tupfile', 'w')
     open('Tupfile.ini', 'w')
     sconsf.write("""
 env = Environment(CPPPATH=['.'])
@@ -48,15 +47,6 @@ env = Environment(CPPPATH=['.'])
             nhere = hash_integer(xx) % N
             includes += '#include "%s.h"\n' % make_name(nhere)
             funcs += '    %s();\n' % hashid(nhere)
-        tupf.write("""
-# %d
-: %s.c |> gcc -I. -O2 -c -o %%o %%f |> %s.o
-""" % (i, make_name(i), make_name(i)))
-        bilgef.write("""
-# %d
-| gcc -I. -O2 -c -o %s.o %s.c
-> %s.o
-""" % (i, make_name(i), make_name(i), make_name(i)))
         sconsf.write("""
 env.Object('%s.c')
 """ % make_name(i))

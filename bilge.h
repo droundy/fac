@@ -114,6 +114,7 @@ void print_bilge_file(struct all_targets *all);
 void fprint_bilgefile(FILE *f, struct all_targets *tt, const char *bilgefile_path);
 
 void fprint_makefile(FILE *f, struct all_targets *tt, const char *root);
+void fprint_tupfile(FILE *f, struct all_targets *tt, const char *root);
 void fprint_script(FILE *f, struct all_targets *tt, const char *root);
 
 struct rule *run_rule(struct all_targets *all, struct rule *r);

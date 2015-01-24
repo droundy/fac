@@ -155,3 +155,36 @@ src="cat-doing-nothing.png" alt="more build times"/></a>
 This test should be close to identical to the previous one, but
 without the $\O{1}$ build cost.  Again, it looks boring because it
 doesn't (yet) cover very large builds.
+
+## Linear dependency chain, flat directory, sleeps
+
+The following is a highly artificial test to see if tools can build in
+an optimal order.  This test involves a buch of commands which sleep
+for a given amount of time before producing a file.  These commands
+are in dependency chains 3 commands long, and three of these chains
+are slow.  So a parallel build should start the slow builds
+immediately to finish in an optimal amount of time.  Naturally, there
+is no way to determine which builds are slow until the second try.
+<a href="sleepy-building.pdf"><img
+src="sleepy-building.png" alt="build times"/></a>
+
+### Initial build of sleeps
+
+This must be $\O{N}$, and should come out to around $2N$ seconds.  I
+expect that only luck can lead a tool to do a better job the first
+time around.
+<a href="sleepy-rebuilding.pdf"><img
+src="sleepy-rebuilding.png" alt="rebuild times"/></a>
+
+### Rebuild sleeps
+
+At this stage we should be able to finish rebuilding in $N$ seconds,
+which is faster than the initial build, if we paid attention to how
+much time the builds took the first time around.
+<a href="sleepy-doing-nothing.pdf"><img
+src="sleepy-doing-nothing.png" alt="more build times"/></a>
+
+### Doing no sleeping
+
+This final test should be the same as all the other "doing nothing"
+plots.

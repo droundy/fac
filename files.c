@@ -430,6 +430,43 @@ void fprint_script(FILE *f, struct all_targets *all, const char *root) {
   }
 }
 
+static void fprint_tupfile_rule(FILE *f, struct rule *r, const char *root) {
+  if (r->status == built) return;
+  r->status = built;
+  const int lenroot = strlen(root);
+  for (int i=0; i<r->num_inputs; i++) {
+    if (r->inputs[i]->rule) fprint_tupfile_rule(f, r->inputs[i]->rule, root);
+  }
+  fprintf(f, ": ");
+  for (int i=0; i<r->num_inputs; i++) {
+    if (is_in_root(r->inputs[i]->path, root)) {
+      fprint_makefile_escape(f, r->inputs[i]->path + lenroot+1);
+      fprintf(f, " ");
+    }
+  }
+  if (is_in_root(r->working_directory, root)) {
+    fprintf(f, "|> cd ");
+    fprint_makefile_escape(f, r->working_directory + lenroot+1);
+    fprintf(f, " && %s |>", r->command);
+  } else {
+    fprintf(f, "|> %s |>", r->command);
+  }
+  for (int i=0; i<r->num_outputs; i++) {
+    fprintf(f, " ");
+    fprint_makefile_escape(f, r->outputs[i]->path + lenroot+1);
+  }
+  fprintf(f, "\n\n");
+}
+
+void fprint_tupfile(FILE *f, struct all_targets *all, const char *root) {
+  for (struct rule *r = (struct rule *)all->r.first; r; r = (struct rule *)r->e.next) {
+    r->status = unknown;
+  }
+  for (struct rule *r = (struct rule *)all->r.first; r; r = (struct rule *)r->e.next) {
+    fprint_tupfile_rule(f, r, root);
+  }
+}
+
 void print_bilge_file(struct all_targets *tt) {
   for (struct rule *r = (struct rule *)tt->r.first; r; r = (struct rule *)r->e.next) {
     r->status = unknown;
