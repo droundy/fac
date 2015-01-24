@@ -23,5 +23,6 @@ if ../../bilge > bilge.out 2>&1; then
     exit 1
 fi
 cat bilge.out
+grep 'same output' bilge.out
 
 exit 0

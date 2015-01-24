@@ -234,13 +234,15 @@ void read_bilge_file(struct all_targets *all, const char *path) {
         if (therule) {
           char *path = absolute_path(the_directory, one_line+2);
           thetarget = create_target(all, path);
-          thetarget->rule = therule;
-          add_output(therule, thetarget);
-          for (int i=0; i<therule->num_outputs; i++) {
-            if (thetarget == therule->outputs[i]) {
-              last_modified_last_file = &therule->output_times[i];
-              size_last_file = &therule->output_sizes[i];
-              break;
+          if (!thetarget->rule || thetarget->rule == therule) {
+            thetarget->rule = therule;
+            add_output(therule, thetarget);
+            for (int i=0; i<therule->num_outputs; i++) {
+              if (thetarget == therule->outputs[i]) {
+                last_modified_last_file = &therule->output_times[i];
+                size_last_file = &therule->output_sizes[i];
+                break;
+              }
             }
           }
           free(path);

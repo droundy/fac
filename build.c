@@ -417,6 +417,9 @@ void parallel_build_all(struct all_targets *all, const char *root_, bool bilgefi
               }
               t = create_target_with_stat(all, path);
               if (t) {
+                if (t->rule && t->rule != r)
+                  error(1,0,"Two rules generate same output: %s\n| %s\n| %s",
+                        pretty_path(path), r->command, t->rule->command);
                 t->rule = r;
                 add_output(r, t);
               }
