@@ -105,6 +105,10 @@ void read_bilge_file(struct all_targets *all, const char *path) {
       last_modified_last_file = 0;
       break;
     case '|':
+      if (lookup_rule(all, one_line+2, the_directory)) {
+        error_at_line(1, 0, path, linenum,
+                      "duplicate rule:  %s\n", one_line+2);
+      }
       therule = create_rule(all, one_line+2, the_directory);
       therule->bilgefile_path = strdup(path);
       therule->bilgefile_linenum = linenum;
