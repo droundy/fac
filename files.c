@@ -105,10 +105,9 @@ void read_bilge_file(struct all_targets *all, const char *path) {
       last_modified_last_file = 0;
       break;
     case '|':
-      if (lookup_rule(all, one_line+2, the_directory)) {
+      if (lookup_rule(all, one_line+2, the_directory))
         error_at_line(1, 0, path, linenum,
-                      "duplicate rule:  %s\n", one_line+2);
-      }
+                      "duplicate rule:  %s", one_line+2);
       therule = create_rule(all, one_line+2, the_directory);
       therule->bilgefile_path = strdup(path);
       therule->bilgefile_linenum = linenum;
@@ -136,6 +135,9 @@ void read_bilge_file(struct all_targets *all, const char *path) {
       {
         char *path = absolute_path(the_directory, one_line+2);
         thetarget = create_target(all, path);
+        if (thetarget->rule)
+          error_at_line(1, 0, path, linenum,
+                        "two rules to create the same file: %s", one_line+2);
         thetarget->rule = therule;
         add_explicit_output(therule, thetarget);
         last_modified_last_file = &therule->output_times[therule->num_outputs-1];
