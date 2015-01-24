@@ -55,6 +55,10 @@ struct rule {
   int bilgefile_linenum;
   enum target_status status;
 
+  int num_cache_prefixes, num_cache_suffixes;
+  const char **cache_suffixes_reversed;
+  const char **cache_prefixes;
+
   int num_inputs, num_explicit_inputs;
   int input_array_size;
   struct target **inputs;
@@ -98,6 +102,8 @@ void add_input(struct rule *t, struct target *inp);
 void add_output(struct rule *t, struct target *out);
 void add_explicit_input(struct rule *r, struct target *dep);
 void add_explicit_output(struct rule *r, struct target *dep);
+void add_cache_prefix(struct rule *r, const char *prefix);
+void add_cache_suffix(struct rule *r, const char *suffix);
 
 struct target *lookup_target(struct all_targets *, const char *path);
 

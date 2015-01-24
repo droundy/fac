@@ -27,6 +27,19 @@ consists of:
    are generated files.  Even then, you need only specify the inputs
    if you wish to have the build reliably succeed on the first attempt.
 
+5. There are two ways to specify "cache" files.  A cache file is a
+   file that may be either read or written by a given command, but
+   doesn't affect the output and not itself an output.  One nice
+   example is the ".pyc" files sometimes generated when you run a
+   python program.  One python command may produce a .pyc file, and
+   another may read it (if they both use the same module), but that
+   does not mean that there is a dependency between those two
+   commands.  You can specify a cache suffix (such as `.pyc`) using a
+   `"c "` line, or you can specify a cache prefix (such as
+   `/home/droundy/.ccache`) using a capitalized `"C "` line.  The
+   latter can be helpful if you get error messages stating that your
+   rule is creating output outside your source tree.
+
 ## Running noname
 
 To run noname, you simply execute
@@ -63,10 +76,6 @@ with the following options.
    This is especially appealing for the continuous build mode.
 
 5. On BSD and Darwin systems, use ktrace rather than ptrace.
-
-7. Add syntax for specifying a cache directory, which will be ignored
-   for both outputs and inputs.  sass is an example that uses such a
-   cache directory that is likely to be in the tree.
 
 - Kill jobs on SIGINT (attempted, but not quite working)
 - Hashing of inputs

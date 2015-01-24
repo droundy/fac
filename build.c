@@ -278,6 +278,31 @@ static void find_elapsed_time() {
   }
 }
 
+static bool is_interesting_path(struct rule *r, const char *path) {
+  const int len = strlen(path);
+  for (int i=0;i<r->num_cache_prefixes;i++) {
+    bool matches = true;
+    for (int j=0;r->cache_prefixes[i][j];j++) {
+      if (path[j] != r->cache_prefixes[i][j]) {
+        matches = false;
+        break;
+      }
+    }
+    if (matches) return false;
+  }
+  for (int i=0;i<r->num_cache_suffixes;i++) {
+    bool matches = true;
+    for (int j=0;r->cache_suffixes_reversed[i][j];j++) {
+      if (path[len-j-1] != r->cache_suffixes_reversed[i][j]) {
+        matches = false;
+        break;
+      }
+    }
+    if (matches) return false;
+  }
+  return true;
+}
+
 void parallel_build_all(struct all_targets *all, const char *root_, bool bilgefiles_only) {
   root = root_;
   git_files_content = git_ls_files();
@@ -398,33 +423,39 @@ void parallel_build_all(struct all_targets *all, const char *root_, bool bilgefi
               }
             }
             for (char *path = start_iterating(&bs[i]->read); path; path = iterate(&bs[i]->read)) {
-              struct target *t = create_target_with_stat(all, path);
-              if (!t) error(1, errno, "Unable to input stat file %s", path);
-              add_input(r, t);
+              if (is_interesting_path(r, path)) {
+                struct target *t = create_target_with_stat(all, path);
+                if (!t) error(1, errno, "Unable to input stat file %s", path);
+                add_input(r, t);
+              }
             }
 
             for (char *path = start_iterating(&bs[i]->readdir); path; path = iterate(&bs[i]->readdir)) {
-              struct target *t = create_target_with_stat(all, path);
-              if (!t) error(1, errno, "Unable to stat directory %s", path);
-              add_input(r, t);
+              if (is_interesting_path(r, path)) {
+                struct target *t = create_target_with_stat(all, path);
+                if (!t) error(1, errno, "Unable to stat directory %s", path);
+                add_input(r, t);
+              }
             }
 
             for (char *path = start_iterating(&bs[i]->written); path; path = iterate(&bs[i]->written)) {
-              struct target *t = lookup_target(all, path);
-              if (t) {
-                t->last_modified = 0;
-                t->size = 0;
-              }
-              t = create_target_with_stat(all, path);
-              if (t) {
-                if (path == pretty_path(path))
-                  error(1,0,"Command created file outside source directory: %s\n| %s",
-                        path, r->command);
-                if (t->rule && t->rule != r)
-                  error(1,0,"Two rules generate same output: %s\n| %s\n| %s",
-                        pretty_path(path), r->command, t->rule->command);
-                t->rule = r;
-                add_output(r, t);
+              if (is_interesting_path(r, path)) {
+                struct target *t = lookup_target(all, path);
+                if (t) {
+                  t->last_modified = 0;
+                  t->size = 0;
+                }
+                t = create_target_with_stat(all, path);
+                if (t) {
+                  if (path == pretty_path(path))
+                    error(1,0,"Command created file outside source directory: %s\n| %s",
+                          path, r->command);
+                  if (t->rule && t->rule != r)
+                    error(1,0,"Two rules generate same output: %s\n| %s\n| %s",
+                          pretty_path(path), r->command, t->rule->command);
+                  t->rule = r;
+                  add_output(r, t);
+                }
               }
             }
 

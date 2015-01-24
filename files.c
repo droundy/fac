@@ -115,6 +115,22 @@ void read_bilge_file(struct all_targets *all, const char *path) {
       size_last_file = 0;
       last_modified_last_file = 0;
       break;
+    case 'C':
+      if (!therule)
+        error_at_line(1, 0, path, linenum,
+                      "\"C\" cache lines must follow a \"|\" command line");
+      {
+        char *path = absolute_path(the_directory, one_line+2);
+        add_cache_prefix(therule, path);
+        free(path);
+      }
+      break;
+    case 'c':
+      if (!therule)
+        error_at_line(1, 0, path, linenum,
+                      "\"c\" cache lines must follow a \"|\" command line");
+      add_cache_suffix(therule, one_line+2);
+      break;
     case '<':
       if (!therule)
         error_at_line(1, 0, path, linenum,

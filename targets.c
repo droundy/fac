@@ -56,6 +56,9 @@ struct rule *create_rule(struct all_targets *all,
   r->latency_estimate = 0;
   r->latency_handled = false;
 
+  r->num_cache_suffixes = r->num_cache_prefixes = 0;
+  r->cache_suffixes_reversed = r->cache_prefixes = 0;
+
   add_to_hash(&all->r, &r->e);
   return r;
 }
@@ -66,6 +69,23 @@ struct rule *lookup_rule(struct all_targets *all, const char *command,
   struct hash_entry *v = lookup_in_hash(&all->r, key);
   free(key);
   return (struct rule *)v;
+}
+
+void add_cache_prefix(struct rule *r, const char *prefix) {
+  r->cache_prefixes = realloc(r->cache_prefixes, sizeof(char *)*(r->num_cache_prefixes+1));
+  r->cache_prefixes[r->num_cache_prefixes] = strdup(prefix);
+  r->num_cache_prefixes++;
+}
+
+void add_cache_suffix(struct rule *r, const char *suffix) {
+  r->cache_suffixes_reversed = realloc(r->cache_suffixes_reversed,
+                                       sizeof(char *)*(r->num_cache_suffixes+1));
+  const int len = strlen(suffix);
+  char *reversed = malloc(len+1);
+  reversed[len] = 0;
+  for (int i=0;i<len;i++) reversed[i] = suffix[len-i];
+  r->cache_suffixes_reversed[r->num_cache_suffixes] = reversed;
+  r->num_cache_suffixes++;
 }
 
 void add_input(struct rule *r, struct target *dep) {
