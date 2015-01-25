@@ -19,6 +19,8 @@ struct target *create_target(struct all_targets *all, const char *path) {
     t->rule = 0;
     t->last_modified = 0;
     t->size = 0;
+    t->num_children = t->children_size = 0;
+    t->children = 0;
     insert_target(all, t);
   }
   return t;
@@ -52,7 +54,10 @@ struct rule *create_rule(struct all_targets *all,
   r->input_sizes = r->output_sizes = 0;
   r->bilgefile_path = 0;
   r->bilgefile_linenum = 0;
-  r->build_time = 0;
+  /* Initial guess of a second for build_time helps us build commands
+     with dependencies first, even if we don't know how long those
+     will actually take. */
+  r->build_time = 1;
   r->latency_estimate = 0;
   r->latency_handled = false;
 
@@ -108,6 +113,13 @@ void add_input(struct rule *r, struct target *dep) {
   r->input_times[r->num_inputs] = 0;
   r->input_sizes[r->num_inputs] = 0;
   r->num_inputs += 1;
+
+  dep->num_children++;
+  if (dep->num_children > dep->children_size) {
+    dep->children_size = dep->children_size*10+1;
+    dep->children = realloc(dep->children, dep->children_size * sizeof(struct rule *));
+  }
+  dep->children[dep->num_children-1] = r;
 }
 
 void add_output(struct rule *r, struct target *dep) {

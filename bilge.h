@@ -45,6 +45,8 @@ struct target {
   off_t size;
 
   struct rule *rule;
+  int num_children, children_size;
+  struct rule **children;
 };
 
 /* A struct rule describes a single build process. */

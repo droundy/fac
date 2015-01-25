@@ -175,9 +175,11 @@ static void find_latency(struct rule *r) {
   r->latency_handled = true;
   double maxchild = 0;
   for (int i=0;i<r->num_outputs;i++) {
-    find_latency(r->outputs[i]->rule);
-    if (r->outputs[i]->rule->latency_estimate > maxchild)
-      maxchild = r->outputs[i]->rule->latency_estimate;
+    for (int j=0;j<r->outputs[i]->num_children;j++) {
+      find_latency(r->outputs[i]->children[j]);
+      if (r->outputs[i]->children[j]->latency_estimate > maxchild)
+        maxchild = r->outputs[i]->children[j]->latency_estimate;
+    }
   }
   r->latency_estimate = r->build_time + maxchild;
 }
@@ -519,6 +521,7 @@ void parallel_build_all(struct all_targets *all, const char *root_,
     }
 
     if (!have_checked_for_impossibilities) {
+      have_checked_for_impossibilities = true;
       if (bilgefiles_only) {
         /* We are only building and parsing the bilgefiles. */
         delete_rule_list(&rules);
@@ -547,16 +550,14 @@ void parallel_build_all(struct all_targets *all, const char *root_,
           }
         }
       }
-      have_checked_for_impossibilities = true;
     }
 
     num_to_go = 0;
     for (struct rule_list *rr = rules; rr; rr = rr->next) {
       if (rr->r->status == dirty || rr->r->status == building) {
-        let_us_build(all, rr->r, &num_to_build, bs, num_jobs);
-        //printf("still need to build %s\n", rr->r->command);
         num_to_go++;
       }
+      if (rr->r->status == dirty) let_us_build(all, rr->r, &num_to_build, bs, num_jobs);
     }
     if (am_interrupted) {
       for (int i=0;i<num_jobs;i++) {
@@ -610,6 +611,15 @@ void clean_all(struct all_targets *all, const char *root_) {
   root = root_;
   for (struct target *t = (struct target *)all->t.first; t; t = (struct target *)t->e.next) {
     t->status = unknown;
+    int len = strlen(t->path);
+    if (len >= 6 && !strcmp(t->path+len-6, ".bilge")) {
+      char *donef = malloc(len + 20);
+      strcpy(donef, t->path);
+      strcat(donef, ".done");
+      printf("rm %s\n", donef);
+      unlink(donef);
+      free(donef);
+    }
   }
   for (struct rule *r = (struct rule *)all->r.first; r; r = (struct rule *)r->e.next) {
     for (int i=0;i<r->num_outputs;i++) {
