@@ -8,6 +8,7 @@
 #include <time.h>
 
 #include "lib/trie.h"
+#include "lib/listset.h"
 #include "lib/iterablehash.h"
 
 extern int num_jobs; /* number of jobs to run simultaneously */
@@ -110,6 +111,8 @@ struct target *lookup_target(struct all_targets *, const char *path);
 
 void read_bilge_file(struct all_targets *all, const char *path);
 
+char *absolute_path(const char *dir, const char *rel);
+
 void print_bilge_file(struct all_targets *all);
 void fprint_bilgefile(FILE *f, struct all_targets *tt, const char *bilgefile_path);
 
@@ -118,7 +121,8 @@ void fprint_tupfile(FILE *f, struct all_targets *tt, const char *root);
 void fprint_script(FILE *f, struct all_targets *tt, const char *root);
 
 struct rule *run_rule(struct all_targets *all, struct rule *r);
-void parallel_build_all(struct all_targets *all, const char *root, bool bilgefiles_only);
+void parallel_build_all(struct all_targets *all, const char *root,
+                        listset *cmd_line_args, bool bilgefiles_only);
 void clean_all(struct all_targets *all, const char *root);
 
 char *done_name(const char *bilgefile);

@@ -81,6 +81,15 @@ int main(int argc, const char **argv) {
   poptSetOtherOptionHelp(optCon, "[OPTIONS]* [things to build maybe?]");
 
   while (poptGetNextOpt(optCon) >= 0);
+
+  listset *cmd_line_args = 0;
+  const char *arg;
+  char *cwd = getcwd(0,0);
+  while ((arg = poptGetArg(optCon))) {
+    char *abspath = absolute_path(cwd, arg);
+    insert_to_listset(&cmd_line_args, abspath);
+  }
+  free(cwd);
   poptFreeContext(optCon);
 
   char *root = go_to_bilge_top();
@@ -93,10 +102,10 @@ int main(int argc, const char **argv) {
     init_hash_table(&all.t, 10000);
     create_target(&all, "top.bilge");
     if (clean_me) {
-      parallel_build_all(&all, root, true);
+      parallel_build_all(&all, root, cmd_line_args, true);
       clean_all(&all, root);
     } else {
-      parallel_build_all(&all, root, false);
+      parallel_build_all(&all, root, cmd_line_args, false);
     }
 
     if (create_makefile) {

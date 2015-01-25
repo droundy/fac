@@ -73,8 +73,6 @@ with the following options.
 
 ## To do list
 
-1. Add option to output a Makefile for the build.
-
 3. Add continuous build mode, in which we monitor input files for
    changes and rebuild as needed.  Ideally we would use inotify or
    similar to handle this with minimal CPU overhead.
@@ -88,8 +86,6 @@ with the following options.
 - Kill jobs on SIGINT (attempted, but not quite working)
 - Hashing of inputs
 - Tracking of environment variables
-
-- files to build on the command line
 
 - Enable bilge to call bilge recursively (requires ptrace effort)
 

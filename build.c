@@ -303,7 +303,8 @@ bool is_interesting_path(struct rule *r, const char *path) {
   return true;
 }
 
-void parallel_build_all(struct all_targets *all, const char *root_, bool bilgefiles_only) {
+void parallel_build_all(struct all_targets *all, const char *root_,
+                        listset *cmd_line_args, bool bilgefiles_only) {
   root = root_;
   git_files_content = git_ls_files();
   gettimeofday(&starting, 0);
@@ -334,9 +335,19 @@ void parallel_build_all(struct all_targets *all, const char *root_, bool bilgefi
     if (newstufftobuild) {
       delete_rule_list(&rules);
       for (struct rule *r = (struct rule *)all->r.first; r; r = (struct rule *)r->e.next) {
-        find_latency(r);
-        /* sadly, the following is O(N^2) */
-        if (r->status != clean) insert_rule_by_latency(&rules, r);
+        if (r->status == clean) continue;
+        bool buildthis = true;
+        if (cmd_line_args) {
+          buildthis = false;
+          for (int i=0;i<r->num_outputs;i++) {
+            buildthis = buildthis || is_in_listset(cmd_line_args, r->outputs[i]->path);
+          }
+        }
+        if (buildthis) {
+          find_latency(r);
+          /* sadly, the following is O(N^2) */
+          insert_rule_by_latency(&rules, r);
+        }
       }
     }
     double total_build_time = 0;

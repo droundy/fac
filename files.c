@@ -10,7 +10,7 @@
 #include <limits.h>
 #include <stdlib.h>
 
-static char *absolute_path(const char *dir, const char *rel) {
+char *absolute_path(const char *dir, const char *rel) {
   char *myrel = strdup(rel);
   if (*rel == '/') return myrel;
   int len = strlen(myrel);
