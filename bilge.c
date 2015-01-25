@@ -12,6 +12,7 @@
 #include <popt.h>
 
 #include "bilge.h"
+#include "new-build.h"
 
 char *go_to_bilge_top() {
   while (1) {
@@ -100,7 +101,28 @@ int main(int argc, const char **argv) {
     struct all_targets all;
     init_hash_table(&all.r, 1000);
     init_hash_table(&all.t, 10000);
+    all.ready_list = all.unready_list = all.clean_list = all.failed_list = all.marked_list = 0;
     create_target(&all, "top.bilge");
+
+    if (false) {
+      do {
+        for (struct target *t = (struct target *)all.t.first; t; t = (struct target *)t->e.next) {
+          if (t->status == unknown) {
+            t->status = built;
+            int len = strlen(t->path);
+            if (len >= 6 && !strcmp(t->path+len-6, ".bilge")) {
+              read_bilge_file(&all, t->path);
+            }
+          }
+        }
+        build_marked(&all, root);
+        mark_bilgefiles(&all);
+      } while (all.marked_list);
+      mark_all(&all);
+      build_marked(&all, root);
+      exit(0);
+    }
+
     if (clean_me) {
       parallel_build_all(&all, root, cmd_line_args, true);
       clean_all(&all, root);

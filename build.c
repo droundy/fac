@@ -113,15 +113,20 @@ static bool determine_rule_cleanliness(struct all_targets *all, struct rule *r,
                        r->inputs[i]->path,
                        r->inputs[i]->rule->outputs[0]->path);
       if (r->inputs[i]->rule->status == dirty ||
-          r->inputs[i]->rule->status == built ||
           r->inputs[i]->rule->status == building) {
         verbose_printf("::: %s :::\n", r->command);
         verbose_printf(" - dirty because %s needs to be rebuilt.\n",
                        r->inputs[i]->path);
-        r->status = dirty;
-        *num_to_build += 1;
-        return true;
+        goto it_is_unready;
       }
+    }
+  }
+  for (int i=0;i<r->num_inputs;i++) {
+    if (r->inputs[i]->rule && r->inputs[i]->rule->status == built) {
+      verbose_printf("::: %s :::\n", r->command);
+      verbose_printf(" - dirty because %s has been rebuilt.\n",
+                     r->inputs[i]->path);
+      goto it_is_dirty;
     }
     if (r->input_times[i]) {
       if (!create_target_with_stat(all, r->inputs[i]->path) ||
@@ -130,16 +135,12 @@ static bool determine_rule_cleanliness(struct all_targets *all, struct rule *r,
         verbose_printf("::: %s :::\n", r->command);
         verbose_printf(" - dirty because %s has wrong input time.\n",
                r->inputs[i]->path);
-        r->status = dirty;
-        *num_to_build += 1;
-        return true; /* The file is out of date. */
+        goto it_is_dirty;
       }
     } else {
       verbose_printf("::: %s :::\n", r->command);
       verbose_printf(" - dirty because #%d %s has no input time.\n", i, r->inputs[i]->path);
-      r->status = dirty;
-      *num_to_build += 1;
-      return true; /* The file hasn't been built. */
+      goto it_is_dirty;
     }
   }
   for (int i=0;i<r->num_outputs;i++) {
@@ -152,20 +153,45 @@ static bool determine_rule_cleanliness(struct all_targets *all, struct rule *r,
                r->outputs[i]->path);
         /* printf("   compare times %ld with %ld\n", */
         /*        r->outputs[i]->last_modified, r->output_times[i]); */
-        r->status = dirty;
-        *num_to_build += 1;
-        return true; /* The file is out of date. */
+        goto it_is_dirty;
       }
     } else {
       verbose_printf("::: %s :::\n", r->command);
       verbose_printf(" - dirty because %s has no output time.\n", r->outputs[i]->path);
-      r->status = dirty;
-      *num_to_build += 1;
-      return true; /* The file hasn't been built. */
+      goto it_is_dirty;
     }
   }
   r->status = clean;
+  put_rule_into_status_list(&all->clean_list, r);
   return false;
+ it_is_dirty:
+  r->status = dirty;
+  put_rule_into_status_list(&all->ready_list, r);
+ it_is_unready:
+  if (r->status == being_determined) {
+    r->status = dirty;
+    put_rule_into_status_list(&all->unready_list, r);
+  }
+  *num_to_build += 1;
+  for (int i=0;i<r->num_outputs;i++) {
+    for (int j=0;j<r->outputs[i]->num_children;j++) {
+      switch (r->outputs[i]->children[j]->status) {
+      case unknown:
+        r->outputs[i]->children[j]->status = dirty;
+        put_rule_into_status_list(&all->unready_list, r->outputs[i]->children[j]);
+        *num_to_build += 1;
+        break;
+      case clean:
+      case built:
+      case building:
+      case failed:
+        error(1,0,"BUGGY SOMETHING IN determine_rule_cleanliness");
+      default:
+        r->status = dirty; /* Nothing to do */
+      }
+    }
+  }
+  return true; /* The file hasn't been built. */
 }
 
 static void find_latency(struct rule *r) {
@@ -232,8 +258,8 @@ static struct building *build_rule_or_dependency(struct all_targets *all,
   return 0;
 }
 
-void let_us_build(struct all_targets *all, struct rule *r, int *num_to_build,
-                  struct building **bs, int num_threads) {
+static void let_us_build(struct all_targets *all, struct rule *r, int *num_to_build,
+                         struct building **bs, int num_threads) {
   for (int i=0;i<num_threads;i++) {
     if (!bs[i]) {
       bs[i] = build_rule_or_dependency(all, r, num_to_build);
@@ -336,16 +362,25 @@ void parallel_build_all(struct all_targets *all, const char *root_,
     }
     if (newstufftobuild) {
       delete_rule_list(&rules);
-      for (struct rule *r = (struct rule *)all->r.first; r; r = (struct rule *)r->e.next) {
-        if (r->status == clean) continue;
-        bool buildthis = true;
-        if (cmd_line_args) {
-          buildthis = false;
+      if (cmd_line_args) {
+        for (struct rule *r = (struct rule *)all->r.first; r; r = (struct rule *)r->e.next) {
+          if (r->status == clean) continue;
           for (int i=0;i<r->num_outputs;i++) {
-            buildthis = buildthis || is_in_listset(cmd_line_args, r->outputs[i]->path);
+            if (is_in_listset(cmd_line_args, r->outputs[i]->path)) {
+              find_latency(r);
+              /* sadly, the following is O(N^2) */
+              insert_rule_by_latency(&rules, r);
+              break;
+            }
           }
         }
-        if (buildthis) {
+      } else {
+        for (struct rule *r = all->ready_list; r; r = r->status_next) {
+          find_latency(r);
+          /* sadly, the following is O(N^2) */
+          insert_rule_by_latency(&rules, r);
+        }
+        for (struct rule *r = all->unready_list; r; r = r->status_next) {
           find_latency(r);
           /* sadly, the following is O(N^2) */
           insert_rule_by_latency(&rules, r);
@@ -394,10 +429,9 @@ void parallel_build_all(struct all_targets *all, const char *root_,
 
           if (bs[i]->all_done == built) {
             struct rule *r = bs[i]->rule;
+            put_rule_into_status_list(&all->clean_list, r);
             delete_rule(&rules, r);
             insert_to_listset(&bilgefiles_used, r->bilgefile_path);
-
-            /* FIXME We should verify that the inputs specified were actually used */
 
             /* Forget the non-explicit imputs, as we will re-add those
                inputs that were actually used in the build */
@@ -427,6 +461,7 @@ void parallel_build_all(struct all_targets *all, const char *root_,
                 printf("build failed to create: %s\n",
                        pretty_path(r->outputs[ii]->path));
                 r->status = failed;
+                put_rule_into_status_list(&all->failed_list, r);
                 num_failed++;
               } else {
                 t->rule = r;
@@ -469,6 +504,16 @@ void parallel_build_all(struct all_targets *all, const char *root_,
                   t->rule = r;
                   add_output(r, t);
                 }
+              }
+            }
+
+            /* Now let's make note that we may now be able to build
+               anything that depends on this build. */
+            for (int i=0;i<r->num_outputs;i++) {
+              for (int j=0;j<r->outputs[i]->num_children;j++) {
+                r->outputs[i]->children[j]->status = unknown;
+                int fake_num_to_build = 0;
+                determine_rule_cleanliness(all, r->outputs[i]->children[j], &fake_num_to_build);
               }
             }
 

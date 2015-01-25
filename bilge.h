@@ -29,6 +29,7 @@ enum target_status {
   built,
   building,
   failed,
+  marked, // means unknown, but want to build it
   unready, // means that it is dirty but we cannot yet build it
   dirty
 };
@@ -52,6 +53,10 @@ struct target {
 /* A struct rule describes a single build process. */
 struct rule {
   struct hash_entry e;
+  /* The status_next and status_prev fields are used for a
+     doubly-linked list of dirty files (or unready files).  Each rule
+     can have only one status, and can be in just one status list. */
+  struct rule *status_next, **status_prev;
   const char *command;
   const char *working_directory;
   const char *bilgefile_path;
@@ -83,6 +88,7 @@ struct rule {
    a simple linked list for now. */
 struct all_targets {
   struct hash_table t, r;
+  struct rule *ready_list, *unready_list, *clean_list, *failed_list, *marked_list;
 };
 
 /* The struct rule_list is just for optimizing the build.
@@ -108,6 +114,8 @@ void add_explicit_output(struct rule *r, struct target *dep);
 void add_cache_prefix(struct rule *r, const char *prefix);
 void add_cache_suffix(struct rule *r, const char *suffix);
 bool is_interesting_path(struct rule *r, const char *path);
+
+void put_rule_into_status_list(struct rule **list, struct rule *r);
 
 struct target *lookup_target(struct all_targets *, const char *path);
 

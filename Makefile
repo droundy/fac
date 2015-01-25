@@ -1,4 +1,4 @@
-all: tests/iterable_hash_test-32.test tests/spinner-32.test tests/trie-32.test tests/listset-32.test tests/arrayset-32.test tests/iterable_hash_test.test tests/spinner.test tests/trie.test tests/listset.test tests/arrayset.test lib/fileaccesses bilge git-32.o build-32.o targets-32.o files-32.o bilge-32.o web/benchmarks.html web/documentation.html temp.html web/style.css web/index.html .bilge
+all: tests/iterable_hash_test-32.test tests/spinner-32.test tests/trie-32.test tests/listset-32.test tests/arrayset-32.test tests/iterable_hash_test.test tests/spinner.test tests/trie.test tests/listset.test tests/arrayset.test lib/fileaccesses bilge git-32.o new-build-32.o build-32.o targets-32.o files-32.o bilge-32.o web/benchmarks.html web/documentation.html temp.html web/style.css web/index.html .bilge
 
 tests/iterable_hash_test-32.o : tests/iterable_hash_test.c lib/iterablehash.h
 	cd tests && gcc -m32 -Wall -Werror -O2 -std=c11 -g -o iterable_hash_test-32.o -c iterable_hash_test.c
@@ -87,7 +87,7 @@ lib/fileaccesses.o : lib/fileaccesses.c lib/bigbrother.h lib/arrayset.h
 lib/fileaccesses : lib/trie.o lib/listset.o lib/iterablehash.o lib/arrayset.o lib/bigbrother.o lib/fileaccesses.o
 	cd lib && gcc -lpopt -lprofiler -o fileaccesses fileaccesses.o trie.o listset.o iterablehash.o arrayset.o bigbrother.o
 
-bilge.o : bilge.c bilge.h lib/trie.h lib/listset.h lib/iterablehash.h
+bilge.o : bilge.c bilge.h lib/trie.h lib/listset.h lib/iterablehash.h new-build.h
 	gcc -Wall -Werror -O2 -std=c11 -g -c bilge.c
 
 files.o : files.c bilge.h lib/trie.h lib/listset.h lib/iterablehash.h
@@ -99,11 +99,14 @@ targets.o : targets.c bilge.h lib/trie.h lib/listset.h lib/iterablehash.h
 build.o : build.c bilge.h lib/trie.h lib/listset.h lib/iterablehash.h lib/bigbrother.h lib/arrayset.h
 	gcc -Wall -Werror -O2 -std=c11 -g -c build.c
 
+new-build.o : new-build.c bilge.h lib/trie.h lib/listset.h lib/iterablehash.h new-build.h lib/bigbrother.h lib/arrayset.h
+	gcc -Wall -Werror -O2 -std=c11 -g -c new-build.c
+
 git.o : git.c bilge.h lib/trie.h lib/listset.h lib/iterablehash.h
 	gcc -Wall -Werror -O2 -std=c11 -g -c git.c
 
-bilge : bilge.o files.o targets.o build.o git.o lib/trie.o lib/listset.o lib/iterablehash.o lib/arrayset.o lib/bigbrother.o
-	gcc -lpopt -lprofiler -o bilge bilge.o files.o targets.o build.o git.o lib/trie.o lib/listset.o lib/iterablehash.o lib/arrayset.o lib/bigbrother.o
+bilge : bilge.o files.o targets.o build.o new-build.o git.o lib/trie.o lib/listset.o lib/iterablehash.o lib/arrayset.o lib/bigbrother.o
+	gcc -lpopt -lprofiler -o bilge bilge.o files.o targets.o build.o new-build.o git.o lib/trie.o lib/listset.o lib/iterablehash.o lib/arrayset.o lib/bigbrother.o
 
 tests/trie.test : tests/trie.o lib/trie.o lib/listset.o lib/iterablehash.o lib/arrayset.o lib/bigbrother.o
 	gcc -lpthread -o tests/trie.test tests/trie.o lib/trie.o lib/listset.o lib/iterablehash.o lib/arrayset.o lib/bigbrother.o
@@ -113,6 +116,9 @@ tests/arrayset-32.test : tests/arrayset-32.o lib/trie-32.o lib/listset-32.o lib/
 
 git-32.o : git.c bilge.h lib/trie.h lib/listset.h lib/iterablehash.h
 	gcc -m32 -Wall -Werror -O2 -std=c11 -g -o git-32.o -c git.c
+
+new-build-32.o : new-build.c bilge.h lib/trie.h lib/listset.h lib/iterablehash.h new-build.h lib/bigbrother.h lib/arrayset.h
+	gcc -m32 -Wall -Werror -O2 -std=c11 -g -o new-build-32.o -c new-build.c
 
 build-32.o : build.c bilge.h lib/trie.h lib/listset.h lib/iterablehash.h lib/bigbrother.h lib/arrayset.h
 	gcc -m32 -Wall -Werror -O2 -std=c11 -g -o build-32.o -c build.c
@@ -126,7 +132,7 @@ targets-32.o : targets.c bilge.h lib/trie.h lib/listset.h lib/iterablehash.h
 files-32.o : files.c bilge.h lib/trie.h lib/listset.h lib/iterablehash.h
 	gcc -m32 -Wall -Werror -O2 -std=c11 -g -o files-32.o -c files.c
 
-bilge-32.o : bilge.c bilge.h lib/trie.h lib/listset.h lib/iterablehash.h
+bilge-32.o : bilge.c bilge.h lib/trie.h lib/listset.h lib/iterablehash.h new-build.h
 	gcc -m32 -Wall -Werror -O2 -std=c11 -g -o bilge-32.o -c bilge.c
 
 web/style.css : web/style.scss web/normalize.scss

@@ -66,15 +66,19 @@ gcc -Wall -Werror -O2 -std=c11 -g -c targets.c
 
 gcc -Wall -Werror -O2 -std=c11 -g -c build.c
 
+gcc -Wall -Werror -O2 -std=c11 -g -c new-build.c
+
 gcc -Wall -Werror -O2 -std=c11 -g -c git.c
 
-gcc -lpopt -lprofiler -o bilge bilge.o files.o targets.o build.o git.o lib/trie.o lib/listset.o lib/iterablehash.o lib/arrayset.o lib/bigbrother.o
+gcc -lpopt -lprofiler -o bilge bilge.o files.o targets.o build.o new-build.o git.o lib/trie.o lib/listset.o lib/iterablehash.o lib/arrayset.o lib/bigbrother.o
 
 gcc -lpthread -o tests/trie.test tests/trie.o lib/trie.o lib/listset.o lib/iterablehash.o lib/arrayset.o lib/bigbrother.o
 
 gcc -m32 -lpthread -o tests/arrayset-32.test tests/arrayset-32.o lib/trie-32.o lib/listset-32.o lib/iterablehash-32.o lib/arrayset-32.o
 
 gcc -m32 -Wall -Werror -O2 -std=c11 -g -o git-32.o -c git.c
+
+gcc -m32 -Wall -Werror -O2 -std=c11 -g -o new-build-32.o -c new-build.c
 
 gcc -m32 -Wall -Werror -O2 -std=c11 -g -o build-32.o -c build.c
 

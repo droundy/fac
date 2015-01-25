@@ -44,6 +44,8 @@ struct rule *create_rule(struct all_targets *all,
 
   r->e.key = rule_key(command, working_directory);
   r->e.next = 0;
+  r->status_next = 0;
+  r->status_prev = 0;
 
   r->status = unknown;
   r->num_inputs = r->num_outputs = 0;
@@ -66,6 +68,20 @@ struct rule *create_rule(struct all_targets *all,
 
   add_to_hash(&all->r, &r->e);
   return r;
+}
+
+void put_rule_into_status_list(struct rule **list, struct rule *r) {
+  /* remove from its former list */
+  if (r->status_prev) {
+    (*r->status_prev) = r->status_next;
+  }
+  if (r->status_next) {
+    r->status_next->status_prev = r->status_prev;
+  }
+  r->status_next = *list;
+  r->status_prev = list;
+  if (r->status_next) r->status_next->status_prev = &r->status_next;
+  *list = r;
 }
 
 struct rule *lookup_rule(struct all_targets *all, const char *command,
