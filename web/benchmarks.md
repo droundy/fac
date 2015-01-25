@@ -170,21 +170,14 @@ src="sleepy-building.png" alt="build times"/></a>
 
 ### Initial build of sleeps
 
-This must be $\O{N}$, and should come out to around $2N$ seconds.  I
-expect that only luck can lead a tool to do a better job the first
-time around.
-<a href="sleepy-rebuilding.pdf"><img
-src="sleepy-rebuilding.png" alt="rebuild times"/></a>
+This must be $\O{N}$, and should come out to somewhere between $N$ and
+$1.5N$ seconds.  I expect that only luck can lead a tool to do a
+better job the first time around.  <a
+href="sleepy-rebuilding.pdf"><img src="sleepy-rebuilding.png"
+alt="rebuild times"/></a>
 
 ### Rebuild sleeps
 
-At this stage we should be able to finish rebuilding in $N$ seconds,
+At this stage we should be able to finish rebuilding in $N-9$ seconds,
 which is faster than the initial build, if we paid attention to how
 much time the builds took the first time around.
-<a href="sleepy-doing-nothing.pdf"><img
-src="sleepy-doing-nothing.png" alt="more build times"/></a>
-
-### Doing no sleeping
-
-This final test should be the same as all the other "doing nothing"
-plots.

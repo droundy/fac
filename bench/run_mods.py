@@ -12,7 +12,7 @@ hour = 60*minute
 day = 24*hour
 time_limit = 3*day
 
-tools = [cmd+' -j4' for cmd in ['make', 'bilge', 'tup', 'scons']] + ['sh build.sh']
+tools = [cmd+' -j4' for cmd in ['make', 'bilge', 'tup', 'scons']] # + ['sh build.sh']
 
 # The variable "date" actually contains the date and short hash of the
 # commit information.  This could lead to confusion and incorrectness
@@ -70,13 +70,15 @@ def time_command(mod, builder):
     return the_time
 
 Ns = []
-Nfloat = 1.7782795
+Nfloat = 10.0
 start_benchmarking = time.time()
 while time.time() < start_benchmarking + time_limit:
     N = int(Nfloat)
     Ns.append(N)
     Nfloat *= 1.7782795
     for mod in modules:
+        if mod.name == 'sleepy' and N not in [56, 100, 177]:
+            continue
         print('\nWorking on %s with N = %d' % (mod.name, N))
         for rootdirname in rootdirnames:
             rootdir = rootdirs[rootdirname]

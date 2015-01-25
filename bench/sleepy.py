@@ -23,8 +23,10 @@ def hash_integer(n):
     return name
 
 def create_bench(n):
-    longsleep = n//3
+    longsleep = max((n-9)//3, 0)
     shortsleep = 1
+    if longsleep == 0:
+        shortsleep = 0
     final_indices = range(1,n+1,3)
     long_indices = [final_indices[0],
                     final_indices[(n//8) % len(final_indices)],
@@ -69,7 +71,7 @@ env.Command('%s.txt', [], 'sleep %d && echo %s > $TARGET')
        hashid(i+1), hashid(i+2), sleepiness,
        hashid(i+2), sleepiness, hashid(i)))
 
-verbs = ['building', 'rebuilding', 'doing-nothing']
+verbs = ['building', 'rebuilding']
 
 def prepare():
     return {'rebuilding': 'rm -f *.txt'}
