@@ -47,6 +47,11 @@ env = Environment(CPPPATH=['.'])
             nhere = hash_integer(xx) % N
             includes += '#include "%s.h"\n' % make_name(nhere)
             funcs += '    %s();\n' % hashid(nhere)
+        bilgef.write("""
+# %d
+| gcc -I. -O2 -c -o %s.o %s.c
+> %s.o
+""" % (i, make_name(i), make_name(i), make_name(i)))
         sconsf.write("""
 env.Object('%s.c')
 """ % make_name(i))
