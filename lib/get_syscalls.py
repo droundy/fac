@@ -45,7 +45,7 @@ const int %s%s[] = {""" % (name, postfix)
 
 for postfix in ['_32', '_64']:
     if os.uname()[4] == 'x86_64':
-        unistd_h = "/arch/x86/include/asm/unistd_64.h"
+        unistd_h = "/arch/x86/include/asm/unistd%s.h" % postfix
     else:
         unistd_h = "/arch/x86/include/asm/unistd_32.h"
 
@@ -64,6 +64,9 @@ for postfix in ['_32', '_64']:
     print """
 const char *syscalls%s[] = {""" % postfix
 
+    for i in range(maxnum):
+        if i not in sysnames:
+            sysnames[i] = 'unused'
     for i in range(maxnum):
         print '  "%s",' % sysnames[i]
 
