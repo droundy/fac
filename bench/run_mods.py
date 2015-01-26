@@ -63,7 +63,6 @@ def time_command(mod, builder):
         if verb in mod.prepare():
             assert(not os.system(mod.prepare()[verb]))
         start = time.time()
-        print(cmd)
         assert(not os.system(cmd))
         stop = time.time()
         print('%s %s took %g seconds.' % (verb, builder, stop - start))
