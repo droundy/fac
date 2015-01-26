@@ -63,6 +63,7 @@ def time_command(mod, builder):
         if verb in mod.prepare():
             assert(not os.system(mod.prepare()[verb]))
         start = time.time()
+        print(cmd)
         assert(not os.system(cmd))
         stop = time.time()
         print('%s %s took %g seconds.' % (verb, builder, stop - start))
@@ -90,7 +91,7 @@ while time.time() < start_benchmarking + time_limit:
             os.makedirs(mod.name+'-%d'%N)
             os.chdir(mod.name+'-%d'%N)
             mod.create_bench(N)
-            os.system('bilge --makefile Makefile --script build.sh --tupfile Tupfile > /dev/null && bilge -c > /dev/null && rm -f *.done')
+            assert(not os.system('bilge --makefile Makefile --script build.sh --tupfile Tupfile > /dev/null && bilge -c > /dev/null && rm -f *.done'))
             os.chdir('..')
             for tool in tools:
                 print('')

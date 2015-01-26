@@ -144,6 +144,26 @@ int main(int argc, const char **argv) {
       check_for_impossibilities(&all, root);
       build_marked(&all, root);
       summarize_build_results(&all);
+
+      if (create_makefile) {
+        FILE *f = fopen(create_makefile, "w");
+        if (!f) error(1,errno, "Unable to create makefile: %s", create_makefile);
+        fprint_makefile(f, &all, root);
+        fclose(f);
+      }
+      if (create_tupfile) {
+        FILE *f = fopen(create_tupfile, "w");
+        if (!f) error(1,errno, "Unable to create makefile: %s", create_tupfile);
+        fprint_tupfile(f, &all, root);
+        fclose(f);
+      }
+      if (create_script) {
+        FILE *f = fopen(create_script, "w");
+        if (!f) error(1,errno, "Unable to create script: %s", create_script);
+        fprint_script(f, &all, root);
+        fclose(f);
+      }
+
       exit(0);
     }
 
