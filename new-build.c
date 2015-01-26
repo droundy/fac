@@ -125,6 +125,7 @@ void check_cleanliness(struct all_targets *all, struct rule *r) {
                       r->inputs[i]->path,
                       r->inputs[i]->rule->outputs[0]->path);
       if (r->inputs[i]->rule->status == dirty ||
+          r->inputs[i]->rule->status == unready ||
           r->inputs[i]->rule->status == building) {
         r->status = unready;
         if (old_status == unready) {
