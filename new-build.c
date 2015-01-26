@@ -129,7 +129,6 @@ void check_cleanliness(struct all_targets *all, struct rule *r) {
         r->status = unready;
         if (old_status == unready) {
           r->status = unready;
-          printf("was alredy unredy\n");
           return; /* no change so we can just set status back to what it was. */
         }
         verbose_printf("::: %s :::\n", r->command);
@@ -218,6 +217,17 @@ struct building {
   arrayset readdir, read, written, deleted;
 };
 
+void remove_from_status_list(struct rule *r) {
+  if (r->status_prev) {
+    *(r->status_prev) = r->status_next;
+  }
+  if (r->status_next) {
+    r->status_next->status_prev = r->status_prev;
+  }
+  r->status_prev = 0;
+  r->status_next = 0;
+}
+
 static struct building *build_rule(struct all_targets *all,
                                    struct rule *r) {
   assert(r);
@@ -232,8 +242,8 @@ static struct building *build_rule(struct all_targets *all,
   unlink(namebuf);
   free(namebuf);
   b->all_done = building;
-  mark_rule(all, r);
   r->status = building;
+  put_rule_into_status_list(&all->running_list, r);
   return b;
 }
 
@@ -368,7 +378,6 @@ void build_marked(struct all_targets *all, const char *root_) {
   for (struct rule *r = all->marked_list; r; r = all->marked_list) {
     check_cleanliness(all, r);
   }
-  printf("am ready to loop\n");
 
   listset *bilgefiles_used = 0;
   do {
@@ -530,7 +539,7 @@ void build_marked(struct all_targets *all, const char *root_) {
 
       exit(1);
     }
-  } while (all->ready_list);
+  } while (all->ready_list || all->running_list);
 
   while (bilgefiles_used) {
     char *donefile = done_name(bilgefiles_used->path);
@@ -542,16 +551,18 @@ void build_marked(struct all_targets *all, const char *root_) {
     bilgefiles_used = bilgefiles_used->next;
   }
 
-  printf("hello world I am almost done.\n");
+  free(bs);
+  sigaction(SIGINT, &oldact, 0);
+}
 
+void summarize_build_results(struct all_targets *all) {
   if (all->failed_list || all->failed_num) {
-    printf("Failed\n");
+    printf("Build failed %d/%d failures\n", all->failed_num,
+           all->failed_num + all->built_num);
     exit(1);
   } else {
     find_elapsed_time();
     printf("Build succeeded! %.0f:%05.2f      \n",
            elapsed_minutes, elapsed_seconds);
   }
-  free(bs);
-  sigaction(SIGINT, &oldact, 0);
 }

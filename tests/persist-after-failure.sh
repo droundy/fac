@@ -11,7 +11,7 @@ cat > top.bilge <<EOF
 | echo foo > foo
 > foo
 
-| cat foo bar > foobar
+| cat foo bar baz > foobar
 > foobar
 
 | echo bar > bar
@@ -19,10 +19,27 @@ cat > top.bilge <<EOF
 
 EOF
 
-../../bilge || true
+if ../../bilge > bilge.out; then
+    echo This should have failed
+    cat bilge.out
+    exit 1
+fi
+cat bilge.out
 
 grep foo foo
 grep bar bar
+
+cat > top.bilge <<EOF
+| echo foo > foo
+> foo
+
+| cat foo bar > foobar
+> foobar
+
+| echo bar > bar
+> bar
+
+EOF
 
 ../../bilge
 

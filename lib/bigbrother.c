@@ -147,7 +147,9 @@ static int absolute_path(char *path_buffer, pid_t child, const char *path) {
   }
   char *dirname = getcwd(0, 0);
   chdir(filename);
-  realpath(path, path_buffer);
+  if (!realpath(path, path_buffer)) {
+    *path_buffer = 0; /* in case of trouble, make it an empty string */
+  }
   chdir(dirname);
   free(dirname);
   free(filename);
