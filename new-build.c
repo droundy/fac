@@ -232,6 +232,7 @@ static struct building *build_rule(struct all_targets *all,
   unlink(namebuf);
   free(namebuf);
   b->all_done = building;
+  mark_rule(all, r);
   r->status = building;
   return b;
 }
@@ -342,11 +343,15 @@ void check_for_impossibilities(struct all_targets *all, const char *_root) {
 }
 
 void build_marked(struct all_targets *all, const char *root_) {
+  if (!root) root = root_;
+  if (!git_files_content) git_files_content = git_ls_files();
   if (!all->marked_list && !all->ready_list) {
+    if (all->failed_num) {
+      printf("Failed to build %d files.\n", all->failed_num);
+      exit(1);
+    }
     return; /* nothing to build */
   }
-  root = root_;
-  git_files_content = git_ls_files();
   gettimeofday(&starting, 0);
 
   if (!num_jobs) num_jobs = sysconf(_SC_NPROCESSORS_ONLN);
@@ -482,13 +487,6 @@ void build_marked(struct all_targets *all, const char *root_) {
           }
           built_rule(all, r);
           insert_to_listset(&bilgefiles_used, r->bilgefile_path);
-          for (int i=0;i<r->num_outputs;i++) {
-            int len = strlen(r->outputs[i]->path);
-            if (len >= 6 && !strcmp(r->outputs[i]->path+len-6, ".bilge")) {
-              printf("Reading %s\n", r->outputs[i]->path);
-              read_bilge_file(all, r->outputs[i]->path);
-            }
-          }
 
           munmap(bs[i], sizeof(struct building));
           bs[i] = 0;
@@ -496,10 +494,17 @@ void build_marked(struct all_targets *all, const char *root_) {
       }
     }
 
-    for (struct rule *next, *r = all->ready_list; r && threads_in_use < num_jobs; r = next) {
-      next = r->status_next;
-      threads_in_use++;
-      let_us_build(all, all->ready_list, bs);
+    {
+      int N = num_jobs - threads_in_use;
+      struct rule **toqueue = calloc(N, sizeof(struct rule *));
+      int i = 0;
+      for (struct rule *r = all->ready_list; r && i < N; r = r->status_next) {
+        toqueue[i++] = r;
+      }
+      for (i=0;i<N;i++) {
+        if (toqueue[i]) let_us_build(all, toqueue[i], bs);
+      }
+      free(toqueue);
     }
     if (am_interrupted) {
       for (int i=0;i<num_jobs;i++) {
@@ -521,6 +526,7 @@ void build_marked(struct all_targets *all, const char *root_) {
         free(donefile);
         bilgefiles_used = bilgefiles_used->next;
       }
+      printf("I was interrreuptedsgs\n");
 
       exit(1);
     }
@@ -535,6 +541,8 @@ void build_marked(struct all_targets *all, const char *root_) {
     free(donefile);
     bilgefiles_used = bilgefiles_used->next;
   }
+
+  printf("hello world I am almost done.\n");
 
   if (all->failed_list || all->failed_num) {
     printf("Failed\n");

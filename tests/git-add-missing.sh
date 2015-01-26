@@ -26,7 +26,7 @@ if ../../bilge > bilge.out; then
 fi
 cat bilge.out
 
-rm foobar
+rm -f foobar
 git add bar
 
 ../../bilge
