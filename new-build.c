@@ -56,11 +56,15 @@ void rule_is_clean(struct all_targets *all, struct rule *r) {
   put_rule_into_status_list(&all->clean_list, r);
 }
 void rule_is_ready(struct all_targets *all, struct rule *r) {
+  if (r->status == unready) all->unready_num--;
+  all->ready_num++;
   r->status = dirty;
   put_rule_into_status_list(&all->ready_list, r);
 }
 void built_rule(struct all_targets *all, struct rule *r) {
   r->status = built;
+  all->ready_num--;
+  all->built_num++;
   put_rule_into_status_list(&all->clean_list, r);
   for (int i=0;i<r->num_outputs;i++) {
     for (int j=0;j<r->outputs[i]->num_children;j++) {
@@ -70,6 +74,12 @@ void built_rule(struct all_targets *all, struct rule *r) {
 }
 void rule_failed(struct all_targets *all, struct rule *r) {
   if (r->status == failed) return; /* just in case! */
+  if (r->status == unready) {
+    all->unready_num--;
+  } else {
+    all->ready_num--;
+  }
+  all->failed_num++;
   r->status = failed;
   put_rule_into_status_list(&all->clean_list, r);
   for (int i=0;i<r->num_outputs;i++) {
@@ -80,7 +90,7 @@ void rule_failed(struct all_targets *all, struct rule *r) {
 }
 void rule_is_unready(struct all_targets *all, struct rule *r) {
   r->status = unready;
-  printf("have to wait to %s\n", r->command);
+  all->unready_num++;
   put_rule_into_status_list(&all->unready_list, r);
 }
 
@@ -104,8 +114,10 @@ void check_cleanliness(struct all_targets *all, struct rule *r) {
   r->status = being_determined;
   for (int i=0;i<r->num_inputs;i++) {
     if (r->inputs[i]->rule) {
-      if (r->inputs[i]->rule->status == unknown)
+      if (r->inputs[i]->rule->status == unknown ||
+          r->inputs[i]->rule->status == marked) {
         check_cleanliness(all, r->inputs[i]->rule);
+      }
       if (r->inputs[i]->rule->status == being_determined)
         error_at_line(1, 0, r->bilgefile_path, r->bilgefile_linenum,
                       "CYCLE INVOLVING %s and %s\n  and %s\n",
@@ -129,6 +141,7 @@ void check_cleanliness(struct all_targets *all, struct rule *r) {
     }
   }
   if (old_status == unready) {
+    all->unready_num--;
     rule_is_ready(all, r);
     /* FIXME if we get to the point of checking output content, then
        we will want to change this bit so sometimes it will result in
@@ -300,25 +313,8 @@ static void find_elapsed_time() {
   }
 }
 
-void build_marked(struct all_targets *all, const char *root_) {
-  if (!all->marked_list) {
-    return; /* nothing to build */
-  }
-  root = root_;
-  git_files_content = git_ls_files();
-  gettimeofday(&starting, 0);
-
-  if (!num_jobs) num_jobs = sysconf(_SC_NPROCESSORS_ONLN);
-  verbose_printf("Using %d jobs\n", num_jobs);
-
-  struct building **bs = malloc(num_jobs*sizeof(struct building *));
-  for (int i=0;i<num_jobs;i++) bs[i] = 0;
-  struct sigaction act, oldact;
-  act.sa_handler = handle_interrupt;
-  sigemptyset(&act.sa_mask);
-  act.sa_flags = 0;
-  sigaction(SIGINT, &act, &oldact);
-
+void check_for_impossibilities(struct all_targets *all, const char *_root) {
+  root = _root;
   for (struct rule *r = all->marked_list; r; r = all->marked_list) {
     check_cleanliness(all, r);
   }
@@ -343,6 +339,31 @@ void build_marked(struct all_targets *all, const char *root_) {
       }
     }
   }
+}
+
+void build_marked(struct all_targets *all, const char *root_) {
+  if (!all->marked_list && !all->ready_list) {
+    return; /* nothing to build */
+  }
+  root = root_;
+  git_files_content = git_ls_files();
+  gettimeofday(&starting, 0);
+
+  if (!num_jobs) num_jobs = sysconf(_SC_NPROCESSORS_ONLN);
+  verbose_printf("Using %d jobs\n", num_jobs);
+
+  struct building **bs = malloc(num_jobs*sizeof(struct building *));
+  for (int i=0;i<num_jobs;i++) bs[i] = 0;
+  struct sigaction act, oldact;
+  act.sa_handler = handle_interrupt;
+  sigemptyset(&act.sa_mask);
+  act.sa_flags = 0;
+  sigaction(SIGINT, &act, &oldact);
+
+  for (struct rule *r = all->marked_list; r; r = all->marked_list) {
+    check_cleanliness(all, r);
+  }
+  printf("am ready to loop\n");
 
   listset *bilgefiles_used = 0;
   do {
@@ -357,7 +378,10 @@ void build_marked(struct all_targets *all, const char *root_) {
         if (bs[i] && bs[i]->pid == pid) {
           threads_in_use--;
           bs[i]->rule->build_time = bs[i]->build_time;
-          printf("[%.2fs]: %s\n", bs[i]->rule->build_time, bs[i]->rule->command);
+          printf("%d/%d [%.2fs]: %s\n",
+                 1 + all->failed_num + all->built_num,
+                 all->failed_num + all->built_num + all->ready_num + all->unready_num,
+                 bs[i]->rule->build_time, bs[i]->rule->command);
           if (bs[i]->all_done != built || show_output) {
             off_t stdoutlen = lseek(bs[i]->stdouterrfd, 0, SEEK_END);
             off_t myoffset = 0;
@@ -472,8 +496,10 @@ void build_marked(struct all_targets *all, const char *root_) {
       }
     }
 
-    for (struct rule *r = all->ready_list; r; r = r->status_next) {
-      let_us_build(all, r, bs);
+    for (struct rule *next, *r = all->ready_list; r && threads_in_use < num_jobs; r = next) {
+      next = r->status_next;
+      threads_in_use++;
+      let_us_build(all, all->ready_list, bs);
     }
     if (am_interrupted) {
       for (int i=0;i<num_jobs;i++) {
@@ -510,7 +536,7 @@ void build_marked(struct all_targets *all, const char *root_) {
     bilgefiles_used = bilgefiles_used->next;
   }
 
-  if (all->failed_list) {
+  if (all->failed_list || all->failed_num) {
     printf("Failed\n");
     exit(1);
   } else {

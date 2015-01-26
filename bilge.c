@@ -102,23 +102,34 @@ int main(int argc, const char **argv) {
     init_hash_table(&all.r, 1000);
     init_hash_table(&all.t, 10000);
     all.ready_list = all.unready_list = all.clean_list = all.failed_list = all.marked_list = 0;
+    all.ready_num = all.unready_num = all.failed_num = all.built_num = 0;
+    all.estimated_time = 0;
     create_target(&all, "top.bilge");
 
     if (false) {
+      bool still_reading;
       do {
+        still_reading = false;
         for (struct target *t = (struct target *)all.t.first; t; t = (struct target *)t->e.next) {
           if (t->status == unknown) {
             t->status = built;
             int len = strlen(t->path);
             if (len >= 6 && !strcmp(t->path+len-6, ".bilge")) {
+              printf("reading %s\n", t->path);
+              still_reading = true;
               read_bilge_file(&all, t->path);
             }
           }
         }
         build_marked(&all, root);
         mark_bilgefiles(&all);
-      } while (all.marked_list);
+      } while (all.marked_list || still_reading);
+      if (clean_me) {
+        clean_all(&all, root);
+        exit(0);
+      }
       mark_all(&all);
+      check_for_impossibilities(&all, root);
       build_marked(&all, root);
       exit(0);
     }

@@ -89,6 +89,8 @@ struct rule {
 struct all_targets {
   struct hash_table t, r;
   struct rule *ready_list, *unready_list, *clean_list, *failed_list, *marked_list;
+  int ready_num, unready_num, failed_num, built_num;
+  double estimated_time;
 };
 
 /* The struct rule_list is just for optimizing the build.

@@ -21,7 +21,7 @@ EOF
 
 echo good > input
 
-../../bilge
+../../bilge -v
 
 grep good foo
 grep good bar

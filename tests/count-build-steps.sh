@@ -32,7 +32,7 @@ cat > subdir/.bilge <<EOF
 
 EOF
 
-../../bilge
+../../bilge -v
 
 grep foo foobar
 grep bar foobar
