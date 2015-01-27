@@ -22,8 +22,7 @@ int main(int argc, char **argv) {
   char **args = (char **)malloc(argc*sizeof(char*));
   memcpy(args, argv+1, (argc-1) * sizeof(char*));
   args[argc-1] = NULL;
-  pid_t child;
-  bigbrother_process_arrayset(".", args, &child, read_from_directories,
+  bigbrother_process_arrayset(".", args, read_from_directories,
                               read_from_files, written_to_files, deleted_files);
   free(args);
 

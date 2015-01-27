@@ -8,7 +8,6 @@
    processes simultaneously in different threads.  */
 int bigbrother_process_arrayset(const char *workingdir,
                                 char **args,
-                                pid_t *store_child_pid_here,
                                 arrayset *readdir,
                                 arrayset *read,
                                 arrayset *written,

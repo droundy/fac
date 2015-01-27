@@ -469,7 +469,6 @@ static int save_syscall_access_arrayset(pid_t child,
 
 int bigbrother_process_arrayset(const char *workingdir,
                                 char **args,
-                                pid_t *store_child_pid_here,
                                 arrayset *read_from_directories,
                                 arrayset *read_from_files,
                                 arrayset *written_to_files,
@@ -486,7 +485,6 @@ int bigbrother_process_arrayset(const char *workingdir,
     kill(getpid(), SIGSTOP);
     return execvp(args[0], args);
   } else {
-    *store_child_pid_here = child;
     int num_programs = 1;
     waitpid(-1, 0, __WALL);
     ptrace(PTRACE_SETOPTIONS, child, 0, my_ptrace_options);

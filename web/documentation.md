@@ -79,7 +79,6 @@ with the following options.
 
 5. On BSD and Darwin systems, use ktrace rather than ptrace.
 
-- Kill jobs on SIGINT (attempted, but not quite working)
 - Hashing of inputs
 - Tracking of environment variables
 

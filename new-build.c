@@ -211,7 +211,6 @@ static bool is_in_git(const char *path) {
 struct building {
   int all_done;
   pid_t pid;
-  pid_t grandchild_pid;
   int stdouterrfd;
   double build_time;
   struct rule *rule;
@@ -263,6 +262,7 @@ void let_us_build(struct all_targets *all, struct rule *r,
         initialize_arrayset(&b->deleted);
         b->all_done = dirty;
 
+        setpgid(0,0); // causes children to be killed along with this
         close(1);
         close(2);
         dup(b->stdouterrfd);
@@ -277,7 +277,6 @@ void let_us_build(struct all_targets *all, struct rule *r,
         gettimeofday(&started, 0);
         int ret = bigbrother_process_arrayset(b->rule->working_directory,
                                               (char **)args,
-                                              &b->grandchild_pid,
                                               &b->readdir,
                                               &b->read, &b->written, &b->deleted);
         struct timeval stopped;
@@ -519,13 +518,19 @@ void build_marked(struct all_targets *all, const char *root_) {
     if (am_interrupted) {
       for (int i=0;i<num_jobs;i++) {
         if (bs[i]) {
-          kill(bs[i]->grandchild_pid, SIGTERM);
-          kill(bs[i]->pid, SIGTERM);
+          verbose_printf("killing %d (%s)\n", bs[i]->pid, bs[i]->rule->command);
+          kill(-bs[i]->pid, SIGTERM); /* ask child to die */
+        }
+      }
+      sleep(1); /* give them a second to die politely */
+      for (int i=0;i<num_jobs;i++) {
+        if (bs[i]) {
+          kill(-bs[i]->pid, SIGKILL); /* now kill with extreme prejudice */
           munmap(bs[i], sizeof(struct building));
           bs[i] = 0;
         }
       }
-      printf("Interrupted!                    \n");
+      printf("Interrupted!                         \n");
 
       while (bilgefiles_used) {
         char *donefile = done_name(bilgefiles_used->path);
@@ -536,7 +541,6 @@ void build_marked(struct all_targets *all, const char *root_) {
         free(donefile);
         bilgefiles_used = bilgefiles_used->next;
       }
-      printf("I was interrreuptedsgs\n");
 
       exit(1);
     }

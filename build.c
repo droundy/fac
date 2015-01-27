@@ -49,7 +49,6 @@ static struct target *create_target_with_stat(struct all_targets *all,
 struct building {
   int all_done;
   pid_t pid;
-  pid_t grandchild_pid;
   int stdouterrfd;
   double build_time;
   struct rule *rule;
@@ -79,7 +78,6 @@ static void *run_parallel_rule(void *void_building) {
   gettimeofday(&started, 0);
   int ret = bigbrother_process_arrayset(b->rule->working_directory,
                                         (char **)args,
-                                        &b->grandchild_pid,
                                         &b->readdir,
                                         &b->read, &b->written, &b->deleted);
   struct timeval stopped;
@@ -607,7 +605,6 @@ void parallel_build_all(struct all_targets *all, const char *root_,
     if (am_interrupted) {
       for (int i=0;i<num_jobs;i++) {
         if (bs[i]) {
-          kill(bs[i]->grandchild_pid, SIGTERM);
           kill(bs[i]->pid, SIGTERM);
           munmap(bs[i], sizeof(struct building));
           bs[i] = 0;
