@@ -55,11 +55,46 @@ void rule_is_clean(struct all_targets *all, struct rule *r) {
   r->status = clean;
   put_rule_into_status_list(&all->clean_list, r);
 }
+static void find_latency(struct rule *r) {
+  if (r->latency_handled) return;
+  r->latency_handled = true;
+  double maxchild = 0;
+  for (int i=0;i<r->num_outputs;i++) {
+    for (int j=0;j<r->outputs[i]->num_children;j++) {
+      find_latency(r->outputs[i]->children[j]);
+      if (r->outputs[i]->children[j]->latency_estimate > maxchild)
+        maxchild = r->outputs[i]->children[j]->latency_estimate;
+    }
+  }
+  r->latency_estimate = r->build_time + maxchild;
+}
 void rule_is_ready(struct all_targets *all, struct rule *r) {
   if (r->status == unready) all->unready_num--;
   all->ready_num++;
   r->status = dirty;
-  put_rule_into_status_list(&all->ready_list, r);
+
+  /* remove from its former list */
+  if (r->status_prev) {
+    (*r->status_prev) = r->status_next;
+  }
+  if (r->status_next) {
+    r->status_next->status_prev = r->status_prev;
+  }
+
+  /* the following keeps the read_list sorted by latency */
+
+  /* Note that this costs O(N) in the number of ready jobs, and thus
+     could be very expensive.  So we probably should throttle this
+     feature based on the number of ready jobs. */
+  find_latency(r);
+  struct rule **list = &all->ready_list;
+  while (*list && (*list)->latency_estimate > r->latency_estimate) {
+    list = &(*list)->status_next;
+  }
+  r->status_next = *list;
+  r->status_prev = list;
+  if (r->status_next) r->status_next->status_prev = &r->status_next;
+  *list = r;
 }
 void built_rule(struct all_targets *all, struct rule *r) {
   r->status = built;
