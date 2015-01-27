@@ -112,7 +112,10 @@ int main(int argc, const char **argv) {
       do {
         still_reading = false;
         for (struct target *t = (struct target *)all.t.first; t; t = (struct target *)t->e.next) {
-          if (t->status == unknown) {
+          if (t->status == unknown &&
+              (!t->rule ||
+               t->rule->status == clean ||
+               t->rule->status == built)) {
             t->status = built;
             int len = strlen(t->path);
             if (len >= 6 && !strcmp(t->path+len-6, ".bilge")) {
@@ -122,6 +125,19 @@ int main(int argc, const char **argv) {
           }
         }
         build_marked(&all, root);
+        for (struct target *t = (struct target *)all.t.first; t; t = (struct target *)t->e.next) {
+          if (t->status == unknown &&
+              (!t->rule ||
+               t->rule->status == clean ||
+               t->rule->status == built)) {
+            t->status = built;
+            int len = strlen(t->path);
+            if (len >= 6 && !strcmp(t->path+len-6, ".bilge")) {
+              still_reading = true;
+              read_bilge_file(&all, t->path);
+            }
+          }
+        }
         mark_bilgefiles(&all);
       } while (all.marked_list || still_reading);
       if (clean_me) {

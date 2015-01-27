@@ -73,23 +73,9 @@ with the following options.
 
 ## To do list
 
-1. Change parallel_build_all to a more flexible function that builds a
-   given set of files (specified by a closure).  Thus this function
-   gets called twice, once for the bilgefiles, and once for the build
-   itself.  Or maybe it gets called many times for the bilgefiles, in
-   a loop.  Thus the build targets could be specified as a listset
-   rather than a closure.  This new function should be precise, in the
-   sense that it identifies the dirtiness of a rule only once, and
-   after that never loops over all rules, or even all dirty rules.
-   (Just all ready rules.)
-
 3. Add continuous build mode, in which we monitor input files for
    changes and rebuild as needed.  Ideally we would use inotify or
    similar to handle this with minimal CPU overhead.
-
-4. Experment with a reverse tree, which would enable us to quickly
-   identify rules that need to be rebuilt due to a changed input.
-   This is especially appealing for the continuous build mode.
 
 5. On BSD and Darwin systems, use ktrace rather than ptrace.
 
