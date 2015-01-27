@@ -70,6 +70,7 @@ static void find_latency(struct rule *r) {
 }
 void rule_is_ready(struct all_targets *all, struct rule *r) {
   if (r->status == unready) all->unready_num--;
+  else all->estimated_time += r->build_time/num_jobs;
   all->ready_num++;
   r->status = dirty;
 
@@ -98,6 +99,7 @@ void rule_is_ready(struct all_targets *all, struct rule *r) {
 }
 void built_rule(struct all_targets *all, struct rule *r) {
   r->status = built;
+  all->estimated_time -= r->old_build_time/num_jobs;
   all->ready_num--;
   all->built_num++;
   put_rule_into_status_list(&all->clean_list, r);
@@ -109,6 +111,7 @@ void built_rule(struct all_targets *all, struct rule *r) {
 }
 void rule_failed(struct all_targets *all, struct rule *r) {
   if (r->status == failed) return; /* just in case! */
+  all->estimated_time -= r->old_build_time/num_jobs;
   if (r->status == unready) {
     all->unready_num--;
   } else {
@@ -126,6 +129,7 @@ void rule_failed(struct all_targets *all, struct rule *r) {
 void rule_is_unready(struct all_targets *all, struct rule *r) {
   r->status = unready;
   all->unready_num++;
+  all->estimated_time += r->build_time/num_jobs;
   put_rule_into_status_list(&all->unready_list, r);
 }
 
@@ -176,7 +180,7 @@ void check_cleanliness(struct all_targets *all, struct rule *r) {
     }
   }
   if (old_status == unready) {
-    all->unready_num--;
+    r->status = old_status;
     rule_is_ready(all, r);
     /* FIXME if we get to the point of checking output content, then
        we will want to change this bit so sometimes it will result in
@@ -426,11 +430,26 @@ void build_marked(struct all_targets *all, const char *root_) {
       for (int i=0;i<num_jobs;i++) {
         if (bs[i] && bs[i]->pid == pid) {
           threads_in_use--;
+          bs[i]->rule->old_build_time = bs[i]->rule->build_time;
           bs[i]->rule->build_time = bs[i]->build_time;
           printf("%d/%d [%.2fs]: %s\n",
                  1 + all->failed_num + all->built_num,
                  all->failed_num + all->built_num + all->ready_num + all->unready_num,
-                 bs[i]->rule->build_time, bs[i]->rule->command);
+                 bs[i]->build_time, bs[i]->rule->command);
+          if (all->estimated_time > 1.0) {
+            int build_minutes = (int)(all->estimated_time/60);
+            double build_seconds = all->estimated_time - 60*build_minutes;
+            find_elapsed_time();
+            double total_seconds = elapsed_seconds + build_seconds;
+            double total_minutes = elapsed_minutes + build_minutes;
+            if (total_seconds > 60) {
+              total_minutes += 1;
+              total_seconds -= 60;
+            }
+            printf("Build time remaining: %d:%02.0f / %.0f:%02.0f      \r",
+                   build_minutes, build_seconds, total_minutes, total_seconds);
+            fflush(stdout);
+          }
           if (bs[i]->all_done != built || show_output) {
             off_t stdoutlen = lseek(bs[i]->stdouterrfd, 0, SEEK_END);
             off_t myoffset = 0;
