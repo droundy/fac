@@ -108,8 +108,7 @@ void read_bilge_file(struct all_targets *all, const char *path) {
       if (lookup_rule(all, one_line+2, the_directory))
         error_at_line(1, 0, path, linenum,
                       "duplicate rule:  %s", one_line+2);
-      therule = create_rule(all, one_line+2, the_directory);
-      therule->bilgefile_path = strdup(path);
+      therule = create_rule(all, path, one_line+2, the_directory);
       therule->bilgefile_linenum = linenum;
       thetarget = 0;
       size_last_file = 0;

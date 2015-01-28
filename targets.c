@@ -11,8 +11,8 @@ void insert_target(struct all_targets *all, struct target *t);
 struct target *create_target(struct all_targets *all, const char *path) {
   struct target *t = lookup_target(all, path);
   if (!t) {
-    t = malloc(sizeof(struct target));
-    t->path = strdup(path);
+    t = malloc(sizeof(struct target) + strlen(path)+1);
+    strcpy((char *)t->path, path);
     t->e.key = t->path;
     t->e.next = 0;
     t->status = unknown;
@@ -36,11 +36,15 @@ static char *rule_key(const char *command, const char *working_directory) {
   return key;
 }
 
-struct rule *create_rule(struct all_targets *all,
+struct rule *create_rule(struct all_targets *all, const char *bilgefile_path,
                          const char *command, const char *working_directory) {
-  struct rule *r = malloc(sizeof(struct rule));
-  r->command = strdup(command);
-  r->working_directory = strdup(working_directory);
+  struct rule *r = malloc(sizeof(struct rule) + strlen(bilgefile_path) +
+                          strlen(command) + strlen(working_directory) + 3);
+  strcpy((char *)r->command, command);
+  r->working_directory = r->command + strlen(command)+1;
+  strcpy((char *)r->working_directory, working_directory);
+  r->bilgefile_path = r->command + strlen(command) + strlen(working_directory)+2;
+  strcpy((char *)r->bilgefile_path, bilgefile_path);
 
   r->e.key = rule_key(command, working_directory);
   r->e.next = 0;
@@ -54,7 +58,6 @@ struct rule *create_rule(struct all_targets *all,
   r->inputs = r->outputs = 0;
   r->input_times = r->output_times = 0;
   r->input_sizes = r->output_sizes = 0;
-  r->bilgefile_path = 0;
   r->bilgefile_linenum = 0;
   /* Initial guess of a second for build_time helps us build commands
      with dependencies first, even if we don't know how long those

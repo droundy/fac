@@ -40,7 +40,6 @@ struct rule;
    it might describe a source file. */
 struct target {
   struct hash_entry e;
-  const char *path;
   enum target_status status;
   time_t last_modified;
   off_t size;
@@ -48,6 +47,7 @@ struct target {
   struct rule *rule;
   int num_children, children_size;
   struct rule **children;
+  const char path[];
 };
 
 /* A struct rule describes a single build process. */
@@ -57,9 +57,6 @@ struct rule {
      doubly-linked list of dirty files (or unready files).  Each rule
      can have only one status, and can be in just one status list. */
   struct rule *status_next, **status_prev;
-  const char *command;
-  const char *working_directory;
-  const char *bilgefile_path;
   int bilgefile_linenum;
   enum target_status status;
 
@@ -81,6 +78,10 @@ struct rule {
   double build_time, old_build_time;
   double latency_estimate;
   bool latency_handled;
+
+  const char *working_directory;
+  const char *bilgefile_path;
+  const char command[];
 };
 
 /* The struct all_targets should be an easily searchable set, or even
@@ -105,7 +106,7 @@ struct rule_list {
 struct target *create_target(struct all_targets *all, const char *path);
 void free_all_targets(struct all_targets *all);
 
-struct rule *create_rule(struct all_targets *all,
+struct rule *create_rule(struct all_targets *all, const char *bilgefile_path,
                          const char *command, const char *working_directory);
 struct rule *lookup_rule(struct all_targets *all, const char *command,
                          const char *working_directory);
