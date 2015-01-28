@@ -28,6 +28,31 @@ static inline bool is_bilgefile(const char *path) {
   return len >= 6 && !strcmp(path+len-6, ".bilge");
 }
 
+bool is_interesting_path(struct rule *r, const char *path) {
+  const int len = strlen(path);
+  for (int i=0;i<r->num_cache_prefixes;i++) {
+    bool matches = true;
+    for (int j=0;r->cache_prefixes[i][j];j++) {
+      if (path[j] != r->cache_prefixes[i][j]) {
+        matches = false;
+        break;
+      }
+    }
+    if (matches) return false;
+  }
+  for (int i=0;i<r->num_cache_suffixes;i++) {
+    bool matches = true;
+    for (int j=0;r->cache_suffixes_reversed[i][j];j++) {
+      if (path[len-j-1] != r->cache_suffixes_reversed[i][j]) {
+        matches = false;
+        break;
+      }
+    }
+    if (matches) return false;
+  }
+  return true;
+}
+
 static void check_cleanliness(struct all_targets *all, struct rule *r);
 
 void mark_rule(struct all_targets *all, struct rule *r) {
@@ -691,5 +716,29 @@ void summarize_build_results(struct all_targets *all) {
     find_elapsed_time();
     printf("Build succeeded! %.0f:%05.2f      \n",
            elapsed_minutes, elapsed_seconds);
+  }
+}
+
+void clean_all(struct all_targets *all, const char *root_) {
+  root = root_;
+  for (struct target *t = (struct target *)all->t.first; t; t = (struct target *)t->e.next) {
+    t->status = unknown;
+    int len = strlen(t->path);
+    if (len >= 6 && !strcmp(t->path+len-6, ".bilge")) {
+      char *donef = malloc(len + 20);
+      strcpy(donef, t->path);
+      strcat(donef, ".done");
+      printf("rm %s\n", donef);
+      unlink(donef);
+      free(donef);
+    }
+  }
+  for (struct rule *r = (struct rule *)all->r.first; r; r = (struct rule *)r->e.next) {
+    for (int i=0;i<r->num_outputs;i++) {
+      if (r->outputs[i]->status == unknown) {
+        printf("rm %s\n", pretty_path(r->outputs[i]->path));
+        unlink(r->outputs[i]->path);
+      }
+    }
   }
 }

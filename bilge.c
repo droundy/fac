@@ -51,6 +51,7 @@ void usage(poptContext optCon, int exitcode, char *error, char *addl) {
 
 int verbose = 0;
 int show_output = 0;
+int num_jobs = 0;
 static int clean_me = 0;
 static int continually_build = 0;
 extern inline void verbose_printf(const char *format, ...);
@@ -103,124 +104,87 @@ int main(int argc, const char **argv) {
     exit(0);
   }
 
-  /* the following loop it to make profiling easier */
-  const int num_runs_to_profile = 1;
-  for (int repeats=0;repeats<num_runs_to_profile;repeats++) {
-    struct all_targets all;
-    init_hash_table(&all.r, 1000);
-    init_hash_table(&all.t, 10000);
-    all.ready_list = all.unready_list = all.clean_list = all.failed_list = all.marked_list = 0;
-    all.running_list = 0;
-    all.ready_num = all.unready_num = all.failed_num = all.built_num = 0;
-    all.estimated_time = 0;
-    create_target(&all, "top.bilge");
+  struct all_targets all;
+  init_hash_table(&all.r, 1000);
+  init_hash_table(&all.t, 10000);
+  all.ready_list = all.unready_list = all.clean_list = all.failed_list = all.marked_list = 0;
+  all.running_list = 0;
+  all.ready_num = all.unready_num = all.failed_num = all.built_num = 0;
+  all.estimated_time = 0;
+  create_target(&all, "top.bilge");
 
-    if (true) {
-      bool still_reading;
-      do {
-        still_reading = false;
-        for (struct target *t = (struct target *)all.t.first; t; t = (struct target *)t->e.next) {
-          if (t->status == unknown &&
-              (!t->rule ||
-               t->rule->status == clean ||
-               t->rule->status == built)) {
-            t->status = built;
-            int len = strlen(t->path);
-            if (len >= 6 && !strcmp(t->path+len-6, ".bilge")) {
-              still_reading = true;
-              read_bilge_file(&all, t->path);
-            }
-          }
+  bool still_reading;
+  do {
+    still_reading = false;
+    for (struct target *t = (struct target *)all.t.first; t; t = (struct target *)t->e.next) {
+      if (t->status == unknown &&
+          (!t->rule ||
+           t->rule->status == clean ||
+           t->rule->status == built)) {
+        t->status = built;
+        int len = strlen(t->path);
+        if (len >= 6 && !strcmp(t->path+len-6, ".bilge")) {
+          still_reading = true;
+          read_bilge_file(&all, t->path);
         }
-        build_marked(&all, root);
-        for (struct target *t = (struct target *)all.t.first; t; t = (struct target *)t->e.next) {
-          if (t->status == unknown &&
-              (!t->rule ||
-               t->rule->status == clean ||
-               t->rule->status == built)) {
-            t->status = built;
-            int len = strlen(t->path);
-            if (len >= 6 && !strcmp(t->path+len-6, ".bilge")) {
-              still_reading = true;
-              read_bilge_file(&all, t->path);
-            }
-          }
+      }
+    }
+    build_marked(&all, root);
+    for (struct target *t = (struct target *)all.t.first; t; t = (struct target *)t->e.next) {
+      if (t->status == unknown &&
+          (!t->rule ||
+           t->rule->status == clean ||
+           t->rule->status == built)) {
+        t->status = built;
+        int len = strlen(t->path);
+        if (len >= 6 && !strcmp(t->path+len-6, ".bilge")) {
+          still_reading = true;
+          read_bilge_file(&all, t->path);
         }
-        mark_bilgefiles(&all);
-      } while (all.marked_list || still_reading);
-      if (clean_me) {
-        clean_all(&all, root);
-        exit(0);
       }
-      if (cmd_line_args) {
-        while (cmd_line_args) {
-          struct target *t = lookup_target(&all, cmd_line_args->path);
-          if (t && t->rule) {
-            mark_rule(&all, t->rule);
-          } else {
-            error(1, 0, "No rule to build %s", cmd_line_args->path);
-          }
-          cmd_line_args = cmd_line_args->next;
-        }
-      } else {
-        mark_all(&all);
-      }
-      check_for_impossibilities(&all, root);
-      build_marked(&all, root);
-      summarize_build_results(&all);
-
-      if (create_makefile) {
-        FILE *f = fopen(create_makefile, "w");
-        if (!f) error(1,errno, "Unable to create makefile: %s", create_makefile);
-        fprint_makefile(f, &all, root);
-        fclose(f);
-      }
-      if (create_tupfile) {
-        FILE *f = fopen(create_tupfile, "w");
-        if (!f) error(1,errno, "Unable to create makefile: %s", create_tupfile);
-        fprint_tupfile(f, &all, root);
-        fclose(f);
-      }
-      if (create_script) {
-        FILE *f = fopen(create_script, "w");
-        if (!f) error(1,errno, "Unable to create script: %s", create_script);
-        fprint_script(f, &all, root);
-        fclose(f);
-      }
-
-      exit(0);
     }
-
-    if (clean_me) {
-      parallel_build_all(&all, root, cmd_line_args, true);
-      clean_all(&all, root);
-    } else {
-      parallel_build_all(&all, root, cmd_line_args, false);
-    }
-
-    if (create_makefile) {
-      FILE *f = fopen(create_makefile, "w");
-      if (!f) error(1,errno, "Unable to create makefile: %s", create_makefile);
-      fprint_makefile(f, &all, root);
-      fclose(f);
-    }
-    if (create_tupfile) {
-      FILE *f = fopen(create_tupfile, "w");
-      if (!f) error(1,errno, "Unable to create makefile: %s", create_tupfile);
-      fprint_tupfile(f, &all, root);
-      fclose(f);
-    }
-    if (create_script) {
-      FILE *f = fopen(create_script, "w");
-      if (!f) error(1,errno, "Unable to create script: %s", create_script);
-      fprint_script(f, &all, root);
-      fclose(f);
-    }
-
-    /* profiling shows that as much as a third of our CPU time can be
-       spent freeing, so we will only do it if we are repeating the
-       computation. */
-    if (repeats < num_runs_to_profile-1) free_all_targets(&all);
+    mark_bilgefiles(&all);
+  } while (all.marked_list || still_reading);
+  if (clean_me) {
+    clean_all(&all, root);
+    exit(0);
   }
+  if (cmd_line_args) {
+    while (cmd_line_args) {
+      struct target *t = lookup_target(&all, cmd_line_args->path);
+      if (t && t->rule) {
+        mark_rule(&all, t->rule);
+      } else {
+        error(1, 0, "No rule to build %s", cmd_line_args->path);
+      }
+      cmd_line_args = cmd_line_args->next;
+    }
+  } else {
+    mark_all(&all);
+  }
+  check_for_impossibilities(&all, root);
+  build_marked(&all, root);
+  summarize_build_results(&all);
+
+  if (create_makefile) {
+    FILE *f = fopen(create_makefile, "w");
+    if (!f) error(1,errno, "Unable to create makefile: %s", create_makefile);
+    fprint_makefile(f, &all, root);
+    fclose(f);
+  }
+  if (create_tupfile) {
+    FILE *f = fopen(create_tupfile, "w");
+    if (!f) error(1,errno, "Unable to create makefile: %s", create_tupfile);
+    fprint_tupfile(f, &all, root);
+    fclose(f);
+  }
+  if (create_script) {
+    FILE *f = fopen(create_script, "w");
+    if (!f) error(1,errno, "Unable to create script: %s", create_script);
+    fprint_script(f, &all, root);
+    fclose(f);
+  }
+
+  if (false) free_all_targets(&all);
   return 0;
 }
