@@ -173,11 +173,17 @@ void free_all_targets(struct all_targets *all) {
       next = (struct target *)t->e.next;
       free(t);
     }
+    free_hash_table(&all->t);
   }
   {
     struct rule *next;
     for (struct rule *r = (struct rule *)all->r.first; r; r = next) {
+      free((void *)r->e.key);
+      for (int i=0;i<r->num_cache_suffixes;i++)
+        free((void *)r->cache_suffixes_reversed[i]);
       free(r->cache_suffixes_reversed);
+      for (int i=0;i<r->num_cache_prefixes;i++)
+        free((void *)r->cache_prefixes[i]);
       free(r->cache_prefixes);
       free(r->inputs);
       free(r->outputs);
@@ -188,6 +194,7 @@ void free_all_targets(struct all_targets *all) {
       next = (struct rule *)r->e.next;
       free(r);
     }
+    free_hash_table(&all->r);
   }
 }
 

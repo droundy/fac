@@ -706,6 +706,7 @@ void build_marked(struct all_targets *all, const char *root_) {
     bilgefiles_used = bilgefiles_used->next;
   }
 
+  free_listset(bilgefiles_used);
   free(bs);
   sigaction(SIGINT, &oldact, 0);
 }

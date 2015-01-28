@@ -19,6 +19,10 @@ void init_hash_table(struct hash_table *h, int size) {
   h->table = calloc(sizeof(struct hash_entry *), size);
 }
 
+void free_hash_table(struct hash_table *h) {
+  free(h->table); /* assume entries are already freed */
+}
+
 /* Find the data stored under str in the hash */
 struct hash_entry * lookup_in_hash(struct hash_table *hash, const char *str) {
   unsigned long h = hash_function(str) % hash->size;
