@@ -52,6 +52,7 @@ void usage(poptContext optCon, int exitcode, char *error, char *addl) {
 int verbose = 0;
 int show_output = 0;
 static int clean_me = 0;
+static int continually_build = 0;
 extern inline void verbose_printf(const char *format, ...);
 
 char *create_makefile = 0;
@@ -64,6 +65,8 @@ int main(int argc, const char **argv) {
       "the number of jobs to run simultaneously", "JOBS" },
     { "clean", 'c', POPT_ARG_NONE, &clean_me, 0,
       "clean the build outputs", 0 },
+    { "continual", 0, POPT_ARG_NONE, &continually_build, 0,
+      "keep rebuilding", 0 },
     { "verbose", 'v', POPT_ARG_NONE, &verbose, 0,
       "give verbose output", 0 },
     { "show-output", 'V', POPT_ARG_NONE, &show_output, 0,
@@ -94,6 +97,11 @@ int main(int argc, const char **argv) {
   poptFreeContext(optCon);
 
   char *root = go_to_bilge_top();
+
+  if (continually_build) {
+    build_continual(root);
+    exit(0);
+  }
 
   /* the following loop it to make profiling easier */
   const int num_runs_to_profile = 1;

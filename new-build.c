@@ -13,6 +13,7 @@
 #include <sys/times.h>
 #include <sys/time.h>
 #include <sys/sendfile.h>
+#include <sys/inotify.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -388,6 +389,73 @@ void check_for_impossibilities(struct all_targets *all, const char *_root) {
         }
       }
     }
+  }
+}
+
+void build_continual(const char *root_) {
+  root = root_;
+  while (!am_interrupted) {
+    struct all_targets all;
+    init_hash_table(&all.r, 1000);
+    init_hash_table(&all.t, 10000);
+    all.ready_list = all.unready_list = all.clean_list = all.failed_list = all.marked_list = 0;
+    all.running_list = 0;
+    all.ready_num = all.unready_num = all.failed_num = all.built_num = 0;
+    all.estimated_time = 0;
+    create_target(&all, "top.bilge");
+
+    bool still_reading;
+    do {
+      still_reading = false;
+      for (struct target *t = (struct target *)all.t.first; t; t = (struct target *)t->e.next) {
+        if (t->status == unknown &&
+            (!t->rule ||
+             t->rule->status == clean ||
+             t->rule->status == built)) {
+          t->status = built;
+          int len = strlen(t->path);
+          if (len >= 6 && !strcmp(t->path+len-6, ".bilge")) {
+            still_reading = true;
+            read_bilge_file(&all, t->path);
+          }
+        }
+      }
+      build_marked(&all, root);
+      for (struct target *t = (struct target *)all.t.first; t; t = (struct target *)t->e.next) {
+        if (t->status == unknown &&
+            (!t->rule ||
+             t->rule->status == clean ||
+             t->rule->status == built)) {
+          t->status = built;
+          int len = strlen(t->path);
+          if (len >= 6 && !strcmp(t->path+len-6, ".bilge")) {
+            still_reading = true;
+            read_bilge_file(&all, t->path);
+          }
+        }
+      }
+      mark_bilgefiles(&all);
+    } while (all.marked_list || still_reading);
+    mark_all(&all);
+    check_for_impossibilities(&all, root);
+    build_marked(&all, root);
+    summarize_build_results(&all);
+
+    int ifd = inotify_init1(IN_CLOEXEC);
+    for (struct target *t = (struct target *)all.t.first; t; t = (struct target *)t->e.next) {
+      t->status = unknown;
+      if (t->num_children) {
+        inotify_add_watch(ifd, t->path, IN_CLOSE_WRITE | IN_DELETE_SELF);
+      }
+    }
+    for (struct rule *r = (struct rule *)all.r.first; r; r = (struct rule *)r->e.next) {
+      r->status = unknown;
+    }
+    /* this is extremely sloppy */
+    char *buffer = malloc(sizeof(struct inotify_event) + NAME_MAX + 1);
+    read(ifd, buffer, sizeof(struct inotify_event) + NAME_MAX + 1);
+    free(buffer);
+    close(ifd);
   }
 }
 

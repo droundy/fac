@@ -52,6 +52,9 @@ with the following options.
 : Specify the number of jobs to run simultaneousy.  This defaults to
   the number of processors available on your computer.
 
+--continual
+: Keep rebuilding whenever the source is modified.
+
 --clean, -c
 : Clean up build output.  This deletes every file (but not directory)
   that is output by the build.
@@ -71,11 +74,16 @@ with the following options.
 : After building, create a shell script with name BUILD.SH, which can
   be used to perform this build if noname is unavailable.
 
+--tupfile TUPFILE
+: After building, create a tupfile, which can be used to perform this
+  build if noname is unavailable.
+
 ## To do list
 
-3. Add continuous build mode, in which we monitor input files for
-   changes and rebuild as needed.  Ideally we would use inotify or
-   similar to handle this with minimal CPU overhead.
+1. Enable freeing of "all_targets" data structure, and track down
+   memory leaks.
+
+2. Use inotify to avoid rescanning the entire source tree.
 
 5. On BSD and Darwin systems, use ktrace rather than ptrace.
 
