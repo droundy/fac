@@ -185,6 +185,7 @@ int main(int argc, const char **argv) {
     fclose(f);
   }
 
-  if (false) free_all_targets(&all);
+  /* enable following line to check for memory leaks */
+  if (true) free_all_targets(&all);
   return 0;
 }

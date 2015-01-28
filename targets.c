@@ -163,44 +163,29 @@ void add_explicit_input(struct rule *r, struct target *dep) {
 }
 
 void free_all_targets(struct all_targets *all) {
-  /* if (!*all) return; */
-  /* struct rule_list *rules = 0; */
-  /* free_trie(&(*all)->tr); */
-  /* free_trie(&(*all)->rules); */
-  /* struct all_targets *t = *all; */
-  /* while (t) { */
-  /*   struct all_targets *to_be_deleted = t; */
-  /*   t = t->next; */
-  /*   if (to_be_deleted->t->rule) { */
-  /*     struct rule *r = to_be_deleted->t->rule; */
-  /*     delete_rule(&rules, r); // way hokey */
-  /*     insert_rule_by_latency(&rules, r); */
-  /*   } */
-  /*   free((char *)to_be_deleted->t->path); */
-  /*   free(to_be_deleted->t); */
-  /*   free(to_be_deleted); */
-  /* } */
-  /* for (struct rule_list *rr = rules; rr; rr = rr->next) { */
-  /*   free(rr->r->inputs); */
-  /*   free(rr->r->outputs); */
-  /*   free(rr->r->input_sizes); */
-  /*   free(rr->r->output_sizes); */
-  /*   free(rr->r->input_times); */
-  /*   free(rr->r->output_times); */
-  /*   rr->r->outputs = rr->r->inputs = 0; */
-  /*   rr->r->output_times = rr->r->input_times = 0; */
-  /*   rr->r->output_sizes = rr->r->input_sizes = 0; */
-  /*   free((char *)rr->r->command); */
-  /*   rr->r->command = 0; */
-  /*   free((char *)rr->r->working_directory); */
-  /*   rr->r->working_directory = 0; */
-  /*   free((char *)rr->r->bilgefile_path); */
-  /*   rr->r->bilgefile_path = 0; */
-  /*   free(rr->r); */
-  /*   rr->r = 0; */
-  /* } */
-  /* delete_rule_list(&rules); */
-  /* *all = 0; */
+  {
+    struct target *next;
+    for (struct target *t = (struct target *)all->t.first; t; t = next) {
+      free(t->children);
+      next = (struct target *)t->e.next;
+      free(t);
+    }
+  }
+  {
+    struct rule *next;
+    for (struct rule *r = (struct rule *)all->r.first; r; r = next) {
+      free(r->cache_suffixes_reversed);
+      free(r->cache_prefixes);
+      free(r->inputs);
+      free(r->outputs);
+      free(r->input_times);
+      free(r->output_times);
+      free(r->input_sizes);
+      free(r->output_sizes);
+      next = (struct rule *)r->e.next;
+      free(r);
+    }
+  }
 }
 
 struct target *lookup_target(struct all_targets *all, const char *path) {

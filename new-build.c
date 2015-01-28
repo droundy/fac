@@ -479,6 +479,8 @@ void build_continual(const char *root_) {
     read(ifd, buffer, sizeof(struct inotify_event) + NAME_MAX + 1);
     free(buffer);
     close(ifd);
+
+    free_all_targets(&all);
   }
 }
 
