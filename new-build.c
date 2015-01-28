@@ -23,6 +23,11 @@
 #include <signal.h>
 #include <assert.h>
 
+static inline bool is_bilgefile(const char *path) {
+  int len = strlen(path);
+  return len >= 6 && !strcmp(path+len-6, ".bilge");
+}
+
 static void check_cleanliness(struct all_targets *all, struct rule *r);
 
 void mark_rule(struct all_targets *all, struct rule *r) {
@@ -38,10 +43,7 @@ void mark_bilgefiles(struct all_targets *all) {
   for (struct rule *r = (struct rule *)all->r.first; r; r = (struct rule *)r->e.next) {
     if (r->status == unknown) {
       for (int i=0;i<r->num_outputs;i++) {
-        int len = strlen(r->outputs[i]->path);
-        if (len >= 6 && !strcmp(r->outputs[i]->path+len-6, ".bilge")) {
-          mark_rule(all, r);
-        }
+        if (is_bilgefile(r->outputs[i]->path)) mark_rule(all, r);
       }
     }
   }
@@ -413,8 +415,7 @@ void build_continual(const char *root_) {
              t->rule->status == clean ||
              t->rule->status == built)) {
           t->status = built;
-          int len = strlen(t->path);
-          if (len >= 6 && !strcmp(t->path+len-6, ".bilge")) {
+          if (is_bilgefile(t->path)) {
             still_reading = true;
             read_bilge_file(&all, t->path);
           }
@@ -427,8 +428,7 @@ void build_continual(const char *root_) {
              t->rule->status == clean ||
              t->rule->status == built)) {
           t->status = built;
-          int len = strlen(t->path);
-          if (len >= 6 && !strcmp(t->path+len-6, ".bilge")) {
+          if (is_bilgefile(t->path)) {
             still_reading = true;
             read_bilge_file(&all, t->path);
           }
@@ -444,7 +444,7 @@ void build_continual(const char *root_) {
     int ifd = inotify_init1(IN_CLOEXEC);
     for (struct target *t = (struct target *)all.t.first; t; t = (struct target *)t->e.next) {
       t->status = unknown;
-      if (t->num_children) {
+      if (t->num_children || is_bilgefile(t->path)) {
         inotify_add_watch(ifd, t->path, IN_CLOSE_WRITE | IN_DELETE_SELF);
       }
     }
