@@ -397,22 +397,20 @@ void check_for_impossibilities(struct all_targets *all, const char *_root) {
     check_cleanliness(all, r);
   }
   for (struct rule *r = (struct rule *)all->r.first; r; r = (struct rule *)r->e.next) {
-    if (r->status == dirty || r->status == unready) {
-      for (int i=0;i<r->num_inputs;i++) {
-        if (!r->inputs[i]->rule && i < r->num_explicit_inputs) {
-          if (access(r->inputs[i]->path, R_OK)) {
-            printf("cannot build: %s due to missing input %s\n",
-                   pretty_path(r->outputs[0]->path),
-                   pretty_path(r->inputs[i]->path));
-            rule_failed(all, r);
-          }
-          const char *p = r->inputs[i]->path;
-          if (p != pretty_path(p) && git_files_content &&
-              !is_in_git(r->inputs[i]->path)) {
-            printf("error: %s should be in git\n",
-                   pretty_path(r->inputs[i]->path));
-            rule_failed(all, r);
-          }
+    for (int i=0;i<r->num_inputs;i++) {
+      if (!r->inputs[i]->rule && i < r->num_explicit_inputs) {
+        if (access(r->inputs[i]->path, R_OK)) {
+          printf("cannot build: %s due to missing input %s\n",
+                 pretty_path(r->outputs[0]->path),
+                 pretty_path(r->inputs[i]->path));
+          rule_failed(all, r);
+        }
+        const char *p = r->inputs[i]->path;
+        if (p != pretty_path(p) && git_files_content &&
+            !is_in_git(r->inputs[i]->path)) {
+          printf("error: %s should be in git\n",
+                 pretty_path(r->inputs[i]->path));
+          rule_failed(all, r);
         }
       }
     }
@@ -607,6 +605,9 @@ void build_marked(struct all_targets *all, const char *root_) {
           }
           for (char *path = start_iterating(&bs[i]->read); path; path = iterate(&bs[i]->read)) {
             if (is_interesting_path(r, path)) {
+              if (git_files_content && pretty_path(path) != path && !is_in_git(path))
+                error(1,0,"file %s should be in git", pretty_path(path));
+
               struct target *t = create_target_with_stat(all, path);
               if (!t) error(1, errno, "Unable to input stat file %s", path);
               add_input(r, t);
@@ -716,29 +717,5 @@ void summarize_build_results(struct all_targets *all) {
     find_elapsed_time();
     printf("Build succeeded! %.0f:%05.2f      \n",
            elapsed_minutes, elapsed_seconds);
-  }
-}
-
-void clean_all(struct all_targets *all, const char *root_) {
-  root = root_;
-  for (struct target *t = (struct target *)all->t.first; t; t = (struct target *)t->e.next) {
-    t->status = unknown;
-    int len = strlen(t->path);
-    if (len >= 6 && !strcmp(t->path+len-6, ".bilge")) {
-      char *donef = malloc(len + 20);
-      strcpy(donef, t->path);
-      strcat(donef, ".done");
-      printf("rm %s\n", donef);
-      unlink(donef);
-      free(donef);
-    }
-  }
-  for (struct rule *r = (struct rule *)all->r.first; r; r = (struct rule *)r->e.next) {
-    for (int i=0;i<r->num_outputs;i++) {
-      if (r->outputs[i]->status == unknown) {
-        printf("rm %s\n", pretty_path(r->outputs[i]->path));
-        unlink(r->outputs[i]->path);
-      }
-    }
   }
 }

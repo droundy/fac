@@ -29,7 +29,7 @@ if len(linkflags) > 0:
     linkflags = linkflags[1:]
 os.system('rm -rf testing-flags')
 
-sources = ['bilge', 'files', 'targets', 'new-build', 'git']
+sources = ['bilge', 'files', 'targets', 'clean', 'new-build', 'git']
 
 libsources = ['trie', 'listset', 'iterablehash', 'arrayset', 'bigbrother']
 
