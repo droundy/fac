@@ -607,11 +607,12 @@ void build_marked(struct all_targets *all, const char *root_) {
           }
           for (char *path = start_iterating(&bs[i]->read); path; path = iterate(&bs[i]->read)) {
             if (is_interesting_path(r, path)) {
-              if (git_files_content && pretty_path(path) != path && !is_in_git(path))
-                error(1,0,"file %s should be in git", pretty_path(path));
-
               struct target *t = create_target_with_stat(all, path);
               if (!t) error(1, errno, "Unable to input stat file %s", path);
+
+              if (!t->rule && git_files_content && pretty_path(path) != path && !is_in_git(path))
+                error(1,0,"file %s should be in git", pretty_path(path));
+
               add_input(r, t);
             }
           }
