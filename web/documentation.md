@@ -80,8 +80,13 @@ with the following options.
 
 ## To do list
 
-1. Enable freeing of "all_targets" data structure, and track down
-   memory leaks.
+1. Wait until all "can-be-built" rules are built before complaining
+   about rules whose explicit inputs are not in git, under the
+   assumption that the inputs will be built by another rule (and just
+   aren't listed as an output).  Thus users should be able to specify
+   *only explicit inputs of that are generated* (i.e. no outputs
+   specified at all, and no other inputs) and still have their code
+   compile without errors the first time around.
 
 2. Use inotify to avoid rescanning the entire source tree.
 
