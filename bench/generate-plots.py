@@ -14,7 +14,7 @@ datadir = os.getcwd()+'/bench/data/'
 modules = [depmod, catmod, hiermod, sleepy]
 
 allcolors = ['r','b','g','k','c','y']
-allpatterns = ['o-', 's:', '*-.', '.-', 'x--', '<-', '>-', 'v-']
+allpatterns = ['o-', 's:', '*-.', 'x--', '.-', '<-', '>-', 'v-']
 
 fs_colors = {}
 tool_patterns = {}
@@ -54,14 +54,15 @@ for mod in modules:
                 # redundant data.  We sort it, and then replace all
                 # the points with a given N with the average of all
                 # the measurements (from that date).
-                for n in data[:,0]:
-                    ind = data[:,0] == n
-                    data[ind,1] = np.mean(data[ind,1])
-                data = np.sort(np.vstack({tuple(row) for row in data}), axis=0) # remove duplicate lines
-                plt.loglog(data[:,0], data[:,1],
-                           tool_patterns[tool],
-                           color=fs_colors[fs],
-                           label='%s on %s' % (tool, fs))
+                if len(data.shape) == 2:
+                    for n in data[:,0]:
+                        ind = data[:,0] == n
+                        data[ind,1] = np.mean(data[ind,1])
+                    data = np.sort(np.vstack({tuple(row) for row in data}), axis=0) # remove duplicate lines
+                    plt.loglog(data[:,0], data[:,1],
+                               tool_patterns[tool],
+                               color=fs_colors[fs],
+                               label='%s on %s' % (tool, fs))
         plt.gca().grid(True)
         plt.xlabel('$N$')
         plt.ylabel('$t$ (s)')
