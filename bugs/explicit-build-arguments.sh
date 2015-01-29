@@ -30,4 +30,11 @@ fi
 
 grep hello ugly
 
+echo goobye > ugly # put wrong value in file
+
+../../bilge foo
+
+grep foo foo
+grep goodbye ugly
+
 exit 0
