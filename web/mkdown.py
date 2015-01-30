@@ -45,11 +45,15 @@ def mkdown(mdfile):
     titlere = re.compile(r"^\s*#\s*([^\n]*)(.*)", re.DOTALL)
     title = titlere.findall(mkstr)
     if len(title) == 0:
-        title = "Bilge?"
+        title = "Fac"
     else:
         mkstr = title[0][1]
         title = mmdd.markdown(title[0][0])
         title = title[3:len(title)-4]
+    if title[:4] == "Fac ":
+        pagetitle = title[4:]
+    else:
+        pagetitle = title
     sidebar = sidebarstr
 
     template = string.Template(templatestr)
@@ -57,6 +61,7 @@ def mkdown(mdfile):
     f = open(htfile, 'w')
     myhtml = string.replace(template.safe_substitute(
             title = title,
+            pagetitle = pagetitle,
             #content = mmdd.markdown(mkstr, extensions=['mathjax']),
             #sidebar = mmdd.markdown(sidebar, extensions=['mathjax'])))
             content = mmdd.markdown(mkstr, extensions=['def_list']),
@@ -89,3 +94,4 @@ def mkdown(mdfile):
 mkdown('web/index.md')
 mkdown('web/documentation.md')
 mkdown('web/benchmarks.md')
+mkdown('web/faq.md')
