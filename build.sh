@@ -14,6 +14,8 @@ gcc -m32 -lpthread -o tests/iterable_hash_test-32.test tests/iterable_hash_test-
 
 cd tests && gcc -m32 -Wall -Werror -O2 -std=c11 -g -o spinner-32.o -c spinner.c
 
+gcc -m32 -lpthread -o tests/spinner-32.test tests/spinner-32.o lib/trie-32.o lib/listset-32.o lib/iterablehash-32.o lib/arrayset-32.o
+
 cd tests && gcc -m32 -Wall -Werror -O2 -std=c11 -g -o trie-32.o -c trie.c
 
 gcc -m32 -lpthread -o tests/trie-32.test tests/trie-32.o lib/trie-32.o lib/listset-32.o lib/iterablehash-32.o lib/arrayset-32.o
@@ -24,7 +26,11 @@ gcc -m32 -lpthread -o tests/listset-32.test tests/listset-32.o lib/trie-32.o lib
 
 cd tests && gcc -m32 -Wall -Werror -O2 -std=c11 -g -o arrayset-32.o -c arrayset.c
 
+gcc -m32 -lpthread -o tests/arrayset-32.test tests/arrayset-32.o lib/trie-32.o lib/listset-32.o lib/iterablehash-32.o lib/arrayset-32.o
+
 cd tests && gcc -Wall -Werror -O2 -std=c11 -g -c iterable_hash_test.c
+
+cd tests && gcc -Wall -Werror -O2 -std=c11 -g -c spinner.c
 
 cd lib && gcc -Wall -Werror -O2 -std=c11 -g -c trie.c
 
@@ -38,9 +44,13 @@ python lib/get_syscalls.py /usr/src/linux-headers-3.2.0-4-common > lib/syscalls.
 
 cd lib && gcc -Wall -Werror -O2 -std=c11 -g -c bigbrother.c
 
-gcc -lpthread -o tests/iterable_hash_test.test tests/iterable_hash_test.o lib/trie.o lib/listset.o lib/iterablehash.o lib/arrayset.o lib/bigbrother.o
+gcc -lpthread -o tests/spinner.test tests/spinner.o lib/trie.o lib/listset.o lib/iterablehash.o lib/arrayset.o lib/bigbrother.o
 
 cd tests && gcc -Wall -Werror -O2 -std=c11 -g -c trie.c
+
+gcc -lpthread -o tests/trie.test tests/trie.o lib/trie.o lib/listset.o lib/iterablehash.o lib/arrayset.o lib/bigbrother.o
+
+gcc -lpthread -o tests/iterable_hash_test.test tests/iterable_hash_test.o lib/trie.o lib/listset.o lib/iterablehash.o lib/arrayset.o lib/bigbrother.o
 
 cd tests && gcc -Wall -Werror -O2 -std=c11 -g -c listset.c
 
@@ -68,12 +78,6 @@ gcc -Wall -Werror -O2 -std=c11 -g -c git.c
 
 gcc -lpopt -lprofiler -o fac fac.o files.o targets.o clean.o new-build.o git.o lib/trie.o lib/listset.o lib/iterablehash.o lib/arrayset.o lib/bigbrother.o
 
-gcc -lpthread -o tests/trie.test tests/trie.o lib/trie.o lib/listset.o lib/iterablehash.o lib/arrayset.o lib/bigbrother.o
-
-gcc -m32 -lpthread -o tests/arrayset-32.test tests/arrayset-32.o lib/trie-32.o lib/listset-32.o lib/iterablehash-32.o lib/arrayset-32.o
-
-gcc -m32 -lpthread -o tests/spinner-32.test tests/spinner-32.o lib/trie-32.o lib/listset-32.o lib/iterablehash-32.o lib/arrayset-32.o
-
 gcc -m32 -Wall -Werror -O2 -std=c11 -g -o git-32.o -c git.c
 
 gcc -m32 -Wall -Werror -O2 -std=c11 -g -o new-build-32.o -c new-build.c
@@ -85,10 +89,6 @@ gcc -m32 -Wall -Werror -O2 -std=c11 -g -o targets-32.o -c targets.c
 gcc -m32 -Wall -Werror -O2 -std=c11 -g -o files-32.o -c files.c
 
 gcc -m32 -Wall -Werror -O2 -std=c11 -g -o fac-32.o -c fac.c
-
-cd tests && gcc -Wall -Werror -O2 -std=c11 -g -c spinner.c
-
-gcc -lpthread -o tests/spinner.test tests/spinner.o lib/trie.o lib/listset.o lib/iterablehash.o lib/arrayset.o lib/bigbrother.o
 
 sass web/style.scss web/style.css
 

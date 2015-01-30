@@ -146,17 +146,8 @@ void built_rule(struct all_targets *all, struct rule *r) {
 }
 void rule_failed(struct all_targets *all, struct rule *r) {
   if (r->status == failed) return; /* just in case! */
-  r->input_array_size = 0;
   r->num_inputs = r->num_explicit_inputs;
   r->num_outputs = r->num_explicit_outputs;
-  free(r->input_times);
-  free(r->output_times);
-  r->input_times = 0;
-  r->output_times = 0;
-  free(r->input_sizes);
-  free(r->output_sizes);
-  r->input_sizes = 0;
-  r->output_sizes = 0;
   all->estimated_time -= r->old_build_time/num_jobs;
   if (r->status == unready) {
     all->unready_num--;
@@ -619,8 +610,11 @@ void build_marked(struct all_targets *all) {
               struct target *t = create_target_with_stat(all, path);
               if (!t) error(1, errno, "Unable to input stat file %s", path);
 
-              if (!t->rule && pretty_path(path) != path && !t->is_in_git)
-                error(1,0,"file %s should be in git", pretty_path(path));
+              if (!t->rule && is_in_root(path) && !t->is_in_git) {
+                printf("error: %s should be in git for %s\n",
+                       pretty_path(r->inputs[i]->path), pretty_rule(r));
+                rule_failed(all, r);
+              }
 
               add_input(r, t);
             }
