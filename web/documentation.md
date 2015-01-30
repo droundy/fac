@@ -22,11 +22,15 @@ build.  Each `.bilge` file consists of:
 3. Output specifications beginning with `"> "` followed by the name of
    the file that is output.  There is no escaping performed, and only
    newlines and null characters are disallowed in the file name.
+   There is little need to specify the output for rules, since bilge
+   can determine this automatically.  The only reason to specify
+   output is so that on the very first build a user can request that
+   we build only the specified rule.
 
 4. Input specifications beginning with `"< "` followed by the name of
    the file that is required.  You only need specify inputs when they
    are generated files.  Even then, you need only specify the inputs
-   if you wish to have the build reliably succeed on the first attempt.
+   if you wish to have the build succeed on the first attempt.
 
 5. There are two ways to specify "cache" files.  A cache file is a
    file that may be either read or written by a given command, but
@@ -80,14 +84,6 @@ with the following options.
   build if noname is unavailable.
 
 ## To do list
-
-1. Wait until all "can-be-built" rules are built before complaining
-   about rules whose explicit inputs are not in git, under the
-   assumption that the inputs will be built by another rule (and just
-   aren't listed as an output).  Thus users should be able to specify
-   *only explicit inputs of that are generated* (i.e. no outputs
-   specified at all, and no other inputs) and still have their code
-   compile without errors the first time around.
 
 2. Use inotify to avoid rescanning the entire source tree.
 

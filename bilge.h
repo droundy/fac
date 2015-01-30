@@ -6,6 +6,7 @@
 #include <stdarg.h>
 #include <sys/types.h>
 #include <time.h>
+#include <string.h>
 
 #include "lib/trie.h"
 #include "lib/listset.h"
@@ -16,6 +17,12 @@ extern int verbose; /* true if user requests verbose output */
 extern int show_output; /* true if user requests to see command output */
 
 extern const char *root;
+static inline bool is_in_root(const char *path) {
+  int lenpath = strlen(path);
+  int lenroot = strlen(root);
+  if (lenpath < lenroot + 1) return false;
+  return path[lenroot] == '/' && !memcmp(path, root, lenroot);
+}
 
 inline void verbose_printf(const char *format, ...) {
   va_list args;

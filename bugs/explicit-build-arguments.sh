@@ -17,6 +17,9 @@ EOF
 
 echo hello > bar
 
+git init
+git add top.bilge bar
+
 ../../bilge foo
 
 grep foo foo

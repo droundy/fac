@@ -53,6 +53,18 @@ bool is_interesting_path(struct rule *r, const char *path) {
   return true;
 }
 
+static const char *pretty_path(const char *path) {
+  int len = strlen(root);
+  if (path[len] == '/' && !memcmp(path, root, len)) {
+    return path + len + 1;
+  }
+  return path;
+}
+static inline const char *pretty_rule(struct rule *r) {
+  if (r->num_outputs) return pretty_path(r->outputs[0]->path);
+  return r->command;
+}
+
 static void check_cleanliness(struct all_targets *all, struct rule *r);
 
 void mark_rule(struct all_targets *all, struct rule *r) {
@@ -177,6 +189,12 @@ void check_cleanliness(struct all_targets *all, struct rule *r) {
   if (r->status != unknown && r->status != unready && r->status != marked) {
     return;
   }
+  if (r->num_inputs == 0 && r->num_outputs == 0) {
+    /* Presumably this means we have never built this rule, and its
+       inputs are in git. */
+    rule_is_ready(all, r);
+    return;
+  }
   int old_status = r->status;
   r->status = being_determined;
   for (int i=0;i<r->num_inputs;i++) {
@@ -223,6 +241,15 @@ void check_cleanliness(struct all_targets *all, struct rule *r) {
                      r->inputs[i]->path);
       is_dirty = true;
     }
+    if (!r->inputs[i]->is_in_git &&
+        !r->inputs[i]->rule &&
+        is_in_root(r->inputs[i]->path)) {
+        verbose_printf("::: %s :::\n", r->command);
+        verbose_printf(" - unready because %s is not in git and I don't now how to build it.\n",
+                       pretty_path(r->inputs[i]->path));
+        rule_is_unready(all, r);
+        return;
+    }
     if (r->input_times[i]) {
       if (!create_target_with_stat(all, r->inputs[i]->path) ||
           r->input_times[i] != r->inputs[i]->last_modified ||
@@ -259,18 +286,6 @@ void check_cleanliness(struct all_targets *all, struct rule *r) {
   } else {
     rule_is_clean(all, r);
   }
-}
-
-static const char *pretty_path(const char *path) {
-  int len = strlen(root);
-  if (path[len] == '/' && !memcmp(path, root, len)) {
-    return path + len + 1;
-  }
-  return path;
-}
-static inline const char *pretty_rule(struct rule *r) {
-  if (r->num_outputs) return pretty_path(r->outputs[0]->path);
-  return r->command;
 }
 
 struct building {
@@ -488,8 +503,10 @@ void build_marked(struct all_targets *all) {
   }
   gettimeofday(&starting, 0);
 
-  if (!num_jobs) num_jobs = sysconf(_SC_NPROCESSORS_ONLN);
-  verbose_printf("Using %d jobs\n", num_jobs);
+  if (!num_jobs) {
+    num_jobs = sysconf(_SC_NPROCESSORS_ONLN);
+    verbose_printf("Using %d jobs\n", num_jobs);
+  }
 
   struct building **bs = malloc(num_jobs*sizeof(struct building *));
   for (int i=0;i<num_jobs;i++) bs[i] = 0;
@@ -683,6 +700,21 @@ void build_marked(struct all_targets *all) {
       exit(1);
     }
   } while (all->ready_list || all->running_list);
+
+  for (struct rule *r = all->unready_list; r; r = r->status_next) {
+    for (int i=0;i<r->num_inputs;i++) {
+      if (!r->inputs[i]->rule && !r->inputs[i]->is_in_git && is_in_root(r->inputs[i]->path)) {
+        if (!access(r->inputs[i]->path, R_OK)) {
+          printf("error: add %s to git, which is required for %s\n",
+                 pretty_path(r->inputs[i]->path), pretty_rule(r));
+        } else {
+          printf("error: missing file %s, which is required for %s\n",
+                 pretty_path(r->inputs[i]->path), pretty_rule(r));
+        }
+      }
+    }
+    rule_failed(all, r);
+  }
 
   while (bilgefiles_used) {
     char *donefile = done_name(bilgefiles_used->path);

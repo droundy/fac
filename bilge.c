@@ -133,7 +133,7 @@ int main(int argc, const char **argv) {
   } else {
     mark_all(&all);
   }
-  check_for_impossibilities(&all);
+  //check_for_impossibilities(&all);
   build_marked(&all);
   summarize_build_results(&all);
 

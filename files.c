@@ -316,13 +316,6 @@ void fprint_bilgefile(FILE *f, struct all_targets *tt, const char *bpath) {
   }
 }
 
-static bool is_in_root(const char *path) {
-  int lenpath = strlen(path);
-  int lenroot = strlen(root);
-  if (lenpath < lenroot + 1) return false;
-  return path[lenroot] == '/' && !memcmp(path, root, lenroot);
-}
-
 static void fprint_makefile_escape(FILE *f, const char *path) {
   while (*path) {
     switch (*path) {

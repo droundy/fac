@@ -11,10 +11,9 @@ rm -rf $0.dir
 mkdir $0.dir
 cd $0.dir
 
-mkdir subdir
-
 cat > top.bilge <<EOF
 | echo foo > foo
+> foo
 
 | echo bar > bar
 
@@ -26,6 +25,9 @@ cat > top.bilge <<EOF
 < zoo
 
 EOF
+
+git init
+git add top.bilge
 
 ../../bilge -v
 

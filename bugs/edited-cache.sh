@@ -16,6 +16,9 @@ EOF
 
 echo stupid > foocache
 
+git init
+git add top.bilge
+
 ../../bilge
 
 sleep 1
