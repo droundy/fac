@@ -269,6 +269,10 @@ static const char *pretty_path(const char *path) {
   }
   return path;
 }
+static inline const char *pretty_rule(struct rule *r) {
+  if (r->num_outputs) return pretty_path(r->outputs[0]->path);
+  return r->command;
+}
 
 static struct trie *git_files_content = 0;
 static bool is_in_git(const char *path) {
@@ -401,8 +405,7 @@ void check_for_impossibilities(struct all_targets *all, const char *_root) {
       if (!r->inputs[i]->rule && i < r->num_explicit_inputs) {
         if (access(r->inputs[i]->path, R_OK)) {
           printf("cannot build: %s due to missing input %s\n",
-                 pretty_path(r->outputs[0]->path),
-                 pretty_path(r->inputs[i]->path));
+                 pretty_rule(r), pretty_path(r->inputs[i]->path));
           rule_failed(all, r);
         }
         const char *p = r->inputs[i]->path;
@@ -556,12 +559,7 @@ void build_marked(struct all_targets *all, const char *root_) {
 
           if (bs[i]->all_done == failed) {
             rule_failed(all, bs[i]->rule);
-            if (bs[i]->rule->num_outputs == 1) {
-              printf("build failed: %s\n",
-                     pretty_path(bs[i]->rule->outputs[0]->path));
-            } else {
-              printf("build failed: %s\n", bs[i]->rule->command);
-            }
+            printf("build failed: %s\n", pretty_rule(bs[i]->rule));
             break;
           }
           close(bs[i]->stdouterrfd);
