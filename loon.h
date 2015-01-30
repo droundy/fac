@@ -26,6 +26,8 @@ static inline bool is_in_root(const char *path) {
 static inline bool is_loonfile(const char *path) {
   int len = strlen(path);
   return (len >= 6 && !strcmp(path+len-6, ".bilge")) ||
+    (len >= 4 && !strcmp(path+len-5, ".fac")) ||
+    (len >= 5 && !strcmp(path+len-5, ".gild")) ||
     (len >= 5 && !strcmp(path+len-5, ".loon"));
 }
 
