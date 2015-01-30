@@ -15,6 +15,9 @@ cat > top.bilge <<EOF
 < foo
 EOF
 
+git init
+git add top.bilge
+
 ../../bilge
 
 grep foo baz

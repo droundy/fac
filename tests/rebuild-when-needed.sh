@@ -21,6 +21,9 @@ EOF
 
 echo good > input
 
+git init
+git add top.bilge input
+
 ../../bilge -v
 
 grep good foo

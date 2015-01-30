@@ -2,12 +2,13 @@
 
 ## Bilge file format
 
-To configure this build system, you create a file called `top.bilge`.
-This file specifies the rules to build your project.  For most
-moderately complex projects, your `top.bilge` file will only specify
-rules needed to create one or more additional `.bilge` files, which
-will contain the rules for doing the actual build.  Each `.bilge` file
-consists of:
+To configure this build system, you create one or more files ending
+with `.bilge`.  These files specify the rules to build your project,
+and must be added to your git repository.  For most moderately complex
+projects, you will have just one `.bilge` file in git, which will
+itself specify specify rules needed to create one or more additional
+`.bilge` files, which will contain the rules for doing the actual
+build.  Each `.bilge` file consists of:
 
 1. Comments beginning with `"# "` (a pound sign followed by a space).
 

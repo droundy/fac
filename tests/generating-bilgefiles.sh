@@ -6,10 +6,13 @@ rm -rf $0.dir
 mkdir $0.dir
 cd $0.dir
 
+git init
+
 cat > top.bilge <<EOF
 | python bilge.py > 1.bilge
 > 1.bilge
 EOF
+git add top.bilge
 
 cat > bilge.py <<EOF
 print """
@@ -17,6 +20,7 @@ print """
 > 2.bilge
 """
 EOF
+git add bilge.py
 
 cat > bilge2.py <<EOF
 print """
@@ -24,8 +28,11 @@ print """
 > foo
 """
 EOF
+git add bilge2.py
 
-../../bilge
+git ls-files
+
+../../bilge -v
 
 grep foo foo
 

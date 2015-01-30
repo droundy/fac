@@ -7,10 +7,10 @@
 #include <unistd.h>
 #include <string.h>
 #include <fcntl.h>
-
+#include <assert.h>
 #include <stdlib.h>
 
-struct trie *git_ls_files() {
+void add_git_files(struct all_targets *all) {
   const char *templ = "/tmp/bilge-XXXXXX";
   char *namebuf = malloc(strlen(templ)+1);
   strcpy(namebuf, templ);
@@ -33,7 +33,7 @@ struct trie *git_ls_files() {
   int status = 0;
   if (waitpid(new_pid, &status, 0) != new_pid) {
     printf("Unable to exec git ls-files\n");
-    return 0;
+    return; // fixme should exit
   }
   if (WEXITSTATUS(status)) {
     printf("Unable to run git ls-files successfully %d\n", WEXITSTATUS(status));
@@ -45,18 +45,21 @@ struct trie *git_ls_files() {
   if (read(out, buf, stdoutlen) != stdoutlen) {
     printf("Error reading output of git ls-files\n");
     free(buf);
-    return 0;
+    return; // fixme should exit
   }
-  struct trie *output = 0;
 
   int last_start = 0;
   for (int i=0;i<stdoutlen;i++) {
     if (buf[i] == '\n') {
       buf[i] = 0;
-      add_to_trie(&output, buf+last_start, (void *)templ);
+      char *path = absolute_path(root, buf + last_start);
+      struct target *t = create_target(all, path);
+      free(path);
+      assert(t);
+      t->is_in_git = true;
+      t->exists = true;
       last_start = i+1;
     }
   }
   free(buf);
-  return output;
 }

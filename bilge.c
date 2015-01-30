@@ -49,6 +49,8 @@ void usage(poptContext optCon, int exitcode, char *error, char *addl) {
   exit(exitcode);
 }
 
+const char *root = 0;
+
 int verbose = 0;
 int show_output = 0;
 int num_jobs = 0;
@@ -97,7 +99,7 @@ int main(int argc, const char **argv) {
   free(cwd);
   poptFreeContext(optCon);
 
-  char *root = go_to_bilge_top();
+  root = go_to_bilge_top();
 
   if (continually_build) {
     build_continual(root);
@@ -111,7 +113,8 @@ int main(int argc, const char **argv) {
   all.running_list = 0;
   all.ready_num = all.unready_num = all.failed_num = all.built_num = 0;
   all.estimated_time = 0;
-  create_target(&all, "top.bilge");
+
+  add_git_files(&all);
 
   bool still_reading;
   do {
@@ -129,7 +132,7 @@ int main(int argc, const char **argv) {
         }
       }
     }
-    build_marked(&all, root);
+    build_marked(&all);
     for (struct target *t = (struct target *)all.t.first; t; t = (struct target *)t->e.next) {
       if (t->status == unknown &&
           (!t->rule ||
@@ -146,7 +149,7 @@ int main(int argc, const char **argv) {
     mark_bilgefiles(&all);
   } while (all.marked_list || still_reading);
   if (clean_me) {
-    clean_all(&all, root);
+    clean_all(&all);
     exit(0);
   }
   if (cmd_line_args) {
@@ -162,26 +165,26 @@ int main(int argc, const char **argv) {
   } else {
     mark_all(&all);
   }
-  check_for_impossibilities(&all, root);
-  build_marked(&all, root);
+  check_for_impossibilities(&all);
+  build_marked(&all);
   summarize_build_results(&all);
 
   if (create_makefile) {
     FILE *f = fopen(create_makefile, "w");
     if (!f) error(1,errno, "Unable to create makefile: %s", create_makefile);
-    fprint_makefile(f, &all, root);
+    fprint_makefile(f, &all);
     fclose(f);
   }
   if (create_tupfile) {
     FILE *f = fopen(create_tupfile, "w");
     if (!f) error(1,errno, "Unable to create makefile: %s", create_tupfile);
-    fprint_tupfile(f, &all, root);
+    fprint_tupfile(f, &all);
     fclose(f);
   }
   if (create_script) {
     FILE *f = fopen(create_script, "w");
     if (!f) error(1,errno, "Unable to create script: %s", create_script);
-    fprint_script(f, &all, root);
+    fprint_script(f, &all);
     fclose(f);
   }
 

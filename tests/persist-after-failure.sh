@@ -19,6 +19,9 @@ cat > top.bilge <<EOF
 
 EOF
 
+git init
+git add top.bilge
+
 if ../../bilge > bilge.out; then
     echo This should have failed
     cat bilge.out

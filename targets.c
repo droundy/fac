@@ -14,6 +14,8 @@ struct target *create_target(struct all_targets *all, const char *path) {
     t = malloc(sizeof(struct target) + strlen(path)+1);
     strcpy((char *)t->path, path);
     t->e.key = t->path;
+    t->is_in_git = false;
+    t->exists = false;
     t->e.next = 0;
     t->status = unknown;
     t->rule = 0;

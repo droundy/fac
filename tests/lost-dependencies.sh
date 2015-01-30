@@ -18,6 +18,9 @@ cat > script.sh <<EOF
 cat foo bar > foobar
 EOF
 
+git init
+git add top.bilge script.sh foo bar
+
 ../../bilge
 
 grep foo foobar

@@ -21,6 +21,9 @@ EOF
 
 echo done > message
 
+git init
+git add top.bilge message
+
 if ../../bilge > bilge.out; then
     cat bilge.out
     echo this should have failed

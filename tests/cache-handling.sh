@@ -28,6 +28,9 @@ EOF
 
 echo good > .cache-read
 
+git init
+git add top.bilge
+
 ../../bilge
 
 cat top.bilge.done

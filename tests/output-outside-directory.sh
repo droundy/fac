@@ -14,6 +14,9 @@ cat > top.bilge <<EOF
 > baz
 EOF
 
+git init
+git add top.bilge
+
 if ../../bilge > bilge.out 2>&1; then
     cat bilge.out
     echo This should not have passed

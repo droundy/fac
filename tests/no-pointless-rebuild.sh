@@ -14,6 +14,9 @@ cat > top.bilge <<EOF
 > foo
 EOF
 
+git init
+git add top.bilge
+
 ../../bilge -v > bilge.out
 cat bilge.out
 if grep dirty bilge.out; then

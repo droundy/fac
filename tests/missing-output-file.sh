@@ -16,6 +16,9 @@ cat > top.bilge <<EOF
 > ugly
 EOF
 
+git init
+git add top.bilge
+
 if ../../bilge > bilge.out 2>&1; then
     cat bilge.out
     echo Bilge was okay.  That is not good.

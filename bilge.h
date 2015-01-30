@@ -15,6 +15,8 @@ extern int num_jobs; /* number of jobs to run simultaneously */
 extern int verbose; /* true if user requests verbose output */
 extern int show_output; /* true if user requests to see command output */
 
+extern const char *root;
+
 inline void verbose_printf(const char *format, ...) {
   va_list args;
   va_start(args, format);
@@ -43,6 +45,8 @@ struct target {
   enum target_status status;
   time_t last_modified;
   off_t size;
+
+  bool is_in_git, exists;
 
   struct rule *rule;
   int num_children, children_size;
@@ -129,14 +133,14 @@ char *absolute_path(const char *dir, const char *rel);
 void print_bilge_file(struct all_targets *all);
 void fprint_bilgefile(FILE *f, struct all_targets *tt, const char *bilgefile_path);
 
-void fprint_makefile(FILE *f, struct all_targets *tt, const char *root);
-void fprint_tupfile(FILE *f, struct all_targets *tt, const char *root);
-void fprint_script(FILE *f, struct all_targets *tt, const char *root);
+void fprint_makefile(FILE *f, struct all_targets *tt);
+void fprint_tupfile(FILE *f, struct all_targets *tt);
+void fprint_script(FILE *f, struct all_targets *tt);
 
 struct rule *run_rule(struct all_targets *all, struct rule *r);
-void parallel_build_all(struct all_targets *all, const char *root,
+void parallel_build_all(struct all_targets *all,
                         listset *cmd_line_args, bool bilgefiles_only);
-void clean_all(struct all_targets *all, const char *root);
+void clean_all(struct all_targets *all);
 
 char *done_name(const char *bilgefile);
 
@@ -144,6 +148,6 @@ void insert_rule_by_latency(struct rule_list **list, struct rule *r);
 void delete_rule(struct rule_list **list, struct rule *r);
 void delete_rule_list(struct rule_list **list);
 
-struct trie *git_ls_files();
+void add_git_files(struct all_targets *all);
 
 #endif

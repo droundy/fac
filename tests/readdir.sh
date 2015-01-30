@@ -12,6 +12,10 @@ cat > top.bilge <<EOF
 EOF
 
 touch foo.message
+
+git init
+git add top.bilge foo.message
+
 ../../bilge
 
 ls -lhd .

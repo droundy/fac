@@ -215,13 +215,13 @@ void check_cleanliness(struct all_targets *all, struct rule *r) {
        a clean state. */
     return;
   }
+  bool is_dirty = false;
   for (int i=0;i<r->num_inputs;i++) {
     if (r->inputs[i]->rule && r->inputs[i]->rule->status == built) {
       verbose_printf("::: %s :::\n", r->command);
       verbose_printf(" - dirty because %s has been rebuilt.\n",
                      r->inputs[i]->path);
-      rule_is_ready(all, r);
-      return;
+      is_dirty = true;
     }
     if (r->input_times[i]) {
       if (!create_target_with_stat(all, r->inputs[i]->path) ||
@@ -230,14 +230,12 @@ void check_cleanliness(struct all_targets *all, struct rule *r) {
         verbose_printf("::: %s :::\n", r->command);
         verbose_printf(" - dirty because %s has wrong input time.\n",
                r->inputs[i]->path);
-        rule_is_ready(all, r);
-        return;
+        is_dirty = true;
       }
     } else {
       verbose_printf("::: %s :::\n", r->command);
       verbose_printf(" - dirty because #%d %s has no input time.\n", i, r->inputs[i]->path);
-      rule_is_ready(all, r);
-      return;
+      is_dirty = true;
     }
   }
   for (int i=0;i<r->num_outputs;i++) {
@@ -248,20 +246,21 @@ void check_cleanliness(struct all_targets *all, struct rule *r) {
         verbose_printf("::: %s :::\n", r->command);
         verbose_printf(" - dirty because %s has wrong output time.\n",
                r->outputs[i]->path);
-        rule_is_ready(all, r);
-        return;
+        is_dirty = true;
       }
     } else {
       verbose_printf("::: %s :::\n", r->command);
       verbose_printf(" - dirty because %s has no output time.\n", r->outputs[i]->path);
-      rule_is_ready(all, r);
-      return;
+      is_dirty = true;
     }
   }
-  rule_is_clean(all, r);
+  if (is_dirty) {
+    rule_is_ready(all, r);
+  } else {
+    rule_is_clean(all, r);
+  }
 }
 
-static const char *root = 0;
 static const char *pretty_path(const char *path) {
   int len = strlen(root);
   if (path[len] == '/' && !memcmp(path, root, len)) {
@@ -272,11 +271,6 @@ static const char *pretty_path(const char *path) {
 static inline const char *pretty_rule(struct rule *r) {
   if (r->num_outputs) return pretty_path(r->outputs[0]->path);
   return r->command;
-}
-
-static struct trie *git_files_content = 0;
-static bool is_in_git(const char *path) {
-  return lookup_in_trie(&git_files_content, pretty_path(path)) != 0;
 }
 
 struct building {
@@ -395,8 +389,7 @@ static void find_elapsed_time() {
   }
 }
 
-void check_for_impossibilities(struct all_targets *all, const char *_root) {
-  root = _root;
+void check_for_impossibilities(struct all_targets *all) {
   for (struct rule *r = all->marked_list; r; r = all->marked_list) {
     check_cleanliness(all, r);
   }
@@ -409,8 +402,7 @@ void check_for_impossibilities(struct all_targets *all, const char *_root) {
           rule_failed(all, r);
         }
         const char *p = r->inputs[i]->path;
-        if (p != pretty_path(p) && git_files_content &&
-            !is_in_git(r->inputs[i]->path)) {
+        if (p != pretty_path(p) && !r->inputs[i]->is_in_git) {
           printf("error: %s should be in git\n",
                  pretty_path(r->inputs[i]->path));
           rule_failed(all, r);
@@ -420,8 +412,7 @@ void check_for_impossibilities(struct all_targets *all, const char *_root) {
   }
 }
 
-void build_continual(const char *root_) {
-  root = root_;
+void build_continual() {
   while (!am_interrupted) {
     struct all_targets all;
     init_hash_table(&all.r, 1000);
@@ -447,7 +438,7 @@ void build_continual(const char *root_) {
           }
         }
       }
-      build_marked(&all, root);
+      build_marked(&all);
       for (struct target *t = (struct target *)all.t.first; t; t = (struct target *)t->e.next) {
         if (t->status == unknown &&
             (!t->rule ||
@@ -463,8 +454,8 @@ void build_continual(const char *root_) {
       mark_bilgefiles(&all);
     } while (all.marked_list || still_reading);
     mark_all(&all);
-    check_for_impossibilities(&all, root);
-    build_marked(&all, root);
+    check_for_impossibilities(&all);
+    build_marked(&all);
     summarize_build_results(&all);
 
     int ifd = inotify_init1(IN_CLOEXEC);
@@ -487,9 +478,7 @@ void build_continual(const char *root_) {
   }
 }
 
-void build_marked(struct all_targets *all, const char *root_) {
-  if (!root) root = root_;
-  if (!git_files_content) git_files_content = git_ls_files();
+void build_marked(struct all_targets *all) {
   if (!all->marked_list && !all->ready_list) {
     if (all->failed_num) {
       printf("Failed to build %d files.\n", all->failed_num);
@@ -608,7 +597,7 @@ void build_marked(struct all_targets *all, const char *root_) {
               struct target *t = create_target_with_stat(all, path);
               if (!t) error(1, errno, "Unable to input stat file %s", path);
 
-              if (!t->rule && git_files_content && pretty_path(path) != path && !is_in_git(path))
+              if (!t->rule && pretty_path(path) != path && !t->is_in_git)
                 error(1,0,"file %s should be in git", pretty_path(path));
 
               add_input(r, t);

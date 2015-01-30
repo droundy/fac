@@ -18,6 +18,7 @@ cat > top.bilge <<EOF
 < foo
 < bar
 EOF
+git add top.bilge
 
 if ../../bilge > bilge.out; then
     cat bilge.out

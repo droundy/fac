@@ -18,6 +18,9 @@ cat > top.bilge <<EOF
 < bar
 EOF
 
+git init
+git add top.bilge
+
 /usr/bin/time -f '%e' ../../bilge -j2 2> bilge.time
 
 grep spinning foobar

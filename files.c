@@ -97,13 +97,6 @@ void read_bilge_file(struct all_targets *all, const char *path) {
       error_at_line(1, 0, path, linenum,
                     "Second character of line should be a space");
     switch (one_line[0]) {
-    case '!':
-      create_target(all, one_line+2);
-      therule = 0;
-      thetarget = 0;
-      size_last_file = 0;
-      last_modified_last_file = 0;
-      break;
     case '|':
       if (lookup_rule(all, one_line+2, the_directory))
         error_at_line(1, 0, path, linenum,
@@ -323,7 +316,7 @@ void fprint_bilgefile(FILE *f, struct all_targets *tt, const char *bpath) {
   }
 }
 
-static bool is_in_root(const char *path, const char *root) {
+static bool is_in_root(const char *path) {
   int lenpath = strlen(path);
   int lenroot = strlen(root);
   if (lenpath < lenroot + 1) return false;
@@ -348,12 +341,12 @@ static void fprint_makefile_escape(FILE *f, const char *path) {
   }
 }
 
-static void fprint_makefile_rule(FILE *f, struct rule *r, const char *root) {
+static void fprint_makefile_rule(FILE *f, struct rule *r) {
   if (r->status == built) return;
   r->status = built;
   const int lenroot = strlen(root);
   for (int i=0; i<r->num_inputs; i++) {
-    if (r->inputs[i]->rule) fprint_makefile_rule(f, r->inputs[i]->rule, root);
+    if (r->inputs[i]->rule) fprint_makefile_rule(f, r->inputs[i]->rule);
   }
   for (int i=0; i<r->num_outputs; i++) {
     fprint_makefile_escape(f, r->outputs[i]->path + lenroot+1);
@@ -361,12 +354,12 @@ static void fprint_makefile_rule(FILE *f, struct rule *r, const char *root) {
   }
   fprintf(f, ":");
   for (int i=0; i<r->num_inputs; i++) {
-    if (is_in_root(r->inputs[i]->path, root)) {
+    if (is_in_root(r->inputs[i]->path)) {
       fprintf(f, " ");
       fprint_makefile_escape(f, r->inputs[i]->path + lenroot+1);
     }
   }
-  if (is_in_root(r->working_directory, root)) {
+  if (is_in_root(r->working_directory)) {
     fprintf(f, "\n\tcd ");
     fprint_makefile_escape(f, r->working_directory + lenroot+1);
     fprintf(f, " && %s\n\n", r->command);
@@ -375,7 +368,7 @@ static void fprint_makefile_rule(FILE *f, struct rule *r, const char *root) {
   }
 }
 
-void fprint_makefile(FILE *f, struct all_targets *all, const char *root) {
+void fprint_makefile(FILE *f, struct all_targets *all) {
   /* First, let's identify any intermediate output, so it won't need
      to be included in the "all" target. */
   for (struct rule *r = (struct rule *)all->r.first; r; r = (struct rule *)r->e.next) {
@@ -399,18 +392,18 @@ void fprint_makefile(FILE *f, struct all_targets *all, const char *root) {
     r->status = unknown;
   }
   for (struct rule *r = (struct rule *)all->r.first; r; r = (struct rule *)r->e.next) {
-    fprint_makefile_rule(f, r, root);
+    fprint_makefile_rule(f, r);
   }
 }
 
-static void fprint_script_rule(FILE *f, struct rule *r, const char *root) {
+static void fprint_script_rule(FILE *f, struct rule *r) {
   if (r->status == built) return;
   r->status = built;
   const int lenroot = strlen(root);
   for (int i=0; i<r->num_inputs; i++) {
-    if (r->inputs[i]->rule) fprint_script_rule(f, r->inputs[i]->rule, root);
+    if (r->inputs[i]->rule) fprint_script_rule(f, r->inputs[i]->rule);
   }
-  if (is_in_root(r->working_directory, root)) {
+  if (is_in_root(r->working_directory)) {
     fprintf(f, "cd ");
     fprint_makefile_escape(f, r->working_directory + lenroot+1);
     fprintf(f, " && %s\n\n", r->command);
@@ -419,31 +412,31 @@ static void fprint_script_rule(FILE *f, struct rule *r, const char *root) {
   }
 }
 
-void fprint_script(FILE *f, struct all_targets *all, const char *root) {
+void fprint_script(FILE *f, struct all_targets *all) {
   fprintf(f, "#!/bin/sh\n\n");
   for (struct rule *r = (struct rule *)all->r.first; r; r = (struct rule *)r->e.next) {
     r->status = unknown;
   }
   for (struct rule *r = (struct rule *)all->r.first; r; r = (struct rule *)r->e.next) {
-    fprint_script_rule(f, r, root);
+    fprint_script_rule(f, r);
   }
 }
 
-static void fprint_tupfile_rule(FILE *f, struct rule *r, const char *root) {
+static void fprint_tupfile_rule(FILE *f, struct rule *r) {
   if (r->status == built) return;
   r->status = built;
   const int lenroot = strlen(root);
   for (int i=0; i<r->num_inputs; i++) {
-    if (r->inputs[i]->rule) fprint_tupfile_rule(f, r->inputs[i]->rule, root);
+    if (r->inputs[i]->rule) fprint_tupfile_rule(f, r->inputs[i]->rule);
   }
   fprintf(f, ": ");
   for (int i=0; i<r->num_inputs; i++) {
-    if (is_in_root(r->inputs[i]->path, root)) {
+    if (is_in_root(r->inputs[i]->path)) {
       fprint_makefile_escape(f, r->inputs[i]->path + lenroot+1);
       fprintf(f, " ");
     }
   }
-  if (is_in_root(r->working_directory, root)) {
+  if (is_in_root(r->working_directory)) {
     fprintf(f, "|> cd ");
     fprint_makefile_escape(f, r->working_directory + lenroot+1);
     fprintf(f, " && %s |>", r->command);
@@ -457,12 +450,12 @@ static void fprint_tupfile_rule(FILE *f, struct rule *r, const char *root) {
   fprintf(f, "\n\n");
 }
 
-void fprint_tupfile(FILE *f, struct all_targets *all, const char *root) {
+void fprint_tupfile(FILE *f, struct all_targets *all) {
   for (struct rule *r = (struct rule *)all->r.first; r; r = (struct rule *)r->e.next) {
     r->status = unknown;
   }
   for (struct rule *r = (struct rule *)all->r.first; r; r = (struct rule *)r->e.next) {
-    fprint_tupfile_rule(f, r, root);
+    fprint_tupfile_rule(f, r);
   }
 }
 

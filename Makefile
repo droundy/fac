@@ -1,4 +1,4 @@
-all: tests/iterable_hash_test-32.test tests/spinner-32.test tests/trie-32.test tests/listset-32.test tests/arrayset-32.test tests/iterable_hash_test.test tests/spinner.test tests/trie.test tests/listset.test tests/arrayset.test lib/fileaccesses bilge git-32.o new-build-32.o clean-32.o targets-32.o files-32.o bilge-32.o web/benchmarks.html web/documentation.html temp.html web/style.css web/index.html .bilge
+all: tests/iterable_hash_test-32.test tests/spinner-32.test tests/trie-32.test tests/listset-32.test tests/arrayset-32.test tests/iterable_hash_test.test tests/spinner.test tests/trie.test tests/listset.test tests/arrayset.test bilge git-32.o new-build-32.o clean-32.o targets-32.o files-32.o bilge-32.o web/benchmarks.html web/documentation.html temp.html web/style.css web/index.html .bilge lib/fileaccesses
 
 tests/iterable_hash_test-32.o : tests/iterable_hash_test.c lib/iterablehash.h
 	cd tests && gcc -m32 -Wall -Werror -O2 -std=c11 -g -o iterable_hash_test-32.o -c iterable_hash_test.c

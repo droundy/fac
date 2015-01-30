@@ -13,6 +13,9 @@ EOF
 
 echo I am loud > message
 
+git init
+git add top.bilge message
+
 ../../bilge > bilge.out 2>&1
 cat bilge.out
 

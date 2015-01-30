@@ -19,8 +19,6 @@ cat > top.bilge <<EOF
 < subdir/foo
 < subdir/bar
 
-! subdir/.bilge
-
 EOF
 
 cat > subdir/.bilge <<EOF
@@ -31,6 +29,9 @@ cat > subdir/.bilge <<EOF
 > bar
 
 EOF
+
+git init
+git add top.bilge subdir/.bilge
 
 ../../bilge -v
 
