@@ -45,11 +45,11 @@ build.  Each `.fac` file consists of:
    latter can be helpful if you get error messages stating that your
    rule is creating output outside your source tree.
 
-## Running noname
+## Running fac
 
-To run noname, you simply execute
+To run fac, you simply execute
 
-    noname [options] [filenames]
+    fac [options] [filenames]
 
 with the following options.
 
@@ -73,15 +73,15 @@ with the following options.
 
 --makefile MAKEFILE
 : After building, create a makefile with name MAKEFILE, which can be
-  used to perform this build if noname is unavailable.
+  used to perform this build if fac is unavailable.
 
 --script BUILD.SH
 : After building, create a shell script with name BUILD.SH, which can
-  be used to perform this build if noname is unavailable.
+  be used to perform this build if fac is unavailable.
 
 --tupfile TUPFILE
 : After building, create a tupfile, which can be used to perform this
-  build if noname is unavailable.
+  build if fac is unavailable.
 
 ## To do list
 
