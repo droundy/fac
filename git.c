@@ -9,6 +9,23 @@
 #include <fcntl.h>
 #include <assert.h>
 #include <stdlib.h>
+#include <errno.h>
+#include <error.h>
+
+char *go_to_git_top() {
+  while (1) {
+    char *dirname = getcwd(0,0);
+
+    if (strcmp(dirname, "/") == 0)
+      error(1, errno, "could not locate .git!");
+    if (!access(".git", R_OK | X_OK)) {
+      return dirname;
+    }
+
+    if (chdir("..")) error(1, errno, "unable to chdir(..) from %s", dirname);
+    free(dirname);
+  }
+}
 
 void add_git_files(struct all_targets *all) {
   const char *templ = "/tmp/bilge-XXXXXX";

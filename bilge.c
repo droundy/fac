@@ -1,9 +1,6 @@
 #define _BSD_SOURCE
 
 #include <unistd.h>
-#include <dirent.h>
-#include <sys/types.h>
-#include <dirent.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <error.h>
@@ -13,35 +10,6 @@
 
 #include "bilge.h"
 #include "new-build.h"
-
-char *go_to_bilge_top() {
-  while (1) {
-    DIR *dir = opendir(".");
-    char *dirname = getcwd(0,0);
-    struct dirent entry, *result;
-
-    if (strcmp(dirname, "/") == 0)
-      error(1, errno, "could not locate top.bilge!");
-
-    if (!dir) error(1, errno, "unable to opendir %s", dirname);
-
-    if (readdir_r(dir, &entry, &result))
-      error(1, errno, "error reading from %s", dirname);
-    while (result) {
-      if (!strcmp("top.bilge", entry.d_name)) {
-        closedir(dir);
-        return dirname;
-      }
-
-      if (readdir_r(dir, &entry, &result))
-        error(1, errno, "error reading from %s", dirname);
-    }
-    closedir(dir);
-
-    if (chdir("..")) error(1, errno, "unable to chdir(..) from %s", dirname);
-    free(dirname);
-  }
-}
 
 void usage(poptContext optCon, int exitcode, char *error, char *addl) {
   poptPrintUsage(optCon, stderr, 0);
@@ -99,7 +67,7 @@ int main(int argc, const char **argv) {
   free(cwd);
   poptFreeContext(optCon);
 
-  root = go_to_bilge_top();
+  root = go_to_git_top();
 
   if (continually_build) {
     build_continual(root);

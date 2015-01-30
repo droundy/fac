@@ -148,6 +148,7 @@ void insert_rule_by_latency(struct rule_list **list, struct rule *r);
 void delete_rule(struct rule_list **list, struct rule *r);
 void delete_rule_list(struct rule_list **list);
 
+char *go_to_git_top();
 void add_git_files(struct all_targets *all);
 
 #endif
