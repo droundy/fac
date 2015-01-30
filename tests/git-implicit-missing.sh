@@ -12,24 +12,24 @@ echo bar > bar
 git init
 git add foo
 
-cat > top.bilge <<EOF
+cat > top.loon <<EOF
 | cat foo bar > foobar
 > foobar
 EOF
 
 git init
-git add top.bilge
+git add top.loon
 
-if ../../bilge > bilge.out; then
-    cat bilge.out
+if ../../loon > loon.out; then
+    cat loon.out
     echo This should not have passed
     exit 1
 fi
-cat bilge.out
+cat loon.out
 
 rm -f foobar
 git add bar
 
-../../bilge
+../../loon
 
 exit 0

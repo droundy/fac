@@ -6,7 +6,7 @@ rm -rf $0.dir
 mkdir $0.dir
 cd $0.dir
 
-cat > top.bilge <<EOF
+cat > top.loon <<EOF
 | echo foo > foo
 > foo
 
@@ -18,9 +18,9 @@ EOF
 echo hello > bar
 
 git init
-git add top.bilge bar
+git add top.loon bar
 
-../../bilge foo
+../../loon foo
 
 grep foo foo
 
@@ -29,13 +29,13 @@ if grep hello ugly; then
     exit 1
 fi
 
-../../bilge
+../../loon
 
 grep hello ugly
 
 echo goobye > ugly # put wrong value in file
 
-../../bilge foo
+../../loon foo
 
 grep foo foo
 grep goodbye ugly

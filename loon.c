@@ -8,7 +8,7 @@
 #include <string.h>
 #include <popt.h>
 
-#include "bilge.h"
+#include "loon.h"
 #include "new-build.h"
 
 void usage(poptContext optCon, int exitcode, char *error, char *addl) {
@@ -93,10 +93,9 @@ int main(int argc, const char **argv) {
            t->rule->status == clean ||
            t->rule->status == built)) {
         t->status = built;
-        int len = strlen(t->path);
-        if (len >= 6 && !strcmp(t->path+len-6, ".bilge")) {
+        if (is_loonfile(t->path)) {
           still_reading = true;
-          read_bilge_file(&all, t->path);
+          read_loon_file(&all, t->path);
         }
       }
     }
@@ -107,15 +106,18 @@ int main(int argc, const char **argv) {
            t->rule->status == clean ||
            t->rule->status == built)) {
         t->status = built;
-        int len = strlen(t->path);
-        if (len >= 6 && !strcmp(t->path+len-6, ".bilge")) {
+        if (is_loonfile(t->path)) {
           still_reading = true;
-          read_bilge_file(&all, t->path);
+          read_loon_file(&all, t->path);
         }
       }
     }
-    mark_bilgefiles(&all);
+    mark_loonfiles(&all);
   } while (all.marked_list || still_reading);
+  if (!all.r.first) {
+    printf("Please add a .loon file containing rules!\n");
+    exit(1);
+  }
   if (clean_me) {
     clean_all(&all);
     exit(0);

@@ -1,14 +1,14 @@
 # Documentation
 
-## Bilge file format
+## Loon file format
 
 To configure this build system, you create one or more files ending
-with `.bilge`.  These files specify the rules to build your project,
+with `.loon`.  These files specify the rules to build your project,
 and must be added to your git repository.  For most moderately complex
-projects, you will have just one `.bilge` file in git, which will
+projects, you will have just one `.loon` file in git, which will
 itself specify specify rules needed to create one or more additional
-`.bilge` files, which will contain the rules for doing the actual
-build.  Each `.bilge` file consists of:
+`.loon` files, which will contain the rules for doing the actual
+build.  Each `.loon` file consists of:
 
 1. Comments beginning with `"# "` (a pound sign followed by a space).
 
@@ -22,7 +22,7 @@ build.  Each `.bilge` file consists of:
 3. Output specifications beginning with `"> "` followed by the name of
    the file that is output.  There is no escaping performed, and only
    newlines and null characters are disallowed in the file name.
-   There is little need to specify the output for rules, since bilge
+   There is little need to specify the output for rules, since loon
    can determine this automatically.  The only reason to specify
    output is so that on the very first build a user can request that
    we build only the specified rule.
@@ -96,7 +96,7 @@ with the following options.
 - Hashing of inputs
 - Tracking of environment variables
 
-- Enable bilge to call bilge recursively (requires ptrace effort)
+- Enable loon to call loon recursively (requires ptrace effort)
 
 - Create .gitignore files?
 

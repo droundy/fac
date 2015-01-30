@@ -6,7 +6,7 @@ rm -rf $0.dir
 mkdir $0.dir
 cd $0.dir
 
-cat > top.bilge <<EOF
+cat > top.loon <<EOF
 | echo *.message > messages
 > messages
 EOF
@@ -14,9 +14,9 @@ EOF
 touch foo.message
 
 git init
-git add top.bilge foo.message
+git add top.loon foo.message
 
-../../bilge
+../../loon
 
 ls -lhd .
 
@@ -25,7 +25,7 @@ sleep 2
 grep foo.message messages
 
 touch bar.message
-../../bilge
+../../loon
 
 ls -lhd .
 

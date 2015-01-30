@@ -7,7 +7,7 @@ echo $0
 rm -rf $0.dir
 mkdir $0.dir
 cd $0.dir
-cat > top.bilge <<EOF
+cat > top.loon <<EOF
 | echo foo > foo
 > foo
 
@@ -20,19 +20,19 @@ cat > top.bilge <<EOF
 EOF
 
 git init
-git add top.bilge
+git add top.loon
 
-if ../../bilge > bilge.out; then
+if ../../loon > loon.out; then
     echo This should have failed
-    cat bilge.out
+    cat loon.out
     exit 1
 fi
-cat bilge.out
+cat loon.out
 
 grep foo foo
 grep bar bar
 
-cat > top.bilge <<EOF
+cat > top.loon <<EOF
 | echo foo > foo
 > foo
 
@@ -44,7 +44,7 @@ cat > top.bilge <<EOF
 
 EOF
 
-../../bilge
+../../loon
 
 grep foo foo
 grep bar bar

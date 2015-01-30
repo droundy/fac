@@ -1,6 +1,6 @@
 #define _XOPEN_SOURCE 700
 
-#include "bilge.h"
+#include "loon.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -37,15 +37,15 @@ static char *rule_key(const char *command, const char *working_directory) {
   return key;
 }
 
-struct rule *create_rule(struct all_targets *all, const char *bilgefile_path,
+struct rule *create_rule(struct all_targets *all, const char *loonfile_path,
                          const char *command, const char *working_directory) {
-  struct rule *r = malloc(sizeof(struct rule) + strlen(bilgefile_path) +
+  struct rule *r = malloc(sizeof(struct rule) + strlen(loonfile_path) +
                           strlen(command) + strlen(working_directory) + 3);
   strcpy((char *)r->command, command);
   r->working_directory = r->command + strlen(command)+1;
   strcpy((char *)r->working_directory, working_directory);
-  r->bilgefile_path = r->command + strlen(command) + strlen(working_directory)+2;
-  strcpy((char *)r->bilgefile_path, bilgefile_path);
+  r->loonfile_path = r->command + strlen(command) + strlen(working_directory)+2;
+  strcpy((char *)r->loonfile_path, loonfile_path);
 
   r->e.key = rule_key(command, working_directory);
   r->e.next = 0;
@@ -59,7 +59,7 @@ struct rule *create_rule(struct all_targets *all, const char *bilgefile_path,
   r->inputs = r->outputs = 0;
   r->input_times = r->output_times = 0;
   r->input_sizes = r->output_sizes = 0;
-  r->bilgefile_linenum = 0;
+  r->loonfile_linenum = 0;
   /* Initial guess of a second for build_time helps us build commands
      with dependencies first, even if we don't know how long those
      will actually take. */

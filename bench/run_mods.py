@@ -12,7 +12,7 @@ hour = 60*minute
 day = 24*hour
 time_limit = 3*day
 
-tools = [cmd+' -j4' for cmd in ['make', 'bilge', 'tup', 'scons']] # + ['sh build.sh']
+tools = [cmd+' -j4' for cmd in ['make', 'loon', 'tup', 'scons']] # + ['sh build.sh']
 
 # The variable "date" actually contains the date and short hash of the
 # commit information.  This could lead to confusion and incorrectness
@@ -89,8 +89,9 @@ while time.time() < start_benchmarking + time_limit:
             os.system('rm -rf '+mod.name+'-%d'%N)
             os.makedirs(mod.name+'-%d'%N)
             os.chdir(mod.name+'-%d'%N)
+            assert(not os.system('git init'))
             mod.create_bench(N)
-            assert(not os.system('bilge --makefile Makefile --script build.sh --tupfile Tupfile > /dev/null && bilge -c > /dev/null && rm -f *.done'))
+            assert(not os.system('loon --makefile Makefile --script build.sh --tupfile Tupfile > /dev/null && loon -c > /dev/null && rm -f *.done'))
             os.chdir('..')
             for tool in tools:
                 print('')

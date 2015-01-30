@@ -5,7 +5,7 @@ set -ev
 rm -rf $0.dir
 mkdir $0.dir
 cd $0.dir
-cat > top.bilge <<EOF
+cat > top.loon <<EOF
 | ../spinner.test 2 > foo
 > foo
 
@@ -19,15 +19,15 @@ cat > top.bilge <<EOF
 EOF
 
 git init
-git add top.bilge
+git add top.loon
 
-/usr/bin/time -f '%e' ../../bilge -j2 2> bilge.time
+/usr/bin/time -f '%e' ../../loon -j2 2> loon.time
 
 grep spinning foobar
 grep spinning foo
 grep spinning bar
 
-cat bilge.time
-perl -e 'if ($ARGV[0] > 3.5) { print "FAIL: $ARGV[0] too big\n"; exit 1; }' `cat bilge.time`
+cat loon.time
+perl -e 'if ($ARGV[0] > 3.5) { print "FAIL: $ARGV[0] too big\n"; exit 1; }' `cat loon.time`
 
 exit 0

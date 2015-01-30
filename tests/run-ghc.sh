@@ -27,7 +27,7 @@ import Bar
 main = putStrLn $ foo ++ bar
 EOF
 
-cat > top.bilge <<EOF
+cat > top.loon <<EOF
 | ghc -c Foo.hs
 > Foo.o
 
@@ -41,6 +41,6 @@ cat > top.bilge <<EOF
 
 EOF
 
-../../bilge
+../../loon
 
 exit 0

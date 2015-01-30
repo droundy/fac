@@ -9,7 +9,7 @@ cd $0.dir
 echo foo > foo
 echo bar > bar
 
-cat > top.bilge <<EOF
+cat > top.loon <<EOF
 | sh script.sh
 > foobar
 EOF
@@ -19,16 +19,16 @@ cat foo bar > foobar
 EOF
 
 git init
-git add top.bilge script.sh foo bar
+git add top.loon script.sh foo bar
 
-../../bilge
+../../loon
 
 grep foo foobar
 grep bar foobar
 
 sleep 1
 echo baz > bar
-../../bilge
+../../loon
 
 grep foo foobar
 grep baz foobar
@@ -37,7 +37,7 @@ cat > script.sh <<EOF
 cat foo > foobar
 EOF
 
-../../bilge
+../../loon
 
 cat foobar
 grep foo foobar
@@ -48,9 +48,9 @@ else
     echo There is no baz
 fi
 
-../../bilge > bilge.out
-cat bilge.out
-if grep dirty bilge.out; then
+../../loon > loon.out
+cat loon.out
+if grep dirty loon.out; then
     echo It is dirty, but should not be!!!
     exit 1
 else
@@ -59,9 +59,9 @@ fi
 
 sleep 1
 touch bar
-../../bilge > bilge.out
-cat bilge.out
-if grep dirty bilge.out; then
+../../loon > loon.out
+cat loon.out
+if grep dirty loon.out; then
     echo It is dirty, but should not be!!!
     exit 1
 else

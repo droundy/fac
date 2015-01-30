@@ -5,8 +5,8 @@ using multiple file systems, to see how sensitive the result is to
 file system speed.  Also note that you can click on each plot to view
 a high-resolution version of that plot.
 
-One major conclusion is that `noname` is generally a factor of two or
-three times slower than make.  But do keep in mind that `noname` does
+One major conclusion is that `loon` is generally a factor of two or
+three times slower than make.  But do keep in mind that `loon` does
 a lot more than make does, and is considerably easier to use in a
 robustly correct manner.  There are also still some remaining scaling
 issues that should be addressed, which arise when there are 10k or so

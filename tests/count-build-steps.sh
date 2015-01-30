@@ -13,7 +13,7 @@ cd $0.dir
 
 mkdir subdir
 
-cat > top.bilge <<EOF
+cat > top.loon <<EOF
 | cat subdir/foo subdir/bar > foobar
 > foobar
 < subdir/foo
@@ -21,7 +21,7 @@ cat > top.bilge <<EOF
 
 EOF
 
-cat > subdir/.bilge <<EOF
+cat > subdir/.loon <<EOF
 | echo foo > foo
 > foo
 
@@ -31,9 +31,9 @@ cat > subdir/.bilge <<EOF
 EOF
 
 git init
-git add top.bilge subdir/.bilge
+git add top.loon subdir/.loon
 
-../../bilge -v
+../../loon -v
 
 grep foo foobar
 grep bar foobar

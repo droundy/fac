@@ -13,7 +13,7 @@ cd $0.dir
 
 mkdir subdir
 
-cat > top.bilge <<EOF
+cat > top.loon <<EOF
 | cat message; false
 > foo
 
@@ -22,15 +22,15 @@ EOF
 echo done > message
 
 git init
-git add top.bilge message
+git add top.loon message
 
-if ../../bilge > bilge.out; then
-    cat bilge.out
+if ../../loon > loon.out; then
+    cat loon.out
     echo this should have failed
     exit 1
 fi
-cat bilge.out
+cat loon.out
 
-grep done bilge.out
+grep done loon.out
 
 exit 0

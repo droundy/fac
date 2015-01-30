@@ -9,32 +9,32 @@ cd $0.dir
 echo foo > foo
 echo bar > bar
 
-cat > top.bilge <<EOF
+cat > top.loon <<EOF
 | false
 > foobar
 EOF
 
 git init
-git add top.bilge
+git add top.loon
 
-if ../../bilge > bilge.out; then
-    cat bilge.out
+if ../../loon > loon.out; then
+    cat loon.out
     echo This should not have passed
     exit 1
 fi
-cat bilge.out
-grep 'build failed: foobar' bilge.out
+cat loon.out
+grep 'build failed: foobar' loon.out
 
-cat > top.bilge <<EOF
+cat > top.loon <<EOF
 | echo good > foobar
 > foobar
 EOF
 
-if ../../bilge > bilge.out; then
-    cat bilge.out
+if ../../loon > loon.out; then
+    cat loon.out
     echo good
 else
-    cat bilge.out
+    cat loon.out
     echo This should have passed
     exit 1
 fi

@@ -8,42 +8,42 @@ cd $0.dir
 
 git init
 
-cat > top.bilge <<EOF
-| python bilge.py > 1.bilge
-> 1.bilge
+cat > top.loon <<EOF
+| python loon.py > 1.loon
+> 1.loon
 EOF
-git add top.bilge
+git add top.loon
 
-cat > bilge.py <<EOF
+cat > loon.py <<EOF
 print """
-| python bilge2.py > 2.bilge
-> 2.bilge
+| python loon2.py > 2.loon
+> 2.loon
 """
 EOF
-git add bilge.py
+git add loon.py
 
-cat > bilge2.py <<EOF
+cat > loon2.py <<EOF
 print """
 | echo foo > foo
 > foo
 """
 EOF
-git add bilge2.py
+git add loon2.py
 
 git ls-files
 
-../../bilge -v
+../../loon -v
 
 grep foo foo
 
-../../bilge --clean
+../../loon --clean
 
 if test -e foo; then
   echo file foo should have been deleted
   exit 1
 fi
 
-../../bilge
+../../loon
 
 grep foo foo
 

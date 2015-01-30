@@ -6,7 +6,7 @@ rm -rf $0.dir
 mkdir $0.dir
 cd $0.dir
 
-cat > top.bilge <<EOF
+cat > top.loon <<EOF
 | echo foo > foobar && echo baz > baz
 > baz
 
@@ -15,14 +15,14 @@ cat > top.bilge <<EOF
 EOF
 
 git init
-git add top.bilge
+git add top.loon
 
-if ../../bilge > bilge.out 2>&1; then
-    cat bilge.out
+if ../../loon > loon.out 2>&1; then
+    cat loon.out
     echo This should not have passed
     exit 1
 fi
-cat bilge.out
-grep 'same output' bilge.out
+cat loon.out
+grep 'same output' loon.out
 
 exit 0

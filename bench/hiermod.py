@@ -29,10 +29,15 @@ def hash_integer(n):
         name = name*256 + i
     return abs(name)
 
+def open_and_gitadd(fname):
+    f = open(fname, 'w')
+    assert(not os.system('git add '+fname))
+    return f
+
 def create_bench(N):
-    sconsf = open('SConstruct', 'w')
-    bilgef = open('top.bilge', 'w')
-    open('Tupfile.ini', 'w')
+    sconsf = open_and_gitadd('SConstruct')
+    loonf = open_and_gitadd('top.loon')
+    open_and_gitadd('Tupfile.ini')
     sconsf.write("""
 env = Environment(CPPPATH=['.'])
 """)
@@ -47,7 +52,7 @@ env = Environment(CPPPATH=['.'])
             nhere = hash_integer(xx) % N
             includes += '#include "%s.h"\n' % make_name(nhere)
             funcs += '    %s();\n' % hashid(nhere)
-        bilgef.write("""
+        loonf.write("""
 # %d
 | gcc -I. -O2 -c -o %s.o %s.c
 > %s.o
@@ -55,7 +60,7 @@ env = Environment(CPPPATH=['.'])
         sconsf.write("""
 env.Object('%s.c')
 """ % make_name(i))
-        f = open(make_name(i)+'.c', 'w')
+        f = open_and_gitadd(make_name(i)+'.c')
         f.write('\n')
         f.write("""/* c file %s */
 
@@ -134,7 +139,7 @@ void %s() {
        hashid(i), hashid(i), hashid(i), hashid(i),
        funcs))
         f.close()
-        f = open(make_name(i)+'.h', 'w')
+        f = open_and_gitadd(make_name(i)+'.h')
         f.write("""/* header %s */
 #ifndef %s_H
 #define %s_H

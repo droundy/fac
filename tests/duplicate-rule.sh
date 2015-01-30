@@ -9,7 +9,7 @@ cd $0.dir
 echo foo > foo
 echo bar > bar
 
-cat > top.bilge <<EOF
+cat > top.loon <<EOF
 | echo foo > foobar
 > foobar
 
@@ -18,14 +18,14 @@ cat > top.bilge <<EOF
 EOF
 
 git init
-git add top.bilge
+git add top.loon
 
-if ../../bilge > bilge.out 2>&1; then
-    cat bilge.out
+if ../../loon > loon.out 2>&1; then
+    cat loon.out
     echo This should not have passed
     exit 1
 fi
-cat bilge.out
-grep -i 'duplicate rule' bilge.out
+cat loon.out
+grep -i 'duplicate rule' loon.out
 
 exit 0

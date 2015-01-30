@@ -1,6 +1,6 @@
 #define _XOPEN_SOURCE 700
 
-#include "bilge.h"
+#include "loon.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -48,14 +48,14 @@ char *absolute_path(const char *dir, const char *rel) {
   return thepath;
 }
 
-char *done_name(const char *bilgefilename) {
-  int bflen = strlen(bilgefilename);
+char *done_name(const char *loonfilename) {
+  int bflen = strlen(loonfilename);
   char *str = malloc(bflen+10);
-  sprintf(str, "%s.done", bilgefilename);
+  sprintf(str, "%s.done", loonfilename);
   return str;
 }
 
-void read_bilge_file(struct all_targets *all, const char *path) {
+void read_loon_file(struct all_targets *all, const char *path) {
   FILE *f = fopen(path, "r");
   if (!f) error(1, errno, "Unable to open file %s", path);
 
@@ -102,7 +102,7 @@ void read_bilge_file(struct all_targets *all, const char *path) {
         error_at_line(1, 0, path, linenum,
                       "duplicate rule:  %s", one_line+2);
       therule = create_rule(all, path, one_line+2, the_directory);
-      therule->bilgefile_linenum = linenum;
+      therule->loonfile_linenum = linenum;
       thetarget = 0;
       size_last_file = 0;
       last_modified_last_file = 0;
@@ -290,9 +290,9 @@ void read_bilge_file(struct all_targets *all, const char *path) {
   free(the_directory);
 }
 
-void fprint_bilgefile(FILE *f, struct all_targets *tt, const char *bpath) {
+void fprint_loonfile(FILE *f, struct all_targets *tt, const char *bpath) {
   for (struct rule *r = (struct rule *)tt->r.first; r; r = (struct rule *)r->e.next) {
-    if (!strcmp(r->bilgefile_path, bpath)) {
+    if (!strcmp(r->loonfile_path, bpath)) {
       fprintf(f, "| %s\n", r->command);
       if (r->build_time) {
         fprintf(f, "B %g\n", r->build_time);
@@ -452,7 +452,7 @@ void fprint_tupfile(FILE *f, struct all_targets *all) {
   }
 }
 
-void print_bilge_file(struct all_targets *tt) {
+void print_loon_file(struct all_targets *tt) {
   for (struct rule *r = (struct rule *)tt->r.first; r; r = (struct rule *)r->e.next) {
     r->status = unknown;
   }

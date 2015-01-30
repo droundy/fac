@@ -9,7 +9,7 @@ cd $0.dir
 echo foo > foo
 echo bar > bar
 
-cat > top.bilge <<EOF
+cat > top.loon <<EOF
 | cat foocache && echo baz > baz
 > baz
 EOF
@@ -17,27 +17,27 @@ EOF
 echo stupid > foocache
 
 git init
-git add top.bilge
+git add top.loon
 
-../../bilge
+../../loon
 
 sleep 1
 echo please say this > foocache
 
-../../bilge --show-output > bilge.out
-cat bilge.out
+../../loon --show-output > loon.out
+cat loon.out
 
-grep 'please say this' bilge.out
+grep 'please say this' loon.out
 
-../../bilge --show-output > bilge.out
-cat bilge.out
+../../loon --show-output > loon.out
+cat loon.out
 
-if grep 'please say this' bilge.out; then
+if grep 'please say this' loon.out; then
     echo we rebuilt when we should not have done so
     exit 1
 fi
 
-cat > top.bilge <<EOF
+cat > top.loon <<EOF
 | cat foocache && echo baz > baz
 > baz
 c cache
@@ -45,13 +45,13 @@ EOF
 
 echo please do not say this > foocache
 
-../../bilge --show-output > bilge.out
-cat bilge.out
+../../loon --show-output > loon.out
+cat loon.out
 
-if grep 'please do not say this' bilge.out; then
+if grep 'please do not say this' loon.out; then
     echo this was not treated as a cache
 
-    cat top.bilge.done
+    cat top.loon.done
 
     exit 1
 fi

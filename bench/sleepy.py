@@ -22,6 +22,11 @@ def hash_integer(n):
         name = name*256 + ord(i)
     return name
 
+def open_and_gitadd(fname):
+    f = open(fname, 'w')
+    assert(not os.system('git add '+fname))
+    return f
+
 def create_bench(n):
     longsleep = max((n-9)//3, 0)
     shortsleep = 1
@@ -33,15 +38,15 @@ def create_bench(n):
                     final_indices[(n//4) % len(final_indices)]]
     finalfiles = [hashid(i)+'.txt' for i in final_indices]
 
-    sconsf = open('SConstruct', 'w')
-    bilgef = open('top.bilge', 'w')
-    open('Tupfile.ini', 'w')
+    sconsf = open_and_gitadd('SConstruct')
+    loonf = open_and_gitadd('top.loon')
+    open_and_gitadd('Tupfile.ini')
     sconsf.write("""
 env = Environment()
 
 env.Command('final.txt', ['%s'], 'sleep 1 && cat $SOURCE > $TARGET')
 """ % ("', '".join(finalfiles)))
-    bilgef.write("""
+    loonf.write("""
 | cat %s > final.txt
 > final.txt
 < %s
@@ -51,7 +56,7 @@ env.Command('final.txt', ['%s'], 'sleep 1 && cat $SOURCE > $TARGET')
         sleepiness = shortsleep
         if i in long_indices:
             sleepiness = longsleep
-        bilgef.write("""
+        loonf.write("""
 | sleep %d && cat %s.txt > %s.txt
 < %s.txt
 > %s.txt

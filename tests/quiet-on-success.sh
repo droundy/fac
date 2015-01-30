@@ -6,7 +6,7 @@ rm -rf $0.dir
 mkdir $0.dir
 cd $0.dir
 
-cat > top.bilge <<EOF
+cat > top.loon <<EOF
 | cat message && echo foo > foo
 > foo
 EOF
@@ -14,12 +14,12 @@ EOF
 echo I am loud > message
 
 git init
-git add top.bilge message
+git add top.loon message
 
-../../bilge > bilge.out 2>&1
-cat bilge.out
+../../loon > loon.out 2>&1
+cat loon.out
 
-if grep 'I am loud' bilge.out; then
+if grep 'I am loud' loon.out; then
     echo build was noisy on success
     exit 1
 fi
@@ -27,9 +27,9 @@ fi
 sleep 1
 touch message
 
-../../bilge --show-output > bilge.out 2>&1
-cat bilge.out
+../../loon --show-output > loon.out 2>&1
+cat loon.out
 
-grep 'I am loud' bilge.out
+grep 'I am loud' loon.out
 
 exit 0

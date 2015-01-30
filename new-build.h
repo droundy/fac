@@ -1,9 +1,9 @@
 #ifndef NEW_BUILD_H
 #define NEW_BUILD_H
 
-#include "bilge.h"
+#include "loon.h"
 
-void mark_bilgefiles(struct all_targets *all);
+void mark_loonfiles(struct all_targets *all);
 void mark_all(struct all_targets *all);
 void mark_rule(struct all_targets *all, struct rule *r);
 

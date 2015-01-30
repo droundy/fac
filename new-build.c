@@ -1,6 +1,6 @@
 #define _GNU_SOURCE
 
-#include "bilge.h"
+#include "loon.h"
 #include "new-build.h"
 
 #include "lib/bigbrother.h"
@@ -22,11 +22,6 @@
 #include <string.h>
 #include <signal.h>
 #include <assert.h>
-
-static inline bool is_bilgefile(const char *path) {
-  int len = strlen(path);
-  return len >= 6 && !strcmp(path+len-6, ".bilge");
-}
 
 bool is_interesting_path(struct rule *r, const char *path) {
   const int len = strlen(path);
@@ -76,11 +71,11 @@ void mark_rule(struct all_targets *all, struct rule *r) {
   put_rule_into_status_list(&all->marked_list, r);
 }
 
-void mark_bilgefiles(struct all_targets *all) {
+void mark_loonfiles(struct all_targets *all) {
   for (struct rule *r = (struct rule *)all->r.first; r; r = (struct rule *)r->e.next) {
     if (r->status == unknown) {
       for (int i=0;i<r->num_outputs;i++) {
-        if (is_bilgefile(r->outputs[i]->path)) mark_rule(all, r);
+        if (is_loonfile(r->outputs[i]->path)) mark_rule(all, r);
       }
     }
   }
@@ -151,6 +146,17 @@ void built_rule(struct all_targets *all, struct rule *r) {
 }
 void rule_failed(struct all_targets *all, struct rule *r) {
   if (r->status == failed) return; /* just in case! */
+  r->input_array_size = 0;
+  r->num_inputs = r->num_explicit_inputs;
+  r->num_outputs = r->num_explicit_outputs;
+  free(r->input_times);
+  free(r->output_times);
+  r->input_times = 0;
+  r->output_times = 0;
+  free(r->input_sizes);
+  free(r->output_sizes);
+  r->input_sizes = 0;
+  r->output_sizes = 0;
   all->estimated_time -= r->old_build_time/num_jobs;
   if (r->status == unready) {
     all->unready_num--;
@@ -204,7 +210,7 @@ void check_cleanliness(struct all_targets *all, struct rule *r) {
         check_cleanliness(all, r->inputs[i]->rule);
       }
       if (r->inputs[i]->rule->status == being_determined)
-        error_at_line(1, 0, r->bilgefile_path, r->bilgefile_linenum,
+        error_at_line(1, 0, r->loonfile_path, r->loonfile_linenum,
                       "CYCLE INVOLVING %s and %s\n  and %s\n",
                       r->outputs[0]->path,
                       r->inputs[i]->path,
@@ -315,7 +321,7 @@ static struct building *build_rule(struct all_targets *all,
                             PROT_READ | PROT_WRITE,
                             MAP_SHARED | MAP_ANONYMOUS, -1, 0);
   b->rule = r;
-  const char *templ = "/tmp/bilge-XXXXXX";
+  const char *templ = "/tmp/loon-XXXXXX";
   char *namebuf = malloc(strlen(templ)+1);
   strcpy(namebuf, templ);
   b->stdouterrfd = mkstemp(namebuf);
@@ -436,7 +442,6 @@ void build_continual() {
     all.running_list = 0;
     all.ready_num = all.unready_num = all.failed_num = all.built_num = 0;
     all.estimated_time = 0;
-    create_target(&all, "top.bilge");
 
     bool still_reading;
     do {
@@ -447,9 +452,9 @@ void build_continual() {
              t->rule->status == clean ||
              t->rule->status == built)) {
           t->status = built;
-          if (is_bilgefile(t->path)) {
+          if (is_loonfile(t->path)) {
             still_reading = true;
-            read_bilge_file(&all, t->path);
+            read_loon_file(&all, t->path);
           }
         }
       }
@@ -460,13 +465,13 @@ void build_continual() {
              t->rule->status == clean ||
              t->rule->status == built)) {
           t->status = built;
-          if (is_bilgefile(t->path)) {
+          if (is_loonfile(t->path)) {
             still_reading = true;
-            read_bilge_file(&all, t->path);
+            read_loon_file(&all, t->path);
           }
         }
       }
-      mark_bilgefiles(&all);
+      mark_loonfiles(&all);
     } while (all.marked_list || still_reading);
     mark_all(&all);
     check_for_impossibilities(&all);
@@ -476,7 +481,7 @@ void build_continual() {
     int ifd = inotify_init1(IN_CLOEXEC);
     for (struct target *t = (struct target *)all.t.first; t; t = (struct target *)t->e.next) {
       t->status = unknown;
-      if (t->num_children || is_bilgefile(t->path)) {
+      if (t->num_children || is_loonfile(t->path)) {
         inotify_add_watch(ifd, t->path, IN_CLOSE_WRITE | IN_DELETE_SELF);
       }
     }
@@ -520,7 +525,7 @@ void build_marked(struct all_targets *all) {
     check_cleanliness(all, r);
   }
 
-  listset *bilgefiles_used = 0;
+  listset *loonfiles_used = 0;
   do {
     int threads_in_use = 0;
     for (int i=0;i<num_jobs;i++) {
@@ -571,7 +576,7 @@ void build_marked(struct all_targets *all) {
           close(bs[i]->stdouterrfd);
 
           struct rule *r = bs[i]->rule;
-          insert_to_listset(&bilgefiles_used, r->bilgefile_path);
+          insert_to_listset(&loonfiles_used, r->loonfile_path);
 
           /* Forget the non-explicit imputs, as we will re-add those
              inputs that were actually used in the build */
@@ -650,7 +655,7 @@ void build_marked(struct all_targets *all) {
             }
           }
           built_rule(all, r);
-          insert_to_listset(&bilgefiles_used, r->bilgefile_path);
+          insert_to_listset(&loonfiles_used, r->loonfile_path);
 
           munmap(bs[i], sizeof(struct building));
           bs[i] = 0;
@@ -687,14 +692,14 @@ void build_marked(struct all_targets *all) {
       }
       printf("Interrupted!                         \n");
 
-      while (bilgefiles_used) {
-        char *donefile = done_name(bilgefiles_used->path);
+      while (loonfiles_used) {
+        char *donefile = done_name(loonfiles_used->path);
         FILE *f = fopen(donefile, "w");
         if (!f) error(1,errno,"oopse");
-        fprint_bilgefile(f, all, bilgefiles_used->path);
+        fprint_loonfile(f, all, loonfiles_used->path);
         fclose(f);
         free(donefile);
-        bilgefiles_used = bilgefiles_used->next;
+        loonfiles_used = loonfiles_used->next;
       }
 
       exit(1);
@@ -716,17 +721,17 @@ void build_marked(struct all_targets *all) {
     rule_failed(all, r);
   }
 
-  while (bilgefiles_used) {
-    char *donefile = done_name(bilgefiles_used->path);
+  while (loonfiles_used) {
+    char *donefile = done_name(loonfiles_used->path);
     FILE *f = fopen(donefile, "w");
     if (!f) error(1,errno,"oopse");
-    fprint_bilgefile(f, all, bilgefiles_used->path);
+    fprint_loonfile(f, all, loonfiles_used->path);
     fclose(f);
     free(donefile);
-    bilgefiles_used = bilgefiles_used->next;
+    loonfiles_used = loonfiles_used->next;
   }
 
-  free_listset(bilgefiles_used);
+  free_listset(loonfiles_used);
   free(bs);
   sigaction(SIGINT, &oldact, 0);
 }

@@ -6,7 +6,7 @@ rm -rf $0.dir
 mkdir $0.dir
 cd $0.dir
 
-cat > top.bilge <<EOF
+cat > top.loon <<EOF
 | echo foo > foo
 > foo
 
@@ -16,21 +16,21 @@ cat > top.bilge <<EOF
 EOF
 
 git init
-git add top.bilge
+git add top.loon
 
-if ../../bilge > bilge.out 2>&1; then
-    cat bilge.out
+if ../../loon > loon.out 2>&1; then
+    cat loon.out
     echo Bilge was okay.  That is not good.
     exit 1
 else
-    cat bilge.out
+    cat loon.out
     echo Bilge failed as it ought.
 fi
 
-grep 'missing file bar' bilge.out
-grep 'missing file bar' bilge.out | grep baz
+grep 'missing file bar' loon.out
+grep 'missing file bar' loon.out | grep baz
 
-if grep 'cat: bar' bilge.out; then
+if grep 'cat: bar' loon.out; then
     echo we should not have attempted this build in the first place
     exit 1
 fi

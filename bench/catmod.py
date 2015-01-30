@@ -22,26 +22,31 @@ def hash_integer(n):
         name = name*256 + ord(i)
     return name
 
+def open_and_gitadd(fname):
+    f = open(fname, 'w')
+    assert(not os.system('git add '+fname))
+    return f
+
 def create_bench(n):
-    sconsf = open('SConstruct', 'w')
-    bilgef = open('top.bilge', 'w')
-    open('Tupfile.ini', 'w')
+    sconsf = open_and_gitadd('SConstruct')
+    loonf = open_and_gitadd('top.loon')
+    open_and_gitadd('Tupfile.ini')
     sconsf.write("""
 env = Environment()
 """)
-    bilgef.write("""
+    loonf.write("""
 | cat %s.txt > final.txt
 > final.txt
 < %s.txt
 
 """ % (hashid(n), hashid(n)))
-    f = open('%s.txt' % hashid(0), 'w')
+    f = open_and_gitadd('%s.txt' % hashid(0))
     f.write("Hello world\n")
     for i in range(1,n+1):
         sconsf.write("""
 env.Command('%s.txt', '%s.txt', 'cat $SOURCE > $TARGET')
 """ % (hashid(i), hashid(i-1)))
-        bilgef.write("""
+        loonf.write("""
 | cat %s.txt > %s.txt
 < %s.txt
 > %s.txt

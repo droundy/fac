@@ -29,7 +29,7 @@ if len(linkflags) > 0:
     linkflags = linkflags[1:]
 os.system('rm -rf testing-flags')
 
-sources = ['bilge', 'files', 'targets', 'clean', 'new-build', 'git']
+sources = ['loon', 'files', 'targets', 'clean', 'new-build', 'git']
 
 libsources = ['trie', 'listset', 'iterablehash', 'arrayset', 'bigbrother']
 
@@ -58,12 +58,12 @@ print """
 > lib/syscalls.h
 """
 
-print '| gcc '+linkflags+' -o bilge', string.join(['%s.o' % s for s in sources] + ['lib/%s.o' % s for s in libsources])
+print '| gcc '+linkflags+' -o loon', string.join(['%s.o' % s for s in sources] + ['lib/%s.o' % s for s in libsources])
 for s in sources:
     print '< %s.o' % s
 for s in libsources:
     print '< lib/%s.o' % s
-print '> bilge'
+print '> loon'
 print
 
 print '| cd lib && gcc '+linkflags+' -o fileaccesses fileaccesses.o', string.join(['%s.o' % s for s in libsources])

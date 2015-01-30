@@ -14,21 +14,26 @@ def hashid(n):
         name += allowed_chars[i % len(allowed_chars)]
     return name+('_%d' % n)
 
+def open_and_gitadd(fname):
+    f = open(fname, 'w')
+    assert(not os.system('git add '+fname))
+    return f
+
 def create_bench(n):
-    sconsf = open('SConstruct', 'w')
-    bilgef = open('top.bilge', 'w')
-    open('Tupfile.ini', 'w')
+    sconsf = open_and_gitadd('SConstruct')
+    loonf = open_and_gitadd('top.loon')
+    open_and_gitadd('Tupfile.ini')
     sconsf.write("""
 env = Environment(CPPPATH=['.'])
 """)
-    bilgef.write("""
+    loonf.write("""
 | gcc -o final.exe final.c
 > final.exe
 < final.c
 < %s-generated.h
 
 """ % hashid(n))
-    f = open('final.c', 'w')
+    f = open_and_gitadd('final.c')
     f.write("""
 #include "%s-generated.h"
 #include <stdio.h>
@@ -38,7 +43,7 @@ void main() {
 }
 """ % (hashid(n), hashid(n)))
     f.close()
-    f = open('%s-generated.h' % hashid(0), 'w')
+    f = open_and_gitadd('%s-generated.h' % hashid(0))
     f.write("""
 const char *%s = "Hello world";
 
@@ -47,7 +52,7 @@ const char *%s = "Hello world";
     for i in range(1,n+1):
         cname = hashid(i) + '.c'
         hname = hashid(i) + '-generated.h'
-        f = open('%s.c' % hashid(i), 'w')
+        f = open_and_gitadd('%s.c' % hashid(i))
         f.write("""
 #include <stdio.h>
 
@@ -58,7 +63,7 @@ int main() {
 
 """ % hashid(i))
         f.close()
-        bilgef.write("""
+        loonf.write("""
 # %d
 | gcc -o %s.exe %s.c
 > %s.exe

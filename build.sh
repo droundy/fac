@@ -58,7 +58,7 @@ cd lib && gcc -Wall -Werror -O2 -std=c11 -g -c fileaccesses.c
 
 cd lib && gcc -lpopt -lprofiler -o fileaccesses fileaccesses.o trie.o listset.o iterablehash.o arrayset.o bigbrother.o
 
-gcc -Wall -Werror -O2 -std=c11 -g -c bilge.c
+gcc -Wall -Werror -O2 -std=c11 -g -c loon.c
 
 gcc -Wall -Werror -O2 -std=c11 -g -c files.c
 
@@ -70,7 +70,7 @@ gcc -Wall -Werror -O2 -std=c11 -g -c new-build.c
 
 gcc -Wall -Werror -O2 -std=c11 -g -c git.c
 
-gcc -lpopt -lprofiler -o bilge bilge.o files.o targets.o clean.o new-build.o git.o lib/trie.o lib/listset.o lib/iterablehash.o lib/arrayset.o lib/bigbrother.o
+gcc -lpopt -lprofiler -o loon loon.o files.o targets.o clean.o new-build.o git.o lib/trie.o lib/listset.o lib/iterablehash.o lib/arrayset.o lib/bigbrother.o
 
 gcc -lpthread -o tests/trie.test tests/trie.o lib/trie.o lib/listset.o lib/iterablehash.o lib/arrayset.o lib/bigbrother.o
 
@@ -88,7 +88,9 @@ gcc -m32 -Wall -Werror -O2 -std=c11 -g -o targets-32.o -c targets.c
 
 gcc -m32 -Wall -Werror -O2 -std=c11 -g -o files-32.o -c files.c
 
-gcc -m32 -Wall -Werror -O2 -std=c11 -g -o bilge-32.o -c bilge.c
+gcc -m32 -Wall -Werror -O2 -std=c11 -g -o loon-32.o -c loon.c
+
+cp loon bilge
 
 sass web/style.scss web/style.css
 

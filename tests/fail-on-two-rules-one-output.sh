@@ -9,7 +9,7 @@ cd $0.dir
 echo foo > foo
 echo bar > bar
 
-cat > top.bilge <<EOF
+cat > top.loon <<EOF
 | echo good > foobar
 > foobar
 
@@ -18,13 +18,13 @@ cat > top.bilge <<EOF
 EOF
 
 git init
-git add top.bilge
+git add top.loon
 
-if ../../bilge > bilge.out; then
-    cat bilge.out
+if ../../loon > loon.out; then
+    cat loon.out
     echo This should not have passed
     exit 1
 fi
-cat bilge.out
+cat loon.out
 
 exit 0
