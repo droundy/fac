@@ -30,7 +30,7 @@ This build system has several advantages.
   will write a script to generate these files.
 
 - You write you "build" script as a program (in the language of your
-  choice) that creates a `.bilge` file.  This script is run (and
+  choice) that creates a `.fac` file.  This script is run (and
   re-run) using the same dependency-tracking mechanism that is used to
   for an ordinary build.  Thus, you can get away with writing a simple
   but inefficient script, since it will only seldom be run.  (Unlike,
@@ -39,6 +39,6 @@ This build system has several advantages.
 
 - If your build rules depend on the operating system, or the system
   environment, your "configure" script is the same program (in the
-  language of your choice) that creates a `.bilge` file.  Or perhaps
-  it provides input to the script that actually creates the `.bilge`
+  language of your choice) that creates a `.fac` file.  Or perhaps
+  it provides input to the script that actually creates the `.fac`
   file.
