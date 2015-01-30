@@ -40,10 +40,6 @@ cd lib && gcc -Wall -Werror -O2 -std=c11 -g -c bigbrother.c
 
 gcc -lpthread -o tests/iterable_hash_test.test tests/iterable_hash_test.o lib/trie.o lib/listset.o lib/iterablehash.o lib/arrayset.o lib/bigbrother.o
 
-cd tests && gcc -Wall -Werror -O2 -std=c11 -g -c spinner.c
-
-gcc -lpthread -o tests/spinner.test tests/spinner.o lib/trie.o lib/listset.o lib/iterablehash.o lib/arrayset.o lib/bigbrother.o
-
 cd tests && gcc -Wall -Werror -O2 -std=c11 -g -c trie.c
 
 cd tests && gcc -Wall -Werror -O2 -std=c11 -g -c listset.c
@@ -58,7 +54,7 @@ cd lib && gcc -Wall -Werror -O2 -std=c11 -g -c fileaccesses.c
 
 cd lib && gcc -lpopt -lprofiler -o fileaccesses fileaccesses.o trie.o listset.o iterablehash.o arrayset.o bigbrother.o
 
-gcc -Wall -Werror -O2 -std=c11 -g -c loon.c
+gcc -Wall -Werror -O2 -std=c11 -g -c fac.c
 
 gcc -Wall -Werror -O2 -std=c11 -g -c files.c
 
@@ -70,7 +66,7 @@ gcc -Wall -Werror -O2 -std=c11 -g -c new-build.c
 
 gcc -Wall -Werror -O2 -std=c11 -g -c git.c
 
-gcc -lpopt -lprofiler -o loon loon.o files.o targets.o clean.o new-build.o git.o lib/trie.o lib/listset.o lib/iterablehash.o lib/arrayset.o lib/bigbrother.o
+gcc -lpopt -lprofiler -o fac fac.o files.o targets.o clean.o new-build.o git.o lib/trie.o lib/listset.o lib/iterablehash.o lib/arrayset.o lib/bigbrother.o
 
 gcc -lpthread -o tests/trie.test tests/trie.o lib/trie.o lib/listset.o lib/iterablehash.o lib/arrayset.o lib/bigbrother.o
 
@@ -88,13 +84,15 @@ gcc -m32 -Wall -Werror -O2 -std=c11 -g -o targets-32.o -c targets.c
 
 gcc -m32 -Wall -Werror -O2 -std=c11 -g -o files-32.o -c files.c
 
-gcc -m32 -Wall -Werror -O2 -std=c11 -g -o loon-32.o -c loon.c
+gcc -m32 -Wall -Werror -O2 -std=c11 -g -o fac-32.o -c fac.c
 
-cp loon bilge
+cd tests && gcc -Wall -Werror -O2 -std=c11 -g -c spinner.c
+
+gcc -lpthread -o tests/spinner.test tests/spinner.o lib/trie.o lib/listset.o lib/iterablehash.o lib/arrayset.o lib/bigbrother.o
 
 sass web/style.scss web/style.css
 
 python web/mkdown.py
 
-python2 top.py > .bilge
+python2 top.py > .fac
 

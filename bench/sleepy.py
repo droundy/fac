@@ -39,14 +39,14 @@ def create_bench(n):
     finalfiles = [hashid(i)+'.txt' for i in final_indices]
 
     sconsf = open_and_gitadd('SConstruct')
-    loonf = open_and_gitadd('top.loon')
+    facf = open_and_gitadd('top.fac')
     open_and_gitadd('Tupfile.ini')
     sconsf.write("""
 env = Environment()
 
 env.Command('final.txt', ['%s'], 'sleep 1 && cat $SOURCE > $TARGET')
 """ % ("', '".join(finalfiles)))
-    loonf.write("""
+    facf.write("""
 | cat %s > final.txt
 > final.txt
 < %s
@@ -56,7 +56,7 @@ env.Command('final.txt', ['%s'], 'sleep 1 && cat $SOURCE > $TARGET')
         sleepiness = shortsleep
         if i in long_indices:
             sleepiness = longsleep
-        loonf.write("""
+        facf.write("""
 | sleep %d && cat %s.txt > %s.txt
 < %s.txt
 > %s.txt

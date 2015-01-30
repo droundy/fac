@@ -10,7 +10,7 @@ class bcolors:
     FAIL = '\033[91m'
     ENDC = '\033[0m'
 
-if os.system('./loon --makefile Makefile --script build.sh'):
+if os.system('./fac --makefile Makefile --script build.sh'):
     print 'Build failed!'
     exit(1)
 

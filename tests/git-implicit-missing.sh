@@ -12,24 +12,24 @@ echo bar > bar
 git init
 git add foo
 
-cat > top.loon <<EOF
+cat > top.fac <<EOF
 | cat foo bar > foobar
 > foobar
 EOF
 
 git init
-git add top.loon
+git add top.fac
 
-if ../../loon > loon.out; then
-    cat loon.out
+if ../../fac > fac.out; then
+    cat fac.out
     echo This should not have passed
     exit 1
 fi
-cat loon.out
+cat fac.out
 
 rm -f foobar
 git add bar
 
-../../loon
+../../fac
 
 exit 0

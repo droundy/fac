@@ -9,19 +9,19 @@ cd $0.dir
 echo foo > foo
 echo bar > bar
 
-cat > top.loon <<EOF
+cat > top.fac <<EOF
 | echo foo > ~/.tmp-trash && echo baz > baz
 > baz
 EOF
 
 git init
-git add top.loon
+git add top.fac
 
-if ../../loon > loon.out 2>&1; then
-    cat loon.out
+if ../../fac > fac.out 2>&1; then
+    cat fac.out
     echo This should not have passed
     exit 1
 fi
-cat loon.out
+cat fac.out
 
 exit 0

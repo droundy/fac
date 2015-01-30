@@ -9,7 +9,7 @@ cd $0.dir
 echo foo > foo
 echo bar > bar
 
-cat > top.loon <<EOF
+cat > top.fac <<EOF
 | echo foo > foobar && echo baz > baz
 > baz
 c foobar
@@ -29,24 +29,24 @@ EOF
 echo good > .cache-read
 
 git init
-git add top.loon
+git add top.fac
 
-../../loon
+../../fac
 
-cat top.loon.done
+cat top.fac.done
 
-if grep "$0.dir/.cache-me" top.loon.done; then
+if grep "$0.dir/.cache-me" top.fac.done; then
   echo this file should be ignored
   exit 1
 fi
-if grep "$0.dir/.cache-read" top.loon.done; then
+if grep "$0.dir/.cache-read" top.fac.done; then
   echo this file should be ignored
   exit 1
 fi
-grep "$0.dir/foobar" top.loon.done
+grep "$0.dir/foobar" top.fac.done
 
 
-cat > top.loon <<EOF
+cat > top.fac <<EOF
 | echo foo > foobar && echo baz > baz
 > baz
 c foobar
@@ -66,10 +66,10 @@ EOF
 
 rm foo
 
-../../loon
-cat top.loon.done
+../../fac
+cat top.fac.done
 
-if grep "$0.dir/foobar" top.loon.done; then
+if grep "$0.dir/foobar" top.fac.done; then
   echo this file should be ignored
   exit 1
 fi

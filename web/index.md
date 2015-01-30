@@ -1,11 +1,11 @@
-# Loon build system
+# Fac build system
 
 This build system has several advantages.
 
 * Automatically tracks build dependencies in a way that is independent
   of programming language.  You are only required to specify the
-  minimum of dependencies for each rule, and loon works out the rest
-  for you.  If you fail to specify dependencies, loon should still
+  minimum of dependencies for each rule, and fac works out the rest
+  for you.  If you fail to specify dependencies, fac should still
   build successfully if you use it repeatedly.
 
 * Parallel building.
@@ -19,11 +19,11 @@ This build system has several advantages.
 
 ## How does it work?
 
-- Loon uses ptrace to track every system call your build command makes.
+- Fac uses ptrace to track every system call your build command makes.
   Thus we can see precisely which files are read, and which files are
   modified.
 
-- Loon has an extremely simple declarative
+- Fac has an extremely simple declarative
   [file format](documentation.html).  There are no variables, no
   functions, no macros.  Just data.  This could be a problem if you
   were forced to write these files by hand.  But in most cases you

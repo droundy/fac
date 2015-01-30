@@ -1,9 +1,9 @@
 #ifndef NEW_BUILD_H
 #define NEW_BUILD_H
 
-#include "loon.h"
+#include "fac.h"
 
-void mark_loonfiles(struct all_targets *all);
+void mark_facfiles(struct all_targets *all);
 void mark_all(struct all_targets *all);
 void mark_rule(struct all_targets *all, struct rule *r);
 

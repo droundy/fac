@@ -1,5 +1,5 @@
-| python2 top.py > .bilge
-> .bilge
+| python2 top.py > .fac
+> .fac
 
 | python web/mkdown.py
 > web/index.html
@@ -10,6 +10,3 @@ C .sass-cache
 
 # | python2 bench/generate-plots.py
 # > web/hierarchy-building.pdf
-
-| cp loon bilge
-< loon

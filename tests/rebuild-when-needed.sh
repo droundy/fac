@@ -9,7 +9,7 @@ cd $0.dir
 echo foo > foo
 echo bar > bar
 
-cat > top.loon <<EOF
+cat > top.fac <<EOF
 | cat foo > bar
 > bar
 < foo
@@ -22,16 +22,16 @@ EOF
 echo good > input
 
 git init
-git add top.loon input
+git add top.fac input
 
-../../loon -v
+../../fac -v
 
 grep good foo
 grep good bar
 
 echo newer > input
 
-../../loon
+../../fac
 
 grep newer foo
 grep newer bar

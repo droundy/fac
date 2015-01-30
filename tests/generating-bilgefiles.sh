@@ -8,42 +8,42 @@ cd $0.dir
 
 git init
 
-cat > top.loon <<EOF
-| python loon.py > 1.loon
-> 1.loon
+cat > top.fac <<EOF
+| python fac.py > 1.fac
+> 1.fac
 EOF
-git add top.loon
+git add top.fac
 
-cat > loon.py <<EOF
+cat > fac.py <<EOF
 print """
-| python loon2.py > 2.loon
-> 2.loon
+| python fac2.py > 2.fac
+> 2.fac
 """
 EOF
-git add loon.py
+git add fac.py
 
-cat > loon2.py <<EOF
+cat > fac2.py <<EOF
 print """
 | echo foo > foo
 > foo
 """
 EOF
-git add loon2.py
+git add fac2.py
 
 git ls-files
 
-../../loon -v
+../../fac -v
 
 grep foo foo
 
-../../loon --clean
+../../fac --clean
 
 if test -e foo; then
   echo file foo should have been deleted
   exit 1
 fi
 
-../../loon
+../../fac
 
 grep foo foo
 

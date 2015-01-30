@@ -36,7 +36,7 @@ def open_and_gitadd(fname):
 
 def create_bench(N):
     sconsf = open_and_gitadd('SConstruct')
-    loonf = open_and_gitadd('top.loon')
+    facf = open_and_gitadd('top.fac')
     open_and_gitadd('Tupfile.ini')
     sconsf.write("""
 env = Environment(CPPPATH=['.'])
@@ -52,7 +52,7 @@ env = Environment(CPPPATH=['.'])
             nhere = hash_integer(xx) % N
             includes += '#include "%s.h"\n' % make_name(nhere)
             funcs += '    %s();\n' % hashid(nhere)
-        loonf.write("""
+        facf.write("""
 # %d
 | gcc -I. -O2 -c -o %s.o %s.c
 > %s.o

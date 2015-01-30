@@ -8,7 +8,7 @@
 #include <string.h>
 #include <popt.h>
 
-#include "loon.h"
+#include "fac.h"
 #include "new-build.h"
 
 void usage(poptContext optCon, int exitcode, char *error, char *addl) {
@@ -93,9 +93,9 @@ int main(int argc, const char **argv) {
            t->rule->status == clean ||
            t->rule->status == built)) {
         t->status = built;
-        if (is_loonfile(t->path)) {
+        if (is_facfile(t->path)) {
           still_reading = true;
-          read_loon_file(&all, t->path);
+          read_fac_file(&all, t->path);
         }
       }
     }
@@ -106,16 +106,16 @@ int main(int argc, const char **argv) {
            t->rule->status == clean ||
            t->rule->status == built)) {
         t->status = built;
-        if (is_loonfile(t->path)) {
+        if (is_facfile(t->path)) {
           still_reading = true;
-          read_loon_file(&all, t->path);
+          read_fac_file(&all, t->path);
         }
       }
     }
-    mark_loonfiles(&all);
+    mark_facfiles(&all);
   } while (all.marked_list || still_reading);
   if (!all.r.first) {
-    printf("Please add a .loon file containing rules!\n");
+    printf("Please add a .fac file containing rules!\n");
     exit(1);
   }
   if (clean_me) {

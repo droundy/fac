@@ -5,7 +5,7 @@ set -ev
 rm -rf $0.dir
 mkdir $0.dir
 cd $0.dir
-cat > top.loon <<EOF
+cat > top.fac <<EOF
 | ../spinner.test 2 > foo
 > foo
 
@@ -19,15 +19,15 @@ cat > top.loon <<EOF
 EOF
 
 git init
-git add top.loon
+git add top.fac
 
-/usr/bin/time -f '%e' ../../loon -j2 2> loon.time
+/usr/bin/time -f '%e' ../../fac -j2 2> fac.time
 
 grep spinning foobar
 grep spinning foo
 grep spinning bar
 
-cat loon.time
-perl -e 'if ($ARGV[0] > 3.5) { print "FAIL: $ARGV[0] too big\n"; exit 1; }' `cat loon.time`
+cat fac.time
+perl -e 'if ($ARGV[0] > 3.5) { print "FAIL: $ARGV[0] too big\n"; exit 1; }' `cat fac.time`
 
 exit 0

@@ -1,6 +1,8 @@
 fileaccesses
-bilge
+fac
 .bilge
+.fac
+*.backup
 *~
 *.done
 *.o

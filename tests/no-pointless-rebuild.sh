@@ -9,28 +9,28 @@ cd $0.dir
 echo foo > foo
 echo bar > bar
 
-cat > top.loon <<EOF
+cat > top.fac <<EOF
 | echo foo > foo
 > foo
 EOF
 
 git init
-git add top.loon
+git add top.fac
 
-../../loon -v > loon.out
-cat loon.out
-if grep dirty loon.out; then
+../../fac -v > fac.out
+cat fac.out
+if grep dirty fac.out; then
     echo It is dirty, as it should be.
 else
     echo It should not be clean!!!
     exit 1
 fi
 
-cat top.loon.done
+cat top.fac.done
 
-../../loon -v > loon.out
-cat loon.out
-if grep dirty loon.out; then
+../../fac -v > fac.out
+cat fac.out
+if grep dirty fac.out; then
     echo It is dirty, but should not be!!!
     exit 1
 else

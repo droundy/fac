@@ -11,7 +11,7 @@ rm -rf $0.dir
 mkdir $0.dir
 cd $0.dir
 
-cat > top.loon <<EOF
+cat > top.fac <<EOF
 | echo foo > foo
 > foo
 
@@ -27,9 +27,9 @@ cat > top.loon <<EOF
 EOF
 
 git init
-git add top.loon
+git add top.fac
 
-../../loon -v
+../../fac -v
 
 grep foo foo
 grep bar bar

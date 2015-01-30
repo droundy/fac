@@ -13,7 +13,7 @@ cd $0.dir
 
 mkdir subdir
 
-cat > top.loon <<EOF
+cat > top.fac <<EOF
 | cat subdir/foo subdir/bar > foobar
 > foobar
 < subdir/foo
@@ -21,7 +21,7 @@ cat > top.loon <<EOF
 
 EOF
 
-cat > subdir/.loon <<EOF
+cat > subdir/.fac <<EOF
 | echo foo > foo
 > foo
 
@@ -31,9 +31,9 @@ cat > subdir/.loon <<EOF
 EOF
 
 git init
-git add top.loon subdir/.loon
+git add top.fac subdir/.fac
 
-../../loon -v
+../../fac -v
 
 grep foo foobar
 grep bar foobar

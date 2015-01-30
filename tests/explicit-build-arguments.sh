@@ -6,7 +6,7 @@ rm -rf $0.dir
 mkdir $0.dir
 cd $0.dir
 
-cat > top.loon <<EOF
+cat > top.fac <<EOF
 | echo foo > foo
 > foo
 
@@ -18,9 +18,9 @@ EOF
 echo hello > bar
 
 git init
-git add top.loon bar
+git add top.fac bar
 
-../../loon foo
+../../fac foo
 
 grep foo foo
 
@@ -29,15 +29,23 @@ if grep hello ugly; then
     exit 1
 fi
 
-../../loon
+../../fac
 
 grep hello ugly
 
-echo goobye > ugly # put wrong value in file
+echo wrong > foo
+echo goodbye > ugly # put wrong value in file
 
-../../loon foo
+../../fac foo
 
 grep foo foo
+# verify the wrong value is still in the ugly file that we did not
+# rebuild
 grep goodbye ugly
+
+../../fac
+
+grep foo foo
+grep hello ugly
 
 exit 0

@@ -7,7 +7,7 @@ echo $0
 rm -rf $0.dir
 mkdir $0.dir
 cd $0.dir
-cat > top.loon <<EOF
+cat > top.fac <<EOF
 | echo foo > foo
 > foo
 
@@ -20,19 +20,19 @@ cat > top.loon <<EOF
 EOF
 
 git init
-git add top.loon
+git add top.fac
 
-if ../../loon > loon.out; then
+if ../../fac > fac.out; then
     echo This should have failed
-    cat loon.out
+    cat fac.out
     exit 1
 fi
-cat loon.out
+cat fac.out
 
 grep foo foo
 grep bar bar
 
-cat > top.loon <<EOF
+cat > top.fac <<EOF
 | echo foo > foo
 > foo
 
@@ -44,7 +44,7 @@ cat > top.loon <<EOF
 
 EOF
 
-../../loon
+../../fac
 
 grep foo foo
 grep bar bar

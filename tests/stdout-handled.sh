@@ -13,7 +13,7 @@ cd $0.dir
 
 mkdir subdir
 
-cat > top.loon <<EOF
+cat > top.fac <<EOF
 | cat message; false
 > foo
 
@@ -22,15 +22,15 @@ EOF
 echo done > message
 
 git init
-git add top.loon message
+git add top.fac message
 
-if ../../loon > loon.out; then
-    cat loon.out
+if ../../fac > fac.out; then
+    cat fac.out
     echo this should have failed
     exit 1
 fi
-cat loon.out
+cat fac.out
 
-grep done loon.out
+grep done fac.out
 
 exit 0

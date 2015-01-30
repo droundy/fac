@@ -27,7 +27,7 @@ import Bar
 main = putStrLn $ foo ++ bar
 EOF
 
-cat > top.loon <<EOF
+cat > top.fac <<EOF
 | ghc -c Foo.hs
 > Foo.o
 
@@ -41,6 +41,6 @@ cat > top.loon <<EOF
 
 EOF
 
-../../loon
+../../fac
 
 exit 0

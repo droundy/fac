@@ -29,12 +29,12 @@ def open_and_gitadd(fname):
 
 def create_bench(n):
     sconsf = open_and_gitadd('SConstruct')
-    loonf = open_and_gitadd('top.loon')
+    facf = open_and_gitadd('top.fac')
     open_and_gitadd('Tupfile.ini')
     sconsf.write("""
 env = Environment()
 """)
-    loonf.write("""
+    facf.write("""
 | cat %s.txt > final.txt
 > final.txt
 < %s.txt
@@ -46,7 +46,7 @@ env = Environment()
         sconsf.write("""
 env.Command('%s.txt', '%s.txt', 'cat $SOURCE > $TARGET')
 """ % (hashid(i), hashid(i-1)))
-        loonf.write("""
+        facf.write("""
 | cat %s.txt > %s.txt
 < %s.txt
 > %s.txt

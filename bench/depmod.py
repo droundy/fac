@@ -21,12 +21,12 @@ def open_and_gitadd(fname):
 
 def create_bench(n):
     sconsf = open_and_gitadd('SConstruct')
-    loonf = open_and_gitadd('top.loon')
+    facf = open_and_gitadd('top.fac')
     open_and_gitadd('Tupfile.ini')
     sconsf.write("""
 env = Environment(CPPPATH=['.'])
 """)
-    loonf.write("""
+    facf.write("""
 | gcc -o final.exe final.c
 > final.exe
 < final.c
@@ -63,7 +63,7 @@ int main() {
 
 """ % hashid(i))
         f.close()
-        loonf.write("""
+        facf.write("""
 # %d
 | gcc -o %s.exe %s.c
 > %s.exe
