@@ -46,7 +46,7 @@ struct target {
   time_t last_modified;
   off_t size;
 
-  bool is_in_git, exists;
+  bool is_in_git;
 
   struct rule *rule;
   int num_children, children_size;

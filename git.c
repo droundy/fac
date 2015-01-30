@@ -74,7 +74,6 @@ void add_git_files(struct all_targets *all) {
       free(path);
       assert(t);
       t->is_in_git = true;
-      t->exists = true;
       last_start = i+1;
     }
   }
