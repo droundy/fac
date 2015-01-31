@@ -4,7 +4,7 @@ fac
 .fac
 *.backup
 *~
-*.done
+*.tum
 *.o
 *.log
 *.dir

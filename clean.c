@@ -16,11 +16,8 @@ static const char *pretty_path(const char *path) {
 void clean_all(struct all_targets *all) {
   for (struct target *t = (struct target *)all->t.first; t; t = (struct target *)t->e.next) {
     t->status = unknown;
-    int len = strlen(t->path);
-    if (len >= 6 && !strcmp(t->path+len-6, ".bilge")) {
-      char *donef = malloc(len + 20);
-      strcpy(donef, t->path);
-      strcat(donef, ".done");
+    if (is_facfile(t->path)) {
+      char *donef = done_name(t->path);
       printf("rm %s\n", donef);
       unlink(donef);
       free(donef);

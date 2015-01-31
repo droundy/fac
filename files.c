@@ -50,8 +50,8 @@ char *absolute_path(const char *dir, const char *rel) {
 
 char *done_name(const char *facfilename) {
   int bflen = strlen(facfilename);
-  char *str = malloc(bflen+10);
-  sprintf(str, "%s.done", facfilename);
+  char *str = malloc(bflen+5);
+  sprintf(str, "%s.tum", facfilename);
   return str;
 }
 
