@@ -109,7 +109,7 @@ void add_cache_suffix(struct rule *r, const char *suffix) {
   const int len = strlen(suffix);
   char *reversed = malloc(len+1);
   reversed[len] = 0;
-  for (int i=0;i<len;i++) reversed[i] = suffix[len-i];
+  for (int i=0;i<len;i++) reversed[i] = suffix[len-i-1];
   r->cache_suffixes_reversed[r->num_cache_suffixes] = reversed;
   r->num_cache_suffixes++;
 }

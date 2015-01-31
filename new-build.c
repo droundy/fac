@@ -216,7 +216,7 @@ void check_cleanliness(struct all_targets *all, struct rule *r) {
         }
         verbose_printf("::: %s :::\n", r->command);
         verbose_printf(" - dirty because %s needs to be rebuilt.\n",
-                       r->inputs[i]->path);
+                       pretty_path(r->inputs[i]->path));
         rule_is_unready(all, r);
         return;
       }
@@ -235,7 +235,7 @@ void check_cleanliness(struct all_targets *all, struct rule *r) {
     if (r->inputs[i]->rule && r->inputs[i]->rule->status == built) {
       verbose_printf("::: %s :::\n", r->command);
       verbose_printf(" - dirty because %s has been rebuilt.\n",
-                     r->inputs[i]->path);
+                     pretty_path(r->inputs[i]->path));
       is_dirty = true;
     }
     if (!r->inputs[i]->is_in_git &&
@@ -253,12 +253,13 @@ void check_cleanliness(struct all_targets *all, struct rule *r) {
           r->input_sizes[i] != r->inputs[i]->size) {
         verbose_printf("::: %s :::\n", r->command);
         verbose_printf(" - dirty because %s has wrong input time.\n",
-               r->inputs[i]->path);
+                       pretty_path(r->inputs[i]->path));
         is_dirty = true;
       }
     } else {
       verbose_printf("::: %s :::\n", r->command);
-      verbose_printf(" - dirty because #%d %s has no input time.\n", i, r->inputs[i]->path);
+      verbose_printf(" - dirty because #%d %s has no input time.\n",
+                     i, pretty_path(r->inputs[i]->path));
       is_dirty = true;
     }
   }
@@ -269,12 +270,13 @@ void check_cleanliness(struct all_targets *all, struct rule *r) {
           r->output_sizes[i] != r->outputs[i]->size) {
         verbose_printf("::: %s :::\n", r->command);
         verbose_printf(" - dirty because %s has wrong output time.\n",
-               r->outputs[i]->path);
+                       pretty_path(r->outputs[i]->path));
         is_dirty = true;
       }
     } else {
       verbose_printf("::: %s :::\n", r->command);
-      verbose_printf(" - dirty because %s has no output time.\n", r->outputs[i]->path);
+      verbose_printf(" - dirty because %s has no output time.\n",
+                     pretty_path(r->outputs[i]->path));
       is_dirty = true;
     }
   }
