@@ -559,6 +559,8 @@ void build_marked(struct all_targets *all) {
           if (bs[i]->all_done == failed) {
             rule_failed(all, bs[i]->rule);
             printf("build failed: %s\n", pretty_rule(bs[i]->rule));
+            munmap(bs[i], sizeof(struct building));
+            bs[i] = 0;
             break;
           }
           close(bs[i]->stdouterrfd);
@@ -594,6 +596,8 @@ void build_marked(struct all_targets *all) {
               printf("build failed to create: %s\n",
                      pretty_path(r->outputs[ii]->path));
               rule_failed(all, r);
+              munmap(bs[i], sizeof(struct building));
+              bs[i] = 0;
               break;
             } else {
               t->rule = r;
