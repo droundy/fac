@@ -82,7 +82,7 @@ void mark_facfiles(struct all_targets *all) {
 }
 void mark_all(struct all_targets *all) {
   for (struct rule *r = (struct rule *)all->r.first; r; r = (struct rule *)r->e.next) {
-    if (r->status == unknown) mark_rule(all, r);
+    if (r->status == unknown && r->is_default) mark_rule(all, r);
   }
 }
 

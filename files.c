@@ -97,6 +97,7 @@ void read_fac_file(struct all_targets *all, const char *path) {
       error_at_line(1, 0, path, linenum,
                     "Second character of line should be a space");
     switch (one_line[0]) {
+    case '?':
     case '|':
       if (lookup_rule(all, one_line+2, the_directory))
         error_at_line(1, 0, path, linenum,
@@ -106,6 +107,7 @@ void read_fac_file(struct all_targets *all, const char *path) {
       thetarget = 0;
       size_last_file = 0;
       last_modified_last_file = 0;
+      if (one_line[0] == '?') therule->is_default = false;
       break;
     case 'C':
       if (!therule)

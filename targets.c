@@ -66,6 +66,7 @@ struct rule *create_rule(struct all_targets *all, const char *facfile_path,
   r->build_time = 1;
   r->latency_estimate = 0;
   r->latency_handled = false;
+  r->is_default = true;
 
   r->num_cache_suffixes = r->num_cache_prefixes = 0;
   r->cache_suffixes_reversed = r->cache_prefixes = 0;

@@ -92,7 +92,7 @@ struct rule {
 
   double build_time, old_build_time;
   double latency_estimate;
-  bool latency_handled, is_printed;
+  bool latency_handled, is_printed, is_default;
 
   const char *working_directory;
   const char *facfile_path;

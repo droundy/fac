@@ -19,6 +19,12 @@ build.  Each `.fac` file consists of:
    order of these directives has no effect, so long as the follow the
    `"| "` line to which they apply.
 
+2. Optional rules beginning with `"? "` are identical to rules
+   beginning with a pipe, with the sole difference being that optional
+   rules are only built if they are needed to build another target, or
+   if they are explicitly requested.  Optional rules enable you to
+   specify a large number of rules and only have what is needed built.
+
 3. Output specifications beginning with `"> "` followed by the name of
    the file that is output.  There is no escaping performed, and only
    newlines and null characters are disallowed in the file name.
