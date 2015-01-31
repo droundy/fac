@@ -75,14 +75,7 @@ int main(int argc, const char **argv) {
   }
 
   struct all_targets all;
-  init_hash_table(&all.r, 1000);
-  init_hash_table(&all.t, 10000);
-  all.ready_list = all.unready_list = all.clean_list = all.failed_list = all.marked_list = 0;
-  all.running_list = 0;
-  all.ready_num = all.unready_num = all.failed_num = all.built_num = 0;
-  all.estimated_time = 0;
-
-  add_git_files(&all);
+  init_all(&all);
 
   bool still_reading;
   do {

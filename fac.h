@@ -165,4 +165,6 @@ void delete_rule_list(struct rule_list **list);
 char *go_to_git_top();
 void add_git_files(struct all_targets *all);
 
+void init_all(struct all_targets *all);
+
 #endif
