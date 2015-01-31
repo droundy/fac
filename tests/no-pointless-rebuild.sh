@@ -26,7 +26,7 @@ else
     exit 1
 fi
 
-cat top.fac.done
+cat top.fac.tum
 
 ../../fac -v > fac.out
 cat fac.out

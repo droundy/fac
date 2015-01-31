@@ -64,7 +64,6 @@ static void check_cleanliness(struct all_targets *all, struct rule *r);
 
 void mark_rule(struct all_targets *all, struct rule *r) {
   if (r->status != unknown) {
-    printf("command status %d %s\n", r->status, r->command);
     return;
   }
   r->status = marked;
