@@ -695,7 +695,7 @@ void build_marked(struct all_targets *all) {
     }
   } while (all->ready_list || all->running_list);
 
-  for (struct rule *r = all->unready_list; r; r = r->status_next) {
+  for (struct rule *r = all->unready_list; r; r = all->unready_list) {
     for (int i=0;i<r->num_inputs;i++) {
       if (!r->inputs[i]->rule && !r->inputs[i]->is_in_git && is_in_root(r->inputs[i]->path)) {
         if (!access(r->inputs[i]->path, R_OK)) {
