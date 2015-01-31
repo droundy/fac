@@ -393,16 +393,16 @@ static void fprint_script_rule(FILE *f, struct rule *r) {
     if (r->inputs[i]->rule) fprint_script_rule(f, r->inputs[i]->rule);
   }
   if (is_in_root(r->working_directory)) {
-    fprintf(f, "cd ");
+    fprintf(f, "(cd ");
     fprint_makefile_escape(f, r->working_directory + lenroot+1);
-    fprintf(f, " && %s\n\n", r->command);
+    fprintf(f, " && %s)\n\n", r->command);
   } else {
-    fprintf(f, "%s\n\n", r->command);
+    fprintf(f, "(%s)\n\n", r->command);
   }
 }
 
 void fprint_script(FILE *f, struct all_targets *all) {
-  fprintf(f, "#!/bin/sh\n\n");
+  fprintf(f, "#!/bin/sh\n\nset -ev\n\n");
   for (struct rule *r = (struct rule *)all->r.first; r; r = (struct rule *)r->e.next) {
     r->is_printed = false;
   }
