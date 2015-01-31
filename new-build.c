@@ -139,7 +139,8 @@ void built_rule(struct all_targets *all, struct rule *r) {
   put_rule_into_status_list(&all->clean_list, r);
   for (int i=0;i<r->num_outputs;i++) {
     for (int j=0;j<r->outputs[i]->num_children;j++) {
-      check_cleanliness(all, r->outputs[i]->children[j]);
+      if (r->outputs[i]->children[j]->status == unready)
+        check_cleanliness(all, r->outputs[i]->children[j]);
     }
   }
 }

@@ -91,12 +91,6 @@ with the following options.
 
 ## To do list
 
-1. Consider the option of defining "optional" rules, which are only
-   run if needed in order to generate input for the normal rules.
-   This would simplify scenarios where there are all sorts of things
-   one could compute, and we want fac to only do what is needed to
-   produce the "default" output.
-
 2. Use inotify to avoid rescanning the entire source tree.
 
 3. Remove "error" calls from new-build.c, to ensure that we will
