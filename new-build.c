@@ -606,6 +606,7 @@ void build_marked(struct all_targets *all) {
               delete_from_arrayset(&bs[i]->written, r->outputs[ii]->path);
             }
           }
+          if (!bs[i]) break; // happens if we failed to create an output
           for (char *path = start_iterating(&bs[i]->read); path; path = iterate(&bs[i]->read)) {
             if (is_interesting_path(r, path)) {
               struct target *t = create_target_with_stat(all, path);
