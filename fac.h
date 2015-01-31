@@ -25,10 +25,7 @@ static inline bool is_in_root(const char *path) {
 }
 static inline bool is_facfile(const char *path) {
   int len = strlen(path);
-  return (len >= 6 && !strcmp(path+len-6, ".bilge")) ||
-    (len >= 4 && !strcmp(path+len-4, ".fac")) ||
-    (len >= 5 && !strcmp(path+len-5, ".gild")) ||
-    (len >= 5 && !strcmp(path+len-5, ".loon"));
+  return len >= 4 && !strcmp(path+len-4, ".fac");
 }
 
 inline void verbose_printf(const char *format, ...) {
@@ -95,7 +92,7 @@ struct rule {
 
   double build_time, old_build_time;
   double latency_estimate;
-  bool latency_handled;
+  bool latency_handled, is_printed;
 
   const char *working_directory;
   const char *facfile_path;

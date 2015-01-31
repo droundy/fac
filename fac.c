@@ -128,9 +128,6 @@ int main(int argc, const char **argv) {
   } else {
     mark_all(&all);
   }
-  //check_for_impossibilities(&all);
-  build_marked(&all);
-  summarize_build_results(&all);
 
   if (create_makefile) {
     FILE *f = fopen(create_makefile, "w");
@@ -150,6 +147,9 @@ int main(int argc, const char **argv) {
     fprint_script(f, &all);
     fclose(f);
   }
+
+  build_marked(&all);
+  summarize_build_results(&all);
 
   /* enable following line to check for memory leaks */
   if (true) free_all_targets(&all);

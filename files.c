@@ -335,8 +335,8 @@ static void fprint_makefile_escape(FILE *f, const char *path) {
 }
 
 static void fprint_makefile_rule(FILE *f, struct rule *r) {
-  if (r->status == built) return;
-  r->status = built;
+  if (r->is_printed) return;
+  r->is_printed = true;
   const int lenroot = strlen(root);
   for (int i=0; i<r->num_inputs; i++) {
     if (r->inputs[i]->rule) fprint_makefile_rule(f, r->inputs[i]->rule);
@@ -365,33 +365,27 @@ void fprint_makefile(FILE *f, struct all_targets *all) {
   /* First, let's identify any intermediate output, so it won't need
      to be included in the "all" target. */
   for (struct rule *r = (struct rule *)all->r.first; r; r = (struct rule *)r->e.next) {
-    r->status = unknown;
-  }
-  for (struct rule *r = (struct rule *)all->r.first; r; r = (struct rule *)r->e.next) {
-    for (int i=0;i<r->num_inputs;i++) {
-      if (r->inputs[i]->rule) r->inputs[i]->rule->status = clean;
-    }
+    r->is_printed = false;
   }
 
   const int lenroot = strlen(root);
   fprintf(f, "all:");
-  for (struct target *t = (struct target *)all->t.first; t; t = (struct target *)t->e.next) {
-    if (t->rule && t->rule->status == unknown) {
-      fprintf(f, " %s", t->path + lenroot+1);
-    }
+  for (struct rule *r = all->marked_list; r; r = r->status_next) {
+    /* Only print one output per rule that we are building to save
+       space.  Also, if there are no outputs yet (because they are not
+       specified in the .fac file, and we have not yet built) that is
+       a user error. */
+    if (r->num_outputs) fprintf(f, " %s", r->outputs[0]->path + lenroot+1);
   }
   fprintf(f, "\n\n");
-  for (struct rule *r = (struct rule *)all->r.first; r; r = (struct rule *)r->e.next) {
-    r->status = unknown;
-  }
-  for (struct rule *r = (struct rule *)all->r.first; r; r = (struct rule *)r->e.next) {
+  for (struct rule *r = all->marked_list; r; r = r->status_next) {
     fprint_makefile_rule(f, r);
   }
 }
 
 static void fprint_script_rule(FILE *f, struct rule *r) {
-  if (r->status == built) return;
-  r->status = built;
+  if (r->is_printed) return;
+  r->is_printed = true;
   const int lenroot = strlen(root);
   for (int i=0; i<r->num_inputs; i++) {
     if (r->inputs[i]->rule) fprint_script_rule(f, r->inputs[i]->rule);
@@ -408,16 +402,16 @@ static void fprint_script_rule(FILE *f, struct rule *r) {
 void fprint_script(FILE *f, struct all_targets *all) {
   fprintf(f, "#!/bin/sh\n\n");
   for (struct rule *r = (struct rule *)all->r.first; r; r = (struct rule *)r->e.next) {
-    r->status = unknown;
+    r->is_printed = false;
   }
-  for (struct rule *r = (struct rule *)all->r.first; r; r = (struct rule *)r->e.next) {
+  for (struct rule *r = all->marked_list; r; r = r->status_next) {
     fprint_script_rule(f, r);
   }
 }
 
 static void fprint_tupfile_rule(FILE *f, struct rule *r) {
-  if (r->status == built) return;
-  r->status = built;
+  if (r->is_printed) return;
+  r->is_printed = true;
   const int lenroot = strlen(root);
   for (int i=0; i<r->num_inputs; i++) {
     if (r->inputs[i]->rule) fprint_tupfile_rule(f, r->inputs[i]->rule);
@@ -445,9 +439,9 @@ static void fprint_tupfile_rule(FILE *f, struct rule *r) {
 
 void fprint_tupfile(FILE *f, struct all_targets *all) {
   for (struct rule *r = (struct rule *)all->r.first; r; r = (struct rule *)r->e.next) {
-    r->status = unknown;
+    r->is_printed = false;
   }
-  for (struct rule *r = (struct rule *)all->r.first; r; r = (struct rule *)r->e.next) {
+  for (struct rule *r = all->marked_list; r; r = r->status_next) {
     fprint_tupfile_rule(f, r);
   }
 }
