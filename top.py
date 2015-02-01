@@ -10,7 +10,7 @@ with open('testing-flags/test.c', 'w') as f:
 }
 """)
 flags = ''
-for flag in ['-Wall', '-Werror', '-O2', '-std=c11', '-g']:
+for flag in ['-Wall', '-Werror', '-O2', '-std=c11', '-g', '-fprofile-arcs', '-ftest-coverage']:
     if not os.system('cd testing-flags && gcc %s %s -c test.c' %
                      (flags, flag)):
         flags += ' ' + flag
@@ -19,7 +19,7 @@ for flag in ['-Wall', '-Werror', '-O2', '-std=c11', '-g']:
 if len(flags) > 0:
     flags = flags[1:]
 linkflags = ''
-for flag in ['-lpopt', '-lprofiler']:
+for flag in ['-lpopt', '-lprofiler', '-fprofile-arcs', '-ftest-coverage']:
     if not os.system('cd testing-flags && gcc %s %s -o test test.c' %
                      (flags, flag)):
         linkflags += ' ' + flag
@@ -27,6 +27,22 @@ for flag in ['-lpopt', '-lprofiler']:
         print '# gcc linking cannot use flag:', flag
 if len(linkflags) > 0:
     linkflags = linkflags[1:]
+
+
+flags32 = '-m32'
+for flag in ['-Wall', '-Werror', '-O2', '-std=c11', '-g', '-fprofile-arcs', '-ftest-coverage']:
+    if not os.system('cd testing-flags && gcc %s %s -c test.c' %
+                     (flags32, flag)):
+        flags32 += ' ' + flag
+    else:
+        print '# gcc cannot use flag:', flag
+linkflags32 = '-m32'
+for flag in ['-lpopt', '-lprofiler', '-fprofile-arcs', '-ftest-coverage']:
+    if not os.system('cd testing-flags && gcc %s %s -o test test.c' %
+                     (flags32, flag)):
+        linkflags32 += ' ' + flag
+    else:
+        print '# gcc linking cannot use flag:', flag
 os.system('rm -rf testing-flags')
 
 sources = ['fac', 'files', 'targets', 'clean', 'new-build', 'git']
@@ -37,7 +53,7 @@ for s in sources:
     print '| gcc %s -c %s.c' % (flags, s)
     print '> %s.o' % s
     print
-    print '| gcc -m32 %s -o %s-32.o -c %s.c' % (flags, s, s)
+    print '| gcc %s -o %s-32.o -c %s.c' % (flags32, s, s)
     print '> %s-32.o' % s
     print
 
@@ -49,7 +65,7 @@ for s in libsources + ['fileaccesses']:
     print
     if s in ['bigbrother', 'fileaccesses']:
         continue
-    print '| cd lib && gcc -m32 %s -o %s-32.o -c %s.c' % (flags, s, s)
+    print '| cd lib && gcc %s -o %s-32.o -c %s.c' % (flags32, s, s)
     print '> lib/%s-32.o' % s
     print
 
@@ -76,7 +92,7 @@ print
 ctests = ['arrayset', 'listset', 'trie', 'spinner', 'iterable_hash_test']
 
 for test in ctests:
-    print '| gcc -lpthread -o tests/%s.test' % test, 'tests/%s.o' % test, string.join(['lib/%s.o' % s for s in libsources])
+    print '| gcc '+linkflags+' -o tests/%s.test' % test, 'tests/%s.o' % test, string.join(['lib/%s.o' % s for s in libsources])
     print '> tests/%s.test' % test
     print '< tests/%s.o' % test
     for s in libsources:
@@ -90,13 +106,13 @@ for test in ctests:
 libsources.remove('bigbrother') # it doesn't work yet with 32 bit
 
 for test in ctests:
-    print '| gcc -m32 -lpthread -o tests/%s-32.test' % test, 'tests/%s-32.o' % test, string.join(['lib/%s-32.o' % s for s in libsources])
+    print '| gcc '+linkflags32+' -o tests/%s-32.test' % test, 'tests/%s-32.o' % test, string.join(['lib/%s-32.o' % s for s in libsources])
     print '> tests/%s-32.test' % test
     print '< tests/%s-32.o' % test
     for s in libsources:
         print '< lib/%s-32.o' % s
     print
 
-    print '| cd tests && gcc -m32 %s -o %s-32.o -c %s.c' % (flags, test, test)
+    print '| cd tests && gcc %s -o %s-32.o -c %s.c' % (flags32, test, test)
     print '> tests/%s-32.o' % test
     print

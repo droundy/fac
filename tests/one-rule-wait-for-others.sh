@@ -19,10 +19,22 @@ cat > top.fac <<EOF
 
 | echo zoo > zoo
 
-| cat foo bar zoo > all
+| echo aaa > aaa
+
+| echo bbb > bbb
+
+| echo ccc > ccc
+
+| echo ddd > ddd
+
+| cat foo bar zoo aaa bbb ccc ddd > all
 < foo
 < bar
 < zoo
+< aaa
+< bbb
+< ccc
+< ddd
 
 EOF
 
@@ -38,5 +50,10 @@ grep zoo zoo
 grep foo all
 grep bar all
 grep zoo all
+
+grep aaa all
+grep bbb all
+grep ccc all
+grep ddd all
 
 exit 0

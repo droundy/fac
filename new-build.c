@@ -182,6 +182,21 @@ static struct target *create_target_with_stat(struct all_targets *all,
   return t;
 }
 
+static inline const char *pretty_status(enum target_status status) {
+  switch (status) {
+  case unknown: return "unknown";
+  case unready: return "unready";
+  case dirty: return "dirty";
+  case marked: return "marked";
+  case failed: return "failed";
+  case building: return "building";
+  case clean: return "clean";
+  case built: return "built";
+  case being_determined: return "being_determined";
+  }
+  return "ERROR-ERROR";
+}
+
 void check_cleanliness(struct all_targets *all, struct rule *r) {
   if (r->status != unknown && r->status != unready && r->status != marked) {
     return;
@@ -224,14 +239,6 @@ void check_cleanliness(struct all_targets *all, struct rule *r) {
     if (old_status != unready) rule_is_unready(all, r);
     return;
   }
-  if (old_status == unready) {
-    r->status = old_status;
-    rule_is_ready(all, r);
-    /* FIXME if we get to the point of checking output content, then
-       we will want to change this bit so sometimes it will result in
-       a clean state. */
-    return;
-  }
   bool is_dirty = false;
   for (int i=0;i<r->num_inputs;i++) {
     if (r->inputs[i]->rule && r->inputs[i]->rule->status == built) {
@@ -244,9 +251,10 @@ void check_cleanliness(struct all_targets *all, struct rule *r) {
         !r->inputs[i]->rule &&
         is_in_root(r->inputs[i]->path)) {
         verbose_printf("::: %s :::\n", r->command);
-        verbose_printf(" - unready because %s is not in git and I don't now how to build it.\n",
+        verbose_printf(" - unready because I don't yet know how to build %s.\n",
                        pretty_path(r->inputs[i]->path));
-        rule_is_unready(all, r);
+        r->status = unready;
+        if (old_status != unready) rule_is_unready(all, r);
         return;
     }
     if (r->input_times[i]) {

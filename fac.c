@@ -53,7 +53,7 @@ int main(int argc, const char **argv) {
   };
 
   poptContext optCon = poptGetContext(NULL, argc, argv, optionsTable, 0);
-  poptSetOtherOptionHelp(optCon, "[OPTIONS]* [things to build maybe?]");
+  poptSetOtherOptionHelp(optCon, "[OPTIONS] [TARGETS]");
 
   while (poptGetNextOpt(optCon) >= 0);
 

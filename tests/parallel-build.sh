@@ -8,9 +8,11 @@ cd $0.dir
 cat > top.fac <<EOF
 | ../spinner.test 2 > foo
 > foo
+c .gcda
 
 | ../spinner.test 2 > bar
 > bar
+c .gcda
 
 | cat foo bar > foobar
 > foobar
