@@ -194,6 +194,7 @@ void check_cleanliness(struct all_targets *all, struct rule *r) {
   }
   int old_status = r->status;
   r->status = being_determined;
+  bool am_now_unready = false;
   for (int i=0;i<r->num_inputs;i++) {
     if (r->inputs[i]->rule) {
       if (r->inputs[i]->rule->status == unknown ||
@@ -209,18 +210,19 @@ void check_cleanliness(struct all_targets *all, struct rule *r) {
       if (r->inputs[i]->rule->status == dirty ||
           r->inputs[i]->rule->status == unready ||
           r->inputs[i]->rule->status == building) {
-        r->status = unready;
-        if (old_status == unready) {
-          r->status = unready;
-          return; /* no change so we can just set status back to what it was. */
+        am_now_unready = true;
+        if (old_status != unready) {
+          verbose_printf("::: %s :::\n", r->command);
+          verbose_printf(" - dirty because %s needs to be rebuilt.\n",
+                         pretty_path(r->inputs[i]->path));
         }
-        verbose_printf("::: %s :::\n", r->command);
-        verbose_printf(" - dirty because %s needs to be rebuilt.\n",
-                       pretty_path(r->inputs[i]->path));
-        rule_is_unready(all, r);
-        return;
       }
     }
+  }
+  if (am_now_unready) {
+    r->status = unready;
+    if (old_status != unready) rule_is_unready(all, r);
+    return;
   }
   if (old_status == unready) {
     r->status = old_status;
