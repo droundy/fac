@@ -294,7 +294,7 @@ void read_fac_file(struct all_targets *all, const char *path) {
 
 void fprint_facfile(FILE *f, struct all_targets *tt, const char *bpath) {
   for (struct rule *r = (struct rule *)tt->r.first; r; r = (struct rule *)r->e.next) {
-    if (!strcmp(r->facfile_path, bpath)) {
+    if (!strcmp(r->facfile_path, bpath) && r->status != failed) {
       fprintf(f, "| %s\n", r->command);
       if (r->build_time) {
         fprintf(f, "B %g\n", r->build_time);

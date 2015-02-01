@@ -628,6 +628,12 @@ void build_marked(struct all_targets *all) {
             if (is_interesting_path(r, path)) {
               struct target *t = create_target_with_stat(all, path);
               if (!t) error(1, errno, "Unable to stat directory %s", path);
+
+              if (!t->rule && is_in_root(path) && !t->is_in_git) {
+                printf("error: directory %s should be in git for %s\n",
+                       pretty_path(r->inputs[i]->path), pretty_rule(r));
+                rule_failed(all, r);
+              }
               add_input(r, t);
             }
           }
@@ -652,7 +658,7 @@ void build_marked(struct all_targets *all) {
               }
             }
           }
-          built_rule(all, r);
+          if (r->status != failed) built_rule(all, r);
           insert_to_listset(&facfiles_used, r->facfile_path);
 
           munmap(bs[i], sizeof(struct building));

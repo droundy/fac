@@ -74,6 +74,17 @@ void add_git_files(struct all_targets *all) {
       free(path);
       assert(t);
       t->is_in_git = true;
+      // Now check if this file is in a subdirectory...
+      for (int j=i-1;j>last_start;j--) {
+        if (buf[j] == '/') {
+          buf[j] = 0;
+          char *path = absolute_path(root, buf + last_start);
+          struct target *t = create_target(all, path);
+          free(path);
+          assert(t);
+          t->is_in_git = true;
+        }
+      }
       last_start = i+1;
     }
   }
