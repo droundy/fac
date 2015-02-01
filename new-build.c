@@ -518,7 +518,7 @@ void build_marked(struct all_targets *all) {
 
               if (!t->rule && is_in_root(path) && !t->is_in_git) {
                 printf("error: %s should be in git for %s\n",
-                       pretty_path(r->inputs[i]->path), pretty_rule(r));
+                       pretty_path(t->path), pretty_rule(r));
                 rule_failed(all, r);
               }
 
@@ -533,7 +533,7 @@ void build_marked(struct all_targets *all) {
 
               if (!t->rule && is_in_root(path) && !t->is_in_git) {
                 printf("error: directory %s should be in git for %s\n",
-                       pretty_path(r->inputs[i]->path), pretty_rule(r));
+                       pretty_path(t->path), pretty_rule(r));
                 rule_failed(all, r);
               }
               add_input(r, t);
