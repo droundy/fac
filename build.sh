@@ -14,8 +14,6 @@ set -ev
 
 (gcc -Wall -Werror -O2 -std=c11 -g -fprofile-arcs -ftest-coverage -c git.c)
 
-(cd lib && gcc -Wall -Werror -O2 -std=c11 -g -fprofile-arcs -ftest-coverage -c trie.c)
-
 (cd lib && gcc -Wall -Werror -O2 -std=c11 -g -fprofile-arcs -ftest-coverage -c listset.c)
 
 (cd lib && gcc -Wall -Werror -O2 -std=c11 -g -fprofile-arcs -ftest-coverage -c iterablehash.c)
@@ -26,5 +24,5 @@ set -ev
 
 (cd lib && gcc -Wall -Werror -O2 -std=c11 -g -fprofile-arcs -ftest-coverage -c bigbrother.c)
 
-(gcc -lpopt -lprofiler -fprofile-arcs -ftest-coverage -o fac fac.o files.o targets.o clean.o new-build.o git.o lib/trie.o lib/listset.o lib/iterablehash.o lib/arrayset.o lib/bigbrother.o)
+(gcc -lpopt -lprofiler -fprofile-arcs -ftest-coverage -o fac fac.o files.o targets.o clean.o new-build.o git.o lib/listset.o lib/iterablehash.o lib/arrayset.o lib/bigbrother.o)
 

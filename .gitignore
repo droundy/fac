@@ -20,3 +20,7 @@ temp-cat
 *.pyc
 web/style.css
 bench/data
+*.gcno
+*.gcda
+*.gcov
+

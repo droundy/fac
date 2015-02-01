@@ -8,7 +8,6 @@
 #include <time.h>
 #include <string.h>
 
-#include "lib/trie.h"
 #include "lib/listset.h"
 #include "lib/iterablehash.h"
 
@@ -109,15 +108,6 @@ struct all_targets {
   double estimated_time;
 };
 
-/* The struct rule_list is just for optimizing the build.
-   Hypothetically, we could add a rule_list to the all_targets
-   equivalent, so the rule_list was automagically built when adding
-   targets with rules to all_targets. */
-struct rule_list {
-  struct rule *r;
-  struct rule_list *next;
-};
-
 struct target *create_target(struct all_targets *all, const char *path);
 void free_all_targets(struct all_targets *all);
 
@@ -155,13 +145,21 @@ void clean_all(struct all_targets *all);
 
 char *done_name(const char *facfile);
 
-void insert_rule_by_latency(struct rule_list **list, struct rule *r);
-void delete_rule(struct rule_list **list, struct rule *r);
-void delete_rule_list(struct rule_list **list);
-
 char *go_to_git_top();
 void add_git_files(struct all_targets *all);
 
 void init_all(struct all_targets *all);
+
+static inline const char *pretty_path(const char *path) {
+  int len = strlen(root);
+  if (path[len] == '/' && !memcmp(path, root, len)) {
+    return path + len + 1;
+  }
+  return path;
+}
+static inline const char *pretty_rule(struct rule *r) {
+  if (r->num_outputs) return pretty_path(r->outputs[0]->path);
+  return r->command;
+}
 
 #endif

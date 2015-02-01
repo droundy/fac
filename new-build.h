@@ -8,7 +8,6 @@ void mark_all(struct all_targets *all);
 void mark_rule(struct all_targets *all, struct rule *r);
 
 void build_marked(struct all_targets *all);
-void check_for_impossibilities(struct all_targets *all);
 
 void build_continual();
 

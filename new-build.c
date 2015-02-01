@@ -48,18 +48,6 @@ bool is_interesting_path(struct rule *r, const char *path) {
   return true;
 }
 
-static const char *pretty_path(const char *path) {
-  int len = strlen(root);
-  if (path[len] == '/' && !memcmp(path, root, len)) {
-    return path + len + 1;
-  }
-  return path;
-}
-static inline const char *pretty_rule(struct rule *r) {
-  if (r->num_outputs) return pretty_path(r->outputs[0]->path);
-  return r->command;
-}
-
 static void check_cleanliness(struct all_targets *all, struct rule *r);
 
 void mark_rule(struct all_targets *all, struct rule *r) {
@@ -217,11 +205,11 @@ void check_cleanliness(struct all_targets *all, struct rule *r) {
         check_cleanliness(all, r->inputs[i]->rule);
       }
       if (r->inputs[i]->rule->status == being_determined)
-        error_at_line(1, 0, r->facfile_path, r->facfile_linenum,
-                      "CYCLE INVOLVING %s and %s\n  and %s\n",
-                      r->outputs[0]->path,
-                      r->inputs[i]->path,
-                      r->inputs[i]->rule->outputs[0]->path);
+        error_at_line(1, 0, pretty_path(r->facfile_path), r->facfile_linenum,
+                      "error: cycle involving %s, %s and %s\n",
+                      pretty_rule(r),
+                      pretty_path(r->inputs[i]->path),
+                      pretty_rule(r->inputs[i]->rule));
       if (r->inputs[i]->rule->status == dirty ||
           r->inputs[i]->rule->status == unready ||
           r->inputs[i]->rule->status == building) {
@@ -305,17 +293,6 @@ struct building {
   struct rule *rule;
   arrayset readdir, read, written, deleted;
 };
-
-void remove_from_status_list(struct rule *r) {
-  if (r->status_prev) {
-    *(r->status_prev) = r->status_next;
-  }
-  if (r->status_next) {
-    r->status_next->status_prev = r->status_prev;
-  }
-  r->status_prev = 0;
-  r->status_next = 0;
-}
 
 static struct building *build_rule(struct all_targets *all,
                                    struct rule *r) {
@@ -413,29 +390,6 @@ static void find_elapsed_time() {
   }
 }
 
-void check_for_impossibilities(struct all_targets *all) {
-  for (struct rule *r = all->marked_list; r; r = all->marked_list) {
-    check_cleanliness(all, r);
-  }
-  for (struct rule *r = (struct rule *)all->r.first; r; r = (struct rule *)r->e.next) {
-    for (int i=0;i<r->num_inputs;i++) {
-      if (!r->inputs[i]->rule && i < r->num_explicit_inputs) {
-        if (access(r->inputs[i]->path, R_OK)) {
-          printf("cannot build: %s due to missing input %s\n",
-                 pretty_rule(r), pretty_path(r->inputs[i]->path));
-          rule_failed(all, r);
-        }
-        const char *p = r->inputs[i]->path;
-        if (p != pretty_path(p) && !r->inputs[i]->is_in_git) {
-          printf("error: %s should be in git\n",
-                 pretty_path(r->inputs[i]->path));
-          rule_failed(all, r);
-        }
-      }
-    }
-  }
-}
-
 void build_continual() {
   while (!am_interrupted) {
     struct all_targets all;
@@ -472,7 +426,6 @@ void build_continual() {
       mark_facfiles(&all);
     } while (all.marked_list || still_reading);
     mark_all(&all);
-    check_for_impossibilities(&all);
     build_marked(&all);
     summarize_build_results(&all);
 

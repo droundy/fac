@@ -5,14 +5,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-static const char *pretty_path(const char *path) {
-  int len = strlen(root);
-  if (path[len] == '/' && !memcmp(path, root, len)) {
-    return path + len + 1;
-  }
-  return path;
-}
-
 void clean_all(struct all_targets *all) {
   for (struct target *t = (struct target *)all->t.first; t; t = (struct target *)t->e.next) {
     t->status = unknown;

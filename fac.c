@@ -11,12 +11,6 @@
 #include "fac.h"
 #include "new-build.h"
 
-void usage(poptContext optCon, int exitcode, char *error, char *addl) {
-  poptPrintUsage(optCon, stderr, 0);
-  if (error) fprintf(stderr, "%s: %s\n", error, addl);
-  exit(exitcode);
-}
-
 const char *root = 0;
 
 int verbose = 0;
@@ -121,7 +115,7 @@ int main(int argc, const char **argv) {
       if (t && t->rule) {
         mark_rule(&all, t->rule);
       } else {
-        error(1, 0, "No rule to build %s", cmd_line_args->path);
+        error(1, 0, "No rule to build %s", pretty_path(cmd_line_args->path));
       }
       cmd_line_args = cmd_line_args->next;
     }
@@ -137,7 +131,7 @@ int main(int argc, const char **argv) {
   }
   if (create_tupfile) {
     FILE *f = fopen(create_tupfile, "w");
-    if (!f) error(1,errno, "Unable to create makefile: %s", create_tupfile);
+    if (!f) error(1,errno, "Unable to create tupfile: %s", create_tupfile);
     fprint_tupfile(f, &all);
     fclose(f);
   }

@@ -94,13 +94,13 @@ void read_fac_file(struct all_targets *all, const char *path) {
     if (one_line[0] == '#') continue; /* it is a comment! */
 
     if (one_line[1] != ' ')
-      error_at_line(1, 0, path, linenum,
+      error_at_line(1, 0, pretty_path(path), linenum,
                     "Second character of line should be a space");
     switch (one_line[0]) {
     case '?':
     case '|':
       if (lookup_rule(all, one_line+2, the_directory))
-        error_at_line(1, 0, path, linenum,
+        error_at_line(1, 0, pretty_path(path), linenum,
                       "duplicate rule:  %s", one_line+2);
       therule = create_rule(all, path, one_line+2, the_directory);
       therule->facfile_linenum = linenum;
@@ -111,7 +111,7 @@ void read_fac_file(struct all_targets *all, const char *path) {
       break;
     case 'C':
       if (!therule)
-        error_at_line(1, 0, path, linenum,
+        error_at_line(1, 0, pretty_path(path), linenum,
                       "\"C\" cache lines must follow a \"|\" command line");
       {
         char *path = absolute_path(the_directory, one_line+2);
@@ -121,13 +121,13 @@ void read_fac_file(struct all_targets *all, const char *path) {
       break;
     case 'c':
       if (!therule)
-        error_at_line(1, 0, path, linenum,
+        error_at_line(1, 0, pretty_path(path), linenum,
                       "\"c\" cache lines must follow a \"|\" command line");
       add_cache_suffix(therule, one_line+2);
       break;
     case '<':
       if (!therule)
-        error_at_line(1, 0, path, linenum,
+        error_at_line(1, 0, pretty_path(path), linenum,
                       "\"<\" input lines must follow a \"|\" command line");
       {
         char *path = absolute_path(the_directory, one_line+2);
@@ -140,13 +140,13 @@ void read_fac_file(struct all_targets *all, const char *path) {
       break;
     case '>':
       if (!therule)
-        error_at_line(1, 0, path, linenum,
+        error_at_line(1, 0, pretty_path(path), linenum,
                       "\">\" output lines must follow a \"|\" command line");
       {
         char *path = absolute_path(the_directory, one_line+2);
         thetarget = create_target(all, path);
         if (thetarget->rule)
-          error_at_line(1, 0, path, linenum,
+          error_at_line(1, 0, pretty_path(path), linenum,
                         "two rules to create the same file: %s", one_line+2);
         thetarget->rule = therule;
         add_explicit_output(therule, thetarget);
@@ -154,27 +154,6 @@ void read_fac_file(struct all_targets *all, const char *path) {
         size_last_file = &therule->output_sizes[therule->num_outputs-1];
         free(path);
       }
-      break;
-    case 'T':
-      if (!last_modified_last_file)
-        error_at_line(1, 0, path, linenum,
-                      "\"T\" modification-time lines must follow a file specification");
-      if (sscanf(one_line+2, "%ld", last_modified_last_file) != 1)
-        error_at_line(1, 0, path, linenum, "Error parsing %s", one_line);
-      break;
-    case 'S':
-      if (!size_last_file)
-        error_at_line(1, 0, path, linenum,
-                      "\"S\" file-size lines must follow a file specification");
-      if (sscanf(one_line+2, "%ld", size_last_file) != 1)
-        error_at_line(1, 0, path, linenum, "Error parsing %s", one_line);
-      break;
-    case 'B':
-      if (!therule)
-        error_at_line(1, 0, path, linenum,
-                      "\"B\" build-time lines must follow a \"|\" command line");
-      if (sscanf(one_line+2, "%lg", &therule->build_time) != 1)
-        error_at_line(1, 0, path, linenum, "Error parsing %s", one_line);
       break;
     }
   }
@@ -265,19 +244,19 @@ void read_fac_file(struct all_targets *all, const char *path) {
       case 'T':
         if (last_modified_last_file) {
           if (sscanf(one_line+2, "%ld", last_modified_last_file) != 1)
-            error_at_line(1, 0, path, linenum, "Error parsing %s", one_line);
+            error_at_line(1, 0, pretty_path(path), linenum, "Error parsing %s", one_line);
         }
         break;
       case 'S':
         if (size_last_file) {
           if (sscanf(one_line+2, "%ld", size_last_file) != 1)
-            error_at_line(1, 0, path, linenum, "Error parsing %s", one_line);
+            error_at_line(1, 0, pretty_path(path), linenum, "Error parsing %s", one_line);
         }
         break;
       case 'B':
         if (therule) {
           if (sscanf(one_line+2, "%lg", &therule->build_time) != 1)
-            error_at_line(1, 0, path, linenum, "Error parsing %s", one_line);
+            error_at_line(1, 0, pretty_path(path), linenum, "Error parsing %s", one_line);
         }
         break;
       }
@@ -445,37 +424,5 @@ void fprint_tupfile(FILE *f, struct all_targets *all) {
   }
   for (struct rule *r = all->marked_list; r; r = r->status_next) {
     fprint_tupfile_rule(f, r);
-  }
-}
-
-void print_fac_file(struct all_targets *tt) {
-  for (struct rule *r = (struct rule *)tt->r.first; r; r = (struct rule *)r->e.next) {
-    r->status = unknown;
-  }
-  for (struct rule *r = (struct rule *)tt->r.first; r; r = (struct rule *)r->e.next) {
-    r->status = unknown;
-    if (r->status == unknown) {
-      printf("| %s\n", r->command);
-      if (r->working_directory &&
-          strcmp(r->working_directory, ".")) {
-        printf(". %s\n", r->working_directory);
-      }
-      for (int i=0; i<r->num_inputs; i++) {
-        printf("< %s\n", r->inputs[i]->path);
-        if (r->inputs[i]->last_modified) {
-          printf("T %ld\n", r->inputs[i]->last_modified);
-          printf("S %ld\n", r->inputs[i]->size);
-        }
-      }
-      for (int i=0; i<r->num_outputs; i++) {
-        printf("> %s\n", r->outputs[i]->path);
-        if (r->outputs[i]->last_modified) {
-          printf("T %ld\n", r->outputs[i]->last_modified);
-          printf("S %ld\n", r->outputs[i]->size);
-        }
-      }
-      printf("\n");
-      r->status = built;
-    }
   }
 }
