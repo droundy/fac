@@ -2,6 +2,8 @@
 
 This build system has several advantages.
 
+<img src="kells-fac.svg" alt="Fac"/>
+
 * Automatically tracks build dependencies in a way that is independent
   of programming language.  You are only required to specify the
   minimum of dependencies for each rule, and fac works out the rest
