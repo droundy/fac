@@ -9,8 +9,14 @@ void mark_rule(struct all_targets *all, struct rule *r);
 
 void build_marked(struct all_targets *all);
 
-void build_continual();
-
 void summarize_build_results(struct all_targets *all);
+
+struct cmd_args {
+  const char *create_makefile, *create_tupfile, *create_script;
+  bool clean, continual;
+  listset *targets_requested;
+};
+
+void do_actual_build(struct cmd_args *args);
 
 #endif

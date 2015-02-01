@@ -390,65 +390,6 @@ static void find_elapsed_time() {
   }
 }
 
-void build_continual() {
-  while (!am_interrupted) {
-    struct all_targets all;
-    init_all(&all);
-
-    bool still_reading;
-    do {
-      still_reading = false;
-      for (struct target *t = (struct target *)all.t.first; t; t = (struct target *)t->e.next) {
-        if (t->status == unknown &&
-            (!t->rule ||
-             t->rule->status == clean ||
-             t->rule->status == built)) {
-          t->status = built;
-          if (is_facfile(t->path)) {
-            still_reading = true;
-            read_fac_file(&all, t->path);
-          }
-        }
-      }
-      build_marked(&all);
-      for (struct target *t = (struct target *)all.t.first; t; t = (struct target *)t->e.next) {
-        if (t->status == unknown &&
-            (!t->rule ||
-             t->rule->status == clean ||
-             t->rule->status == built)) {
-          t->status = built;
-          if (is_facfile(t->path)) {
-            still_reading = true;
-            read_fac_file(&all, t->path);
-          }
-        }
-      }
-      mark_facfiles(&all);
-    } while (all.marked_list || still_reading);
-    mark_all(&all);
-    build_marked(&all);
-    summarize_build_results(&all);
-
-    int ifd = inotify_init1(IN_CLOEXEC);
-    for (struct target *t = (struct target *)all.t.first; t; t = (struct target *)t->e.next) {
-      t->status = unknown;
-      if (t->num_children || is_facfile(t->path)) {
-        inotify_add_watch(ifd, t->path, IN_CLOSE_WRITE | IN_DELETE_SELF);
-      }
-    }
-    for (struct rule *r = (struct rule *)all.r.first; r; r = (struct rule *)r->e.next) {
-      r->status = unknown;
-    }
-    /* this is extremely sloppy */
-    char *buffer = malloc(sizeof(struct inotify_event) + NAME_MAX + 1);
-    read(ifd, buffer, sizeof(struct inotify_event) + NAME_MAX + 1);
-    free(buffer);
-    close(ifd);
-
-    free_all_targets(&all);
-  }
-}
-
 void build_marked(struct all_targets *all) {
   if (!all->marked_list && !all->ready_list) {
     if (all->failed_num) {
@@ -664,7 +605,10 @@ void build_marked(struct all_targets *all) {
         fprint_facfile(f, all, facfiles_used->path);
         fclose(f);
         free(donefile);
+        listset *to_delete = facfiles_used;
         facfiles_used = facfiles_used->next;
+        free(to_delete->path);
+        free(to_delete);
       }
 
       exit(1);
@@ -693,10 +637,12 @@ void build_marked(struct all_targets *all) {
     fprint_facfile(f, all, facfiles_used->path);
     fclose(f);
     free(donefile);
+    listset *to_delete = facfiles_used;
     facfiles_used = facfiles_used->next;
+    free(to_delete->path);
+    free(to_delete);
   }
 
-  free_listset(facfiles_used);
   free(bs);
   sigaction(SIGINT, &oldact, 0);
 }
@@ -711,4 +657,87 @@ void summarize_build_results(struct all_targets *all) {
     printf("Build succeeded! %.0f:%05.2f      \n",
            elapsed_minutes, elapsed_seconds);
   }
+}
+
+void do_actual_build(struct cmd_args *args) {
+  do {
+    struct all_targets all;
+    init_all(&all);
+
+    bool still_reading;
+    do {
+      still_reading = false;
+      for (struct target *t = (struct target *)all.t.first; t; t = (struct target *)t->e.next) {
+        if (t->status == unknown &&
+            (!t->rule ||
+             t->rule->status == clean ||
+             t->rule->status == built)) {
+          t->status = built;
+          if (is_facfile(t->path)) {
+            still_reading = true;
+            read_fac_file(&all, t->path);
+          }
+        }
+      }
+      build_marked(&all);
+      for (struct target *t = (struct target *)all.t.first; t; t = (struct target *)t->e.next) {
+        if (t->status == unknown &&
+            (!t->rule ||
+             t->rule->status == clean ||
+             t->rule->status == built)) {
+          t->status = built;
+          if (is_facfile(t->path)) {
+            still_reading = true;
+            read_fac_file(&all, t->path);
+          }
+        }
+      }
+      mark_facfiles(&all);
+    } while (all.marked_list || still_reading);
+    if (!all.r.first) {
+      printf("Please add a .fac file containing rules!\n");
+      exit(1);
+    }
+    if (args->clean) {
+      clean_all(&all);
+      exit(0);
+    }
+    if (args->targets_requested) {
+      for (listset *a = args->targets_requested; a; a = a->next) {
+        struct target *t = lookup_target(&all, a->path);
+        if (t && t->rule) {
+          mark_rule(&all, t->rule);
+        } else {
+          error(1, 0, "No rule to build %s", pretty_path(a->path));
+        }
+      }
+    } else {
+      mark_all(&all);
+    }
+
+    if (args->create_makefile) {
+      FILE *f = fopen(args->create_makefile, "w");
+      if (!f) error(1,errno, "Unable to create makefile: %s", args->create_makefile);
+      fprint_makefile(f, &all);
+      fclose(f);
+    }
+    if (args->create_tupfile) {
+      FILE *f = fopen(args->create_tupfile, "w");
+      if (!f) error(1,errno, "Unable to create tupfile: %s", args->create_tupfile);
+      fprint_tupfile(f, &all);
+      fclose(f);
+    }
+    if (args->create_script) {
+      FILE *f = fopen(args->create_script, "w");
+      if (!f) error(1,errno, "Unable to create script: %s", args->create_script);
+      fprint_script(f, &all);
+      fclose(f);
+    }
+
+    build_marked(&all);
+    summarize_build_results(&all);
+
+    /* enable following line to check for memory leaks */
+    if (true) free_all_targets(&all);
+  } while (!am_interrupted && args->continual);
 }

@@ -9,8 +9,14 @@ with open('testing-flags/test.c', 'w') as f:
   return 0;
 }
 """)
+
+# add , '-fprofile-arcs', '-ftest-coverage' to both of the following
+# lines in order to enable gcov coverage testing
+possible_flags = ['-Wall', '-Werror', '-O2', '-std=c11', '-g']
+possible_linkflags = ['-lpopt', '-lprofiler']
+
 flags = ''
-for flag in ['-Wall', '-Werror', '-O2', '-std=c11', '-g', '-fprofile-arcs', '-ftest-coverage']:
+for flag in possible_flags:
     if not os.system('cd testing-flags && gcc %s %s -c test.c' %
                      (flags, flag)):
         flags += ' ' + flag
@@ -19,7 +25,7 @@ for flag in ['-Wall', '-Werror', '-O2', '-std=c11', '-g', '-fprofile-arcs', '-ft
 if len(flags) > 0:
     flags = flags[1:]
 linkflags = ''
-for flag in ['-lpopt', '-lprofiler', '-fprofile-arcs', '-ftest-coverage']:
+for flag in possible_linkflags:
     if not os.system('cd testing-flags && gcc %s %s -o test test.c' %
                      (flags, flag)):
         linkflags += ' ' + flag
@@ -30,14 +36,14 @@ if len(linkflags) > 0:
 
 
 flags32 = '-m32'
-for flag in ['-Wall', '-Werror', '-O2', '-std=c11', '-g', '-fprofile-arcs', '-ftest-coverage']:
+for flag in possible_flags:
     if not os.system('cd testing-flags && gcc %s %s -c test.c' %
                      (flags32, flag)):
         flags32 += ' ' + flag
     else:
         print '# gcc cannot use flag:', flag
 linkflags32 = '-m32'
-for flag in ['-lpopt', '-lprofiler', '-fprofile-arcs', '-ftest-coverage']:
+for flag in possible_linkflags:
     if not os.system('cd testing-flags && gcc %s %s -o test test.c' %
                      (flags32, flag)):
         linkflags32 += ' ' + flag

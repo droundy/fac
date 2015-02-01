@@ -16,13 +16,15 @@ const char *root = 0;
 int verbose = 0;
 int show_output = 0;
 int num_jobs = 0;
+
 static int clean_me = 0;
 static int continually_build = 0;
+
 extern inline void verbose_printf(const char *format, ...);
 
-char *create_makefile = 0;
-char *create_tupfile = 0;
-char *create_script = 0;
+static char *create_makefile = 0;
+static char *create_tupfile = 0;
+static char *create_script = 0;
 
 int main(int argc, const char **argv) {
   struct poptOption optionsTable[] = {
@@ -63,89 +65,15 @@ int main(int argc, const char **argv) {
 
   root = go_to_git_top();
 
-  if (continually_build) {
-    build_continual(root);
-    exit(0);
-  }
+  struct cmd_args args;
+  args.create_makefile = create_makefile;
+  args.create_tupfile = create_tupfile;
+  args.create_script = create_script;
+  args.clean = clean_me;
+  args.continual = continually_build;
+  args.targets_requested = cmd_line_args;
 
-  struct all_targets all;
-  init_all(&all);
-
-  bool still_reading;
-  do {
-    still_reading = false;
-    for (struct target *t = (struct target *)all.t.first; t; t = (struct target *)t->e.next) {
-      if (t->status == unknown &&
-          (!t->rule ||
-           t->rule->status == clean ||
-           t->rule->status == built)) {
-        t->status = built;
-        if (is_facfile(t->path)) {
-          still_reading = true;
-          read_fac_file(&all, t->path);
-        }
-      }
-    }
-    build_marked(&all);
-    for (struct target *t = (struct target *)all.t.first; t; t = (struct target *)t->e.next) {
-      if (t->status == unknown &&
-          (!t->rule ||
-           t->rule->status == clean ||
-           t->rule->status == built)) {
-        t->status = built;
-        if (is_facfile(t->path)) {
-          still_reading = true;
-          read_fac_file(&all, t->path);
-        }
-      }
-    }
-    mark_facfiles(&all);
-  } while (all.marked_list || still_reading);
-  if (!all.r.first) {
-    printf("Please add a .fac file containing rules!\n");
-    exit(1);
-  }
-  if (clean_me) {
-    clean_all(&all);
-    exit(0);
-  }
-  if (cmd_line_args) {
-    while (cmd_line_args) {
-      struct target *t = lookup_target(&all, cmd_line_args->path);
-      if (t && t->rule) {
-        mark_rule(&all, t->rule);
-      } else {
-        error(1, 0, "No rule to build %s", pretty_path(cmd_line_args->path));
-      }
-      cmd_line_args = cmd_line_args->next;
-    }
-  } else {
-    mark_all(&all);
-  }
-
-  if (create_makefile) {
-    FILE *f = fopen(create_makefile, "w");
-    if (!f) error(1,errno, "Unable to create makefile: %s", create_makefile);
-    fprint_makefile(f, &all);
-    fclose(f);
-  }
-  if (create_tupfile) {
-    FILE *f = fopen(create_tupfile, "w");
-    if (!f) error(1,errno, "Unable to create tupfile: %s", create_tupfile);
-    fprint_tupfile(f, &all);
-    fclose(f);
-  }
-  if (create_script) {
-    FILE *f = fopen(create_script, "w");
-    if (!f) error(1,errno, "Unable to create script: %s", create_script);
-    fprint_script(f, &all);
-    fclose(f);
-  }
-
-  build_marked(&all);
-  summarize_build_results(&all);
-
-  /* enable following line to check for memory leaks */
-  if (true) free_all_targets(&all);
+  // The following line does whatever is requested of us.
+  do_actual_build(&args);
   return 0;
 }
