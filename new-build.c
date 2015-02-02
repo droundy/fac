@@ -159,11 +159,15 @@ void rule_is_unready(struct all_targets *all, struct rule *r) {
 }
 
 static struct target *create_target_with_stat(struct all_targets *all,
-                                              const char *path) {
+                                              const char *path,
+                                              bool may_be_file,
+                                              bool may_be_directory) {
   struct target *t = create_target(all, path);
   if (!t->last_modified) {
     struct stat st;
     if (stat(t->path, &st)) return 0;
+    if (!may_be_directory && S_ISDIR(st.st_mode)) return 0;
+    if (!may_be_file && S_ISREG(st.st_mode)) return 0;
     t->size = st.st_size;
     t->last_modified = st.st_mtime;
   }
@@ -246,7 +250,7 @@ void check_cleanliness(struct all_targets *all, struct rule *r) {
         return;
     }
     if (r->input_times[i]) {
-      if (!create_target_with_stat(all, r->inputs[i]->path) ||
+      if (!create_target_with_stat(all, r->inputs[i]->path, true, true) ||
           r->input_times[i] != r->inputs[i]->last_modified ||
           r->input_sizes[i] != r->inputs[i]->size) {
         verbose_printf("::: %s :::\n", r->command);
@@ -263,7 +267,7 @@ void check_cleanliness(struct all_targets *all, struct rule *r) {
   }
   for (int i=0;i<r->num_outputs;i++) {
     if (r->output_times[i]) {
-      if (!create_target_with_stat(all, r->outputs[i]->path) ||
+      if (!create_target_with_stat(all, r->outputs[i]->path, true, true) ||
           r->output_times[i] != r->outputs[i]->last_modified ||
           r->output_sizes[i] != r->outputs[i]->size) {
         verbose_printf("::: %s :::\n", r->command);
@@ -476,7 +480,7 @@ void build_marked(struct all_targets *all) {
              inputs that were actually used in the build */
           r->num_inputs = r->num_explicit_inputs;
           for (int ii=0;ii<r->num_inputs;ii++) {
-            struct target *t = create_target_with_stat(all, r->inputs[ii]->path);
+            struct target *t = create_target_with_stat(all, r->inputs[ii]->path, true, true);
             if (!t) {
               error(1, 0, "Unable to stat input file %s (this should be impossible)\n",
                     r->inputs[ii]->path);
@@ -495,7 +499,7 @@ void build_marked(struct all_targets *all) {
               t->last_modified = 0;
               t->size = 0;
             }
-            t = create_target_with_stat(all, r->outputs[ii]->path);
+            t = create_target_with_stat(all, r->outputs[ii]->path, true, true);
             if (!t) {
               printf("build failed to create: %s\n",
                      pretty_path(r->outputs[ii]->path));
@@ -513,7 +517,7 @@ void build_marked(struct all_targets *all) {
           if (!bs[i]) break; // happens if we failed to create an output
           for (char *path = start_iterating(&bs[i]->read); path; path = iterate(&bs[i]->read)) {
             if (is_interesting_path(r, path)) {
-              struct target *t = create_target_with_stat(all, path);
+              struct target *t = create_target_with_stat(all, path, true, false);
               if (!t) {
                 /* Assume that the file was deleted, and there's no
                    problem. */
@@ -531,7 +535,7 @@ void build_marked(struct all_targets *all) {
 
           for (char *path = start_iterating(&bs[i]->readdir); path; path = iterate(&bs[i]->readdir)) {
             if (is_interesting_path(r, path)) {
-              struct target *t = create_target_with_stat(all, path);
+              struct target *t = create_target_with_stat(all, path, false, true);
               if (!t) error(1, errno, "Unable to stat directory %s", path);
 
               if (!t->rule && is_in_root(path) && !t->is_in_git) {
@@ -550,7 +554,7 @@ void build_marked(struct all_targets *all) {
                 t->last_modified = 0;
                 t->size = 0;
               }
-              t = create_target_with_stat(all, path);
+              t = create_target_with_stat(all, path, true, false);
               if (t) {
                 if (path == pretty_path(path))
                   error(1,0,"Command created file outside source directory: %s\n| %s",
@@ -657,7 +661,7 @@ void summarize_build_results(struct all_targets *all) {
     exit(1);
   } else {
     find_elapsed_time();
-    printf("Build succeeded! %.0f:%05.2f      \n",
+    printf("Build succeeded! %.0f:%05.2f            \n",
            elapsed_minutes, elapsed_seconds);
   }
 }
