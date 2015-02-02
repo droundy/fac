@@ -136,10 +136,13 @@ const char *syscalls%s[] = {""" % postfix
                                'readv': 0,
                                'pread': 0,
                                'pread64': 0,
+                               'fstat': 0,
                                'mmap': 0,
                                'sendfile': 1})
 
     argument_table('read_string', {'rename': 1,
+                                   'stat': 0,
+                                   'lstat': 0,
                                    'execve': 0,
                                    'truncate': 0})
 

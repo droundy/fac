@@ -514,15 +514,18 @@ void build_marked(struct all_targets *all) {
           for (char *path = start_iterating(&bs[i]->read); path; path = iterate(&bs[i]->read)) {
             if (is_interesting_path(r, path)) {
               struct target *t = create_target_with_stat(all, path);
-              if (!t) error(1, errno, "Unable to input stat file %s", path);
-
-              if (!t->rule && is_in_root(path) && !t->is_in_git) {
-                printf("error: %s should be in git for %s\n",
-                       pretty_path(t->path), pretty_rule(r));
-                rule_failed(all, r);
+              if (!t) {
+                /* Assume that the file was deleted, and there's no
+                   problem. */
+                // error(1, errno, "Unable to input stat file %s", path);
+              } else {
+                if (!t->rule && is_in_root(path) && !t->is_in_git) {
+                  printf("error: %s should be in git for %s\n",
+                         pretty_path(t->path), pretty_rule(r));
+                  rule_failed(all, r);
+                }
+                add_input(r, t);
               }
-
-              add_input(r, t);
             }
           }
 
