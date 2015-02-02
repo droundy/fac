@@ -52,7 +52,7 @@ cat fac.out
 if grep 'please do not say this' fac.out; then
     echo this was not treated as a cache
 
-    cat top.fac.done
+    cat top.fac.tum
 
     exit 1
 fi

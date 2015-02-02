@@ -250,8 +250,8 @@ void check_cleanliness(struct all_targets *all, struct rule *r) {
           r->input_times[i] != r->inputs[i]->last_modified ||
           r->input_sizes[i] != r->inputs[i]->size) {
         verbose_printf("::: %s :::\n", r->command);
-        verbose_printf(" - dirty because %s has wrong input time.\n",
-                       pretty_path(r->inputs[i]->path));
+        verbose_printf(" - dirty because %s is modified.\n",
+                         pretty_path(r->inputs[i]->path));
         is_dirty = true;
       }
     } else {

@@ -217,6 +217,11 @@ void read_fac_file(struct all_targets *all, const char *path) {
                 }
               }
             }
+          } else {
+            // It is cached, so we need to ignore any stats of this file!
+            thetarget = 0;
+            last_modified_last_file = 0;
+            size_last_file = 0;
           }
           free(path);
         }
@@ -237,6 +242,11 @@ void read_fac_file(struct all_targets *all, const char *path) {
                 }
               }
             }
+          } else {
+            // It is cached, so we need to ignore any stats of this file!
+            thetarget = 0;
+            last_modified_last_file = 0;
+            size_last_file = 0;
           }
           free(path);
         }
