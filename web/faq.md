@@ -2,7 +2,7 @@
 
 ## Why is it called fac?
 
-<img src="kells-fac.svg" alt="Fac"/>
+<img src="kells-fac-hires.svg" alt="Fac"/>
 
 *Fac* is the Latin imperative form of the verb *facere*, which means
 "to do" or "to make."  Thus when you type *fac* you are saying "Do
