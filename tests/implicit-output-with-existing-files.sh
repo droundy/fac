@@ -15,6 +15,7 @@ cat > foo.fac <<EOF
 
 | cat foo bar > baz
 < bar
+< foo
 EOF
 
 git init
@@ -26,6 +27,9 @@ grep foo foo
 grep bar bar
 grep foo baz
 grep bar baz
+
+# This test ensures that we can build even when we have rules that do
+# not define their output files, and the files already exist.
 
 cat > foo.fac <<EOF
 | echo foo > foo
