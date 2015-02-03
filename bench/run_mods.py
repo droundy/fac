@@ -31,7 +31,7 @@ datadir = os.getcwd()+'/bench/data/'
 os.makedirs(datadir, exist_ok=True)
 modules = [sleepy, depmod, hiermod, catmod]
 
-rootdirnames = ['tmp'] # , 'home'] # , 'vartmp']
+rootdirnames = ['tmp', 'home'] # , 'vartmp']
 rootdirs = {'home': os.getcwd()+'/bench/temp',
             'tmp': '/tmp/benchmarking',
             'vartmp': '/var/tmp/benchmarking'}

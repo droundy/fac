@@ -82,6 +82,6 @@ env.Command('%s-generated.h', '%s.exe', './$SOURCE > $TARGET')
 verbs = ['building', 'rebuilding', 'touching-header', 'touching-c', 'doing-nothing']
 
 def prepare():
-    return {'rebuilding': 'sleep 1 && find . -name "*.c" -exec touch \{\} \;',
+    return {'rebuilding': 'sleep 2 && find . -name "*.c" -exec touch \{\} \;',
             'touching-header': 'echo >> %s-generated.h' % hashid(0),
             'touching-c': 'echo >> final.c'}
