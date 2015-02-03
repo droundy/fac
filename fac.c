@@ -26,6 +26,8 @@ static char *create_makefile = 0;
 static char *create_tupfile = 0;
 static char *create_script = 0;
 
+static char *log_directory = 0;
+
 int main(int argc, const char **argv) {
   struct poptOption optionsTable[] = {
     { "jobs", 'j', POPT_ARG_INT, &num_jobs, 0,
@@ -38,6 +40,8 @@ int main(int argc, const char **argv) {
       "give verbose output", 0 },
     { "show-output", 'V', POPT_ARG_NONE, &show_output, 0,
       "show command output", 0 },
+    { "log-output", 'l', POPT_ARG_STRING, &log_directory, 0,
+      "log command output to directory", "LOG_DIRECTORY" },
     { "makefile", 0, POPT_ARG_STRING, &create_makefile, 0,
       "create a makefile", "Makefile" },
     { "tupfile", 0, POPT_ARG_STRING, &create_tupfile, 0,
@@ -72,6 +76,7 @@ int main(int argc, const char **argv) {
   args.clean = clean_me;
   args.continual = continually_build;
   args.targets_requested = cmd_line_args;
+  args.log_directory = log_directory;
 
   // The following line does whatever is requested of us.
   do_actual_build(&args);

@@ -7,12 +7,10 @@ void mark_facfiles(struct all_targets *all);
 void mark_all(struct all_targets *all);
 void mark_rule(struct all_targets *all, struct rule *r);
 
-void build_marked(struct all_targets *all);
-
 void summarize_build_results(struct all_targets *all);
 
 struct cmd_args {
-  const char *create_makefile, *create_tupfile, *create_script;
+  const char *create_makefile, *create_tupfile, *create_script, *log_directory;
   bool clean, continual;
   listset *targets_requested;
 };

@@ -15,6 +15,7 @@
 #include <sys/sendfile.h>
 #include <sys/inotify.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <error.h>
@@ -299,18 +300,38 @@ struct building {
 };
 
 static struct building *build_rule(struct all_targets *all,
-                                   struct rule *r) {
+                                   struct rule *r,
+                                   const char *log_directory) {
   assert(r);
   struct building *b = mmap(NULL, sizeof(struct building),
                             PROT_READ | PROT_WRITE,
                             MAP_SHARED | MAP_ANONYMOUS, -1, 0);
   b->rule = r;
-  const char *templ = "/tmp/fac-XXXXXX";
-  char *namebuf = malloc(strlen(templ)+1);
-  strcpy(namebuf, templ);
-  b->stdouterrfd = mkstemp(namebuf);
-  unlink(namebuf);
-  free(namebuf);
+
+  if (log_directory) {
+    char *fname = malloc(strlen(log_directory) + strlen(pretty_rule(r)+2));
+    mkdir(log_directory, 0777); // ignore failure
+    strcpy(fname, log_directory);
+    strcat(fname, "/");
+    const int start = strlen(fname);
+    strcat(fname, pretty_rule(r));
+    const int stop = strlen(fname);
+    for (int i=start; i<stop; i++) {
+      switch (fname[i]) {
+      case '/':
+        fname[i] = '_';
+      }
+    }
+    b->stdouterrfd = open(fname, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+    free(fname);
+  } else {
+    const char *templ = "/tmp/fac-XXXXXX";
+    char *namebuf = malloc(strlen(templ)+1);
+    strcpy(namebuf, templ);
+    b->stdouterrfd = mkstemp(namebuf);
+    unlink(namebuf);
+    free(namebuf);
+  }
   b->all_done = building;
   r->status = building;
   put_rule_into_status_list(&all->running_list, r);
@@ -318,10 +339,10 @@ static struct building *build_rule(struct all_targets *all,
 }
 
 void let_us_build(struct all_targets *all, struct rule *r,
-                  struct building **bs) {
+                  struct building **bs, const char *log_directory) {
   for (int i=0;i<num_jobs;i++) {
     if (!bs[i]) {
-      bs[i] = build_rule(all, r);
+      bs[i] = build_rule(all, r, log_directory);
       pid_t new_pid = fork();
       if (new_pid == 0) {
         struct building *b = bs[i];
@@ -394,7 +415,7 @@ static void find_elapsed_time() {
   }
 }
 
-void build_marked(struct all_targets *all) {
+static void build_marked(struct all_targets *all, const char *log_directory) {
   if (!all->marked_list && !all->ready_list) {
     if (all->failed_num) {
       printf("Failed to build %d files.\n", all->failed_num);
@@ -584,7 +605,7 @@ void build_marked(struct all_targets *all) {
         toqueue[i++] = r;
       }
       for (i=0;i<N;i++) {
-        if (toqueue[i]) let_us_build(all, toqueue[i], bs);
+        if (toqueue[i]) let_us_build(all, toqueue[i], bs, log_directory);
       }
       free(toqueue);
     }
@@ -686,7 +707,7 @@ void do_actual_build(struct cmd_args *args) {
           }
         }
       }
-      build_marked(&all);
+      build_marked(&all, args->log_directory);
       for (struct target *t = (struct target *)all.t.first; t; t = (struct target *)t->e.next) {
         if (t->status == unknown &&
             (!t->rule ||
@@ -741,7 +762,7 @@ void do_actual_build(struct cmd_args *args) {
       fclose(f);
     }
 
-    build_marked(&all);
+    build_marked(&all, args->log_directory);
     summarize_build_results(&all);
 
     /* enable following line to check for memory leaks */

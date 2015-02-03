@@ -77,6 +77,11 @@ with the following options.
 : Show the output of every command (stdout and stderr), even if that
   command succeeds.
 
+`--log-output LOG_DIRECTORY`
+: Save the output of every command (both stdout and stderr) to a
+  separate file in the directory `LOG_DIRECTORY`, which will be created if
+  it does not yet exist.
+
 --makefile MAKEFILE
 : After building, create a makefile with name MAKEFILE, which can be
   used to perform this build if fac is unavailable.
