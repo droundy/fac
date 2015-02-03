@@ -307,24 +307,32 @@ static struct building *build_rule(struct all_targets *all,
                             PROT_READ | PROT_WRITE,
                             MAP_SHARED | MAP_ANONYMOUS, -1, 0);
   b->rule = r;
-
+  b->stdouterrfd = -1; /* start with an invalid value */
   if (log_directory) {
-    char *fname = malloc(strlen(log_directory) + strlen(pretty_rule(r)+2));
+    char *path = absolute_path(root, log_directory);
+    add_cache_prefix(r, path);
+    free(path);
+
+    const char *rname = pretty_rule(r);
+    char *fname = malloc(strlen(log_directory) + strlen(rname)+2);
     mkdir(log_directory, 0777); // ignore failure
     strcpy(fname, log_directory);
-    strcat(fname, "/");
-    const int start = strlen(fname);
-    strcat(fname, pretty_rule(r));
-    const int stop = strlen(fname);
-    for (int i=start; i<stop; i++) {
-      switch (fname[i]) {
+    int start = strlen(log_directory);
+    fname[start++] = '/';
+    const int rulelen = strlen(rname);
+    for (int i=0;i<rulelen;i++) {
+      switch (rname[i]) {
       case '/':
-        fname[i] = '_';
+        fname[start+i] = '_';
+      default:
+        fname[start+i] = rname[i];
       }
     }
+    fname[start+rulelen] = 0;
     b->stdouterrfd = open(fname, O_WRONLY | O_CREAT | O_TRUNC, 0666);
     free(fname);
-  } else {
+  }
+  if (b->stdouterrfd == -1) {
     const char *templ = "/tmp/fac-XXXXXX";
     char *namebuf = malloc(strlen(templ)+1);
     strcpy(namebuf, templ);

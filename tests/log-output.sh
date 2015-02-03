@@ -23,5 +23,20 @@ grep foo foo
 ls -l log
 
 grep working log/foo
+cat > top.fac <<EOF
+
+| echo nice && echo foo > foo
+> foo
+
+EOF
+
+../../fac --log-output log
+
+grep foo foo
+
+ls -l log
+
+grep nice log/foo
+cat > top.fac <<EOF
 
 exit 0
