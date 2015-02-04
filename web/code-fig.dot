@@ -1,0 +1,33 @@
+digraph structs {
+  node [shape=record];
+  all [label="<t> targets | <r> rules | <ready> ready_list | <unready> unready_list | <clean> clean_list | <marked> marked_list | <running> running_list"];
+
+  rules [label="{<size> 100 | <num> 5 | <first> first | <table> hash table}"];
+  targets [label="{<size> 100 | <num> 12 | <hashlist> first | <hashtable> hash table}"];
+
+  ruletable [label="{<f0> 0 | ... | <foo> hash 'touch foo' | ... | <bar> hash 'touch bar' | ... }"];
+
+  subgraph allmyrules {
+    rfoo [label="<key> key | <next> next | <status_next> status_next | <status_prev> status_prev | ... | <inputs> inputs | ... | <outputs> outputs | ... | <working> working_dir | <facfile> facfile_path | command | <command> 't' |  'o' |  'u' |  'c' | 'h'|' '|  'f' | 'o' | 'o' | 0 | <ff> '.' | 'f' | 'a' | 'c' |0"];
+
+    rbar [label="<key> key | <next> next | <status_next> status_next | <status_prev> status_prev | ... | <inputs> inputs | ... | <outputs> outputs | ... | <working> working_dir | <facfile> facfile_path | command | <command> 't' |  'o' |  'u' |  'c' | 'h'|' '|  'b' | 'a' | 'r' | 0 | <ff> '.' | 'f' | 'a' | 'c' |0"];
+
+
+    rfoo:key:n -> rfoo:command:n;
+    rfoo:facfile:n -> rfoo:ff:n
+
+    rbar:key:n -> rbar:command:n;
+    rbar:facfile:n -> rbar:ff:n
+
+    rfoo:next -> rbar:key:w;
+  }
+
+  ruletable:foo -> rfoo:key:w;
+  ruletable:bar -> rbar:key:w;
+
+  all:t -> targets;
+  all:r -> rules;
+  rules:table -> ruletable:f0;
+
+  rules:first -> rfoo:key:w;
+}

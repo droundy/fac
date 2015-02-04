@@ -112,3 +112,7 @@ with the following options.
 - Create .gitignore files?
 
 - Support for ~ as home directory? :(
+
+## See also
+
+* [Documentation of the code](code-guide.html)

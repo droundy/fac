@@ -8,6 +8,8 @@
 > web/style.css
 C .sass-cache
 
+| dot -Tsvg web/code-fig.dot -o web/code-fig.svg
+
 # | python2 bench/generate-plots.py
 # > web/hierarchy-building.pdf
 
