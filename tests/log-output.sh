@@ -30,6 +30,8 @@ cat > top.fac <<EOF
 
 EOF
 
+cat top.fac.tum
+
 ../../fac --log-output log
 
 grep foo test/foo
