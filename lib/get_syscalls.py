@@ -152,7 +152,7 @@ const char *syscalls%s[] = {""" % postfix
 
     argument_table('unlinkat_string', {'unlinkat': 0,
                                        'renameat': 0})
-    argument_table('renameat_string', {'unlinkat': 2})
+    argument_table('renameat_string', {'renameat': 2})
 
     argument_table('readdir_fd', {'getdents': 0,
                                   'getdents64': 0})
