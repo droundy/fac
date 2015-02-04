@@ -25,18 +25,18 @@ ls -l log
 grep working log/foo
 cat > top.fac <<EOF
 
-| echo nice && echo foo > foo
-> foo
+| echo nice && mkdir test && echo foo > test/foo
+> test/foo
 
 EOF
 
 ../../fac --log-output log
 
-grep foo foo
+grep foo test/foo
 
 ls -l log
 
-grep nice log/foo
+grep nice log/test_foo
 cat > top.fac <<EOF
 
 exit 0

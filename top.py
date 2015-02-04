@@ -41,14 +41,14 @@ for flag in possible_flags:
                      (flags32, flag)):
         flags32 += ' ' + flag
     else:
-        print '# gcc cannot use flag:', flag
+        print '# gcc 32-bit cannot use flag:', flag
 linkflags32 = '-m32'
 for flag in possible_linkflags:
     if not os.system('cd testing-flags && gcc %s %s -o test test.c' %
                      (flags32, flag)):
         linkflags32 += ' ' + flag
     else:
-        print '# gcc linking cannot use flag:', flag
+        print '# gcc 32-bit linking cannot use flag:', flag
 os.system('rm -rf testing-flags')
 
 sources = ['fac', 'files', 'targets', 'clean', 'new-build', 'git']
