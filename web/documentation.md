@@ -96,8 +96,6 @@ with the following options.
 
 ## To do list
 
-1. Add test for getting error output to screen when using --log-output.
-
 2. Use inotify to avoid rescanning the entire source tree.
 
 3. Remove "error" calls from new-build.c, to ensure that we will

@@ -330,7 +330,7 @@ static struct building *build_rule(struct all_targets *all,
       }
     }
     fname[start+rulelen] = 0;
-    b->stdouterrfd = open(fname, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+    b->stdouterrfd = open(fname, O_RDWR | O_CREAT | O_TRUNC, 0666);
     free(fname);
   }
   if (b->stdouterrfd == -1) {
