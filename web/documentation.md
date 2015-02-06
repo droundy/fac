@@ -96,6 +96,10 @@ with the following options.
 
 ## To do list
 
+1. Test and fix bug in counting total number of builds required.
+   Better to be pessimistic at first and then reduce the total number
+   of anticipated rules.
+
 2. Use inotify to avoid rescanning the entire source tree.
 
 3. Remove "error" calls from new-build.c, to ensure that we will

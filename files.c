@@ -356,8 +356,6 @@ static void fprint_makefile_rule(FILE *f, struct rule *r) {
 }
 
 void fprint_makefile(FILE *f, struct all_targets *all) {
-  /* First, let's identify any intermediate output, so it won't need
-     to be included in the "all" target. */
   for (struct rule *r = (struct rule *)all->r.first; r; r = (struct rule *)r->e.next) {
     r->is_printed = false;
   }
@@ -365,11 +363,20 @@ void fprint_makefile(FILE *f, struct all_targets *all) {
   const int lenroot = strlen(root);
   fprintf(f, "all:");
   for (struct rule *r = all->marked_list; r; r = r->status_next) {
-    /* Only print one output per rule that we are building to save
-       space.  Also, if there are no outputs yet (because they are not
-       specified in the .fac file, and we have not yet built) that is
-       a user error. */
-    if (r->num_outputs) fprintf(f, " %s", r->outputs[0]->path + lenroot+1);
+    /* First, let's identify whether this rule produces intermediate
+       output, in which case it won't need to be included in the "all"
+       target. */
+    bool is_intermediate = false;
+    for (int i=0;i<r->num_outputs;i++) {
+      if (r->outputs[i]->num_children) is_intermediate = true;
+    }
+    if (r->num_outputs && !is_intermediate) {
+      /* Only print one output per rule that we are building to save
+         space.  Also, if there are no outputs yet (because they are
+         not specified in the .fac file, and we have not yet built)
+         that is a user error. */
+      fprintf(f, " %s", r->outputs[0]->path + lenroot+1);
+    }
   }
   fprintf(f, "\n\n");
   for (struct rule *r = all->marked_list; r; r = r->status_next) {

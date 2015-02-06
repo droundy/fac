@@ -752,27 +752,42 @@ void do_actual_build(struct cmd_args *args) {
       mark_all(&all);
     }
 
-    if (args->create_makefile) {
-      FILE *f = fopen(args->create_makefile, "w");
-      if (!f) error(1,errno, "Unable to create makefile: %s", args->create_makefile);
-      fprint_makefile(f, &all);
-      fclose(f);
-    }
-    if (args->create_tupfile) {
-      FILE *f = fopen(args->create_tupfile, "w");
-      if (!f) error(1,errno, "Unable to create tupfile: %s", args->create_tupfile);
-      fprint_tupfile(f, &all);
-      fclose(f);
-    }
-    if (args->create_script) {
-      FILE *f = fopen(args->create_script, "w");
-      if (!f) error(1,errno, "Unable to create script: %s", args->create_script);
-      fprint_script(f, &all);
-      fclose(f);
-    }
-
     build_marked(&all, args->log_directory);
     summarize_build_results(&all);
+
+    if (args->create_makefile || args->create_tupfile || args->create_script) {
+      if (args->targets_requested) {
+        for (listset *a = args->targets_requested; a; a = a->next) {
+          struct target *t = lookup_target(&all, a->path);
+          if (t && t->rule) {
+            mark_rule(&all, t->rule);
+          } else {
+            error(1, 0, "No rule to build %s", pretty_path(a->path));
+          }
+        }
+      } else {
+        mark_all(&all);
+      }
+
+      if (args->create_makefile) {
+        FILE *f = fopen(args->create_makefile, "w");
+        if (!f) error(1,errno, "Unable to create makefile: %s", args->create_makefile);
+        fprint_makefile(f, &all);
+        fclose(f);
+      }
+      if (args->create_tupfile) {
+        FILE *f = fopen(args->create_tupfile, "w");
+        if (!f) error(1,errno, "Unable to create tupfile: %s", args->create_tupfile);
+        fprint_tupfile(f, &all);
+        fclose(f);
+      }
+      if (args->create_script) {
+        FILE *f = fopen(args->create_script, "w");
+        if (!f) error(1,errno, "Unable to create script: %s", args->create_script);
+        fprint_script(f, &all);
+        fclose(f);
+      }
+    }
 
     /* enable following line to check for memory leaks */
     if (true) free_all_targets(&all);

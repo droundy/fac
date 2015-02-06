@@ -91,7 +91,7 @@ while time.time() < start_benchmarking + time_limit:
             os.chdir(mod.name+'-%d'%N)
             assert(not os.system('git init'))
             mod.create_bench(N)
-            assert(not os.system('fac --makefile Makefile --script build.sh --tupfile Tupfile > /dev/null && fac -c > /dev/null && rm -f *.done'))
+            assert(not os.system('fac --makefile Makefile --script build.sh --tupfile Tupfile > /dev/null && fac -c > /dev/null && rm -f *.tum .*.tum'))
             os.chdir('..')
             for tool in tools:
                 print('')
