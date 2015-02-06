@@ -756,6 +756,9 @@ void do_actual_build(struct cmd_args *args) {
     summarize_build_results(&all);
 
     if (args->create_makefile || args->create_tupfile || args->create_script) {
+      for (struct rule *r = (struct rule *)all.r.first; r; r = (struct rule *)r->e.next) {
+        r->status = unknown;
+      }
       if (args->targets_requested) {
         for (listset *a = args->targets_requested; a; a = a->next) {
           struct target *t = lookup_target(&all, a->path);
