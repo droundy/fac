@@ -2,6 +2,7 @@
 
 #include "fac.h"
 #include "new-build.h"
+#include "environ.h"
 
 #include "lib/bigbrother.h"
 #include "lib/listset.h"
@@ -204,6 +205,11 @@ void check_cleanliness(struct all_targets *all, struct rule *r) {
     return;
   }
   bool is_dirty = false;
+  if (env.abc.a != r->env.abc.a || env.abc.b != r->env.abc.b || env.abc.c != r->env.abc.c) {
+    verbose_printf(" - %s unready because the environment has changed.\n",
+                   pretty_rule(r));
+    is_dirty = true;
+  }
   for (int i=0;i<r->num_inputs;i++) {
     if (r->inputs[i]->rule && r->inputs[i]->rule->status == built) {
       verbose_printf("::: %s :::\n", r->command);
@@ -575,7 +581,10 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
               }
             }
           }
-          if (r->status != failed) built_rule(all, r);
+          if (r->status != failed) {
+            r->env = env; /* save the environment for this rule */
+            built_rule(all, r);
+          }
           insert_to_listset(&facfiles_used, r->facfile_path);
 
           munmap(bs[i], sizeof(struct building));
@@ -674,7 +683,10 @@ void summarize_build_results(struct all_targets *all) {
   }
 }
 
+sha1hash env;
+
 void do_actual_build(struct cmd_args *args) {
+  env = hash_environment();
   do {
     struct all_targets all;
     init_all(&all);

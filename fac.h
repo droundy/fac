@@ -8,6 +8,7 @@
 #include <time.h>
 #include <string.h>
 
+#include "lib/sha1.h"
 #include "lib/listset.h"
 #include "lib/iterablehash.h"
 
@@ -27,7 +28,7 @@ static inline bool is_facfile(const char *path) {
   return len >= 4 && !strcmp(path+len-4, ".fac");
 }
 
-inline void verbose_printf(const char *format, ...) {
+static inline void verbose_printf(const char *format, ...) {
   va_list args;
   va_start(args, format);
   if (verbose) vfprintf(stdout, format, args);
@@ -100,6 +101,7 @@ struct rule {
   struct target **inputs;
   time_t *input_times;
   off_t *input_sizes;
+  sha1hash env;
 
   int num_outputs, num_explicit_outputs;
   struct target **outputs;

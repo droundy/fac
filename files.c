@@ -1,6 +1,7 @@
 #define _XOPEN_SOURCE 700
 
 #include "fac.h"
+#include "environ.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -274,6 +275,22 @@ void read_fac_file(struct all_targets *all, const char *path) {
           all->estimated_times[therule->status] += therule->build_time;
         }
         break;
+      case 'E':
+        if (therule) {
+          int num = sscanf(one_line+2,
+                           "%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx",
+                           &therule->env.u8[ 0], &therule->env.u8[ 1], &therule->env.u8[ 2],
+                           &therule->env.u8[ 3], &therule->env.u8[ 4], &therule->env.u8[ 5],
+                           &therule->env.u8[ 6], &therule->env.u8[ 7], &therule->env.u8[ 8],
+                           &therule->env.u8[ 9], &therule->env.u8[10], &therule->env.u8[11],
+                           &therule->env.u8[12], &therule->env.u8[13], &therule->env.u8[14],
+                           &therule->env.u8[15], &therule->env.u8[16], &therule->env.u8[17],
+                           &therule->env.u8[18], &therule->env.u8[19]);
+          if (num != 20) {
+            printf("Error parsing %s got %d\n", one_line, num);
+          }
+        }
+        break;
       }
     }
     if (!feof(f))
@@ -292,6 +309,13 @@ void fprint_facfile(FILE *f, struct all_targets *tt, const char *bpath) {
       fprintf(f, "| %s\n", r->command);
       if (r->build_time) {
         fprintf(f, "B %g\n", r->build_time);
+      }
+      if (r->env.abc.a || r->env.abc.b || r->env.abc.c) {
+        fprintf(f, "E ");
+        for (int i=0;i<20;i++) {
+          fprintf(f, "%02x", r->env.u8[i]);
+        }
+        fprintf(f, "\n");
       }
       for (int i=0; i<r->num_outputs; i++) {
         fprintf(f, "> %s\n", r->outputs[i]->path);

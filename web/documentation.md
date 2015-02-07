@@ -105,7 +105,6 @@ with the following options.
 5. On BSD and Darwin systems, use ktrace rather than ptrace.
 
 - Hashing of inputs
-- Tracking of environment variables
 
 - Enable fac to call fac recursively (requires ptrace effort)
 
