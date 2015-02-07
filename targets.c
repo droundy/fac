@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <error.h>
 
 void insert_target(struct all_targets *all, struct target *t);
 
@@ -49,10 +50,13 @@ struct rule *create_rule(struct all_targets *all, const char *facfile_path,
 
   r->e.key = rule_key(command, working_directory);
   r->e.next = 0;
-  r->status_next = 0;
-  r->status_prev = 0;
-
+  r->status_next = all->lists[unknown];
+  r->status_prev = &all->lists[unknown];
   r->status = unknown;
+  all->lists[unknown] = r;
+  if (r->status_next) r->status_next->status_prev = &r->status_next;
+  all->num_with_status[unknown]++;
+
   r->num_inputs = r->num_outputs = 0;
   r->num_explicit_inputs = r->num_explicit_outputs = 0;
   r->input_array_size = 0;
@@ -75,18 +79,28 @@ struct rule *create_rule(struct all_targets *all, const char *facfile_path,
   return r;
 }
 
-void put_rule_into_status_list(struct rule **list, struct rule *r) {
+void set_status(struct all_targets *all, struct rule *r, enum target_status status) {
+  if (r->status == status) return;
+
   /* remove from its former list */
   if (r->status_prev) {
     (*r->status_prev) = r->status_next;
+    all->num_with_status[r->status]--;
+    all->estimated_times[r->status] -= r->build_time;
+  } else if (status) {
+    error(1, 0, "%s was in no list at all but had status %s!",
+           pretty_rule(r), pretty_status(r->status));
   }
   if (r->status_next) {
     r->status_next->status_prev = r->status_prev;
   }
-  r->status_next = *list;
-  r->status_prev = list;
+  r->status = status;
+  r->status_next = all->lists[status];
+  r->status_prev = &all->lists[status];
   if (r->status_next) r->status_next->status_prev = &r->status_next;
-  *list = r;
+  all->lists[status] = r;
+  all->num_with_status[status]++;
+  all->estimated_times[status] += r->build_time;
 }
 
 struct rule *lookup_rule(struct all_targets *all, const char *command,
@@ -211,9 +225,10 @@ void insert_target(struct all_targets *all, struct target *t) {
 void init_all(struct all_targets *all) {
   init_hash_table(&all->r, 1000);
   init_hash_table(&all->t, 10000);
-  all->ready_list = all->unready_list = all->clean_list = all->failed_list = all->marked_list = 0;
-  all->running_list = 0;
-  all->ready_num = all->unready_num = all->failed_num = all->built_num = 0;
-  all->estimated_time = 0;
+  for (enum target_status i=0;i<num_statuses;i++) {
+    all->lists[i] = 0;
+    all->num_with_status[i] = 0;
+    all->estimated_times[i] = 0;
+  }
   add_git_files(all);
 }

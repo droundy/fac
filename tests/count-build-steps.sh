@@ -33,9 +33,14 @@ EOF
 git init
 git add top.fac subdir/.fac
 
-../../fac -v
+../../fac > fac.out
+cat fac.out
 
 grep foo foobar
 grep bar foobar
+
+grep 1/3 fac.out
+grep 2/3 fac.out
+grep 3/3 fac.out | grep foobar
 
 exit 0

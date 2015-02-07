@@ -35,7 +35,7 @@ inline void verbose_printf(const char *format, ...) {
 }
 
 enum target_status {
-  unknown,
+  unknown = 0,
   being_determined,
   clean,
   built,
@@ -43,8 +43,25 @@ enum target_status {
   failed,
   marked, // means unknown, but want to build it
   unready, // means that it is dirty but we cannot yet build it
-  dirty
+  dirty,
+  num_statuses // this is not an actual status, but counts the number of values
 };
+
+static inline const char *pretty_status(enum target_status status) {
+  switch (status) {
+  case unknown: return "unknown";
+  case unready: return "unready";
+  case dirty: return "dirty";
+  case marked: return "marked";
+  case failed: return "failed";
+  case building: return "building";
+  case clean: return "clean";
+  case built: return "built";
+  case being_determined: return "being_determined";
+  case num_statuses: return "num_statuses";
+  }
+  return "ERROR-ERROR";
+}
 
 struct rule;
 
@@ -103,9 +120,9 @@ struct rule {
    a simple linked list for now. */
 struct all_targets {
   struct hash_table t, r;
-  struct rule *ready_list, *unready_list, *clean_list, *failed_list, *marked_list, *running_list;
-  int ready_num, unready_num, failed_num, built_num;
-  double estimated_time;
+  struct rule *lists[num_statuses];
+  int num_with_status[num_statuses];
+  double estimated_times[num_statuses];
 };
 
 struct target *create_target(struct all_targets *all, const char *path);
@@ -123,7 +140,7 @@ void add_cache_prefix(struct rule *r, const char *prefix);
 void add_cache_suffix(struct rule *r, const char *suffix);
 bool is_interesting_path(struct rule *r, const char *path);
 
-void put_rule_into_status_list(struct rule **list, struct rule *r);
+void set_status(struct all_targets *all, struct rule *r, enum target_status status);
 
 struct target *lookup_target(struct all_targets *, const char *path);
 

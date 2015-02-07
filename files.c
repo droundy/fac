@@ -268,8 +268,10 @@ void read_fac_file(struct all_targets *all, const char *path) {
         break;
       case 'B':
         if (therule) {
+          all->estimated_times[therule->status] -= therule->build_time;
           if (sscanf(one_line+2, "%lg", &therule->build_time) != 1)
             error_at_line(1, 0, pretty_path(path), linenum, "Error parsing %s", one_line);
+          all->estimated_times[therule->status] += therule->build_time;
         }
         break;
       }
@@ -362,7 +364,7 @@ void fprint_makefile(FILE *f, struct all_targets *all) {
 
   const int lenroot = strlen(root);
   fprintf(f, "all:");
-  for (struct rule *r = all->marked_list; r; r = r->status_next) {
+  for (struct rule *r = all->lists[marked]; r; r = r->status_next) {
     /* First, let's identify whether this rule produces intermediate
        output, in which case it won't need to be included in the "all"
        target. */
@@ -379,7 +381,7 @@ void fprint_makefile(FILE *f, struct all_targets *all) {
     }
   }
   fprintf(f, "\n\n");
-  for (struct rule *r = all->marked_list; r; r = r->status_next) {
+  for (struct rule *r = all->lists[marked]; r; r = r->status_next) {
     fprint_makefile_rule(f, r);
   }
 }
@@ -405,7 +407,7 @@ void fprint_script(FILE *f, struct all_targets *all) {
   for (struct rule *r = (struct rule *)all->r.first; r; r = (struct rule *)r->e.next) {
     r->is_printed = false;
   }
-  for (struct rule *r = all->marked_list; r; r = r->status_next) {
+  for (struct rule *r = all->lists[marked]; r; r = r->status_next) {
     fprint_script_rule(f, r);
   }
 }
@@ -442,7 +444,7 @@ void fprint_tupfile(FILE *f, struct all_targets *all) {
   for (struct rule *r = (struct rule *)all->r.first; r; r = (struct rule *)r->e.next) {
     r->is_printed = false;
   }
-  for (struct rule *r = all->marked_list; r; r = r->status_next) {
+  for (struct rule *r = all->lists[marked]; r; r = r->status_next) {
     fprint_tupfile_rule(f, r);
   }
 }

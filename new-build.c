@@ -55,8 +55,7 @@ void mark_rule(struct all_targets *all, struct rule *r) {
   if (r->status != unknown) {
     return;
   }
-  r->status = marked;
-  put_rule_into_status_list(&all->marked_list, r);
+  set_status(all, r, marked);
 }
 
 void mark_facfiles(struct all_targets *all) {
@@ -74,10 +73,6 @@ void mark_all(struct all_targets *all) {
   }
 }
 
-void rule_is_clean(struct all_targets *all, struct rule *r) {
-  r->status = clean;
-  put_rule_into_status_list(&all->clean_list, r);
-}
 static void find_latency(struct rule *r) {
   if (r->latency_handled) return;
   r->latency_handled = true;
@@ -92,40 +87,43 @@ static void find_latency(struct rule *r) {
   r->latency_estimate = r->build_time + maxchild;
 }
 void rule_is_ready(struct all_targets *all, struct rule *r) {
-  if (r->status == unready) all->unready_num--;
-  else all->estimated_time += r->build_time/num_jobs;
-  all->ready_num++;
-  r->status = dirty;
+  if (false) {
+    set_status(all, r, dirty);
+  } else {
+    /* the following keeps the read_list sorted by latency */
 
-  /* remove from its former list */
-  if (r->status_prev) {
-    (*r->status_prev) = r->status_next;
-  }
-  if (r->status_next) {
-    r->status_next->status_prev = r->status_prev;
+    /* Note that this costs O(N) in the number of ready jobs, and thus
+       could be very expensive.  So we probably should throttle this
+       feature based on the number of ready jobs. */
+
+    find_latency(r);
+
+    /* remove from its former list */
+    if (r->status_prev) {
+      (*r->status_prev) = r->status_next;
+      all->num_with_status[r->status]--;
+    }
+    if (r->status_next) {
+      r->status_next->status_prev = r->status_prev;
+    }
+
+    r->status = dirty;
+    all->num_with_status[dirty]++;
+    all->estimated_times[dirty] += r->build_time;
+
+    struct rule **list = &all->lists[dirty];
+    while (*list && (*list)->latency_estimate > r->latency_estimate) {
+      list = &(*list)->status_next;
+    }
+    r->status_next = *list;
+    r->status_prev = list;
+    if (r->status_next) r->status_next->status_prev = &r->status_next;
+    *list = r;
   }
 
-  /* the following keeps the read_list sorted by latency */
-
-  /* Note that this costs O(N) in the number of ready jobs, and thus
-     could be very expensive.  So we probably should throttle this
-     feature based on the number of ready jobs. */
-  find_latency(r);
-  struct rule **list = &all->ready_list;
-  while (*list && (*list)->latency_estimate > r->latency_estimate) {
-    list = &(*list)->status_next;
-  }
-  r->status_next = *list;
-  r->status_prev = list;
-  if (r->status_next) r->status_next->status_prev = &r->status_next;
-  *list = r;
 }
 void built_rule(struct all_targets *all, struct rule *r) {
-  r->status = built;
-  all->estimated_time -= r->old_build_time/num_jobs;
-  all->ready_num--;
-  all->built_num++;
-  put_rule_into_status_list(&all->clean_list, r);
+  set_status(all, r, built);
   for (int i=0;i<r->num_outputs;i++) {
     for (int j=0;j<r->outputs[i]->num_children;j++) {
       if (r->outputs[i]->children[j]->status == unready)
@@ -137,26 +135,13 @@ void rule_failed(struct all_targets *all, struct rule *r) {
   if (r->status == failed) return; /* just in case! */
   r->num_inputs = r->num_explicit_inputs;
   r->num_outputs = r->num_explicit_outputs;
-  all->estimated_time -= r->old_build_time/num_jobs;
-  if (r->status == unready) {
-    all->unready_num--;
-  } else {
-    all->ready_num--;
-  }
-  all->failed_num++;
-  r->status = failed;
-  put_rule_into_status_list(&all->clean_list, r);
+
+  set_status(all, r, failed);
   for (int i=0;i<r->num_outputs;i++) {
     for (int j=0;j<r->outputs[i]->num_children;j++) {
       rule_failed(all, r->outputs[i]->children[j]);
     }
   }
-}
-void rule_is_unready(struct all_targets *all, struct rule *r) {
-  r->status = unready;
-  all->unready_num++;
-  all->estimated_time += r->build_time/num_jobs;
-  put_rule_into_status_list(&all->unready_list, r);
 }
 
 static struct target *create_target_with_stat(struct all_targets *all,
@@ -175,23 +160,9 @@ static struct target *create_target_with_stat(struct all_targets *all,
   return t;
 }
 
-static inline const char *pretty_status(enum target_status status) {
-  switch (status) {
-  case unknown: return "unknown";
-  case unready: return "unready";
-  case dirty: return "dirty";
-  case marked: return "marked";
-  case failed: return "failed";
-  case building: return "building";
-  case clean: return "clean";
-  case built: return "built";
-  case being_determined: return "being_determined";
-  }
-  return "ERROR-ERROR";
-}
-
 void check_cleanliness(struct all_targets *all, struct rule *r) {
   if (r->status != unknown && r->status != unready && r->status != marked) {
+    /* We have already determined the cleanliness of this rule. */
     return;
   }
   if (r->num_inputs == 0 && r->num_outputs == 0) {
@@ -227,9 +198,9 @@ void check_cleanliness(struct all_targets *all, struct rule *r) {
       }
     }
   }
+  r->status = old_status;
   if (am_now_unready) {
-    r->status = unready;
-    if (old_status != unready) rule_is_unready(all, r);
+    set_status(all, r, unready);
     return;
   }
   bool is_dirty = false;
@@ -246,8 +217,7 @@ void check_cleanliness(struct all_targets *all, struct rule *r) {
         verbose_printf("::: %s :::\n", r->command);
         verbose_printf(" - unready because I don't yet know how to build %s.\n",
                        pretty_path(r->inputs[i]->path));
-        r->status = unready;
-        if (old_status != unready) rule_is_unready(all, r);
+        set_status(all, r, unready);
         return;
     }
     if (r->input_times[i]) {
@@ -286,7 +256,7 @@ void check_cleanliness(struct all_targets *all, struct rule *r) {
   if (is_dirty) {
     rule_is_ready(all, r);
   } else {
-    rule_is_clean(all, r);
+    set_status(all, r, clean);
   }
 }
 
@@ -342,8 +312,7 @@ static struct building *build_rule(struct all_targets *all,
     free(namebuf);
   }
   b->all_done = building;
-  r->status = building;
-  put_rule_into_status_list(&all->running_list, r);
+  set_status(all, r, building);
   return b;
 }
 
@@ -425,9 +394,9 @@ static void find_elapsed_time() {
 }
 
 static void build_marked(struct all_targets *all, const char *log_directory) {
-  if (!all->marked_list && !all->ready_list) {
-    if (all->failed_num) {
-      printf("Failed to build %d files.\n", all->failed_num);
+  if (!all->lists[marked] && !all->lists[dirty]) {
+    if (all->num_with_status[failed]) {
+      printf("Failed to build %d files.\n", all->num_with_status[failed]);
       exit(1);
     }
     return; /* nothing to build */
@@ -447,7 +416,7 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
   act.sa_flags = 0;
   sigaction(SIGINT, &act, &oldact);
 
-  for (struct rule *r = all->marked_list; r; r = all->marked_list) {
+  for (struct rule *r = all->lists[marked]; r; r = all->lists[marked]) {
     check_cleanliness(all, r);
   }
 
@@ -463,15 +432,24 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
       for (int i=0;i<num_jobs;i++) {
         if (bs[i] && bs[i]->pid == pid) {
           threads_in_use--;
+          all->estimated_times[bs[i]->rule->status] -= bs[i]->rule->build_time;
           bs[i]->rule->old_build_time = bs[i]->rule->build_time;
           bs[i]->rule->build_time = bs[i]->build_time;
+          all->estimated_times[bs[i]->rule->status] += bs[i]->rule->build_time;
           printf("%d/%d [%.2fs]: %s\n",
-                 1 + all->failed_num + all->built_num,
-                 all->failed_num + all->built_num + all->ready_num + all->unready_num,
+                 1 + all->num_with_status[failed] + all->num_with_status[built],
+                 all->num_with_status[failed] +
+                 all->num_with_status[built] +
+                 all->num_with_status[building] +
+                 all->num_with_status[dirty] +
+                 all->num_with_status[unready],
                  bs[i]->build_time, bs[i]->rule->command);
-          if (all->estimated_time > 1.0) {
-            int build_minutes = (int)(all->estimated_time/60);
-            double build_seconds = all->estimated_time - 60*build_minutes;
+          double estimated_time = (all->estimated_times[building] +
+                                   all->estimated_times[dirty] +
+                                   all->estimated_times[unready])/num_jobs;
+          if (estimated_time > 1.0) {
+            int build_minutes = (int)(estimated_time/60);
+            double build_seconds = estimated_time - 60*build_minutes;
             find_elapsed_time();
             double total_seconds = elapsed_seconds + build_seconds;
             double total_minutes = elapsed_minutes + build_minutes;
@@ -610,7 +588,7 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
       int N = num_jobs - threads_in_use;
       struct rule **toqueue = calloc(N, sizeof(struct rule *));
       int i = 0;
-      for (struct rule *r = all->ready_list; r && i < N; r = r->status_next) {
+      for (struct rule *r = all->lists[dirty]; r && i < N; r = r->status_next) {
         toqueue[i++] = r;
       }
       for (i=0;i<N;i++) {
@@ -650,9 +628,9 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
 
       exit(1);
     }
-  } while (all->ready_list || all->running_list);
+  } while (all->lists[dirty] || all->lists[building]);
 
-  for (struct rule *r = all->unready_list; r; r = all->unready_list) {
+  for (struct rule *r = all->lists[unready]; r; r = all->lists[unready]) {
     for (int i=0;i<r->num_inputs;i++) {
       if (!r->inputs[i]->rule && !r->inputs[i]->is_in_git && is_in_root(r->inputs[i]->path)) {
         if (!access(r->inputs[i]->path, R_OK)) {
@@ -685,9 +663,9 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
 }
 
 void summarize_build_results(struct all_targets *all) {
-  if (all->failed_list || all->failed_num) {
-    printf("Build failed %d/%d failures\n", all->failed_num,
-           all->failed_num + all->built_num);
+  if (all->lists[failed] || all->num_with_status[failed]) {
+    printf("Build failed %d/%d failures\n", all->num_with_status[failed],
+           all->num_with_status[failed] + all->num_with_status[built]);
     exit(1);
   } else {
     find_elapsed_time();
@@ -730,7 +708,7 @@ void do_actual_build(struct cmd_args *args) {
         }
       }
       mark_facfiles(&all);
-    } while (all.marked_list || still_reading);
+    } while (all.lists[marked] || still_reading);
     if (!all.r.first) {
       printf("Please add a .fac file containing rules!\n");
       exit(1);
@@ -757,7 +735,7 @@ void do_actual_build(struct cmd_args *args) {
 
     if (args->create_makefile || args->create_tupfile || args->create_script) {
       for (struct rule *r = (struct rule *)all.r.first; r; r = (struct rule *)r->e.next) {
-        r->status = unknown;
+        set_status(&all, r, unknown);
       }
       if (args->targets_requested) {
         for (listset *a = args->targets_requested; a; a = a->next) {
