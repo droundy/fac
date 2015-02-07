@@ -116,3 +116,5 @@ with the following options.
 ## See also
 
 * [Documentation of the code](code-guide.html)
+
+* [Comparison with SCons](fac-vs-scons.html)
