@@ -147,8 +147,8 @@ void read_fac_file(struct all_targets *all, const char *path) {
         error_at_line(1, 0, pretty_path(path), linenum,
                       "\">\" output lines must follow a \"|\" command line");
       {
-        char *path = absolute_path(the_directory, one_line+2);
-        thetarget = create_target(all, path);
+        char *filepath = absolute_path(the_directory, one_line+2);
+        thetarget = create_target(all, filepath);
         if (thetarget->rule)
           error_at_line(1, 0, pretty_path(path), linenum,
                         "two rules to create the same file: %s", one_line+2);
@@ -156,7 +156,7 @@ void read_fac_file(struct all_targets *all, const char *path) {
         add_explicit_output(therule, thetarget);
         last_modified_last_file = &therule->output_times[therule->num_outputs-1];
         size_last_file = &therule->output_sizes[therule->num_outputs-1];
-        free(path);
+        free(filepath);
       }
       break;
     }
