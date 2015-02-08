@@ -149,14 +149,18 @@ void read_fac_file(struct all_targets *all, const char *path) {
       {
         char *filepath = absolute_path(the_directory, one_line+2);
         thetarget = create_target(all, filepath);
-        if (thetarget->rule)
+        if (thetarget->rule && therule != thetarget->rule)
           error_at_line(1, 0, pretty_path(path), linenum,
-                        "two rules to create the same file: %s", one_line+2);
-        thetarget->rule = therule;
-        add_explicit_output(therule, thetarget);
-        last_modified_last_file = &therule->output_times[therule->num_outputs-1];
-        size_last_file = &therule->output_sizes[therule->num_outputs-1];
-        free(filepath);
+                        "two rules to create the same file: %s\n| %s\n| %s",
+                        one_line+2,
+                        therule->command, thetarget->rule->command);
+        if (therule != thetarget->rule) {
+          thetarget->rule = therule;
+          add_explicit_output(therule, thetarget);
+          last_modified_last_file = &therule->output_times[therule->num_outputs-1];
+          size_last_file = &therule->output_sizes[therule->num_outputs-1];
+          free(filepath);
+        }
       }
       break;
     }
