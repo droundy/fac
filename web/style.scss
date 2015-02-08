@@ -7,14 +7,6 @@
   box-sizing: border-box;
 }
 
-$black: #000;
-$white: #fff;
-
-$highlight: #1f8dd6;
-$backhighlight: #cbe7f8;
-
-$hoverfocus: #f00;
-
 $menuback: #fff;
 $menuhoverback: #ddf;
 $menucurrent: #06d;
@@ -22,10 +14,7 @@ $menufore: #333;
 $menuitem: #eee;
 $menushadow: #ddd;
 
-$contentcolor: #555;
-
-$maintoc: #999;
-$secondtoc: #666;
+$codebackground: #ddf;
 
 html { /* make scrollbar always visible */
 overflow: -moz-scrollbars-vertical;
@@ -96,6 +85,12 @@ main {
    }
    h3:nth-of-type(odd) {
        clear: right;
+   }
+   pre {
+       margin-left: 1em;
+       margin-right: 1em;
+       padding: .5em;
+       background: $codebackground;
    }
 
    img {
