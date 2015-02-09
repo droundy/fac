@@ -96,6 +96,8 @@ with the following options.
 
 ## To do list
 
+1. Fix bug in fac that is illustrated in dependent-chain-10.
+
 2. Use inotify to avoid rescanning the entire source tree.
 
 3. Remove "error" calls from new-build.c, to ensure that we will
