@@ -251,8 +251,17 @@ void check_cleanliness(struct all_targets *all, struct rule *r) {
     }
     if (is_dirty) continue; // no need to do the rest now
     if (r->inputs[i]->rule && r->inputs[i]->rule->status == built) {
-      rebuild_excuse(r, "%s has been rebuilt", pretty_path(r->inputs[i]->path));
-      is_dirty = true;
+      if (sha1_is_zero(r->inputs[i]->hash)) find_target_sha1(r->inputs[i]);
+      if (sha1_same(r->input_hashes[i], r->inputs[i]->hash)) {
+        verbose_printf(" *** hashing saved us work on %s due to rebuild of %s\n",
+                       pretty_rule(r), pretty_path(r->inputs[i]->path));
+        r->input_times[i] = r->inputs[i]->last_modified;
+        r->input_sizes[i] = r->inputs[i]->size;
+        insert_to_listset(&facfiles_used, r->facfile_path);
+      } else {
+        rebuild_excuse(r, "%s has been rebuilt", pretty_path(r->inputs[i]->path));
+        is_dirty = true;
+      }
     }
     if (r->input_times[i]) {
       if (!create_target_with_stat(all, r->inputs[i]->path) ||
