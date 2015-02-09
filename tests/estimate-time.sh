@@ -28,13 +28,13 @@ perl -i -pe 's/\r/\n/' fac.out
 cat fac.out
 
 grep "Build time remaining: 0:0. / 1:0" fac.out
-grep "Build succeeded! 1:00" fac.out
+grep "Build succeeded! 1:0" fac.out
 
 ../../fac -j4 > fac.out
 perl -i -pe 's/\r/\n/' fac.out
 cat fac.out
 
-grep "Build succeeded! 0:00" fac.out
+grep "Build succeeded! 0:0" fac.out
 
 rm *.dat
 
@@ -44,7 +44,7 @@ cat fac.out
 
 grep "Build time remaining: 1:0. / 1:0" fac.out
 grep "Build time remaining: 0:05 / 1:0" fac.out
-grep "Build succeeded! 1:00" fac.out
+grep "Build succeeded! 1:0" fac.out
 
 rm file_1.dat file_2.dat file_3.dat file_4.dat
 ../../fac -j4 > fac.out
@@ -61,6 +61,6 @@ cat fac.out
 
 grep "Build time remaining: 0:3. / 0:3" fac.out
 grep "Build time remaining: 0:0. / 0:3" fac.out
-grep "Build succeeded! 0:30" fac.out
+grep "Build succeeded! 0:3" fac.out
 
 exit 0

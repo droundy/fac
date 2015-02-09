@@ -30,7 +30,9 @@ src="hierarchy-building.png" alt="build times"/></a>
 The initial build takes linear time ($\O{N}$) in the best-case
 scenario.  Some build systems, however, have a large constant term
 which can make a large difference up to surprisingly large systems.
-<a href="hierarchy-rebuilding.pdf"><img
+In addition, some build systems may have a different $\O{N}$
+prefactor, which can make an even bigger difference for large
+systems. <a href="hierarchy-rebuilding.pdf"><img
 src="hierarchy-rebuilding.png" alt="rebuild times"/></a>
 
 ### Rebuild (hierarchy)
