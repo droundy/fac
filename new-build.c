@@ -187,7 +187,7 @@ static inline void rebuild_excuse(struct rule *r, const char *format, ...) {
   if (verbose && !have_announced_rebuild_excuse) {
     have_announced_rebuild_excuse = true;
     char *total_format = malloc(strlen(format) + 4096);
-    sprintf(total_format, " *** Building %s\n     because %s.\n",
+    sprintf(total_format, "                                                   \r *** Building %s\n     because %s.\n",
             pretty_rule(r), format);
     vfprintf(stdout, total_format, args);
     free(total_format);
@@ -488,7 +488,7 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
           bs[i]->rule->build_time = bs[i]->build_time;
           all->estimated_times[bs[i]->rule->status] += bs[i]->rule->build_time;
           /* the blank spaces below clear out the progress message */
-          printf("                                                          \r%d/%d [%.2fs]: %s\n",
+          printf("                                                                   \r%d/%d [%.2fs]: %s\n",
                  1 + all->num_with_status[failed] + all->num_with_status[built],
                  all->num_with_status[failed] +
                  all->num_with_status[built] +
