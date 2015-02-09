@@ -25,6 +25,8 @@
 #include <signal.h>
 #include <assert.h>
 
+static listset *facfiles_used = 0;
+
 bool is_interesting_path(struct rule *r, const char *path) {
   const int len = strlen(path);
   for (int i=0;i<r->num_cache_prefixes;i++) {
@@ -256,11 +258,14 @@ void check_cleanliness(struct all_targets *all, struct rule *r) {
       if (!create_target_with_stat(all, r->inputs[i]->path) ||
           r->input_times[i] != r->inputs[i]->last_modified ||
           r->input_sizes[i] != r->inputs[i]->size) {
-        if (!sha1_is_zero(r->input_hashes[i])) {
+        if (!sha1_is_zero(r->input_hashes[i]) && r->input_sizes[i] == r->inputs[i]->size) {
           if (sha1_is_zero(r->inputs[i]->hash)) find_target_sha1(r->inputs[i]);
           if (sha1_same(r->input_hashes[i], r->inputs[i]->hash)) {
             verbose_printf(" *** hashing saved us work on %s due to %s\n",
                            pretty_rule(r), pretty_path(r->inputs[i]->path));
+            r->input_times[i] = r->inputs[i]->last_modified;
+            r->input_sizes[i] = r->inputs[i]->size;
+            insert_to_listset(&facfiles_used, r->facfile_path);
           } else {
             rebuild_excuse(r, "%s is definitely modified", pretty_path(r->inputs[i]->path));
             is_dirty = true;
@@ -458,7 +463,6 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
     check_cleanliness(all, r);
   }
 
-  listset *facfiles_used = 0;
   do {
     int threads_in_use = 0;
     for (int i=0;i<num_jobs;i++) {
