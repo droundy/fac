@@ -478,7 +478,8 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
           bs[i]->rule->old_build_time = bs[i]->rule->build_time;
           bs[i]->rule->build_time = bs[i]->build_time;
           all->estimated_times[bs[i]->rule->status] += bs[i]->rule->build_time;
-          printf("%d/%d [%.2fs]: %s\n",
+          /* the blank spaces below clear out the progress message */
+          printf("                                                          \r%d/%d [%.2fs]: %s\n",
                  1 + all->num_with_status[failed] + all->num_with_status[built],
                  all->num_with_status[failed] +
                  all->num_with_status[built] +
