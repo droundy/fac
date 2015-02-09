@@ -145,6 +145,25 @@ void rule_failed(struct all_targets *all, struct rule *r) {
   }
 }
 
+static void find_target_sha1(struct target *t) {
+  int fd = open(t->path, O_RDONLY);
+  if (fd > 0) {
+    const int bufferlen = 4096;
+    char *buffer = malloc(bufferlen);
+    int readlen, total_size = 0;
+    sha1nfo sh;
+    sha1_init(&sh);
+    while ((readlen = read(fd, buffer, bufferlen)) > 0) {
+      sha1_write(&sh, buffer, readlen);
+      total_size += readlen;
+    }
+    if (readlen == 0) {
+      t->hash = sha1_out(&sh);
+    }
+    close(fd);
+  }
+}
+
 static struct target *create_target_with_stat(struct all_targets *all,
                                               const char *path) {
   struct target *t = create_target(all, path);
@@ -237,8 +256,19 @@ void check_cleanliness(struct all_targets *all, struct rule *r) {
       if (!create_target_with_stat(all, r->inputs[i]->path) ||
           r->input_times[i] != r->inputs[i]->last_modified ||
           r->input_sizes[i] != r->inputs[i]->size) {
-        rebuild_excuse(r, "%s is modified", pretty_path(r->inputs[i]->path));
-        is_dirty = true;
+        if (!sha1_is_zero(r->input_hashes[i])) {
+          if (sha1_is_zero(r->inputs[i]->hash)) find_target_sha1(r->inputs[i]);
+          if (sha1_same(r->input_hashes[i], r->inputs[i]->hash)) {
+            verbose_printf(" *** hashing saved us work on %s due to %s\n",
+                           pretty_rule(r), pretty_path(r->inputs[i]->path));
+          } else {
+            rebuild_excuse(r, "%s is definitely modified", pretty_path(r->inputs[i]->path));
+            is_dirty = true;
+          }
+        } else {
+          rebuild_excuse(r, "%s is modified", pretty_path(r->inputs[i]->path));
+          is_dirty = true;
+        }
       }
     } else {
       rebuild_excuse(r, "#%d %s has no input time",
@@ -501,6 +531,7 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
               error(1, 0, "Unable to stat input file %s (this should be impossible)\n",
                     r->inputs[ii]->path);
             } else {
+              if (t->is_file && sha1_is_zero(t->hash)) find_target_sha1(t);
               add_input(r, t);
               delete_from_arrayset(&bs[i]->read, r->inputs[ii]->path);
               delete_from_arrayset(&bs[i]->written, r->inputs[ii]->path);
@@ -524,6 +555,7 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
               bs[i] = 0;
               break;
             } else {
+              if (t->is_file) find_target_sha1(t);
               t->rule = r;
               add_output(r, t);
               delete_from_arrayset(&bs[i]->read, r->outputs[ii]->path);
@@ -544,6 +576,7 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
                          pretty_path(t->path), pretty_rule(r));
                   rule_failed(all, r);
                 }
+                if (sha1_is_zero(t->hash)) find_target_sha1(t);
                 add_input(r, t);
               }
             }
@@ -579,6 +612,7 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
                   error(1,0,"Two rules generate same output: %s\n| %s\n| %s",
                         pretty_path(path), r->command, t->rule->command);
                 t->rule = r;
+                find_target_sha1(t);
                 add_output(r, t);
               }
             }

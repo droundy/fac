@@ -84,6 +84,7 @@ void read_fac_file(struct all_targets *all, const char *path) {
   struct target *thetarget = 0;
   time_t *last_modified_last_file = 0;
   off_t *size_last_file = 0;
+  sha1hash *hash_last_file = 0;
 
   int linenum = 0;
   char *one_line = 0;
@@ -111,6 +112,7 @@ void read_fac_file(struct all_targets *all, const char *path) {
       thetarget = 0;
       size_last_file = 0;
       last_modified_last_file = 0;
+      hash_last_file = 0;
       if (one_line[0] == '?') therule->is_default = false;
       break;
     case 'C':
@@ -139,6 +141,7 @@ void read_fac_file(struct all_targets *all, const char *path) {
         add_explicit_input(therule, thetarget);
         last_modified_last_file = &therule->input_times[therule->num_inputs-1];
         size_last_file = &therule->input_sizes[therule->num_inputs-1];
+        hash_last_file = &therule->input_hashes[therule->num_inputs-1];
         free(path);
       }
       break;
@@ -159,6 +162,7 @@ void read_fac_file(struct all_targets *all, const char *path) {
           add_explicit_output(therule, thetarget);
           last_modified_last_file = &therule->output_times[therule->num_outputs-1];
           size_last_file = &therule->output_sizes[therule->num_outputs-1];
+          hash_last_file = &therule->output_hashes[therule->num_outputs-1];
           free(filepath);
         }
       }
@@ -211,6 +215,7 @@ void read_fac_file(struct all_targets *all, const char *path) {
                 if (thetarget == therule->outputs[i]) {
                   last_modified_last_file = &therule->output_times[i];
                   size_last_file = &therule->output_sizes[i];
+                  hash_last_file = &therule->output_hashes[i];
                   break;
                 }
               }
@@ -221,6 +226,7 @@ void read_fac_file(struct all_targets *all, const char *path) {
                 if (thetarget == therule->inputs[i]) {
                   last_modified_last_file = &therule->input_times[i];
                   size_last_file = &therule->input_sizes[i];
+                  hash_last_file = &therule->input_hashes[i];
                   break;
                 }
               }
@@ -246,6 +252,7 @@ void read_fac_file(struct all_targets *all, const char *path) {
                 if (thetarget == therule->outputs[i]) {
                   last_modified_last_file = &therule->output_times[i];
                   size_last_file = &therule->output_sizes[i];
+                  hash_last_file = &therule->output_hashes[i];
                   break;
                 }
               }
@@ -269,6 +276,11 @@ void read_fac_file(struct all_targets *all, const char *path) {
         if (size_last_file) {
           if (sscanf(one_line+2, "%ld", size_last_file) != 1)
             error_at_line(1, 0, pretty_path(path), linenum, "Error parsing %s", one_line);
+        }
+        break;
+      case 'H':
+        if (hash_last_file) {
+          *hash_last_file = read_sha1(one_line+2);
         }
         break;
       case 'B':
@@ -326,6 +338,12 @@ void fprint_facfile(FILE *f, struct all_targets *tt, const char *bpath) {
         if (r->outputs[i]->last_modified) {
           fprintf(f, "T %ld\n", r->outputs[i]->last_modified);
           fprintf(f, "S %ld\n", r->outputs[i]->size);
+          sha1hash h = r->outputs[i]->hash;
+          if (h.abc.a || h.abc.b || h.abc.c) {
+            fprintf(f, "H ");
+            fprint_sha1(f, h);
+            fprintf(f, "\n");
+          }
         }
       }
       for (int i=0; i<r->num_inputs; i++) {
@@ -333,6 +351,12 @@ void fprint_facfile(FILE *f, struct all_targets *tt, const char *bpath) {
         if (r->inputs[i]->last_modified) {
           fprintf(f, "T %ld\n", r->inputs[i]->last_modified);
           fprintf(f, "S %ld\n", r->inputs[i]->size);
+          sha1hash h = r->inputs[i]->hash;
+          if (h.abc.a || h.abc.b || h.abc.c) {
+            fprintf(f, "H ");
+            fprint_sha1(f, h);
+            fprintf(f, "\n");
+          }
         }
       }
       fprintf(f, "\n");

@@ -3,10 +3,6 @@
  */
 // gcc -Wall -DSHA1TEST -o sha1test sha1.c && ./sha1test
 
-#include <stdint.h>
-#include <string.h>
-
-
 #ifdef __BIG_ENDIAN__
 # define SHA_BIG_ENDIAN
 #elif defined __LITTLE_ENDIAN__
@@ -145,7 +141,29 @@ uint8_t* sha1_result(sha1nfo *s) {
 sha1hash sha1_out(sha1nfo *s) {
   sha1hash h;
   uint8_t *hsh = sha1_result(s);
-  memcpy(&h, hsh, 20);
+  memcpy(&h, hsh, HASH_LENGTH);
+  return h;
+}
+
+void fprint_sha1(FILE *f, sha1hash h) {
+  fprintf(f, "%02x%02x%02x%02x", h.u8[ 0], h.u8[ 1], h.u8[ 2], h.u8[ 3]);
+  fprintf(f, "%02x%02x%02x%02x", h.u8[ 4], h.u8[ 5], h.u8[ 6], h.u8[ 7]);
+  fprintf(f, "%02x%02x%02x%02x", h.u8[ 8], h.u8[ 9], h.u8[10], h.u8[11]);
+  fprintf(f, "%02x%02x%02x%02x", h.u8[12], h.u8[13], h.u8[14], h.u8[15]);
+  fprintf(f, "%02x%02x%02x%02x", h.u8[16], h.u8[17], h.u8[18], h.u8[19]);
+}
+
+sha1hash read_sha1(const char *str) {
+  sha1hash h;
+  if (sscanf(str,
+             "%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx",
+             &h.u8[ 0], &h.u8[ 1], &h.u8[ 2], &h.u8[ 3],
+             &h.u8[ 4], &h.u8[ 5], &h.u8[ 6], &h.u8[ 7],
+             &h.u8[ 8], &h.u8[ 9], &h.u8[10], &h.u8[11],
+             &h.u8[12], &h.u8[13], &h.u8[14], &h.u8[15],
+             &h.u8[16], &h.u8[17], &h.u8[18], &h.u8[19]) != 20) {
+    h.abc.a = h.abc.b = h.abc.c = 0;
+  }
   return h;
 }
 

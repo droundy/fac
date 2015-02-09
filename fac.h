@@ -74,6 +74,7 @@ struct target {
   time_t last_modified;
   off_t size;
   bool is_file, is_dir;
+  sha1hash hash;
 
   bool is_in_git;
 
@@ -102,12 +103,14 @@ struct rule {
   struct target **inputs;
   time_t *input_times;
   off_t *input_sizes;
+  sha1hash *input_hashes;
   sha1hash env;
 
   int num_outputs, num_explicit_outputs;
   struct target **outputs;
   time_t *output_times;
   off_t *output_sizes;
+  sha1hash *output_hashes;
 
   double build_time, old_build_time;
   double latency_estimate;

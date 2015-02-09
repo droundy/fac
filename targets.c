@@ -21,6 +21,7 @@ struct target *create_target(struct all_targets *all, const char *path) {
     t->rule = 0;
     t->last_modified = 0;
     t->size = 0;
+    t->hash.abc.a = t->hash.abc.b = t->hash.abc.c = 0;
     t->num_children = t->children_size = 0;
     t->children = 0;
     insert_target(all, t);
@@ -65,6 +66,7 @@ struct rule *create_rule(struct all_targets *all, const char *facfile_path,
   r->inputs = r->outputs = 0;
   r->input_times = r->output_times = 0;
   r->input_sizes = r->output_sizes = 0;
+  r->input_hashes = r->output_hashes = 0;
   r->facfile_linenum = 0;
   /* Initial guess of a second for build_time helps us build commands
      with dependencies first, even if we don't know how long those
@@ -144,11 +146,15 @@ void add_input(struct rule *r, struct target *dep) {
     r->inputs = realloc(r->inputs, sizeof(struct target *)*(r->input_array_size));
     r->input_times = realloc(r->input_times, sizeof(time_t)*(r->input_array_size));
     r->input_sizes = realloc(r->input_sizes, sizeof(off_t)*(r->input_array_size));
+    r->input_hashes = realloc(r->input_hashes, sizeof(sha1hash)*(r->input_array_size));
   }
 
   r->inputs[r->num_inputs] = dep;
   r->input_times[r->num_inputs] = 0;
   r->input_sizes[r->num_inputs] = 0;
+  r->input_hashes[r->num_inputs].abc.a = 0;
+  r->input_hashes[r->num_inputs].abc.b = 0;
+  r->input_hashes[r->num_inputs].abc.c = 0;
   r->num_inputs += 1;
 
   dep->num_children++;
@@ -167,9 +173,13 @@ void add_output(struct rule *r, struct target *dep) {
   r->outputs = realloc(r->outputs, sizeof(struct target *)*(r->num_outputs+1));
   r->output_times = realloc(r->output_times, sizeof(time_t)*(r->num_outputs+1));
   r->output_sizes = realloc(r->output_sizes, sizeof(off_t)*(r->num_outputs+1));
+  r->output_hashes = realloc(r->output_hashes, sizeof(sha1hash)*(r->num_outputs+1));
   r->outputs[r->num_outputs] = dep;
   r->output_times[r->num_outputs] = 0;
   r->output_sizes[r->num_outputs] = 0;
+  r->output_hashes[r->num_outputs].abc.a = 0;
+  r->output_hashes[r->num_outputs].abc.b = 0;
+  r->output_hashes[r->num_outputs].abc.c = 0;
   r->num_outputs += 1;
 }
 
@@ -209,6 +219,8 @@ void free_all_targets(struct all_targets *all) {
       free(r->output_times);
       free(r->input_sizes);
       free(r->output_sizes);
+      free(r->input_hashes);
+      free(r->output_hashes);
       next = (struct rule *)r->e.next;
       free(r);
     }

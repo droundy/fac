@@ -104,8 +104,6 @@ with the following options.
 
 5. On BSD and Darwin systems, use ktrace rather than ptrace.
 
-- Hashing of inputs
-
 - Enable fac to call fac recursively (requires ptrace effort)
 
 - Create .gitignore files?

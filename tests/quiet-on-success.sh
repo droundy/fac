@@ -27,6 +27,16 @@ fi
 sleep 1
 touch message
 
+../../fac > fac.out 2>&1
+cat fac.out
+
+if grep 'I am loud' fac.out; then
+    echo build was noisy on success
+    exit 1
+fi
+
+echo >> message
+
 ../../fac --show-output > fac.out 2>&1
 cat fac.out
 
