@@ -146,20 +146,34 @@ void rule_failed(struct all_targets *all, struct rule *r) {
 }
 
 static struct target *create_target_with_stat(struct all_targets *all,
-                                              const char *path,
-                                              bool may_be_file,
-                                              bool may_be_directory) {
+                                              const char *path) {
   struct target *t = create_target(all, path);
   if (!t->last_modified) {
     struct stat st;
     if (stat(t->path, &st)) return 0;
-    if (!may_be_directory && S_ISDIR(st.st_mode)) return 0;
-    if (!may_be_file && S_ISREG(st.st_mode)) return 0;
+    t->is_file = S_ISREG(st.st_mode);
+    t->is_dir = S_ISDIR(st.st_mode);
     t->size = st.st_size;
     t->last_modified = st.st_mtime;
   }
   return t;
 }
+
+static bool have_announced_rebuild_excuse = false;
+static inline void rebuild_excuse(struct rule *r, const char *format, ...) {
+  va_list args;
+  va_start(args, format);
+  if (verbose && !have_announced_rebuild_excuse) {
+    have_announced_rebuild_excuse = true;
+    char *total_format = malloc(strlen(format) + 4096);
+    sprintf(total_format, " *** Building %s\n     because %s.\n",
+            pretty_rule(r), format);
+    vfprintf(stdout, total_format, args);
+    free(total_format);
+  }
+  va_end(args);
+}
+
 
 void check_cleanliness(struct all_targets *all, struct rule *r) {
   if (r->status != unknown && r->status != unready && r->status != marked) {
@@ -172,6 +186,7 @@ void check_cleanliness(struct all_targets *all, struct rule *r) {
     rule_is_ready(all, r);
     return;
   }
+  have_announced_rebuild_excuse = false;
   int old_status = r->status;
   r->status = being_determined;
   bool am_now_unready = false;
@@ -191,11 +206,6 @@ void check_cleanliness(struct all_targets *all, struct rule *r) {
           r->inputs[i]->rule->status == unready ||
           r->inputs[i]->rule->status == building) {
         am_now_unready = true;
-        if (old_status != unready) {
-          verbose_printf("::: %s :::\n", r->command);
-          verbose_printf(" - dirty because %s needs to be rebuilt.\n",
-                         pretty_path(r->inputs[i]->path));
-        }
       }
     }
   }
@@ -206,56 +216,48 @@ void check_cleanliness(struct all_targets *all, struct rule *r) {
   }
   bool is_dirty = false;
   if (env.abc.a != r->env.abc.a || env.abc.b != r->env.abc.b || env.abc.c != r->env.abc.c) {
-    verbose_printf(" - %s unready because the environment has changed.\n",
-                   pretty_rule(r));
+    if (r->env.abc.a || r->env.abc.b || r->env.abc.c) {
+      rebuild_excuse(r, "the environment has changed");
+    } else {
+      rebuild_excuse(r, "we have never built it");
+    }
     is_dirty = true;
   }
   for (int i=0;i<r->num_inputs;i++) {
+    if (!r->inputs[i]->is_in_git && !r->inputs[i]->rule && is_in_root(r->inputs[i]->path)) {
+      set_status(all, r, unready);
+      return;
+    }
+    if (is_dirty) continue; // no need to do the rest now
     if (r->inputs[i]->rule && r->inputs[i]->rule->status == built) {
-      verbose_printf("::: %s :::\n", r->command);
-      verbose_printf(" - dirty because %s has been rebuilt.\n",
-                     pretty_path(r->inputs[i]->path));
+      rebuild_excuse(r, "%s has been rebuilt", pretty_path(r->inputs[i]->path));
       is_dirty = true;
     }
-    if (!r->inputs[i]->is_in_git &&
-        !r->inputs[i]->rule &&
-        is_in_root(r->inputs[i]->path)) {
-        verbose_printf("::: %s :::\n", r->command);
-        verbose_printf(" - unready because I don't yet know how to build %s.\n",
-                       pretty_path(r->inputs[i]->path));
-        set_status(all, r, unready);
-        return;
-    }
     if (r->input_times[i]) {
-      if (!create_target_with_stat(all, r->inputs[i]->path, true, true) ||
+      if (!create_target_with_stat(all, r->inputs[i]->path) ||
           r->input_times[i] != r->inputs[i]->last_modified ||
           r->input_sizes[i] != r->inputs[i]->size) {
-        verbose_printf("::: %s :::\n", r->command);
-        verbose_printf(" - dirty because %s is modified.\n",
-                         pretty_path(r->inputs[i]->path));
+        rebuild_excuse(r, "%s is modified", pretty_path(r->inputs[i]->path));
         is_dirty = true;
       }
     } else {
-      verbose_printf("::: %s :::\n", r->command);
-      verbose_printf(" - dirty because #%d %s has no input time.\n",
+      rebuild_excuse(r, "#%d %s has no input time",
                      i, pretty_path(r->inputs[i]->path));
       is_dirty = true;
     }
   }
+  if (is_dirty) rule_is_ready(all, r);
   for (int i=0;i<r->num_outputs;i++) {
     if (r->output_times[i]) {
-      if (!create_target_with_stat(all, r->outputs[i]->path, true, true) ||
+      if (!create_target_with_stat(all, r->outputs[i]->path) ||
           r->output_times[i] != r->outputs[i]->last_modified ||
           r->output_sizes[i] != r->outputs[i]->size) {
-        verbose_printf("::: %s :::\n", r->command);
-        verbose_printf(" - dirty because %s has wrong output time.\n",
+        rebuild_excuse(r, "%s has wrong output time",
                        pretty_path(r->outputs[i]->path));
         is_dirty = true;
       }
     } else {
-      verbose_printf("::: %s :::\n", r->command);
-      verbose_printf(" - dirty because %s has no output time.\n",
-                     pretty_path(r->outputs[i]->path));
+      rebuild_excuse(r, "%s has no output time", pretty_path(r->outputs[i]->path));
       is_dirty = true;
     }
   }
@@ -494,7 +496,7 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
              inputs that were actually used in the build */
           r->num_inputs = r->num_explicit_inputs;
           for (int ii=0;ii<r->num_inputs;ii++) {
-            struct target *t = create_target_with_stat(all, r->inputs[ii]->path, true, true);
+            struct target *t = create_target_with_stat(all, r->inputs[ii]->path);
             if (!t) {
               error(1, 0, "Unable to stat input file %s (this should be impossible)\n",
                     r->inputs[ii]->path);
@@ -513,7 +515,7 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
               t->last_modified = 0;
               t->size = 0;
             }
-            t = create_target_with_stat(all, r->outputs[ii]->path, true, true);
+            t = create_target_with_stat(all, r->outputs[ii]->path);
             if (!t) {
               printf("build failed to create: %s\n",
                      pretty_path(r->outputs[ii]->path));
@@ -531,8 +533,8 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
           if (!bs[i]) break; // happens if we failed to create an output
           for (char *path = start_iterating(&bs[i]->read); path; path = iterate(&bs[i]->read)) {
             if (is_interesting_path(r, path)) {
-              struct target *t = create_target_with_stat(all, path, true, false);
-              if (!t) {
+              struct target *t = create_target_with_stat(all, path);
+              if (!t || !t->is_file) {
                 /* Assume that the file was deleted, and there's no
                    problem. */
                 // error(1, errno, "Unable to input stat file %s", path);
@@ -549,8 +551,8 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
 
           for (char *path = start_iterating(&bs[i]->readdir); path; path = iterate(&bs[i]->readdir)) {
             if (is_interesting_path(r, path)) {
-              struct target *t = create_target_with_stat(all, path, false, true);
-              if (!t) error(1, errno, "Unable to stat directory %s", path);
+              struct target *t = create_target_with_stat(all, path);
+              if (!t || !t->is_dir) error(1, errno, "Unable to stat directory %s", path);
 
               if (!t->rule && is_in_root(path) && !t->is_in_git) {
                 printf("error: directory %s should be in git for %s\n",
@@ -568,8 +570,8 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
                 t->last_modified = 0;
                 t->size = 0;
               }
-              t = create_target_with_stat(all, path, true, false);
-              if (t) {
+              t = create_target_with_stat(all, path);
+              if (t && t->is_file) {
                 if (path == pretty_path(path))
                   error(1,0,"Command created file outside source directory: %s\n| %s",
                         path, r->command);

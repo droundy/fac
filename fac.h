@@ -73,6 +73,7 @@ struct target {
   enum target_status status;
   time_t last_modified;
   off_t size;
+  bool is_file, is_dir;
 
   bool is_in_git;
 
@@ -177,7 +178,9 @@ static inline const char *pretty_path(const char *path) {
   return path;
 }
 static inline const char *pretty_rule(struct rule *r) {
-  if (r->num_outputs) return pretty_path(r->outputs[0]->path);
+  if (r->num_outputs && strlen(r->outputs[0]->path) <= strlen(r->command)) {
+    return pretty_path(r->outputs[0]->path);
+  }
   return r->command;
 }
 
