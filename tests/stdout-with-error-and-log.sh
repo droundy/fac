@@ -31,6 +31,8 @@ if ../../fac --log-output log > fac.out; then
 fi
 cat fac.out
 
+ls log
+
 cat log/foo
 
 grep done fac.out

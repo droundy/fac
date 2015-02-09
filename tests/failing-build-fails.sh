@@ -23,7 +23,7 @@ if ../../fac > fac.out; then
     exit 1
 fi
 cat fac.out
-grep 'build failed: foobar' fac.out
+grep 'build failed: f' fac.out
 
 cat > top.fac <<EOF
 | echo good > foobar
