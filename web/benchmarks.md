@@ -32,38 +32,38 @@ scenario.  Some build systems, however, have a large constant term
 which can make a large difference up to surprisingly large systems.
 In addition, some build systems may have a different $\O{N}$
 prefactor, which can make an even bigger difference for large
-systems. <a href="hierarchy-rebuilding.pdf"><img
-src="hierarchy-rebuilding.svg" alt="rebuild times"/></a>
+systems. <a href="hierarchy-touching-all.pdf"><img
+src="hierarchy-touching-all.svg" alt="rebuild times"/></a>
 
-### Rebuild (hierarchy)
+### Touching all (hierarchy)
 
 For the rebuild, we touch all the C files.  The cost is still $\O{N}$
 at best, but by remembering a hash of file content it is possible to
 dramatically reduce the cost of the rebuild, which allows scons to win
 in this case by more than an order of magnitude.  <a
-href="hierarchy-touching-c.pdf"><img src="hierarchy-touching-c.svg"
+href="hierarchy-modifying-c.pdf"><img src="hierarchy-modifying-c.svg"
 alt="more build times"/></a>
 
-### Touch a C file (hierarchy)
+### Modify a C file (hierarchy)
 
-The following test modifies a single C file.  Thus in principle, the
-cost could be $\O{1}$, if you could magically determine which files to
-rebuild.  However, if you need to check modification times on every
-file, it will still be $\O{N}$.  I believe tup "magically" determines
-which files to build by running a background process that uses inotify
-(or similar) to wait for changes to input files.  You can note that
-scons here has a dramatically more expensive $\O{N}$ cost, as it reads
-each C file to check dependencies (I think).
-<a href="hierarchy-touching-header.pdf"><img
-src="hierarchy-touching-header.svg" alt="more build times"/></a>
+The following test modifies a single C file, adding a newline to its
+end.  Thus in principle, the cost could be $\O{1}$, if you could
+magically determine which files to rebuild.  However, if you need to
+check modification times on every file, it will still be $\O{N}$.  I
+believe tup "magically" determines which files to build by running a
+background process that uses inotify (or similar) to wait for changes
+to input files.  You can note that scons here has a dramatically more
+expensive $\O{N}$ cost, as it reads each C file to check dependencies
+(I think).  <a href="hierarchy-modifying-header.pdf"><img
+src="hierarchy-modifying-header.svg" alt="more build times"/></a>
 
-### Touch a header file (hierarchy)
+### Modify a header file (hierarchy)
 
-The following modifies a single header file.  This should be close to
-identical to the former test, but requires rebuilding about 10 times
-as many files.  Thus the $\O{1}$ term is increased while the $\O{N}$
-term is hardly affected.
-<a href="hierarchy-doing-nothing.pdf"><img
+The following modifies a single header file, adding a newline to its
+end.  This should be close to identical to the former test, but
+requires rebuilding about 10 times as many files.  Thus the $\O{1}$
+term is increased while the $\O{N}$ term is hardly affected.  <a
+href="hierarchy-doing-nothing.pdf"><img
 src="hierarchy-doing-nothing.svg" alt="more build times"/></a>
 
 ### Doing nothing (hierarchy)
@@ -95,12 +95,14 @@ src="dependent-chain-rebuilding.svg" alt="rebuild times"/></a>
 ### Rebuild (linear chain)
 
 Here we remove all the generated executables and rerun, so again it is
-$\O{N}$.  Again, scons wins by caching, and the initial $\O{1}$ for
-tup is a bit less, since its database has already been generated.
-<a href="dependent-chain-touching-c.pdf"><img
-src="dependent-chain-touching-c.svg" alt="more build times"/></a>
+$\O{N}$.  This technically does not require an entire rebuild, since
+we need do not need to rerun the executables, so long as they come out
+the same as last time.  But that is irrelevant, because compiling and
+linking is way slower than running the executables.
+<a href="dependent-chain-modifying-c.pdf"><img
+src="dependent-chain-modifying-c.svg" alt="more build times"/></a>
 
-### Touching a C file (linear chain)
+### Modifying a C file (linear chain)
 
 Here we modify a single C file, which causes the whole chain to be
 rebuilt for most build systems, thus costing $\O{N}$.  Again, scons's
@@ -108,10 +110,10 @@ tracking of file checksums makes this much faster, as it realizes that
 the output is identical, so there is no rebuilding required.  I do not
 understand why tup is cheap here.  Tup should need to rebuild
 everything.
-<a href="dependent-chain-touching-header.pdf"><img
-src="dependent-chain-touching-header.svg" alt="more build times"/></a>
+<a href="dependent-chain-modifying-header.pdf"><img
+src="dependent-chain-modifying-header.svg" alt="more build times"/></a>
 
-### Touching a header (linear chain)
+### Modifying a header (linear chain)
 
 This test touches a header that only requires one rebuild.  It thus
 requires only $\O{1}$ rebuilds, but should with most systems require
@@ -146,11 +148,10 @@ src="cat-rebuilding.svg" alt="rebuild times"/></a>
 
 ### Rebuild cats
 
-Here we remove all the generated executables and rerun, so again it is
-$\O{N}$.  Again, scons wins by caching, and the initial $\O{1}$ for
-tup is a bit less, since its database has already been generated.
-<a href="cat-doing-nothing.pdf"><img
-src="cat-doing-nothing.svg" alt="more build times"/></a>
+Here we modify the source file from which the entire dependency chain
+depends, which results in $\O{N}$ run cost.  <a
+href="cat-doing-nothing.pdf"><img src="cat-doing-nothing.svg"
+alt="more build times"/></a>
 
 ### Doing nothing to cats
 

@@ -79,9 +79,9 @@ env.Program('%s.exe', '%s.c')
 env.Command('%s-generated.h', '%s.exe', './$SOURCE > $TARGET')
 """ % (hashid(i), hashid(i), hashid(i), hashid(i)))
 
-verbs = ['building', 'rebuilding', 'touching-header', 'touching-c', 'doing-nothing']
+verbs = ['building', 'rebuilding', 'modifying-header', 'modifying-c', 'doing-nothing']
 
 def prepare():
     return {'rebuilding': 'rm -f *.exe',
-            'touching-header': 'echo >> %s-generated.h' % hashid(0),
-            'touching-c': 'echo >> final.c'}
+            'modifying-header': 'echo >> %s-generated.h' % hashid(0),
+            'modifying-c': 'echo >> final.c'}

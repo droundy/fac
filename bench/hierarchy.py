@@ -165,9 +165,9 @@ void %s();
         f.close()
     return N
 
-verbs = ['building', 'rebuilding', 'touching-header', 'touching-c', 'doing-nothing']
+verbs = ['building', 'touching-all', 'modifying-header', 'modifying-c', 'doing-nothing']
 
 def prepare():
-    return {'rebuilding': r'sleep 1 && find . -name "*.c" -exec touch \{\} \;',
-            'touching-header': 'echo >> number-0.h',
-            'touching-c': 'echo >> number-0.c'}
+    return {'touching-all': r'sleep 1 && find . -name "*.c" -exec touch \{\} \;',
+            'modifying-header': 'echo >> number-0.h',
+            'modifying-c': 'echo >> number-0.c'}
