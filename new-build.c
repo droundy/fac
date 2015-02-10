@@ -553,7 +553,16 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
               error(1, 0, "Unable to stat input file %s (this should be impossible)\n",
                     r->inputs[ii]->path);
             } else {
-              if (t->is_file && sha1_is_zero(t->stat.hash)) find_target_sha1(t);
+              if (t->is_file && sha1_is_zero(t->stat.hash)) {
+                if (t->stat.time != r->inputs[ii]->stat.time ||
+                    t->stat.size != r->inputs[ii]->stat.size) {
+                  find_target_sha1(t);
+                } else {
+                  /* Assume with same modification time and size that
+                     the file contents are not changed. */
+                  t->stat.hash = r->inputs[ii]->stat.hash;
+                }
+              }
               add_input(r, t);
               delete_from_arrayset(&bs[i]->read, r->inputs[ii]->path);
               delete_from_arrayset(&bs[i]->written, r->inputs[ii]->path);
