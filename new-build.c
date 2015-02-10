@@ -309,6 +309,14 @@ void check_cleanliness(struct all_targets *all, struct rule *r) {
     rule_is_ready(all, r);
   } else {
     set_status(all, r, clean);
+    if (old_status == unready) {
+      for (int i=0;i<r->num_outputs;i++) {
+        for (int j=0;j<r->outputs[i]->num_children;j++) {
+          if (r->outputs[i]->children[j]->status == unready)
+            check_cleanliness(all, r->outputs[i]->children[j]);
+        }
+      }
+    }
   }
 }
 

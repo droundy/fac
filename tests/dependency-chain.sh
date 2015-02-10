@@ -27,4 +27,20 @@ grep foo foo
 grep foo bar
 grep foo baz
 
+rm foo bar baz
+
+../../fac -v
+
+grep foo foo
+grep foo bar
+grep foo baz
+
+rm foo bar
+
+../../fac -v
+
+grep foo foo
+grep foo bar
+grep foo baz
+
 exit 0
