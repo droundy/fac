@@ -155,11 +155,10 @@ alt="more build times"/></a>
 
 ### Doing nothing to cats
 
-This test should be close to identical to the previous one, but
-without the $\O{1}$ build cost.  Again, it looks boring because it
-doesn't (yet) cover very large builds.
+This test involves no changes, and thus should be very fast, as is the
+case for all the "do nothing" builds.
 
-## Linear dependency chain, flat directory, sleeps
+## A few slow builds (all sleeps)
 
 The following is a highly artificial test to see if tools can build in
 an optimal order.  This test involves a buch of commands which sleep
@@ -168,19 +167,27 @@ are in dependency chains 3 commands long, and three of these chains
 are slow.  So a parallel build should start the slow builds
 immediately to finish in an optimal amount of time.  Naturally, there
 is no way to determine which builds are slow until the second try.
+
+This test is designed to represent the case (which is common with my
+research code) where a few rules take much more time than the others.
+Thus, it is best to start the slow rules early, since the total build
+time is determined by when we start those few rules.
+
 <a href="sleepy-building.pdf"><img
 src="sleepy-building.svg" alt="build times"/></a>
 
 ### Initial build of sleeps
 
 This must be $\O{N}$, and should come out to somewhere between $N$ and
-$1.5N$ seconds.  I expect that only luck can lead a tool to do a
-better job the first time around.  <a
+$1.5N$ seconds.  The first build can be done a bit better first
+building commands that are required in order to build other commands.
+Make and fac both use this trick, and run a bit faster.  <a
 href="sleepy-rebuilding.pdf"><img src="sleepy-rebuilding.svg"
 alt="rebuild times"/></a>
 
 ### Rebuild sleeps
 
 At this stage we should be able to finish rebuilding in $N-9$ seconds,
-which is faster than the initial build, if we paid attention to how
-much time the builds took the first time around.
+which is faster than the initial build, if we pay attention to how
+much time the builds took the first time around.  Fac does this, and
+manages to beat the competition on this test.
