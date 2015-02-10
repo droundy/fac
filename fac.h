@@ -66,16 +66,20 @@ static inline const char *pretty_status(enum target_status status) {
 
 struct rule;
 
+struct hashstat {
+  time_t time;
+  off_t size;
+  sha1hash hash;
+};
+
 /* A struct target describes a single thing that could be built.  Or
    it might describe a source file. */
 struct target {
   struct hash_entry e;
   enum target_status status;
-  time_t last_modified;
-  off_t size;
-  bool is_file, is_dir;
-  sha1hash hash;
+  struct hashstat stat;
 
+  bool is_file, is_dir;
   bool is_in_git;
 
   struct rule *rule;
@@ -101,16 +105,12 @@ struct rule {
   int num_inputs, num_explicit_inputs;
   int input_array_size;
   struct target **inputs;
-  time_t *input_times;
-  off_t *input_sizes;
-  sha1hash *input_hashes;
+  struct hashstat *input_stats;
   sha1hash env;
 
   int num_outputs, num_explicit_outputs;
   struct target **outputs;
-  time_t *output_times;
-  off_t *output_sizes;
-  sha1hash *output_hashes;
+  struct hashstat *output_stats;
 
   double build_time, old_build_time;
   double latency_estimate;

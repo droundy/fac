@@ -160,7 +160,7 @@ static void find_target_sha1(struct target *t) {
       total_size += readlen;
     }
     if (readlen == 0) {
-      t->hash = sha1_out(&sh);
+      t->stat.hash = sha1_out(&sh);
     }
     close(fd);
   }
@@ -169,13 +169,13 @@ static void find_target_sha1(struct target *t) {
 static struct target *create_target_with_stat(struct all_targets *all,
                                               const char *path) {
   struct target *t = create_target(all, path);
-  if (!t->last_modified) {
+  if (!t->stat.time) {
     struct stat st;
     if (stat(t->path, &st)) return 0;
     t->is_file = S_ISREG(st.st_mode);
     t->is_dir = S_ISDIR(st.st_mode);
-    t->size = st.st_size;
-    t->last_modified = st.st_mtime;
+    t->stat.size = st.st_size;
+    t->stat.time = st.st_mtime;
   }
   return t;
 }
@@ -251,29 +251,29 @@ void check_cleanliness(struct all_targets *all, struct rule *r) {
     }
     if (is_dirty) continue; // no need to do the rest now
     if (r->inputs[i]->rule && r->inputs[i]->rule->status == built) {
-      if (sha1_is_zero(r->inputs[i]->hash)) find_target_sha1(r->inputs[i]);
-      if (sha1_same(r->input_hashes[i], r->inputs[i]->hash)) {
+      if (sha1_is_zero(r->inputs[i]->stat.hash)) find_target_sha1(r->inputs[i]);
+      if (sha1_same(r->input_stats[i].hash, r->inputs[i]->stat.hash)) {
         verbose_printf(" *** hashing saved us work on %s due to rebuild of %s\n",
                        pretty_rule(r), pretty_path(r->inputs[i]->path));
-        r->input_times[i] = r->inputs[i]->last_modified;
-        r->input_sizes[i] = r->inputs[i]->size;
+        r->input_stats[i].time = r->inputs[i]->stat.time;
+        r->input_stats[i].size = r->inputs[i]->stat.size;
         insert_to_listset(&facfiles_used, r->facfile_path);
       } else {
         rebuild_excuse(r, "%s has been rebuilt", pretty_path(r->inputs[i]->path));
         is_dirty = true;
       }
     }
-    if (r->input_times[i]) {
+    if (r->input_stats[i].time) {
       if (!create_target_with_stat(all, r->inputs[i]->path) ||
-          r->input_times[i] != r->inputs[i]->last_modified ||
-          r->input_sizes[i] != r->inputs[i]->size) {
-        if (!sha1_is_zero(r->input_hashes[i]) && r->input_sizes[i] == r->inputs[i]->size) {
-          if (sha1_is_zero(r->inputs[i]->hash)) find_target_sha1(r->inputs[i]);
-          if (sha1_same(r->input_hashes[i], r->inputs[i]->hash)) {
+          r->input_stats[i].time != r->inputs[i]->stat.time ||
+          r->input_stats[i].size != r->inputs[i]->stat.size) {
+        if (!sha1_is_zero(r->input_stats[i].hash) && r->input_stats[i].size == r->inputs[i]->stat.size) {
+          if (sha1_is_zero(r->inputs[i]->stat.hash)) find_target_sha1(r->inputs[i]);
+          if (sha1_same(r->input_stats[i].hash, r->inputs[i]->stat.hash)) {
             verbose_printf(" *** hashing saved us work on %s due to %s\n",
                            pretty_rule(r), pretty_path(r->inputs[i]->path));
-            r->input_times[i] = r->inputs[i]->last_modified;
-            r->input_sizes[i] = r->inputs[i]->size;
+            r->input_stats[i].time = r->inputs[i]->stat.time;
+            r->input_stats[i].size = r->inputs[i]->stat.size;
             insert_to_listset(&facfiles_used, r->facfile_path);
           } else {
             rebuild_excuse(r, "%s is definitely modified", pretty_path(r->inputs[i]->path));
@@ -292,10 +292,10 @@ void check_cleanliness(struct all_targets *all, struct rule *r) {
   }
   if (is_dirty) rule_is_ready(all, r);
   for (int i=0;i<r->num_outputs;i++) {
-    if (r->output_times[i]) {
+    if (r->output_stats[i].time) {
       if (!create_target_with_stat(all, r->outputs[i]->path) ||
-          r->output_times[i] != r->outputs[i]->last_modified ||
-          r->output_sizes[i] != r->outputs[i]->size) {
+          r->output_stats[i].time != r->outputs[i]->stat.time ||
+          r->output_stats[i].size != r->outputs[i]->stat.size) {
         rebuild_excuse(r, "%s has wrong output time",
                        pretty_path(r->outputs[i]->path));
         is_dirty = true;
@@ -553,7 +553,7 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
               error(1, 0, "Unable to stat input file %s (this should be impossible)\n",
                     r->inputs[ii]->path);
             } else {
-              if (t->is_file && sha1_is_zero(t->hash)) find_target_sha1(t);
+              if (t->is_file && sha1_is_zero(t->stat.hash)) find_target_sha1(t);
               add_input(r, t);
               delete_from_arrayset(&bs[i]->read, r->inputs[ii]->path);
               delete_from_arrayset(&bs[i]->written, r->inputs[ii]->path);
@@ -565,8 +565,8 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
           for (int ii=0;ii<r->num_outputs;ii++) {
             struct target *t = lookup_target(all, r->outputs[ii]->path);
             if (t) {
-              t->last_modified = 0;
-              t->size = 0;
+              t->stat.time = 0;
+              t->stat.size = 0;
             }
             t = create_target_with_stat(all, r->outputs[ii]->path);
             if (!t) {
@@ -598,7 +598,7 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
                          pretty_path(t->path), pretty_rule(r));
                   rule_failed(all, r);
                 }
-                if (sha1_is_zero(t->hash)) find_target_sha1(t);
+                if (sha1_is_zero(t->stat.hash)) find_target_sha1(t);
                 add_input(r, t);
               }
             }
@@ -622,8 +622,8 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
             if (is_interesting_path(r, path)) {
               struct target *t = lookup_target(all, path);
               if (t) {
-                t->last_modified = 0;
-                t->size = 0;
+                t->stat.time = 0;
+                t->stat.size = 0;
               }
               t = create_target_with_stat(all, path);
               if (t && t->is_file) {
