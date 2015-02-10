@@ -2,9 +2,9 @@
 
 import os, hashlib, time, numpy, sys, datetime, subprocess
 
-import catmod
-import hiermod
-import depmod
+import cats
+import hierarchy
+import dependentchains
 import sleepy
 
 minute = 60
@@ -29,7 +29,7 @@ date += subprocess.check_output(['git', 'log', '--pretty=%h', '-n',  '1'], stder
 
 datadir = os.getcwd()+'/bench/data/'
 os.makedirs(datadir, exist_ok=True)
-modules = [sleepy, depmod, hiermod, catmod]
+modules = [sleepy, dependentchains, hierarchy, cats]
 
 rootdirnames = ['tmp', 'home'] # , 'vartmp']
 rootdirs = {'home': os.getcwd()+'/bench/temp',

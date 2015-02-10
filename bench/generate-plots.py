@@ -2,16 +2,19 @@
 
 import os
 
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 
-import catmod
-import hiermod
-import depmod
+import cats
+import hierarchy
+import dependentchains
 import sleepy
 
+#matplotlib.rc('font', size='16.0')
+
 datadir = os.getcwd()+'/bench/data/'
-modules = [depmod, catmod, hiermod, sleepy]
+modules = [dependentchains, cats, hierarchy, sleepy]
 
 allcolors = ['r','b','g','k','c','y']
 allpatterns = ['o-', 's:', '*-.', 'x--', '.-', '<-', '>-', 'v-']
@@ -29,7 +32,7 @@ for mod in modules:
     print 'date', date, mod.name
 
     for verb in mod.verbs:
-        plt.figure()
+        plt.figure(figsize=(6,4))
         plt.title('%s %s on %s' % (verb, mod.name, date))
         have_handled = {}
 
@@ -66,6 +69,7 @@ for mod in modules:
         plt.gca().grid(True)
         plt.xlabel('$N$')
         plt.ylabel('$t$ (s)')
-        plt.legend(fshandles+toolhandles, fslabels+toollabels, loc='best')
+        plt.legend(fshandles+toolhandles, fslabels+toollabels, loc='best', frameon=False)
         plt.savefig('web/%s-%s.pdf' % (mod.name, verb))
+        plt.savefig('web/%s-%s.svg' % (mod.name, verb), dpi=60)
         plt.savefig('web/%s-%s.png' % (mod.name, verb), dpi=100)

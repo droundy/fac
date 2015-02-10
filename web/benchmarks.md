@@ -23,7 +23,7 @@ headers than it needs (but not an unusual number) to try to make
 compile times close to typical.  In all of the plots below $N$ is the
 number of C files that need to be built.
 <a href="hierarchy-building.pdf"><img
-src="hierarchy-building.png" alt="build times"/></a>
+src="hierarchy-building.svg" alt="build times"/></a>
 
 ### Initial build (hierarchy)
 
@@ -33,7 +33,7 @@ which can make a large difference up to surprisingly large systems.
 In addition, some build systems may have a different $\O{N}$
 prefactor, which can make an even bigger difference for large
 systems. <a href="hierarchy-rebuilding.pdf"><img
-src="hierarchy-rebuilding.png" alt="rebuild times"/></a>
+src="hierarchy-rebuilding.svg" alt="rebuild times"/></a>
 
 ### Rebuild (hierarchy)
 
@@ -41,7 +41,7 @@ For the rebuild, we touch all the C files.  The cost is still $\O{N}$
 at best, but by remembering a hash of file content it is possible to
 dramatically reduce the cost of the rebuild, which allows scons to win
 in this case by more than an order of magnitude.  <a
-href="hierarchy-touching-c.pdf"><img src="hierarchy-touching-c.png"
+href="hierarchy-touching-c.pdf"><img src="hierarchy-touching-c.svg"
 alt="more build times"/></a>
 
 ### Touch a C file (hierarchy)
@@ -55,7 +55,7 @@ which files to build by running a background process that uses inotify
 scons here has a dramatically more expensive $\O{N}$ cost, as it reads
 each C file to check dependencies (I think).
 <a href="hierarchy-touching-header.pdf"><img
-src="hierarchy-touching-header.png" alt="more build times"/></a>
+src="hierarchy-touching-header.svg" alt="more build times"/></a>
 
 ### Touch a header file (hierarchy)
 
@@ -64,7 +64,7 @@ identical to the former test, but requires rebuilding about 10 times
 as many files.  Thus the $\O{1}$ term is increased while the $\O{N}$
 term is hardly affected.
 <a href="hierarchy-doing-nothing.pdf"><img
-src="hierarchy-doing-nothing.png" alt="more build times"/></a>
+src="hierarchy-doing-nothing.svg" alt="more build times"/></a>
 
 ### Doing nothing (hierarchy)
 
@@ -81,7 +81,7 @@ following C file.  This tests the scaling of each build system in the
 extreme case of a highly dependent build, in contrast to the previous
 case, in which each build operation could be performed independently.
 <a href="dependent-chain-building.pdf"><img
-src="dependent-chain-building.png" alt="build times"/></a>
+src="dependent-chain-building.svg" alt="build times"/></a>
 
 ### Initial build (linear chain)
 
@@ -90,7 +90,7 @@ noticeable $\O{1}$ contribution, which is much more significant for
 tup.  FIXME I think there must be a bug in the scons benchmarking in
 this case.
 <a href="dependent-chain-rebuilding.pdf"><img
-src="dependent-chain-rebuilding.png" alt="rebuild times"/></a>
+src="dependent-chain-rebuilding.svg" alt="rebuild times"/></a>
 
 ### Rebuild (linear chain)
 
@@ -98,7 +98,7 @@ Here we remove all the generated executables and rerun, so again it is
 $\O{N}$.  Again, scons wins by caching, and the initial $\O{1}$ for
 tup is a bit less, since its database has already been generated.
 <a href="dependent-chain-touching-c.pdf"><img
-src="dependent-chain-touching-c.png" alt="more build times"/></a>
+src="dependent-chain-touching-c.svg" alt="more build times"/></a>
 
 ### Touching a C file (linear chain)
 
@@ -109,7 +109,7 @@ the output is identical, so there is no rebuilding required.  I do not
 understand why tup is cheap here.  Tup should need to rebuild
 everything.
 <a href="dependent-chain-touching-header.pdf"><img
-src="dependent-chain-touching-header.png" alt="more build times"/></a>
+src="dependent-chain-touching-header.svg" alt="more build times"/></a>
 
 ### Touching a header (linear chain)
 
@@ -118,7 +118,7 @@ requires only $\O{1}$ rebuilds, but should with most systems require
 $\O{N}$ checks of file modification times.  Presumably my tests are
 small enough that we aren't able to see the $\O{N}$ costs clearly.
 <a href="dependent-chain-doing-nothing.pdf"><img
-src="dependent-chain-doing-nothing.png" alt="more build times"/></a>
+src="dependent-chain-doing-nothing.svg" alt="more build times"/></a>
 
 ### Doing nothing (linear chain)
 
@@ -134,7 +134,7 @@ system in the extreme case of a highly dependent build, but with an
 even faster build command, to highlight scaling issues by making
 $\O{N}$ costs as small as possible.
 <a href="cat-building.pdf"><img
-src="cat-building.png" alt="build times"/></a>
+src="cat-building.svg" alt="build times"/></a>
 
 ### Initial build of cats
 
@@ -142,7 +142,7 @@ Obviously again this must be $\O{N}$.  As usual, scons and tup have a
 noticeable $\O{1}$ contribution, which is much more significant for
 tup.
 <a href="cat-rebuilding.pdf"><img
-src="cat-rebuilding.png" alt="rebuild times"/></a>
+src="cat-rebuilding.svg" alt="rebuild times"/></a>
 
 ### Rebuild cats
 
@@ -150,7 +150,7 @@ Here we remove all the generated executables and rerun, so again it is
 $\O{N}$.  Again, scons wins by caching, and the initial $\O{1}$ for
 tup is a bit less, since its database has already been generated.
 <a href="cat-doing-nothing.pdf"><img
-src="cat-doing-nothing.png" alt="more build times"/></a>
+src="cat-doing-nothing.svg" alt="more build times"/></a>
 
 ### Doing nothing to cats
 
@@ -168,14 +168,14 @@ are slow.  So a parallel build should start the slow builds
 immediately to finish in an optimal amount of time.  Naturally, there
 is no way to determine which builds are slow until the second try.
 <a href="sleepy-building.pdf"><img
-src="sleepy-building.png" alt="build times"/></a>
+src="sleepy-building.svg" alt="build times"/></a>
 
 ### Initial build of sleeps
 
 This must be $\O{N}$, and should come out to somewhere between $N$ and
 $1.5N$ seconds.  I expect that only luck can lead a tool to do a
 better job the first time around.  <a
-href="sleepy-rebuilding.pdf"><img src="sleepy-rebuilding.png"
+href="sleepy-rebuilding.pdf"><img src="sleepy-rebuilding.svg"
 alt="rebuild times"/></a>
 
 ### Rebuild sleeps
