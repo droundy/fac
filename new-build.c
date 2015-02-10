@@ -592,10 +592,7 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
               bs[i] = 0;
               break;
             } else {
-              if (t->is_file) {
-                verbose_printf(" --- working on output...\n");
-                find_target_sha1(t);
-              }
+              if (t->is_file) find_target_sha1(t);
               t->rule = r;
               add_output(r, t);
               delete_from_arrayset(&bs[i]->read, r->outputs[ii]->path);
