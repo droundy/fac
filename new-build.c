@@ -150,7 +150,8 @@ void rule_failed(struct all_targets *all, struct rule *r) {
 static void find_target_sha1(struct target *t) {
   int fd = open(t->path, O_RDONLY);
   if (fd > 0) {
-    const int bufferlen = 4096;
+    verbose_printf(" *** sha1sum %s\n", pretty_path(t->path));
+    const int bufferlen = 4096*1024;
     char *buffer = malloc(bufferlen);
     int readlen, total_size = 0;
     sha1nfo sh;
@@ -163,6 +164,7 @@ static void find_target_sha1(struct target *t) {
       t->stat.hash = sha1_out(&sh);
     }
     close(fd);
+    free(buffer);
   }
 }
 
@@ -544,6 +546,19 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
           struct rule *r = bs[i]->rule;
           insert_to_listset(&facfiles_used, r->facfile_path);
 
+          /* First, we want to save as many of the old inputs as
+             possible. */
+          for (int ii=0; ii<r->num_inputs; ii++) {
+            struct target *t = create_target_with_stat(all, r->inputs[ii]->path);
+            if (t && t->is_file
+                && sha1_is_zero(t->stat.hash)
+                && t->stat.time == r->input_stats[ii].time
+                && t->stat.size == r->input_stats[ii].size) {
+              /* Assume with same modification time and size that the
+                 file contents are not changed. */
+              t->stat.hash = r->input_stats[ii].hash;
+            }
+          }
           /* Forget the non-explicit imputs, as we will re-add those
              inputs that were actually used in the build */
           r->num_inputs = r->num_explicit_inputs;
@@ -553,16 +568,7 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
               error(1, 0, "Unable to stat input file %s (this should be impossible)\n",
                     r->inputs[ii]->path);
             } else {
-              if (t->is_file && sha1_is_zero(t->stat.hash)) {
-                if (t->stat.time != r->inputs[ii]->stat.time ||
-                    t->stat.size != r->inputs[ii]->stat.size) {
-                  find_target_sha1(t);
-                } else {
-                  /* Assume with same modification time and size that
-                     the file contents are not changed. */
-                  t->stat.hash = r->inputs[ii]->stat.hash;
-                }
-              }
+              if (t->is_file && sha1_is_zero(t->stat.hash)) find_target_sha1(t);
               add_input(r, t);
               delete_from_arrayset(&bs[i]->read, r->inputs[ii]->path);
               delete_from_arrayset(&bs[i]->written, r->inputs[ii]->path);
@@ -586,7 +592,10 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
               bs[i] = 0;
               break;
             } else {
-              if (t->is_file) find_target_sha1(t);
+              if (t->is_file) {
+                verbose_printf(" --- working on output...\n");
+                find_target_sha1(t);
+              }
               t->rule = r;
               add_output(r, t);
               delete_from_arrayset(&bs[i]->read, r->outputs[ii]->path);

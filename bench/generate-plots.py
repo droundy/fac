@@ -32,7 +32,7 @@ for mod in modules:
     print 'date', date, mod.name
 
     for verb in mod.verbs:
-        plt.figure(figsize=(6,4))
+        plt.figure(figsize=(6,4.3))
         plt.title('%s %s on %s' % (verb, mod.name, date))
         have_handled = {}
 
