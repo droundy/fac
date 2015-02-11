@@ -25,6 +25,9 @@
 #include <signal.h>
 #include <assert.h>
 
+#include <semaphore.h>
+#include <pthread.h>
+
 static listset *facfiles_used = 0;
 
 bool is_interesting_path(struct rule *r, const char *path) {
@@ -324,22 +327,63 @@ void check_cleanliness(struct all_targets *all, struct rule *r) {
 
 struct building {
   int all_done;
-  pid_t pid;
   pid_t child_pid;
+  sem_t *slots_available;
   int stdouterrfd;
   double build_time;
   struct rule *rule;
   arrayset readdir, read, written, deleted;
 };
 
+static void *run_bigbrother(void *ptr) {
+  struct building *b = ptr;
+
+  const char **args = malloc(4*sizeof(char *));
+  initialize_arrayset(&b->readdir);
+  initialize_arrayset(&b->read);
+  initialize_arrayset(&b->written);
+  initialize_arrayset(&b->deleted);
+
+  args[0] = "/bin/sh";
+  args[1] = "-c";
+  args[2] = b->rule->command;
+  args[3] = 0;
+
+  struct timeval started;
+  gettimeofday(&started, 0);
+  int ret = bigbrother_process(b->rule->working_directory,
+                               &b->child_pid,
+                               b->stdouterrfd,
+                               (char **)args,
+                               &b->readdir,
+                               &b->read, &b->written, &b->deleted);
+  free(args);
+
+  struct timeval stopped;
+  gettimeofday(&stopped, 0);
+  b->build_time = stopped.tv_sec - started.tv_sec + 1e-6*(stopped.tv_usec - started.tv_usec);
+  // memory barrier to ensure b->all_done is not modified before we
+  // finish filling everything in:
+  __sync_synchronize();
+  if (ret != 0) {
+    b->all_done = failed;
+  } else {
+    b->all_done = built;
+  }
+  sem_post(b->slots_available);
+  pthread_exit(0);
+}
+
 static struct building *build_rule(struct all_targets *all,
                                    struct rule *r,
+                                   sem_t *slots_available,
                                    const char *log_directory) {
   assert(r);
   struct building *b = mmap(NULL, sizeof(struct building),
                             PROT_READ | PROT_WRITE,
                             MAP_SHARED | MAP_ANONYMOUS, -1, 0);
   b->rule = r;
+  b->slots_available = slots_available;
   b->stdouterrfd = -1; /* start with an invalid value */
   if (log_directory) {
     char *path = absolute_path(root, log_directory);
@@ -376,61 +420,13 @@ static struct building *build_rule(struct all_targets *all,
   }
   b->all_done = building;
   set_status(all, r, building);
+
+  /* Now we go ahead and actually start running the build. */
+  pthread_t child = 0;
+  pthread_create(&child, 0, run_bigbrother, b);
+  pthread_detach(child);
+
   return b;
-}
-
-void let_us_build(struct all_targets *all, struct rule *r,
-                  struct building **bs, const char *log_directory) {
-  for (int i=0;i<num_jobs;i++) {
-    if (!bs[i]) {
-      bs[i] = build_rule(all, r, log_directory);
-      pid_t new_pid = fork();
-      if (new_pid == 0) {
-        struct building *b = bs[i];
-        const char **args = malloc(4*sizeof(char *));
-        initialize_arrayset(&b->readdir);
-        initialize_arrayset(&b->read);
-        initialize_arrayset(&b->written);
-        initialize_arrayset(&b->deleted);
-        b->all_done = dirty;
-
-        args[0] = "/bin/sh";
-        args[1] = "-c";
-        args[2] = b->rule->command;
-        args[3] = 0;
-
-        struct timeval started;
-        gettimeofday(&started, 0);
-        int ret = bigbrother_process(b->rule->working_directory,
-                                     &b->child_pid,
-                                     b->stdouterrfd,
-                                     (char **)args,
-                                     &b->readdir,
-                                     &b->read, &b->written, &b->deleted);
-        struct timeval stopped;
-        gettimeofday(&stopped, 0);
-        b->build_time = stopped.tv_sec - started.tv_sec + 1e-6*(stopped.tv_usec - started.tv_usec);
-        if (ret != 0) {
-          b->all_done = failed;
-        } else {
-          b->all_done = built;
-        }
-
-        /* The following is extremely hokey and stupid.  Rather
-           than exiting the forked process, we exec /bin/true
-           (which has the same effect, but less efficiently) so
-           that profilers won't get confused by us forking but not
-           calling exec. */
-        args = malloc(2*sizeof(char *));
-        args[0] = "/bin/true";
-        args[1] = 0;
-        execv("/bin/true", (char **)args);
-        exit(0);
-      }
-      bs[i]->pid = new_pid;
-      return;
-    }
-  }
 }
 
 static struct timeval starting;
@@ -468,6 +464,10 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
   }
 
   struct building **bs = malloc(num_jobs*sizeof(struct building *));
+  sem_t *slots_available = malloc(sizeof(sem_t));
+  if (sem_init(slots_available, 0, 0) == -1) {
+    error(1, errno, "unable to create semaphore");
+  }
   for (int i=0;i<num_jobs;i++) bs[i] = 0;
   struct sigaction act, oldact;
   act.sa_handler = handle_interrupt;
@@ -486,10 +486,13 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
     }
 
     if (threads_in_use) {
-      pid_t pid = waitpid(-1, 0, 0);
+      sem_wait(slots_available); // wait for *someone* to finish
+      sem_post(slots_available); // to get the counting right.
       for (int i=0;i<num_jobs;i++) {
-        if (bs[i] && bs[i]->pid == pid) {
+        if (bs[i] && bs[i]->all_done != building) {
+          sem_wait(slots_available);
           threads_in_use--;
+
           all->estimated_times[bs[i]->rule->status] -= bs[i]->rule->build_time;
           bs[i]->rule->old_build_time = bs[i]->rule->build_time;
           bs[i]->rule->build_time = bs[i]->build_time;
@@ -526,7 +529,8 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
             sendfile(1, bs[i]->stdouterrfd, &myoffset, stdoutlen);
           }
           if (bs[i]->all_done != built && bs[i]->all_done != failed) {
-            printf("INTERRUPTED!\n");
+            printf("INTERRUPTED!  bs[i]->all_done == %s\n",
+                   pretty_status(bs[i]->all_done));
             am_interrupted = true;
             break;
           }
@@ -671,22 +675,29 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
         toqueue[i++] = r;
       }
       for (i=0;i<N;i++) {
-        if (toqueue[i]) let_us_build(all, toqueue[i], bs, log_directory);
+        if (toqueue[i]) {
+          for (int j=0;j<num_jobs;j++) {
+            if (!bs[j]) {
+              bs[j] = build_rule(all, toqueue[i],
+                                 slots_available, log_directory);
+              break;
+            }
+          }
+        }
       }
       free(toqueue);
     }
     if (am_interrupted) {
       for (int i=0;i<num_jobs;i++) {
         if (bs[i]) {
-          verbose_printf("killing %d (%s)\n", bs[i]->pid, bs[i]->rule->command);
-          kill(bs[i]->pid, SIGTERM); /* ask child to die */
+          verbose_printf("killing %d (%s)\n", bs[i]->child_pid,
+                         pretty_rule(bs[i]->rule));
           kill(-bs[i]->child_pid, SIGTERM); /* ask child to die */
         }
       }
       sleep(1); /* give them a second to die politely */
       for (int i=0;i<num_jobs;i++) {
         if (bs[i]) {
-          kill(bs[i]->pid, SIGKILL); /* now kill with extreme prejudice */
           kill(-bs[i]->child_pid, SIGKILL); /* kill with extreme prejudice */
           munmap(bs[i], sizeof(struct building));
           bs[i] = 0;

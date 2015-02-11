@@ -12,7 +12,7 @@ with open('testing-flags/test.c', 'w') as f:
 # add , '-fprofile-arcs', '-ftest-coverage' to both of the following
 # lines in order to enable gcov coverage testing
 possible_flags = ['-Wall', '-Werror', '-O2', '-std=c11', '-std=c99', '-g']
-possible_linkflags = ['-lpopt', '-lprofiler']
+possible_linkflags = ['-lpopt', '-lpthread', '-lprofiler']
 
 cc = os.getenv('CC', 'gcc')
 flags = os.getenv('CFLAGS', '')
