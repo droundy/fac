@@ -6,9 +6,10 @@
    (and directories?) modifed, read and deleted.  It is a blocking
    function, but is intended to be reentrant, so you can run several
    processes simultaneously in different threads.  */
-int bigbrother_process_arrayset(const char *workingdir,
-                                char **args,
-                                arrayset *readdir,
-                                arrayset *read,
-                                arrayset *written,
-                                arrayset *deleted);
+int bigbrother_process(const char *workingdir,
+                       pid_t *child_ptr,
+                       char **args,
+                       arrayset *read_from_directories,
+                       arrayset *read_from_files,
+                       arrayset *written_to_files,
+                       arrayset *deleted_files);

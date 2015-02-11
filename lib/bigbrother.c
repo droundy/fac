@@ -185,11 +185,11 @@ static char *read_a_path_at(pid_t child, int dirfd, unsigned long addr) {
   return abspath;
 }
 
-pid_t wait_for_syscall(int *num_programs) {
+pid_t wait_for_syscall(int *num_programs, int firstborn) {
   pid_t child = 0;
   int status = 0;
   while (1) {
-    child = waitpid(0, &status, __WALL);
+    child = waitpid(-firstborn, &status, __WALL);
     if (WIFSTOPPED(status) && WSTOPSIG(status) & 0x80) {
       return child;
     } else if (WIFEXITED(status)) {
@@ -468,33 +468,38 @@ static int save_syscall_access_arrayset(pid_t child,
 }
 
 
-int bigbrother_process_arrayset(const char *workingdir,
-                                char **args,
-                                arrayset *read_from_directories,
-                                arrayset *read_from_files,
-                                arrayset *written_to_files,
-                                arrayset *deleted_files) {
-  setpgid(0,0); // causes children to be killed along with this
+int bigbrother_process(const char *workingdir,
+                       pid_t *child_ptr,
+                       char **args,
+                       arrayset *read_from_directories,
+                       arrayset *read_from_files,
+                       arrayset *written_to_files,
+                       arrayset *deleted_files) {
 
   initialize_arrayset(read_from_directories);
   initialize_arrayset(read_from_files);
   initialize_arrayset(written_to_files);
   initialize_arrayset(deleted_files);
 
-  pid_t child = fork();
-  if (child == 0) {
+  pid_t firstborn = fork();
+  if (firstborn == -1) {
+  }
+  setpgid(firstborn, firstborn); // causes grandchildren to be killed along with firstborn
+
+  if (firstborn == 0) {
     if (workingdir && chdir(workingdir) != 0) return -1;
     ptrace(PTRACE_TRACEME);
     kill(getpid(), SIGSTOP);
     return execvp(args[0], args);
   } else {
+    *child_ptr = firstborn;
     int num_programs = 1;
-    waitpid(0, 0, __WALL);
-    ptrace(PTRACE_SETOPTIONS, child, 0, my_ptrace_options);
-    ptrace_syscall(child); // run until a sycall is attempted
+    waitpid(firstborn, 0, __WALL);
+    ptrace(PTRACE_SETOPTIONS, firstborn, 0, my_ptrace_options);
+    ptrace_syscall(firstborn); // run until a sycall is attempted
 
     while (num_programs > 0) {
-      pid_t child = wait_for_syscall(&num_programs);
+      pid_t child = wait_for_syscall(&num_programs, firstborn);
       if (child <= 0) return -child;
 
       save_syscall_access_arrayset(child, read_from_directories,
