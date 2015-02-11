@@ -189,7 +189,7 @@ pid_t wait_for_syscall(int *num_programs) {
   pid_t child = 0;
   int status = 0;
   while (1) {
-    child = waitpid(-1, &status, __WALL);
+    child = waitpid(0, &status, __WALL);
     if (WIFSTOPPED(status) && WSTOPSIG(status) & 0x80) {
       return child;
     } else if (WIFEXITED(status)) {
@@ -474,6 +474,8 @@ int bigbrother_process_arrayset(const char *workingdir,
                                 arrayset *read_from_files,
                                 arrayset *written_to_files,
                                 arrayset *deleted_files) {
+  setpgid(0,0); // causes children to be killed along with this
+
   initialize_arrayset(read_from_directories);
   initialize_arrayset(read_from_files);
   initialize_arrayset(written_to_files);
@@ -487,7 +489,7 @@ int bigbrother_process_arrayset(const char *workingdir,
     return execvp(args[0], args);
   } else {
     int num_programs = 1;
-    waitpid(-1, 0, __WALL);
+    waitpid(0, 0, __WALL);
     ptrace(PTRACE_SETOPTIONS, child, 0, my_ptrace_options);
     ptrace_syscall(child); // run until a sycall is attempted
 

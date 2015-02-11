@@ -393,7 +393,6 @@ void let_us_build(struct all_targets *all, struct rule *r,
         initialize_arrayset(&b->deleted);
         b->all_done = dirty;
 
-        setpgid(0,0); // causes children to be killed along with this
         close(1);
         close(2);
         dup(b->stdouterrfd);
