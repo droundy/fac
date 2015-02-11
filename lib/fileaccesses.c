@@ -23,7 +23,7 @@ int main(int argc, char **argv) {
   memcpy(args, argv+1, (argc-1) * sizeof(char*));
   args[argc-1] = NULL;
   pid_t child_pid;
-  bigbrother_process(".", &child_pid, args, read_from_directories,
+  bigbrother_process(".", &child_pid, 0, args, read_from_directories,
                      read_from_files, written_to_files, deleted_files);
   free(args);
 

@@ -470,6 +470,7 @@ static int save_syscall_access_arrayset(pid_t child,
 
 int bigbrother_process(const char *workingdir,
                        pid_t *child_ptr,
+                       int stdouterrfd,
                        char **args,
                        arrayset *read_from_directories,
                        arrayset *read_from_files,
@@ -487,6 +488,12 @@ int bigbrother_process(const char *workingdir,
   setpgid(firstborn, firstborn); // causes grandchildren to be killed along with firstborn
 
   if (firstborn == 0) {
+    if (stdouterrfd > 0) {
+      close(1);
+      close(2);
+      dup(stdouterrfd);
+      dup(stdouterrfd);
+    }
     if (workingdir && chdir(workingdir) != 0) return -1;
     ptrace(PTRACE_TRACEME);
     kill(getpid(), SIGSTOP);

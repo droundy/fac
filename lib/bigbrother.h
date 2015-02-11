@@ -8,6 +8,7 @@
    processes simultaneously in different threads.  */
 int bigbrother_process(const char *workingdir,
                        pid_t *child_ptr,
+                       int stdouterrfd,
                        char **args,
                        arrayset *read_from_directories,
                        arrayset *read_from_files,

@@ -394,11 +394,6 @@ void let_us_build(struct all_targets *all, struct rule *r,
         initialize_arrayset(&b->deleted);
         b->all_done = dirty;
 
-        close(1);
-        close(2);
-        dup(b->stdouterrfd);
-        dup(b->stdouterrfd);
-
         args[0] = "/bin/sh";
         args[1] = "-c";
         args[2] = b->rule->command;
@@ -408,6 +403,7 @@ void let_us_build(struct all_targets *all, struct rule *r,
         gettimeofday(&started, 0);
         int ret = bigbrother_process(b->rule->working_directory,
                                      &b->child_pid,
+                                     b->stdouterrfd,
                                      (char **)args,
                                      &b->readdir,
                                      &b->read, &b->written, &b->deleted);
