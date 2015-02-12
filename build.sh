@@ -28,5 +28,7 @@ set -ev
 
 (cd lib && gcc -Wall -Werror -O2 -std=c11 -std=c99 -g -c sha1.c)
 
-(gcc -lpopt -lpthread -lprofiler -o fac fac.o files.o targets.o clean.o new-build.o git.o environ.o lib/listset.o lib/iterablehash.o lib/arrayset.o lib/bigbrother.o lib/sha1.o)
+(cd lib && gcc -Wall -Werror -O2 -std=c11 -std=c99 -g -c hashset.c)
+
+(gcc -lpopt -lpthread -lprofiler -o fac fac.o files.o targets.o clean.o new-build.o git.o environ.o lib/listset.o lib/iterablehash.o lib/arrayset.o lib/bigbrother.o lib/sha1.o lib/hashset.o)
 

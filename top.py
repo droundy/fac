@@ -67,7 +67,8 @@ os.system('rm -rf testing-flags')
 
 sources = ['fac', 'files', 'targets', 'clean', 'new-build', 'git', 'environ']
 
-libsources = ['listset', 'iterablehash', 'arrayset', 'bigbrother', 'sha1']
+libsources = ['listset', 'iterablehash', 'arrayset', 'bigbrother', 'sha1',
+              'hashset']
 
 for s in sources:
     print '| %s %s -c %s.c' % (cc, flags, s)
@@ -111,7 +112,7 @@ print '> lib/fileaccesses'
 print
 
 
-ctests = ['arrayset', 'listset', 'spinner', 'iterable_hash_test']
+ctests = ['arrayset', 'hashset', 'listset', 'spinner', 'iterable_hash_test']
 
 for test in ctests:
     print '| %s '%cc+linkflags+' -o tests/%s.test' % test, 'tests/%s.o' % test, string.join(['lib/%s.o' % s for s in libsources])

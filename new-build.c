@@ -325,6 +325,12 @@ void check_cleanliness(struct all_targets *all, struct rule *r) {
   }
 }
 
+#define USE_HASHSET 0
+
+// hashset took 3m12.758s, 3m13.063 on dependent-chain-1000
+
+// arrayset took 3m5.654, 2m57.855 on dependent-chain-1000
+
 struct building {
   int all_done;
   pid_t child_pid;
@@ -332,13 +338,20 @@ struct building {
   int stdouterrfd;
   double build_time;
   struct rule *rule;
+#if USE_HASHSET
+  hashset readdir, read, written, deleted;
+#else
   arrayset readdir, read, written, deleted;
+#endif
 };
 
 static void *run_bigbrother(void *ptr) {
   struct building *b = ptr;
 
   const char **args = malloc(4*sizeof(char *));
+#if USE_HASHSET
+#define initialize_arrayset initialize_hashset
+#endif
   initialize_arrayset(&b->readdir);
   initialize_arrayset(&b->read);
   initialize_arrayset(&b->written);
@@ -351,7 +364,11 @@ static void *run_bigbrother(void *ptr) {
 
   struct timeval started;
   gettimeofday(&started, 0);
+#if USE_HASHSET
+  int ret = bigbrother_process_hashset(b->rule->working_directory,
+#else
   int ret = bigbrother_process(b->rule->working_directory,
+#endif
                                &b->child_pid,
                                b->stdouterrfd,
                                (char **)args,
@@ -535,6 +552,12 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
           if (bs[i]->all_done == failed) {
             rule_failed(all, bs[i]->rule);
             printf("build failed: %s\n", pretty_rule(bs[i]->rule));
+#if USE_HASHSET
+            free_hashset(&bs[i]->read);
+            free_hashset(&bs[i]->readdir);
+            free_hashset(&bs[i]->written);
+            free_hashset(&bs[i]->deleted);
+#endif
             free(bs[i]);
             bs[i] = 0;
             break;
@@ -568,8 +591,13 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
             } else {
               if (t->is_file && sha1_is_zero(t->stat.hash)) find_target_sha1(t);
               add_input(r, t);
+#if USE_HASHSET
+              delete_from_hashset(&bs[i]->read, r->inputs[ii]->path);
+              delete_from_hashset(&bs[i]->written, r->inputs[ii]->path);
+#else
               delete_from_arrayset(&bs[i]->read, r->inputs[ii]->path);
               delete_from_arrayset(&bs[i]->written, r->inputs[ii]->path);
+#endif
             }
           }
           /* Forget the non-explicit outputs, as we will re-add
@@ -586,6 +614,12 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
               printf("build failed to create: %s\n",
                      pretty_path(r->outputs[ii]->path));
               rule_failed(all, r);
+#if USE_HASHSET
+              free_hashset(&bs[i]->read);
+              free_hashset(&bs[i]->readdir);
+              free_hashset(&bs[i]->written);
+              free_hashset(&bs[i]->deleted);
+#endif
               free(bs[i]);
               bs[i] = 0;
               break;
@@ -593,13 +627,26 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
               if (t->is_file) find_target_sha1(t);
               t->rule = r;
               add_output(r, t);
+#if USE_HASHSET
+              delete_from_hashset(&bs[i]->read, r->outputs[ii]->path);
+              delete_from_hashset(&bs[i]->written, r->outputs[ii]->path);
+#else
               delete_from_arrayset(&bs[i]->read, r->outputs[ii]->path);
               delete_from_arrayset(&bs[i]->written, r->outputs[ii]->path);
+#endif
             }
           }
           if (!bs[i]) break; // happens if we failed to create an output
+
+#if USE_HASHSET
+          for (struct set_entry *e = (struct set_entry *)bs[i]->read.first;
+               e; e = (struct set_entry *)e->e.next) {
+            char *path = e->key;
+            if (e->is_valid && is_interesting_path(r, path)) {
+#else
           for (char *path = start_iterating(&bs[i]->read); path; path = iterate(&bs[i]->read)) {
             if (is_interesting_path(r, path)) {
+#endif
               struct target *t = create_target_with_stat(all, path);
               if (!t || !t->is_file) {
                 /* Assume that the file was deleted, and there's no
@@ -617,8 +664,15 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
             }
           }
 
+#if USE_HASHSET
+          for (struct set_entry *e = (struct set_entry *)bs[i]->readdir.first;
+               e; e = (struct set_entry *)e->e.next) {
+            char *path = e->key;
+            if (e->is_valid && is_interesting_path(r, path)) {
+#else
           for (char *path = start_iterating(&bs[i]->readdir); path; path = iterate(&bs[i]->readdir)) {
             if (is_interesting_path(r, path)) {
+#endif
               struct target *t = create_target_with_stat(all, path);
               if (!t || !t->is_dir) error(1, errno, "Unable to stat directory %s", path);
 
@@ -631,8 +685,15 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
             }
           }
 
+#if USE_HASHSET
+          for (struct set_entry *e = (struct set_entry *)bs[i]->written.first;
+               e; e = (struct set_entry *)e->e.next) {
+            char *path = e->key;
+            if (e->is_valid && is_interesting_path(r, path)) {
+#else
           for (char *path = start_iterating(&bs[i]->written); path; path = iterate(&bs[i]->written)) {
             if (is_interesting_path(r, path)) {
+#endif
               struct target *t = lookup_target(all, path);
               if (t) {
                 t->stat.time = 0;
@@ -658,6 +719,12 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
           }
           insert_to_listset(&facfiles_used, r->facfile_path);
 
+#if USE_HASHSET
+          free_hashset(&bs[i]->read);
+          free_hashset(&bs[i]->readdir);
+          free_hashset(&bs[i]->written);
+          free_hashset(&bs[i]->deleted);
+#endif
           free(bs[i]);
           bs[i] = 0;
         }
