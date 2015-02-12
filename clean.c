@@ -10,7 +10,7 @@ void clean_all(struct all_targets *all) {
     t->status = unknown;
     if (is_facfile(t->path)) {
       char *donef = done_name(t->path);
-      printf("rm %s\n", donef);
+      verbose_printf("rm %s\n", donef);
       unlink(donef);
       free(donef);
     }
@@ -18,7 +18,7 @@ void clean_all(struct all_targets *all) {
   for (struct rule *r = (struct rule *)all->r.first; r; r = (struct rule *)r->e.next) {
     for (int i=0;i<r->num_outputs;i++) {
       if (r->outputs[i]->status == unknown) {
-        printf("rm %s\n", pretty_path(r->outputs[i]->path));
+        verbose_printf("rm %s\n", pretty_path(r->outputs[i]->path));
         unlink(r->outputs[i]->path);
       }
     }

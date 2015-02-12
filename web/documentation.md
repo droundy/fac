@@ -96,6 +96,8 @@ with the following options.
 
 ## To do list
 
+1. remove failures due to parsing issues in .fac.tum files.
+
 2. Use inotify to avoid rescanning the entire source tree.
 
 3. Remove "error" calls from new-build.c, to ensure that we will

@@ -13,7 +13,6 @@
 #include <errno.h>
 #include <string.h>
 #include <stdarg.h>
-#include <error.h>
 #include <stdint.h>
 
 #include "syscalls.h"
@@ -68,15 +67,6 @@ static int interesting_path(const char *path) {
     if (memcmp(path, "/proc/", 6) == 0) return 0;
   }
   return 1;
-}
-
-static inline void ptrace_syscall(pid_t pid) {
-  //debugprintf("\tcalling ptrace_syscall on %d\n", pid);
-  int ret = ptrace(PTRACE_SYSCALL, pid, 0, 0);
-  if (ret == -1) {
-    error(1, errno, "error calling ptrace_syscall on %d\n", pid);
-    exit(1);
-  }
 }
 
 static long get_syscall_arg_64(const struct user_regs_struct *regs, int which) {
@@ -202,7 +192,10 @@ pid_t wait_for_syscall(int *num_programs, int firstborn) {
     } else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_FORK<<8))) {
       (*num_programs)++;
     }
-    ptrace_syscall(child); // keep going!
+    if (ptrace(PTRACE_SYSCALL, child, 0, 0) == -1) { // keep going!
+      /* Assume child died and that we will get a WIFEXITED
+         shortly. */
+    }
   }
 }
 
@@ -216,9 +209,8 @@ static int save_syscall_access_arrayset(pid_t child,
   int syscall;
 
   if (ptrace(PTRACE_GETREGS, child, NULL, &regs) == -1) {
-    debugprintf("ERROR PTRACING %d!\n", child);
-    error(1, errno, "error getting registers for %d...", child);
-    exit(1);
+    debugprintf("error getting registers for %d!\n", child);
+    return -1;
   }
   if (regs.cs == 0x23) {
 		i386_regs.ebx = regs.rbx;
@@ -503,15 +495,22 @@ int bigbrother_process(const char *workingdir,
     int num_programs = 1;
     waitpid(firstborn, 0, __WALL);
     ptrace(PTRACE_SETOPTIONS, firstborn, 0, my_ptrace_options);
-    ptrace_syscall(firstborn); // run until a sycall is attempted
+    if (ptrace(PTRACE_SYSCALL, firstborn, 0, 0) == -1) {
+      return -1;
+    }
 
     while (num_programs > 0) {
       pid_t child = wait_for_syscall(&num_programs, firstborn);
       if (child <= 0) return -child;
 
-      save_syscall_access_arrayset(child, read_from_directories,
-                                   read_from_files, written_to_files,
-                                   deleted_files);
+      if (save_syscall_access_arrayset(child, read_from_directories,
+                                       read_from_files, written_to_files,
+                                       deleted_files) == -1) {
+        /* We were unable to read the process's registers.  Assume
+           that this is bad news, and that we should exit.  I'm not
+           sure what else to do here. */
+        return -1;
+      }
 
       ptrace(PTRACE_SYSCALL, child, 0, 0); // ignore return value
     }

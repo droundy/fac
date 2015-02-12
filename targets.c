@@ -78,6 +78,8 @@ struct rule *create_rule(struct all_targets *all, const char *facfile_path,
   r->cache_suffixes_reversed = r->cache_prefixes = 0;
 
   add_to_hash(&all->r, &r->e);
+
+  add_cache_prefix(r, "/tmp/prof");
   return r;
 }
 

@@ -379,9 +379,7 @@ static struct building *build_rule(struct all_targets *all,
                                    sem_t *slots_available,
                                    const char *log_directory) {
   assert(r);
-  struct building *b = mmap(NULL, sizeof(struct building),
-                            PROT_READ | PROT_WRITE,
-                            MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+  struct building *b = malloc(sizeof(struct building));
   b->rule = r;
   b->slots_available = slots_available;
   b->stdouterrfd = -1; /* start with an invalid value */
@@ -538,7 +536,7 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
           if (bs[i]->all_done == failed) {
             rule_failed(all, bs[i]->rule);
             printf("build failed: %s\n", pretty_rule(bs[i]->rule));
-            munmap(bs[i], sizeof(struct building));
+            free(bs[i]);
             bs[i] = 0;
             break;
           }
@@ -589,7 +587,7 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
               printf("build failed to create: %s\n",
                      pretty_path(r->outputs[ii]->path));
               rule_failed(all, r);
-              munmap(bs[i], sizeof(struct building));
+              free(bs[i]);
               bs[i] = 0;
               break;
             } else {
@@ -661,7 +659,7 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
           }
           insert_to_listset(&facfiles_used, r->facfile_path);
 
-          munmap(bs[i], sizeof(struct building));
+          free(bs[i]);
           bs[i] = 0;
         }
       }
