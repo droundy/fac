@@ -7,6 +7,7 @@
 #include <errno.h>
 #include <string.h>
 #include <popt.h>
+#include <sys/time.h>
 
 #include "fac.h"
 #include "new-build.h"
@@ -29,6 +30,7 @@ static char *create_script = 0;
 static char *log_directory = 0;
 
 int main(int argc, const char **argv) {
+  gettimeofday(&starting, 0);
   struct poptOption optionsTable[] = {
     { "jobs", 'j', POPT_ARG_INT, &num_jobs, 0,
       "the number of jobs to run simultaneously", "JOBS" },

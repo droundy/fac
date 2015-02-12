@@ -427,7 +427,7 @@ static struct building *build_rule(struct all_targets *all,
   return b;
 }
 
-static struct timeval starting;
+struct timeval starting = {0,0};
 static double elapsed_seconds, elapsed_minutes;
 static bool am_interrupted = false;
 
@@ -454,7 +454,6 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
     }
     return; /* nothing to build */
   }
-  gettimeofday(&starting, 0);
 
   if (!num_jobs) {
     num_jobs = sysconf(_SC_NPROCESSORS_ONLN);

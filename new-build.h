@@ -3,6 +3,8 @@
 
 #include "fac.h"
 
+extern struct timeval starting;
+
 void mark_facfiles(struct all_targets *all);
 void mark_all(struct all_targets *all);
 void mark_rule(struct all_targets *all, struct rule *r);
