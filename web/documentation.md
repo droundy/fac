@@ -114,6 +114,8 @@ with the following options.
 
 ## See also
 
+* [Summary of features](features.html)
+
 * [Documentation of the code](code-guide.html)
 
 * [Comparison with SCons](fac-vs-scons.html)
