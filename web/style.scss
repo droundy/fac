@@ -80,6 +80,9 @@ main {
    padding-right: .5em;
    max-width: 45em;
    text-align: justify;
+   h2 {
+       clear: both;
+   }
    h3:nth-of-type(even) {
        clear: left;
    }
