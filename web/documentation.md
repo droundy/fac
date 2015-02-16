@@ -96,6 +96,10 @@ with the following options.
 
 ## To do list
 
+1. Add test for when a script builds more than one facfile, do both
+get parsed? And if the script is modified, do both get read? I have
+observed this bug in deft.
+
 1. remove failures due to parsing issues in .fac.tum files.
 
 2. Use inotify to avoid rescanning the entire source tree.
