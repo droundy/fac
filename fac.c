@@ -78,7 +78,7 @@ int main(int argc, const char **argv) {
   args.clean = clean_me;
   args.continual = continually_build;
   args.targets_requested = cmd_line_args;
-  if (log_directory) log_directory = absolute_path(log_directory, root);
+  if (log_directory) log_directory = absolute_path(root, log_directory);
   args.log_directory = log_directory;
 
   // The following line does whatever is requested of us.
