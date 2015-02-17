@@ -28,9 +28,10 @@ requires rebuilding.
 meaning that every file that needs to be rebuilt will be rebuilt.  Fac
 can achieve this even if you provide no dependency information, or
 wrong dependency information, although you may need to run fac many
-times in such a case.  The other case where you could end up with an
-incorrect build is if you modify a file in a way that does not change
-its modification time or its file size.
+times in such a case.  You could also end up with an incorrect build
+if you modify a file in a way that does not change its modification
+time or its file size.  And finally, if you edit a file while it is
+being used in a build, fac can fail to rerun the build.
 
 **Tup** will almost always give you a correct build, with the exceptions
 being if an out-of-tree file was modified (e.g. you upgraded a
@@ -83,3 +84,32 @@ believe).
 **Everything** gives you parallel builds, including **fac**.  But I
   didn't want to leave it off the list, lest you think fac does not
   have this very important feature.
+
+## Progress notification
+
+**Fac** (like **tup**) provides estimates of the build time remaining
+  as you perform your build.  These estimates make use of the time
+  spent on each rule during previous builds, and thus for rebuilds the
+  estimates can be quite accurate.
+
+## Clear build output
+
+When performing a parallel build, **fac** shows the output of each
+build (by default only the failing builds) separately, right after the
+build command itself is printed.  This is in stark contrast to
+**make** and **scons**, which send the output from each running
+command directly to the terminal, which can lead to a confusing and
+useless mess of information.  The downside is that fac does not
+provide up-to-date output to the terminal.  To see output as it is
+created by a particularly slow command, you can use the `--log-output`
+option, and examine the log file as it is created.
+
+## Three characters with one hand
+
+**Fac** is unique among build systems in that it only requires you to
+  type three characters ("f", "a", and "c") using one hand.  **Tup**
+  also only requires three key presses, but on a standard QWERTY
+  keyboard, with fingers in standard position, requires you to use
+  both hands.  **Make** and **scons** are clearly inferior solutions,
+  in that they each require you to hit *four* separate keys in order
+  to invoke them.
