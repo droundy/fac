@@ -33,10 +33,10 @@ if you modify a file in a way that does not change its modification
 time or its file size.  And finally, if you edit a file while it is
 being used in a build, fac can fail to rerun the build.
 
-**Tup** will almost always give you a correct build, with the exceptions
-being if an out-of-tree file was modified (e.g. you upgraded a
-library), or if you change an environment variable that affects your
-build.
+**Tup** will almost always give you a correct build, with the
+exceptions being if an out-of-tree file was modified (e.g. you
+upgraded a library).  Tup can track out-of-tree files, but only if you
+install it as suid-root (see security issues below).
 
 **Make** will give you a correct build only if you annotate all the
 dependencies for your build correctly, and only if the stars align.
@@ -113,3 +113,25 @@ option, and examine the log file as it is created.
   both hands.  **Make** and **scons** are clearly inferior solutions,
   in that they each require you to hit *four* separate keys in order
   to invoke them.
+
+## Security
+
+**Fac** doesn't do anything that could violate the security of your
+  computer.  This is a pretty low bar for a build system, since it is
+  your own fault if you try to build malicious code.  **Make** and
+  **scons** (and almost every other build system) also pass this bar.
+
+**Tup**, however, presents a security risk.  Tup requires that your
+  build be run by a user in the `fuse` group (at least on some linux
+  distributions).  Furthermore, tup requires the use of the suid-root
+  program `fusermount`, which can cause problems if you try to build
+  in a directory that is nfs-mounted with rootsquash (the more secure
+  default) that is not world-readable.  Finally, if you want to use
+  tup to build with `gcc --coverage` (or any build step that makes use
+  of absolute paths), tup needs to be installed as suid-root so that
+  it can create a chroot.  This introduces the possibility of
+  priviledge-escalation bugs.  It may be that namespaces will remove
+  this requirement in the future, but they have already been shown
+  (once) to introduce a security vulnerability (which was then fixed).
+  Sticking with running everything as the user running the build seems
+  safest.
