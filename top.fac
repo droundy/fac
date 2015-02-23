@@ -1,7 +1,7 @@
 | python2 top.py > .fac
 > .fac
 
-| python web/mkdown.py
+| python2 web/mkdown.py
 > web/index.html
 
 | sass web/style.scss web/style.css

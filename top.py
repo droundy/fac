@@ -92,8 +92,10 @@ for s in libsources + ['fileaccesses']:
         print '> lib/%s-32.o' % s
         print
 
-print """
-| python lib/get_syscalls.py /usr/src/linux-headers-3.2.0-4-common > lib/syscalls.h
+
+if os.path.exists("/usr/src/linux-headers-3.2.0-4-common"):
+    print """
+| python2 lib/get_syscalls.py /usr/src/linux-headers-3.2.0-4-common > lib/syscalls.h
 > lib/syscalls.h
 """
 
