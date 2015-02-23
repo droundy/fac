@@ -10,7 +10,7 @@ import sleepy
 minute = 60
 hour = 60*minute
 day = 24*hour
-time_limit = 3*day
+time_limit = 6*day
 
 tools = [cmd+' -j4' for cmd in ['make', 'fac', 'tup', 'scons']] # + ['sh build.sh']
 
