@@ -80,7 +80,7 @@ def mkdown(mdfile):
                 lastheader = ET.SubElement(main, 'div', {'class': 'indivisible'})
                 lastheader.append(p)
                 main.remove(p)
-            elif lastheader:
+            elif lastheader is not None:
                 lastheader.append(p)
                 main.remove(p)
         #f.write('XXX '+ET.tostring(main, encoding='utf-8', method='html')+'\n')
