@@ -135,3 +135,8 @@ option, and examine the log file as it is created.
   (once) to introduce a security vulnerability (which was then fixed).
   Sticking with running everything as the user running the build seems
   safest.
+
+## Stubborn
+
+**Fac** will keep trying to build what it can, even after one rule
+  fails...
