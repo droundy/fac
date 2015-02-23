@@ -153,7 +153,7 @@ void rule_failed(struct all_targets *all, struct rule *r) {
 static void find_target_sha1(struct target *t) {
   int fd = open(t->path, O_RDONLY);
   if (fd > 0) {
-    verbose_printf(" *** sha1sum %s\n", pretty_path(t->path));
+    if (false) verbose_printf(" *** sha1sum %s\n", pretty_path(t->path));
     const int bufferlen = 4096*1024;
     char *buffer = malloc(bufferlen);
     int readlen, total_size = 0;
@@ -258,8 +258,8 @@ void check_cleanliness(struct all_targets *all, struct rule *r) {
     if (r->inputs[i]->rule && r->inputs[i]->rule->status == built) {
       if (sha1_is_zero(r->inputs[i]->stat.hash)) find_target_sha1(r->inputs[i]);
       if (sha1_same(r->input_stats[i].hash, r->inputs[i]->stat.hash)) {
-        verbose_printf(" *** hashing saved us work on %s due to rebuild of %s\n",
-                       pretty_rule(r), pretty_path(r->inputs[i]->path));
+        if (false) verbose_printf(" *** hashing saved us work on %s due to rebuild of %s\n",
+                                  pretty_rule(r), pretty_path(r->inputs[i]->path));
         r->input_stats[i].time = r->inputs[i]->stat.time;
         r->input_stats[i].size = r->inputs[i]->stat.size;
         insert_to_listset(&facfiles_used, r->facfile_path);
@@ -275,8 +275,8 @@ void check_cleanliness(struct all_targets *all, struct rule *r) {
         if (!sha1_is_zero(r->input_stats[i].hash) && r->input_stats[i].size == r->inputs[i]->stat.size) {
           if (sha1_is_zero(r->inputs[i]->stat.hash)) find_target_sha1(r->inputs[i]);
           if (sha1_same(r->input_stats[i].hash, r->inputs[i]->stat.hash)) {
-            verbose_printf(" *** hashing saved us work on %s due to %s\n",
-                           pretty_rule(r), pretty_path(r->inputs[i]->path));
+            if (false) verbose_printf(" *** hashing saved us work on %s due to %s\n",
+                                      pretty_rule(r), pretty_path(r->inputs[i]->path));
             r->input_stats[i].time = r->inputs[i]->stat.time;
             r->input_stats[i].size = r->inputs[i]->stat.size;
             insert_to_listset(&facfiles_used, r->facfile_path);
