@@ -15,7 +15,7 @@ dependencies automatically.
   builds in that source tree will be the same as if you had specified
   all dependencies and all output.
 
-* Fab supports parallel builds.
+* Fac supports parallel builds.
 
 * You are forced to write your configuration in a language of your own
   choice.  (Or conversely, you are not forced to use a language of
