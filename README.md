@@ -1,6 +1,6 @@
 # Fac
 
-Fac is a new build system
+Fac is a build system
 (i.e. make/automake/cmake/scons/etc. replacement) that tracks
 dependencies automatically.
 
@@ -28,3 +28,18 @@ To find out more about fac, including benchmarks and complete
 documentation, please visit the fac web page at:
 
 http://physics.oregonstate.edu/~roundyd/fac
+
+## Build and install
+
+To build fac (assuming you have just cloned fac, and do not have an
+older version of fac) just run
+
+    sh build.sh
+
+This should build fac on an x86-64 linux system.  You can then build
+an optimized version by running
+
+    ./fac
+
+To use fac, you can copy the fac binary into some location in your
+path.
