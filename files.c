@@ -25,8 +25,10 @@ char *absolute_path(const char *dir, const char *rel) {
         error_at_line(1,0, __FILE__, __LINE__, "filename too large!!!");
       char *thepath = realpath(filename, 0);
       if (!thepath) {
-        fprintf(stderr, "Difficulty disambiguating %s: %s\n",
-                filename, strerror(errno));
+        if (errno != ENOENT) {
+          fprintf(stderr, "Difficulty disambiguating %s: %s\n",
+                  filename, strerror(errno));
+        }
         thepath = filename;
       } else {
         free(filename);
