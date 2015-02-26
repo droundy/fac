@@ -96,11 +96,6 @@ with the following options.
 
 ## To do list
 
-1. Make build.sh not try to rebuild syscalls.h.
-
-1. Create a more generic build.sh that doesn't try to link with the
-   gperftools profiling library.
-
 1. Add test for when a script builds more than one facfile, do both
 get parsed? And if the script is modified, do both get read? I have
 observed this bug in deft.

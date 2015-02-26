@@ -22,8 +22,6 @@ set -ev
 
 (cd lib && gcc -std=c11 -c arrayset.c)
 
-(python2 lib/get_syscalls.py /usr/src/linux-headers-3.2.0-4-common > lib/syscalls.h)
-
 (cd lib && gcc -std=c11 -c bigbrother.c)
 
 (cd lib && gcc -std=c11 -c sha1.c)

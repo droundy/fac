@@ -109,7 +109,7 @@ for s in libsources + ['fileaccesses']:
         print
 
 
-if os.path.exists("/usr/src/linux-headers-3.2.0-4-common"):
+if os.path.exists("/usr/src/linux-headers-3.2.0-4-common") and os.getenv('MINIMAL','') == '':
     print """
 | python2 lib/get_syscalls.py /usr/src/linux-headers-3.2.0-4-common > lib/syscalls.h
 > lib/syscalls.h
