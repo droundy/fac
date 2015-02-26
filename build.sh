@@ -2,33 +2,33 @@
 
 set -ev
 
-(gcc -Wall -Werror -O2 -std=c11 -std=c99 -g -c fac.c)
+(gcc -std=c11 -c fac.c)
 
-(gcc -Wall -Werror -O2 -std=c11 -std=c99 -g -c files.c)
+(gcc -std=c11 -c files.c)
 
-(gcc -Wall -Werror -O2 -std=c11 -std=c99 -g -c targets.c)
+(gcc -std=c11 -c targets.c)
 
-(gcc -Wall -Werror -O2 -std=c11 -std=c99 -g -c clean.c)
+(gcc -std=c11 -c clean.c)
 
-(gcc -Wall -Werror -O2 -std=c11 -std=c99 -g -c new-build.c)
+(gcc -std=c11 -c new-build.c)
 
-(gcc -Wall -Werror -O2 -std=c11 -std=c99 -g -c git.c)
+(gcc -std=c11 -c git.c)
 
-(gcc -Wall -Werror -O2 -std=c11 -std=c99 -g -c environ.c)
+(gcc -std=c11 -c environ.c)
 
-(cd lib && gcc -Wall -Werror -O2 -std=c11 -std=c99 -g -c listset.c)
+(cd lib && gcc -std=c11 -c listset.c)
 
-(cd lib && gcc -Wall -Werror -O2 -std=c11 -std=c99 -g -c iterablehash.c)
+(cd lib && gcc -std=c11 -c iterablehash.c)
 
-(cd lib && gcc -Wall -Werror -O2 -std=c11 -std=c99 -g -c arrayset.c)
+(cd lib && gcc -std=c11 -c arrayset.c)
 
-(python lib/get_syscalls.py /usr/src/linux-headers-3.2.0-4-common > lib/syscalls.h)
+(python2 lib/get_syscalls.py /usr/src/linux-headers-3.2.0-4-common > lib/syscalls.h)
 
-(cd lib && gcc -Wall -Werror -O2 -std=c11 -std=c99 -g -c bigbrother.c)
+(cd lib && gcc -std=c11 -c bigbrother.c)
 
-(cd lib && gcc -Wall -Werror -O2 -std=c11 -std=c99 -g -c sha1.c)
+(cd lib && gcc -std=c11 -c sha1.c)
 
-(cd lib && gcc -Wall -Werror -O2 -std=c11 -std=c99 -g -c hashset.c)
+(cd lib && gcc -std=c11 -c hashset.c)
 
-(gcc -lpopt -lpthread -lprofiler -o fac fac.o files.o targets.o clean.o new-build.o git.o environ.o lib/listset.o lib/iterablehash.o lib/arrayset.o lib/bigbrother.o lib/sha1.o lib/hashset.o)
+(gcc -lpopt -lpthread -o fac fac.o files.o targets.o clean.o new-build.o git.o environ.o lib/listset.o lib/iterablehash.o lib/arrayset.o lib/bigbrother.o lib/sha1.o lib/hashset.o)
 
