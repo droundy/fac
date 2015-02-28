@@ -98,10 +98,6 @@ with the following options.
 
 2. Use inotify to avoid rescanning the entire source tree.
 
-3. Remove "error" calls from new-build.c, to ensure that we will
-   always create the .done files, so we won't have to rebuild
-   everything.
-
 5. On BSD and Darwin systems, use ktrace rather than ptrace.
 
 - Enable fac to call fac recursively (requires ptrace effort)

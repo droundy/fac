@@ -675,14 +675,14 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
             if (is_interesting_path(r, path)) {
 #endif
               struct target *t = create_target_with_stat(all, path);
-              if (!t || !t->is_dir) error(1, errno, "Unable to stat directory %s", path);
-
-              if (!t->rule && is_in_root(path) && !t->is_in_git) {
-                printf("error: directory %s should be in git for %s\n",
-                       pretty_path(t->path), pretty_rule(r));
-                rule_failed(all, r);
+              if (t && t->is_dir) {
+                if (!t->rule && is_in_root(path) && !t->is_in_git) {
+                  printf("error: directory %s should be in git for %s\n",
+                         pretty_path(t->path), pretty_rule(r));
+                  rule_failed(all, r);
+                }
+                add_input(r, t);
               }
-              add_input(r, t);
             }
           }
 
@@ -702,12 +702,16 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
               }
               t = create_target_with_stat(all, path);
               if (t && t->is_file) {
-                if (path == pretty_path(path))
-                  error(1,0,"Command created file outside source directory: %s\n| %s",
-                        path, r->command);
-                if (t->rule && t->rule != r)
-                  error(1,0,"Two rules generate same output: %s\n| %s\n| %s",
-                        pretty_path(path), r->command, t->rule->command);
+                if (path == pretty_path(path)) {
+                  printf("error: created file outside source directory: %s (%s)",
+                         path, pretty_rule(r));
+                  rule_failed(all, r);
+                }
+                if (t->rule && t->rule != r) {
+                  printf("error: two rules generate same output %s: %s and %s",
+                         pretty_path(path), r->command, t->rule->command);
+                  rule_failed(all, r);
+                }
                 t->rule = r;
                 find_target_sha1(t);
                 add_output(r, t);
@@ -805,7 +809,7 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
   while (facfiles_used) {
     char *donefile = done_name(facfiles_used->path);
     FILE *f = fopen(donefile, "w");
-    if (!f) error(1,errno,"oopse");
+    if (!f) error(1,errno,"oopsies");
     fprint_facfile(f, all, facfiles_used->path);
     fclose(f);
     free(donefile);
