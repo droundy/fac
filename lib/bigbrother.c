@@ -18,26 +18,6 @@
 #include "syscalls.h"
 #include "bigbrother.h"
 
-struct i386_user_regs_struct {
-	uint32_t ebx;
-	uint32_t ecx;
-	uint32_t edx;
-	uint32_t esi;
-	uint32_t edi;
-	uint32_t ebp;
-	uint32_t eax;
-	uint32_t xds;
-	uint32_t xes;
-	uint32_t xfs;
-	uint32_t xgs;
-	uint32_t orig_eax;
-	uint32_t eip;
-	uint32_t xcs;
-	uint32_t eflags;
-	uint32_t esp;
-	uint32_t xss;
-};
-
 static const int debug_output = 0;
 
 static inline void debugprintf(const char *format, ...) {
@@ -70,6 +50,26 @@ static int interesting_path(const char *path) {
 }
 
 #ifdef __x86_64__
+struct i386_user_regs_struct {
+	uint32_t ebx;
+	uint32_t ecx;
+	uint32_t edx;
+	uint32_t esi;
+	uint32_t edi;
+	uint32_t ebp;
+	uint32_t eax;
+	uint32_t xds;
+	uint32_t xes;
+	uint32_t xfs;
+	uint32_t xgs;
+	uint32_t orig_eax;
+	uint32_t eip;
+	uint32_t xcs;
+	uint32_t eflags;
+	uint32_t esp;
+	uint32_t xss;
+};
+
 static long get_syscall_arg_64(const struct user_regs_struct *regs, int which) {
     switch (which) {
     case 0: return regs->rdi;
@@ -81,9 +81,11 @@ static long get_syscall_arg_64(const struct user_regs_struct *regs, int which) {
     default: return -1L;
     }
 }
-#endif
 
 static long get_syscall_arg_32(const struct i386_user_regs_struct *regs, int which) {
+#else
+static long get_syscall_arg_32(const struct user_regs_struct *regs, int which) {
+#endif
     switch (which) {
     case 0: return regs->ebx;
     case 1: return regs->ecx;
@@ -207,7 +209,6 @@ static int save_syscall_access_hashset(pid_t child,
                                         hashset *written_to_files,
                                         hashset *deleted_files) {
   struct user_regs_struct regs;
-  struct i386_user_regs_struct i386_regs;
   int syscall;
 
   if (ptrace(PTRACE_GETREGS, child, NULL, &regs) == -1) {
@@ -215,6 +216,7 @@ static int save_syscall_access_hashset(pid_t child,
     return -1;
   }
 #ifdef __x86_64__
+  struct i386_user_regs_struct i386_regs;
   if (regs.cs == 0x23) {
 		i386_regs.ebx = regs.rbx;
 		i386_regs.ecx = regs.rcx;
@@ -230,7 +232,7 @@ static int save_syscall_access_hashset(pid_t child,
     struct i386_user_regs_struct regs = i386_regs;
 #endif
 
-    syscall = i386_regs.orig_eax;
+    syscall = regs.orig_eax;
     debugprintf("%s() 32 = %d\n", syscalls_32[syscall], syscall);
 
     if (write_fd_32[syscall] >= 0) {
