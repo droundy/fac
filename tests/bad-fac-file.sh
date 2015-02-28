@@ -22,7 +22,7 @@ if ../../fac 2> fac.err; then
 fi
 cat fac.err
 
-grep 'fac.my.fac.3. Second' fac.err
+grep 'error:.my.fac.3. Second' fac.err
 
 
 cat > my.fac <<EOF
@@ -38,7 +38,7 @@ if ../../fac 2> fac.err; then
 fi
 cat fac.err
 
-grep 'fac:my.fac:1: .C. cache lines' fac.err
+grep 'error: my.fac:1: .C. cache lines' fac.err
 
 
 cat > my.fac <<EOF
@@ -55,7 +55,7 @@ if ../../fac 2> fac.err; then
 fi
 cat fac.err
 
-grep 'fac:my.fac:2: .<. input lines' fac.err
+grep 'error: my.fac:2: .<. input lines' fac.err
 
 
 cat > my.fac <<EOF
@@ -72,7 +72,7 @@ if ../../fac 2> fac.err; then
 fi
 cat fac.err
 
-grep 'fac:my.fac:2: .>. output lines' fac.err
+grep 'error: my.fac:2: .>. output lines' fac.err
 
 
 cat > my.fac <<EOF
@@ -89,6 +89,6 @@ if ../../fac 2> fac.err; then
 fi
 cat fac.err
 
-grep 'fac:my.fac:2: .c. cache lines' fac.err
+grep 'error: my.fac:2: .c. cache lines' fac.err
 
 exit 0

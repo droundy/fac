@@ -19,7 +19,6 @@
 #include <fcntl.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <error.h>
 #include <errno.h>
 #include <string.h>
 #include <signal.h>

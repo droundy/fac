@@ -5,7 +5,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <error.h>
 #include <errno.h>
 #include <string.h>
 #include <limits.h>
@@ -63,7 +62,11 @@ char *done_name(const char *facfilename) {
 
 void read_fac_file(struct all_targets *all, const char *path) {
   FILE *f = fopen(path, "r");
-  if (!f) error(1, errno, "Unable to open file %s", path);
+  if (!f) {
+    fprintf(stderr, "error: unable to open file %s\n  %s",
+            path, strerror(errno));
+    exit(1);
+  }
 
   char *rel_directory = strdup(path);
   for (int i=strlen(rel_directory)-1;i>=0;i--) {
@@ -163,8 +166,10 @@ void read_fac_file(struct all_targets *all, const char *path) {
       break;
     }
   }
-  if (!feof(f))
-    error(1, errno, "Error reading file %s", path);
+  if (!feof(f)) {
+    fprintf(stderr, "error: reading file %s\n  %s", path, strerror(errno));
+    exit(1);
+  }
   fclose(f);
 
   char *donename = done_name(path);
