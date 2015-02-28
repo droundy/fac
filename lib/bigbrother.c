@@ -69,6 +69,7 @@ static int interesting_path(const char *path) {
   return 1;
 }
 
+#ifdef __x86_64__
 static long get_syscall_arg_64(const struct user_regs_struct *regs, int which) {
     switch (which) {
     case 0: return regs->rdi;
@@ -80,6 +81,7 @@ static long get_syscall_arg_64(const struct user_regs_struct *regs, int which) {
     default: return -1L;
     }
 }
+#endif
 
 static long get_syscall_arg_32(const struct i386_user_regs_struct *regs, int which) {
     switch (which) {
@@ -212,6 +214,7 @@ static int save_syscall_access_hashset(pid_t child,
     debugprintf("error getting registers for %d!\n", child);
     return -1;
   }
+#ifdef __x86_64__
   if (regs.cs == 0x23) {
 		i386_regs.ebx = regs.rbx;
 		i386_regs.ecx = regs.rcx;
@@ -225,6 +228,7 @@ static int save_syscall_access_hashset(pid_t child,
 		i386_regs.esp = regs.rsp;
 
     struct i386_user_regs_struct regs = i386_regs;
+#endif
 
     syscall = i386_regs.orig_eax;
     debugprintf("%s() 32 = %d\n", syscalls_32[syscall], syscall);
@@ -340,6 +344,7 @@ static int save_syscall_access_hashset(pid_t child,
       }
       free(arg);
     }
+#ifdef __x86_64__
   } else {
     syscall = regs.orig_rax;
     debugprintf("%s() 64\n", syscalls_64[syscall]);
@@ -456,6 +461,7 @@ static int save_syscall_access_hashset(pid_t child,
       free(arg);
     }
   }
+#endif
   return syscall;
 }
 
