@@ -1,4 +1,4 @@
-#define _GNU_SOURCE
+#define _XOPEN_SOURCE 700
 
 #include "fac.h"
 #include "new-build.h"
@@ -9,19 +9,14 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <sys/mman.h>
 #include <sys/wait.h>
-#include <sys/times.h>
 #include <sys/time.h>
 #include <sys/sendfile.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <stdlib.h>
-#include <stdio.h>
 #include <errno.h>
 #include <string.h>
 #include <signal.h>
-#include <assert.h>
 
 #include <semaphore.h>
 #include <pthread.h>
@@ -376,7 +371,6 @@ static struct building *build_rule(struct all_targets *all,
                                    struct rule *r,
                                    sem_t *slots_available,
                                    const char *log_directory) {
-  assert(r);
   struct building *b = malloc(sizeof(struct building));
   b->rule = r;
   b->slots_available = slots_available;
@@ -718,7 +712,7 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
       for (int i=0;i<num_jobs;i++) {
         if (bs[i]) {
           kill(-bs[i]->child_pid, SIGKILL); /* kill with extreme prejudice */
-          munmap(bs[i], sizeof(struct building));
+          free(bs[i]);
           bs[i] = 0;
         }
       }
