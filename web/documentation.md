@@ -100,8 +100,6 @@ with the following options.
 get parsed? And if the script is modified, do both get read? I have
 observed this bug in deft.
 
-1. remove failures due to parsing issues in .fac.tum files.
-
 2. Use inotify to avoid rescanning the entire source tree.
 
 3. Remove "error" calls from new-build.c, to ensure that we will

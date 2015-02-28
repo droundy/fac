@@ -180,9 +180,10 @@ void read_fac_file(struct all_targets *all, const char *path) {
       if (line_length < 2) continue;
       if (one_line[0] == '#') continue; /* it is a comment! */
 
-      if (one_line[1] != ' ')
-        error_at_line(1, 0, donename, linenum,
-                    "Second character of line should be a space");
+      /* in case of error in the done file, just ignore the rest of
+         it. */
+      if (one_line[1] != ' ') break;
+
       switch (one_line[0]) {
       case '|':
         therule = lookup_rule(all, one_line+2, the_directory);
@@ -253,14 +254,14 @@ void read_fac_file(struct all_targets *all, const char *path) {
         break;
       case 'T':
         if (stat_last_file) {
-          if (sscanf(one_line+2, "%ld", &stat_last_file->time) != 1)
-            error_at_line(1, 0, pretty_path(path), linenum, "Error parsing %s", one_line);
+          /* ignore errors in the done file: */
+          sscanf(one_line+2, "%ld", &stat_last_file->time);
         }
         break;
       case 'S':
         if (stat_last_file) {
-          if (sscanf(one_line+2, "%ld", &stat_last_file->size) != 1)
-            error_at_line(1, 0, pretty_path(path), linenum, "Error parsing %s", one_line);
+          /* ignore errors in the done file: */
+          sscanf(one_line+2, "%ld", &stat_last_file->size);
         }
         break;
       case 'H':
@@ -271,8 +272,8 @@ void read_fac_file(struct all_targets *all, const char *path) {
       case 'B':
         if (therule) {
           all->estimated_times[therule->status] -= therule->build_time;
-          if (sscanf(one_line+2, "%lg", &therule->build_time) != 1)
-            error_at_line(1, 0, pretty_path(path), linenum, "Error parsing %s", one_line);
+          /* ignore errors in the done file: */
+          sscanf(one_line+2, "%lg", &therule->build_time);
           all->estimated_times[therule->status] += therule->build_time;
         }
         break;
@@ -294,8 +295,6 @@ void read_fac_file(struct all_targets *all, const char *path) {
         break;
       }
     }
-    if (!feof(f))
-      error(1, errno, "Error reading file %s", donename);
     fclose(f);
   }
 
