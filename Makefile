@@ -27,7 +27,7 @@ lib/listset.o : lib/listset.h lib/listset.c
 lib/iterablehash.o : lib/iterablehash.h lib/iterablehash.c
 	cd lib && gcc -std=c11 -c iterablehash.c
 
-lib/bigbrother.o : lib/syscalls.h lib/iterablehash.h lib/bigbrother.h lib/hashset.h lib/bigbrother.c
+lib/bigbrother.o : lib/syscalls.h lib/iterablehash.h lib/hashset.h lib/bigbrother.h lib/bigbrother.c
 	cd lib && gcc -std=c11 -c bigbrother.c
 
 lib/sha1.o : lib/sha1.h lib/sha1.c

@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 
 static inline void error(int retval, int errno, const char *format, ...) {
   va_list args;
@@ -545,7 +546,6 @@ int bigbrother_process_hashset(const char *workingdir,
 #include <sys/uio.h>
 #include <sys/ktrace.h>
 #include <stdio.h>
-#include <errno.h>
  
 int bigbrother_process_hashset(const char *workingdir,
                                pid_t *child_ptr,

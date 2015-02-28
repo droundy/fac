@@ -260,13 +260,13 @@ void read_fac_file(struct all_targets *all, const char *path) {
       case 'T':
         if (stat_last_file) {
           /* ignore errors in the done file: */
-          sscanf(one_line+2, "%zd", &stat_last_file->time);
+          stat_last_file->time = strtol(one_line+2, 0, 0);
         }
         break;
       case 'S':
         if (stat_last_file) {
           /* ignore errors in the done file: */
-          sscanf(one_line+2, "%zd", &stat_last_file->size);
+          stat_last_file->size = strtol(one_line+2, 0, 0);
         }
         break;
       case 'H':

@@ -2,29 +2,29 @@
 
 set -ev
 
-(clang -I/usr/local/include -std=c11 -c fac.c)
+(clang -std=c99 -c fac.c)
 
-(clang -I/usr/local/include -std=c11 -c files.c)
+(clang -std=c99 -c files.c)
 
-(clang -I/usr/local/include -std=c11 -c targets.c)
+(clang -std=c99 -c targets.c)
 
-(clang -I/usr/local/include -std=c11 -c clean.c)
+(clang -std=c99 -c clean.c)
 
-(clang -I/usr/local/include -std=c11 -c new-build.c)
+(clang -std=c99 -c new-build.c)
 
-(clang -I/usr/local/include -std=c11 -c git.c)
+(clang -std=c99 -c git.c)
 
-(clang -I/usr/local/include -std=c11 -c environ.c)
+(clang -std=c99 -c environ.c)
 
-(cd lib && clang -I/usr/local/include -std=c11 -c listset.c)
+(cd lib && clang -std=c99 -c listset.c)
 
-(cd lib && clang -I/usr/local/include -std=c11 -c iterablehash.c)
+(cd lib && clang -std=c99 -c iterablehash.c)
 
-(cd lib && clang -I/usr/local/include -std=c11 -c bigbrother.c)
+(cd lib && clang -std=c99 -c bigbrother.c)
 
-(cd lib && clang -I/usr/local/include -std=c11 -c sha1.c)
+(cd lib && clang -std=c99 -c sha1.c)
 
-(cd lib && clang -I/usr/local/include -std=c11 -c hashset.c)
+(cd lib && clang -std=c99 -c hashset.c)
 
-(clang -L/usr/local/lib -lpopt -lpthread -o fac fac.o files.o targets.o clean.o new-build.o git.o environ.o lib/listset.o lib/iterablehash.o lib/bigbrother.o lib/sha1.o lib/hashset.o)
+(clang -lpopt -lpthread -o fac fac.o files.o targets.o clean.o new-build.o git.o environ.o lib/listset.o lib/iterablehash.o lib/bigbrother.o lib/sha1.o lib/hashset.o)
 
