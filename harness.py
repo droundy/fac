@@ -14,6 +14,10 @@ if os.system('MINIMAL=1 ./fac --makefile Makefile --script build.sh fac'):
     print 'Build failed!'
     exit(1)
 
+if os.system('MINIMAL=1 CC=clang ./fac --script build-clang.sh fac'):
+    print 'Build failed!'
+    exit(1)
+
 if os.system('./fac'):
     print 'Build failed!'
     exit(1)
