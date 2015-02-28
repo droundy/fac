@@ -519,10 +519,20 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
             fflush(stdout);
           }
           if (bs[i]->all_done != built || show_output) {
+#ifdef __linux__
             off_t stdoutlen = lseek(bs[i]->stdouterrfd, 0, SEEK_END);
             off_t myoffset = 0;
-#ifdef __linux__
             sendfile(1, bs[i]->stdouterrfd, &myoffset, stdoutlen);
+#else
+            lseek(bs[i]->stdouterrfd, 0, SEEK_SET);
+            size_t mysize = 0;
+            void *buf = malloc(4096);
+            while ((mysize = read(bs[i]->stdouterrfd, buf, 4096)) > 0) {
+              if (write(1, buf, mysize) != mysize) {
+                printf("\nerror: trouble writing to stdout!\n");
+              }
+            }
+            free(buf);
 #endif
           }
           if (bs[i]->all_done != built && bs[i]->all_done != failed) {
