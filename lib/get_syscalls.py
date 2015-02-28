@@ -83,6 +83,7 @@ const char *syscalls%s[] = {""" % postfix
                                     'writev': 0,
                                     'close': 0,
                                     'fstat': 0,
+                                    'fstat64': 0,
                                     'mmap': 4,
                                     'sendfile': 1, # technically also 0!  :(
                                     'fcntl': 0,
@@ -107,6 +108,8 @@ const char *syscalls%s[] = {""" % postfix
     argument_table('string_argument', { 'open': 0,
                                         'stat': 0,
                                         'lstat': 0,
+                                        'stat64': 0,
+                                        'lstat64': 0,
                                         'execve': 0,
                                         'access': 0,
                                         'rename': 1, # also 0
@@ -137,12 +140,15 @@ const char *syscalls%s[] = {""" % postfix
                                'pread': 0,
                                'pread64': 0,
                                'fstat': 0,
+                               'fstat64': 0,
                                'mmap': 0,
                                'sendfile': 1})
 
     argument_table('read_string', {'rename': 1,
                                    'stat': 0,
                                    'lstat': 0,
+                                   'stat64': 0,
+                                   'lstat64': 0,
                                    'execve': 0,
                                    'truncate': 0})
 
