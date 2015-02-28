@@ -11,7 +11,11 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <sys/time.h>
+
+#ifdef __linux__
 #include <sys/sendfile.h>
+#endif
+
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -516,7 +520,9 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
           if (bs[i]->all_done != built || show_output) {
             off_t stdoutlen = lseek(bs[i]->stdouterrfd, 0, SEEK_END);
             off_t myoffset = 0;
+#ifdef __linux__
             sendfile(1, bs[i]->stdouterrfd, &myoffset, stdoutlen);
+#endif
           }
           if (bs[i]->all_done != built && bs[i]->all_done != failed) {
             printf("INTERRUPTED!  bs[i]->all_done == %s\n",

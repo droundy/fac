@@ -12,7 +12,7 @@ targets.o : lib/iterablehash.h lib/listset.h lib/sha1.h fac.h targets.c
 clean.o : lib/iterablehash.h lib/listset.h lib/sha1.h fac.h clean.c
 	gcc -std=c11 -c clean.c
 
-new-build.o : lib/hashset.h environ.h lib/listset.h lib/bigbrother.h lib/sha1.h lib/iterablehash.h fac.h new-build.c new-build.h
+new-build.o : lib/hashset.h environ.h lib/iterablehash.h lib/listset.h lib/bigbrother.h lib/sha1.h fac.h new-build.c new-build.h
 	gcc -std=c11 -c new-build.c
 
 git.o : lib/iterablehash.h lib/listset.h lib/sha1.h fac.h git.c
