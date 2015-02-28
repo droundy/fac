@@ -14,7 +14,6 @@
 #include <sys/times.h>
 #include <sys/time.h>
 #include <sys/sendfile.h>
-#include <sys/inotify.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <stdlib.h>
