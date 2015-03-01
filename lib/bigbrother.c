@@ -1,5 +1,9 @@
 #define _XOPEN_SOURCE 700
 
+#include "bigbrother.h"
+
+#ifdef __linux__
+
 #include <sys/ptrace.h>
 #include <sys/user.h>
 #include <sys/wait.h>
@@ -16,7 +20,6 @@
 #include <stdint.h>
 
 #include "syscalls.h"
-#include "bigbrother.h"
 
 static const int debug_output = 0;
 
@@ -476,7 +479,6 @@ int bigbrother_process_hashset(const char *workingdir,
                                hashset *read_from_files,
                                hashset *written_to_files,
                                hashset *deleted_files) {
-
   initialize_hashset(read_from_directories);
   initialize_hashset(read_from_files);
   initialize_hashset(written_to_files);
@@ -525,3 +527,18 @@ int bigbrother_process_hashset(const char *workingdir,
   }
   return 0;
 }
+
+#else
+
+int bigbrother_process_hashset(const char *workingdir,
+                               pid_t *child_ptr,
+                               int stdouterrfd,
+                               char **args,
+                               hashset *read_from_directories,
+                               hashset *read_from_files,
+                               hashset *written_to_files,
+                               hashset *deleted_files) {
+  return 0;
+}
+ 
+#endif
