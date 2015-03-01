@@ -561,14 +561,20 @@ int bigbrother_process_hashset(const char *workingdir,
   initialize_hashset(written_to_files);
   initialize_hashset(deleted_files);
 
+  const char *templ = "/tmp/fac-XXXXXX";
+  char *namebuf = malloc(strlen(templ)+1);
+  strcpy(namebuf, templ);
+  int tracefd = mkstemp(namebuf);
+  
   pid_t firstborn = fork();
   if (firstborn == -1) {
   }
   setpgid(firstborn, firstborn); // causes grandchildren to be killed along with firstborn
 
   if (firstborn == 0) {
-    int retval = ktrace("ktrace.out", KTROP_SET,
-	   KTRFAC_SYSCALL | KTRFAC_NAMEI | KTRFAC_INHERIT, getpid());
+    int retval = ktrace(namebuf, KTROP_SET,
+			KTRFAC_SYSCALL | KTRFAC_NAMEI | KTRFAC_INHERIT,
+			getpid());
     if (retval) error(1, errno, "ktrace gives %d", retval);
     if (stdouterrfd > 0) {
       close(1);
@@ -580,6 +586,21 @@ int bigbrother_process_hashset(const char *workingdir,
     execvp(args[0], args);
   }
   *child_ptr = firstborn;
+
+  /* for debugging purposes, send trace info to stdout */
+  printf("dumping trace info from %s... %d\n",
+	 namebuf, (int)lseek(tracefd, 0, SEEK_END));
+  /* unlink(namebuf); */
+  free(namebuf);
+  /* lseek(tracefd, 0, SEEK_SET); */
+  /* size_t mysize = 0; */
+  /* void *buf = malloc(4096); */
+  /* while ((mysize = read(tracefd, buf, 4096)) > 0) { */
+  /*   if (write(1, buf, mysize) != mysize) { */
+  /*     printf("\nerror: trouble writing to stdout!\n"); */
+  /*   } */
+  /* } */
+  /* free(buf); */
 
   int status = 0;
   waitpid(-firstborn, &status, 0);
