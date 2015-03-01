@@ -1,22 +1,32 @@
 #define _XOPEN_SOURCE 700
+#define __BSD_VISIBLE 1
 
 #include "bigbrother.h"
 #include <sys/wait.h>
+#include <sys/types.h>
 #include <unistd.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+static inline void error(int retval, int errno, const char *format, ...) {
+  va_list args;
+  va_start(args, format);
+  fprintf(stderr, "error: ");
+  vfprintf(stderr, format, args);
+  if (errno) fprintf(stderr, "\n  %s\n", strerror(errno));
+  va_end(args);
+  exit(retval);
+}
 
 #ifdef __linux__
 
 #include <sys/ptrace.h>
 #include <sys/user.h>
-#include <sys/types.h>
 #include <sys/syscall.h>
 #include <linux/limits.h>
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <errno.h>
-#include <string.h>
-#include <stdarg.h>
 #include <stdint.h>
 
 #include "syscalls.h"
@@ -530,6 +540,13 @@ int bigbrother_process_hashset(const char *workingdir,
 
 #else
 
+#include <sys/param.h>
+#include <sys/time.h>
+#include <sys/uio.h>
+#include <sys/ktrace.h>
+#include <stdio.h>
+#include <errno.h>
+ 
 int bigbrother_process_hashset(const char *workingdir,
                                pid_t *child_ptr,
                                int stdouterrfd,
@@ -549,6 +566,9 @@ int bigbrother_process_hashset(const char *workingdir,
   setpgid(firstborn, firstborn); // causes grandchildren to be killed along with firstborn
 
   if (firstborn == 0) {
+    int retval = ktrace("ktrace.out", KTROP_SET,
+	   KTRFAC_SYSCALL | KTRFAC_NAMEI | KTRFAC_INHERIT, getpid());
+    if (retval) error(1, errno, "ktrace gives %d", retval);
     if (stdouterrfd > 0) {
       close(1);
       close(2);
