@@ -193,24 +193,40 @@ static char *read_a_path_at(pid_t child, int dirfd, unsigned long addr) {
   return abspath;
 }
 
-pid_t wait_for_syscall(int *num_programs, int firstborn) {
+pid_t wait_for_syscall(int firstborn) {
   pid_t child = 0;
   int status = 0;
   while (1) {
+    long signal_to_send_back = 0;
     child = waitpid(-firstborn, &status, __WALL);
+    if (child == -1) error(1, errno, "trouble waiting");
     if (WIFSTOPPED(status) && WSTOPSIG(status) & 0x80) {
       return child;
     } else if (WIFEXITED(status)) {
-      if (--(*num_programs) <= 0) return -WEXITSTATUS(status);
+      debugprintf("process %d exited!\n", child);
+      if (child == firstborn) return -WEXITSTATUS(status);
       continue; /* no need to do anything more for this guy */
-    } else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_CLONE<<8))) {
-      (*num_programs)++;
-    } else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_VFORK<<8))) {
-      (*num_programs)++;
-    } else if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_FORK<<8))) {
-      (*num_programs)++;
+    } else if (WIFSIGNALED(status)) {
+      debugprintf("process %d died of a signal!\n", child);
+      if (child == firstborn) return -WTERMSIG(status);
+      continue; /* no need to do anything more for this guy */
+    } else if (WIFSTOPPED(status)) {
+      // ensure that the signal we interrupted is actually delivered.
+      switch (WSTOPSIG(status)) {
+      case SIGCHLD: // I don't know why forwarding SIGCHLD along causes trouble.  :(
+      case SIGTRAP: // SIGTRAP is what we get from ptrace
+      case SIGVTALRM: // for some reason this causes trouble with ghc
+        debugprintf("ignoring signal %d\n", WSTOPSIG(status));
+        break;
+      default:
+        signal_to_send_back = WSTOPSIG(status);
+        debugprintf("sending signal %d\n", signal_to_send_back);
+      }
+    } else {
+      debugprintf("unexpected something from process %d\n", child);
     }
-    if (ptrace(PTRACE_SYSCALL, child, 0, 0) == -1) { // keep going!
+    // tell the child to keep going!
+    if (ptrace(PTRACE_SYSCALL, child, 0, (void *)signal_to_send_back) == -1) {
       /* Assume child died and that we will get a WIFEXITED
          shortly. */
     }
@@ -363,6 +379,10 @@ static int save_syscall_access_hashset(pid_t child,
 #ifdef __x86_64__
   } else {
     syscall = regs.orig_rax;
+    if (syscall < 0) {
+      debugprintf("invalid system call %d\n", syscall);
+      return -1;
+    }
     debugprintf("%s() 64\n", syscalls_64[syscall]);
 
     if (write_fd_64[syscall] >= 0) {
@@ -513,16 +533,18 @@ int bigbrother_process_hashset(const char *workingdir,
     return execvp(args[0], args);
   } else {
     *child_ptr = firstborn;
-    int num_programs = 1;
     waitpid(firstborn, 0, __WALL);
     ptrace(PTRACE_SETOPTIONS, firstborn, 0, my_ptrace_options);
     if (ptrace(PTRACE_SYSCALL, firstborn, 0, 0) == -1) {
       return -1;
     }
 
-    while (num_programs > 0) {
-      pid_t child = wait_for_syscall(&num_programs, firstborn);
-      if (child <= 0) return -child;
+    while (1) {
+      pid_t child = wait_for_syscall(firstborn);
+      if (child <= 0) {
+        debugprintf("Returning with exit value %d\n", -child);
+        return -child;
+      }
 
       if (save_syscall_access_hashset(child, read_from_directories,
                                        read_from_files, written_to_files,

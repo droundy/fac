@@ -129,7 +129,7 @@ print '> lib/fileaccesses'
 print
 
 
-ctests = ['hashset', 'listset', 'spinner', 'iterable_hash_test']
+ctests = ['hashset', 'listset', 'spinner', 'iterable_hash_test', 'assertion-fails']
 
 for test in ctests:
     print '| %s '%cc+' '.join(linkflags)+' -o tests/%s.test' % test, 'tests/%s.o' % test, string.join(['lib/%s.o' % s for s in libsources])
