@@ -521,7 +521,7 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
             fflush(stdout);
           }
           if (bs[i]->all_done != built || show_output) {
-	    dump_to_stdout(bs[i]->stdouterrfd);
+            dump_to_stdout(bs[i]->stdouterrfd);
           }
           if (bs[i]->all_done != built && bs[i]->all_done != failed) {
             printf("INTERRUPTED!  bs[i]->all_done == %s\n",
@@ -533,8 +533,8 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
           if (bs[i]->all_done == failed) {
             rule_failed(all, bs[i]->rule);
             printf("build failed: %s\n", pretty_rule(bs[i]->rule));
-	    dump_to_stdout(bs[i]->stdouterrfd);
-	    close(bs[i]->stdouterrfd);
+            dump_to_stdout(bs[i]->stdouterrfd);
+            close(bs[i]->stdouterrfd);
             free_hashset(&bs[i]->read);
             free_hashset(&bs[i]->readdir);
             free_hashset(&bs[i]->written);
@@ -589,8 +589,8 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
               printf("build failed to create: %s\n",
                      pretty_path(r->outputs[ii]->path));
               rule_failed(all, r);
-	      dump_to_stdout(bs[i]->stdouterrfd);
-	      close(bs[i]->stdouterrfd);
+              dump_to_stdout(bs[i]->stdouterrfd);
+              close(bs[i]->stdouterrfd);
               free_hashset(&bs[i]->read);
               free_hashset(&bs[i]->readdir);
               free_hashset(&bs[i]->written);
@@ -678,7 +678,7 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
           }
           insert_to_listset(&facfiles_used, r->facfile_path);
 
-	  dump_to_stdout(bs[i]->stdouterrfd);
+          dump_to_stdout(bs[i]->stdouterrfd);
           close(bs[i]->stdouterrfd);
           free_hashset(&bs[i]->read);
           free_hashset(&bs[i]->readdir);
