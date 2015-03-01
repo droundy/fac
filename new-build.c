@@ -678,7 +678,6 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
           }
           insert_to_listset(&facfiles_used, r->facfile_path);
 
-          dump_to_stdout(bs[i]->stdouterrfd);
           close(bs[i]->stdouterrfd);
           free_hashset(&bs[i]->read);
           free_hashset(&bs[i]->readdir);
