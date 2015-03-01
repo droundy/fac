@@ -1,17 +1,17 @@
 #define _XOPEN_SOURCE 700
 
 #include "bigbrother.h"
+#include <sys/wait.h>
+#include <unistd.h>
 
 #ifdef __linux__
 
 #include <sys/ptrace.h>
 #include <sys/user.h>
-#include <sys/wait.h>
 #include <sys/types.h>
 #include <sys/syscall.h>
 #include <linux/limits.h>
 
-#include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
@@ -538,7 +538,32 @@ int bigbrother_process_hashset(const char *workingdir,
                                hashset *read_from_files,
                                hashset *written_to_files,
                                hashset *deleted_files) {
-  return 0;
+  initialize_hashset(read_from_directories);
+  initialize_hashset(read_from_files);
+  initialize_hashset(written_to_files);
+  initialize_hashset(deleted_files);
+
+  pid_t firstborn = fork();
+  if (firstborn == -1) {
+  }
+  setpgid(firstborn, firstborn); // causes grandchildren to be killed along with firstborn
+
+  if (firstborn == 0) {
+    if (stdouterrfd > 0) {
+      close(1);
+      close(2);
+      dup(stdouterrfd);
+      dup(stdouterrfd);
+    }
+    if (workingdir && chdir(workingdir) != 0) return -1;
+    execvp(args[0], args);
+  }
+  *child_ptr = firstborn;
+
+  int status = 0;
+  waitpid(-firstborn, &status, 0);
+  if (WIFEXITED(status)) return -WEXITSTATUS(status);
+  return 1;
 }
  
 #endif

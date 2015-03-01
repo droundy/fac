@@ -28,6 +28,8 @@
 
 static listset *facfiles_used = 0;
 
+static void dump_to_stdout(int fd);
+
 bool is_interesting_path(struct rule *r, const char *path) {
   const int len = strlen(path);
   for (int i=0;i<r->num_cache_prefixes;i++) {
@@ -519,21 +521,7 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
             fflush(stdout);
           }
           if (bs[i]->all_done != built || show_output) {
-#ifdef __linux__
-            off_t stdoutlen = lseek(bs[i]->stdouterrfd, 0, SEEK_END);
-            off_t myoffset = 0;
-            sendfile(1, bs[i]->stdouterrfd, &myoffset, stdoutlen);
-#else
-            lseek(bs[i]->stdouterrfd, 0, SEEK_SET);
-            size_t mysize = 0;
-            void *buf = malloc(4096);
-            while ((mysize = read(bs[i]->stdouterrfd, buf, 4096)) > 0) {
-              if (write(1, buf, mysize) != mysize) {
-                printf("\nerror: trouble writing to stdout!\n");
-              }
-            }
-            free(buf);
-#endif
+	    dump_to_stdout(bs[i]->stdouterrfd);
           }
           if (bs[i]->all_done != built && bs[i]->all_done != failed) {
             printf("INTERRUPTED!  bs[i]->all_done == %s\n",
@@ -545,6 +533,8 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
           if (bs[i]->all_done == failed) {
             rule_failed(all, bs[i]->rule);
             printf("build failed: %s\n", pretty_rule(bs[i]->rule));
+	    dump_to_stdout(bs[i]->stdouterrfd);
+	    close(bs[i]->stdouterrfd);
             free_hashset(&bs[i]->read);
             free_hashset(&bs[i]->readdir);
             free_hashset(&bs[i]->written);
@@ -553,7 +543,6 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
             bs[i] = 0;
             break;
           }
-          close(bs[i]->stdouterrfd);
 
           struct rule *r = bs[i]->rule;
           insert_to_listset(&facfiles_used, r->facfile_path);
@@ -600,6 +589,8 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
               printf("build failed to create: %s\n",
                      pretty_path(r->outputs[ii]->path));
               rule_failed(all, r);
+	      dump_to_stdout(bs[i]->stdouterrfd);
+	      close(bs[i]->stdouterrfd);
               free_hashset(&bs[i]->read);
               free_hashset(&bs[i]->readdir);
               free_hashset(&bs[i]->written);
@@ -687,6 +678,8 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
           }
           insert_to_listset(&facfiles_used, r->facfile_path);
 
+	  dump_to_stdout(bs[i]->stdouterrfd);
+          close(bs[i]->stdouterrfd);
           free_hashset(&bs[i]->read);
           free_hashset(&bs[i]->readdir);
           free_hashset(&bs[i]->written);
@@ -898,4 +891,22 @@ void do_actual_build(struct cmd_args *args) {
     /* enable following line to check for memory leaks */
     if (true) free_all_targets(&all);
   } while (!am_interrupted && args->continual);
+}
+
+static void dump_to_stdout(int fd) {
+#ifdef __linux__
+  off_t stdoutlen = lseek(fd, 0, SEEK_END);
+  off_t myoffset = 0;
+  sendfile(1, fd, &myoffset, stdoutlen);
+#else
+  lseek(fd, 0, SEEK_SET);
+  size_t mysize = 0;
+  void *buf = malloc(4096);
+  while ((mysize = read(fd, buf, 4096)) > 0) {
+    if (write(1, buf, mysize) != mysize) {
+      printf("\nerror: trouble writing to stdout!\n");
+    }
+  }
+  free(buf);
+#endif
 }

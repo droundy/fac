@@ -260,13 +260,13 @@ void read_fac_file(struct all_targets *all, const char *path) {
       case 'T':
         if (stat_last_file) {
           /* ignore errors in the done file: */
-          sscanf(one_line+2, "%ld", &stat_last_file->time);
+          sscanf(one_line+2, "%zd", &stat_last_file->time);
         }
         break;
       case 'S':
         if (stat_last_file) {
           /* ignore errors in the done file: */
-          sscanf(one_line+2, "%ld", &stat_last_file->size);
+          sscanf(one_line+2, "%zd", &stat_last_file->size);
         }
         break;
       case 'H':
@@ -325,8 +325,8 @@ void fprint_facfile(FILE *f, struct all_targets *tt, const char *bpath) {
       for (int i=0; i<r->num_outputs; i++) {
         fprintf(f, "> %s\n", r->outputs[i]->path);
         if (r->outputs[i]->stat.time) {
-          fprintf(f, "T %ld\n", r->outputs[i]->stat.time);
-          fprintf(f, "S %ld\n", r->outputs[i]->stat.size);
+          fprintf(f, "T %ld\n", (long)r->outputs[i]->stat.time);
+          fprintf(f, "S %ld\n", (long)r->outputs[i]->stat.size);
           sha1hash h = r->outputs[i]->stat.hash;
           if (h.abc.a || h.abc.b || h.abc.c) {
             fprintf(f, "H ");
@@ -338,8 +338,8 @@ void fprint_facfile(FILE *f, struct all_targets *tt, const char *bpath) {
       for (int i=0; i<r->num_inputs; i++) {
         fprintf(f, "< %s\n", r->inputs[i]->path);
         if (r->inputs[i]->stat.time) {
-          fprintf(f, "T %ld\n", r->inputs[i]->stat.time);
-          fprintf(f, "S %ld\n", r->inputs[i]->stat.size);
+          fprintf(f, "T %ld\n", (long)r->inputs[i]->stat.time);
+          fprintf(f, "S %ld\n", (long)r->inputs[i]->stat.size);
           sha1hash h = r->inputs[i]->stat.hash;
           if (h.abc.a || h.abc.b || h.abc.c) {
             fprintf(f, "H ");
