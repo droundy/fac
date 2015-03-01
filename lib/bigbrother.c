@@ -548,6 +548,10 @@ int bigbrother_process_hashset(const char *workingdir,
 #include <stdio.h>
 #include <errno.h>
 
+#include <sys/syscall.h>
+#include "syscalls-freebsd.h"
+int nsyscalls = sizeof(syscallnames)/sizeof(syscallnames[0]);
+
 int bigbrother_process_hashset(const char *workingdir,
                                pid_t *child_ptr,
                                int stdouterrfd,
@@ -592,15 +596,36 @@ int bigbrother_process_hashset(const char *workingdir,
 	 namebuf, (int)lseek(tracefd, 0, SEEK_END));
   /* unlink(namebuf); */
   free(namebuf);
-  /* lseek(tracefd, 0, SEEK_SET); */
-  /* size_t mysize = 0; */
-  /* void *buf = malloc(4096); */
-  /* while ((mysize = read(tracefd, buf, 4096)) > 0) { */
-  /*   if (write(1, buf, mysize) != mysize) { */
-  /*     printf("\nerror: trouble writing to stdout!\n"); */
-  /*   } */
-  /* } */
-  /* free(buf); */
+
+  lseek(tracefd, 0, SEEK_SET);
+  int size = 4096;
+  char *buf = malloc(size);
+  struct ktr_header kth;
+  while (read(tracefd, &kth, sizeof(struct ktr_header)) == sizeof(struct ktr_header)) {
+    if (kth.ktr_len+1 > size) {
+      buf = realloc(buf, kth.ktr_len+1);
+      size = kth.ktr_len+1;
+    }
+    if (read(tracefd, buf, kth.ktr_len) != kth.ktr_len) {
+      printf("error reading.\n");
+      break;
+    }
+    switch (kth.ktr_type) {
+    case KTR_SYSCALL:
+      {
+	struct ktr_syscall *sc = (struct ktr_syscall *)buf;
+	printf("CALL %s\n", syscallnames[sc->ktr_code]);
+      }
+      break;
+    case KTR_NAMEI:
+      buf[kth.ktr_len] = 0;
+      printf("NAMI %s\n", buf);
+      break;
+    default:
+      printf("WHATEVER\n");
+    }
+  }
+  free(buf);
 
   int status = 0;
   waitpid(-firstborn, &status, 0);
