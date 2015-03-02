@@ -416,6 +416,8 @@ static struct building *build_rule(struct all_targets *all,
       switch (rname[i]) {
       case '/':
       case ' ':
+      case '"':
+      case '\'':
         fname[start+i] = '_';
         break;
       default:
