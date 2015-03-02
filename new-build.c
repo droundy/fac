@@ -1,4 +1,5 @@
-#define _GNU_SOURCE
+#define _XOPEN_SOURCE 700
+#define __BSD_VISIBLE 1
 
 #include "fac.h"
 #include "new-build.h"
@@ -9,26 +10,25 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <sys/mman.h>
 #include <sys/wait.h>
-#include <sys/times.h>
 #include <sys/time.h>
+
+#ifdef __linux__
 #include <sys/sendfile.h>
-#include <sys/inotify.h>
+#endif
+
 #include <unistd.h>
 #include <fcntl.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <error.h>
 #include <errno.h>
 #include <string.h>
 #include <signal.h>
-#include <assert.h>
 
 #include <semaphore.h>
 #include <pthread.h>
 
 static listset *facfiles_used = 0;
+
+static void dump_to_stdout(int fd);
 
 bool is_interesting_path(struct rule *r, const char *path) {
   const int len = strlen(path);
@@ -325,12 +325,6 @@ void check_cleanliness(struct all_targets *all, struct rule *r) {
   }
 }
 
-#define USE_HASHSET 0
-
-// hashset took 3m12.758s, 3m13.063 on dependent-chain-1000
-
-// arrayset took 3m5.654, 2m57.855 on dependent-chain-1000
-
 struct building {
   int all_done;
   pid_t child_pid;
@@ -338,24 +332,17 @@ struct building {
   int stdouterrfd;
   double build_time;
   struct rule *rule;
-#if USE_HASHSET
   hashset readdir, read, written, deleted;
-#else
-  arrayset readdir, read, written, deleted;
-#endif
 };
 
 static void *run_bigbrother(void *ptr) {
   struct building *b = ptr;
 
   const char **args = malloc(4*sizeof(char *));
-#if USE_HASHSET
-#define initialize_arrayset initialize_hashset
-#endif
-  initialize_arrayset(&b->readdir);
-  initialize_arrayset(&b->read);
-  initialize_arrayset(&b->written);
-  initialize_arrayset(&b->deleted);
+  initialize_hashset(&b->readdir);
+  initialize_hashset(&b->read);
+  initialize_hashset(&b->written);
+  initialize_hashset(&b->deleted);
 
   args[0] = "/bin/sh";
   args[1] = "-c";
@@ -364,11 +351,7 @@ static void *run_bigbrother(void *ptr) {
 
   struct timeval started;
   gettimeofday(&started, 0);
-#if USE_HASHSET
   int ret = bigbrother_process_hashset(b->rule->working_directory,
-#else
-  int ret = bigbrother_process(b->rule->working_directory,
-#endif
                                &b->child_pid,
                                b->stdouterrfd,
                                (char **)args,
@@ -395,7 +378,6 @@ static struct building *build_rule(struct all_targets *all,
                                    struct rule *r,
                                    sem_t *slots_available,
                                    const char *log_directory) {
-  assert(r);
   struct building *b = malloc(sizeof(struct building));
   b->rule = r;
   b->slots_available = slots_available;
@@ -541,9 +523,7 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
             fflush(stdout);
           }
           if (bs[i]->all_done != built || show_output) {
-            off_t stdoutlen = lseek(bs[i]->stdouterrfd, 0, SEEK_END);
-            off_t myoffset = 0;
-            sendfile(1, bs[i]->stdouterrfd, &myoffset, stdoutlen);
+            dump_to_stdout(bs[i]->stdouterrfd);
           }
           if (bs[i]->all_done != built && bs[i]->all_done != failed) {
             printf("INTERRUPTED!  bs[i]->all_done == %s\n",
@@ -555,17 +535,16 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
           if (bs[i]->all_done == failed) {
             rule_failed(all, bs[i]->rule);
             printf("build failed: %s\n", pretty_rule(bs[i]->rule));
-#if USE_HASHSET
+            dump_to_stdout(bs[i]->stdouterrfd);
+            close(bs[i]->stdouterrfd);
             free_hashset(&bs[i]->read);
             free_hashset(&bs[i]->readdir);
             free_hashset(&bs[i]->written);
             free_hashset(&bs[i]->deleted);
-#endif
             free(bs[i]);
             bs[i] = 0;
             break;
           }
-          close(bs[i]->stdouterrfd);
 
           struct rule *r = bs[i]->rule;
           insert_to_listset(&facfiles_used, r->facfile_path);
@@ -594,13 +573,8 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
             } else {
               if (t->is_file && sha1_is_zero(t->stat.hash)) find_target_sha1(t);
               add_input(r, t);
-#if USE_HASHSET
               delete_from_hashset(&bs[i]->read, r->inputs[ii]->path);
               delete_from_hashset(&bs[i]->written, r->inputs[ii]->path);
-#else
-              delete_from_arrayset(&bs[i]->read, r->inputs[ii]->path);
-              delete_from_arrayset(&bs[i]->written, r->inputs[ii]->path);
-#endif
             }
           }
           /* Forget the non-explicit outputs, as we will re-add
@@ -617,12 +591,12 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
               printf("build failed to create: %s\n",
                      pretty_path(r->outputs[ii]->path));
               rule_failed(all, r);
-#if USE_HASHSET
+              dump_to_stdout(bs[i]->stdouterrfd);
+              close(bs[i]->stdouterrfd);
               free_hashset(&bs[i]->read);
               free_hashset(&bs[i]->readdir);
               free_hashset(&bs[i]->written);
               free_hashset(&bs[i]->deleted);
-#endif
               free(bs[i]);
               bs[i] = 0;
               break;
@@ -630,26 +604,16 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
               if (t->is_file) find_target_sha1(t);
               t->rule = r;
               add_output(r, t);
-#if USE_HASHSET
               delete_from_hashset(&bs[i]->read, r->outputs[ii]->path);
               delete_from_hashset(&bs[i]->written, r->outputs[ii]->path);
-#else
-              delete_from_arrayset(&bs[i]->read, r->outputs[ii]->path);
-              delete_from_arrayset(&bs[i]->written, r->outputs[ii]->path);
-#endif
             }
           }
           if (!bs[i]) break; // happens if we failed to create an output
 
-#if USE_HASHSET
           for (struct set_entry *e = (struct set_entry *)bs[i]->read.first;
                e; e = (struct set_entry *)e->e.next) {
             char *path = e->key;
             if (e->is_valid && is_interesting_path(r, path)) {
-#else
-          for (char *path = start_iterating(&bs[i]->read); path; path = iterate(&bs[i]->read)) {
-            if (is_interesting_path(r, path)) {
-#endif
               struct target *t = create_target_with_stat(all, path);
               if (!t || !t->is_file) {
                 /* Assume that the file was deleted, and there's no
@@ -667,36 +631,26 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
             }
           }
 
-#if USE_HASHSET
           for (struct set_entry *e = (struct set_entry *)bs[i]->readdir.first;
                e; e = (struct set_entry *)e->e.next) {
             char *path = e->key;
             if (e->is_valid && is_interesting_path(r, path)) {
-#else
-          for (char *path = start_iterating(&bs[i]->readdir); path; path = iterate(&bs[i]->readdir)) {
-            if (is_interesting_path(r, path)) {
-#endif
               struct target *t = create_target_with_stat(all, path);
-              if (!t || !t->is_dir) error(1, errno, "Unable to stat directory %s", path);
-
-              if (!t->rule && is_in_root(path) && !t->is_in_git) {
-                printf("error: directory %s should be in git for %s\n",
-                       pretty_path(t->path), pretty_rule(r));
-                rule_failed(all, r);
+              if (t && t->is_dir) {
+                if (!t->rule && is_in_root(path) && !t->is_in_git) {
+                  printf("error: directory %s should be in git for %s\n",
+                         pretty_path(t->path), pretty_rule(r));
+                  rule_failed(all, r);
+                }
+                add_input(r, t);
               }
-              add_input(r, t);
             }
           }
 
-#if USE_HASHSET
           for (struct set_entry *e = (struct set_entry *)bs[i]->written.first;
                e; e = (struct set_entry *)e->e.next) {
             char *path = e->key;
             if (e->is_valid && is_interesting_path(r, path)) {
-#else
-          for (char *path = start_iterating(&bs[i]->written); path; path = iterate(&bs[i]->written)) {
-            if (is_interesting_path(r, path)) {
-#endif
               struct target *t = lookup_target(all, path);
               if (t) {
                 t->stat.time = 0;
@@ -704,12 +658,16 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
               }
               t = create_target_with_stat(all, path);
               if (t && t->is_file) {
-                if (path == pretty_path(path))
-                  error(1,0,"Command created file outside source directory: %s\n| %s",
-                        path, r->command);
-                if (t->rule && t->rule != r)
-                  error(1,0,"Two rules generate same output: %s\n| %s\n| %s",
-                        pretty_path(path), r->command, t->rule->command);
+                if (path == pretty_path(path)) {
+                  printf("error: created file outside source directory: %s (%s)",
+                         path, pretty_rule(r));
+                  rule_failed(all, r);
+                }
+                if (t->rule && t->rule != r) {
+                  printf("error: two rules generate same output %s: %s and %s",
+                         pretty_path(path), r->command, t->rule->command);
+                  rule_failed(all, r);
+                }
                 t->rule = r;
                 find_target_sha1(t);
                 add_output(r, t);
@@ -722,12 +680,11 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
           }
           insert_to_listset(&facfiles_used, r->facfile_path);
 
-#if USE_HASHSET
+          close(bs[i]->stdouterrfd);
           free_hashset(&bs[i]->read);
           free_hashset(&bs[i]->readdir);
           free_hashset(&bs[i]->written);
           free_hashset(&bs[i]->deleted);
-#endif
           free(bs[i]);
           bs[i] = 0;
         }
@@ -766,7 +723,7 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
       for (int i=0;i<num_jobs;i++) {
         if (bs[i]) {
           kill(-bs[i]->child_pid, SIGKILL); /* kill with extreme prejudice */
-          munmap(bs[i], sizeof(struct building));
+          free(bs[i]);
           bs[i] = 0;
         }
       }
@@ -807,7 +764,7 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
   while (facfiles_used) {
     char *donefile = done_name(facfiles_used->path);
     FILE *f = fopen(donefile, "w");
-    if (!f) error(1,errno,"oopse");
+    if (!f) error(1,errno,"oopsies");
     fprint_facfile(f, all, facfiles_used->path);
     fclose(f);
     free(donefile);
@@ -935,4 +892,22 @@ void do_actual_build(struct cmd_args *args) {
     /* enable following line to check for memory leaks */
     if (true) free_all_targets(&all);
   } while (!am_interrupted && args->continual);
+}
+
+static void dump_to_stdout(int fd) {
+#ifdef __linux__
+  off_t stdoutlen = lseek(fd, 0, SEEK_END);
+  off_t myoffset = 0;
+  sendfile(1, fd, &myoffset, stdoutlen);
+#else
+  lseek(fd, 0, SEEK_SET);
+  size_t mysize = 0;
+  void *buf = malloc(4096);
+  while ((mysize = read(fd, buf, 4096)) > 0) {
+    if (write(1, buf, mysize) != mysize) {
+      printf("\nerror: trouble writing to stdout!\n");
+    }
+  }
+  free(buf);
+#endif
 }

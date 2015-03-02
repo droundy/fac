@@ -10,19 +10,23 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <errno.h>
-#include <error.h>
 
 char *go_to_git_top() {
   while (1) {
     char *dirname = getcwd(0,0);
 
-    if (strcmp(dirname, "/") == 0)
-      error(1, errno, "could not locate .git!");
+    if (strcmp(dirname, "/") == 0) {
+      fprintf(stderr, "error: could not locate .git!\n  %s", strerror(errno));
+      exit(1);
+    }
     if (!access(".git", R_OK | X_OK)) {
       return dirname;
     }
 
-    if (chdir("..")) error(1, errno, "unable to chdir(..) from %s", dirname);
+    if (chdir("..")) {
+      fprintf(stderr, "error: unable to chdir(..) from %s\n  %s", dirname, strerror(errno));
+      exit(1);
+    }
     free(dirname);
   }
 }

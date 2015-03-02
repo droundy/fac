@@ -10,34 +10,46 @@ int main(int argc, char **argv) {
     exit(1);
   }
 
-  arrayset *written_to_files = malloc(sizeof(arrayset));
-  arrayset *read_from_files = malloc(sizeof(arrayset));
-  arrayset *read_from_directories = malloc(sizeof(arrayset));
-  arrayset *deleted_files = malloc(sizeof(arrayset));
-  initialize_arrayset(written_to_files);
-  initialize_arrayset(read_from_files);
-  initialize_arrayset(read_from_directories);
-  initialize_arrayset(deleted_files);
+  hashset written_to_files;
+  hashset read_from_files;
+  hashset read_from_directories;
+  hashset deleted_files;
+  initialize_hashset(&written_to_files);
+  initialize_hashset(&read_from_files);
+  initialize_hashset(&read_from_directories);
+  initialize_hashset(&deleted_files);
 
   char **args = (char **)malloc(argc*sizeof(char*));
   memcpy(args, argv+1, (argc-1) * sizeof(char*));
   args[argc-1] = NULL;
   pid_t child_pid;
-  bigbrother_process(".", &child_pid, 0, args, read_from_directories,
-                     read_from_files, written_to_files, deleted_files);
+  bigbrother_process_hashset(".", &child_pid, 0, args, &read_from_directories,
+                             &read_from_files, &written_to_files, &deleted_files);
   free(args);
 
-  for (char *path = start_iterating(read_from_directories);path;path = iterate(read_from_directories))
+  for (struct set_entry *e = (struct set_entry *)read_from_directories.first;
+       e; e = (struct set_entry *)e->e.next) {
+    char *path = e->key;
     fprintf(stderr, "l: %s\n", path);
-  for (char *path = start_iterating(read_from_files);path;path = iterate(read_from_files))
+  }
+  for (struct set_entry *e = (struct set_entry *)read_from_files.first;
+       e; e = (struct set_entry *)e->e.next) {
+    char *path = e->key;
     fprintf(stderr, "r: %s\n", path);
-  for (char *path = start_iterating(written_to_files);path;path = iterate(written_to_files))
+  }
+  for (struct set_entry *e = (struct set_entry *)written_to_files.first;
+       e; e = (struct set_entry *)e->e.next) {
+    char *path = e->key;
     fprintf(stderr, "w: %s\n", path);
-  for (char *path = start_iterating(deleted_files);path;path = iterate(deleted_files))
+  }
+  for (struct set_entry *e = (struct set_entry *)deleted_files.first;
+       e; e = (struct set_entry *)e->e.next) {
+    char *path = e->key;
     fprintf(stderr, "d: %s\n", path);
-  free(read_from_directories);
-  free(read_from_files);
-  free(written_to_files);
-  free(deleted_files);
+  }
+  free_hashset(&read_from_directories);
+  free_hashset(&read_from_files);
+  free_hashset(&written_to_files);
+  free_hashset(&deleted_files);
   return 0;
 }

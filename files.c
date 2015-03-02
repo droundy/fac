@@ -5,7 +5,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <error.h>
 #include <errno.h>
 #include <string.h>
 #include <limits.h>
@@ -63,7 +62,11 @@ char *done_name(const char *facfilename) {
 
 void read_fac_file(struct all_targets *all, const char *path) {
   FILE *f = fopen(path, "r");
-  if (!f) error(1, errno, "Unable to open file %s", path);
+  if (!f) {
+    fprintf(stderr, "error: unable to open file %s\n  %s",
+            path, strerror(errno));
+    exit(1);
+  }
 
   char *rel_directory = strdup(path);
   for (int i=strlen(rel_directory)-1;i>=0;i--) {
@@ -163,8 +166,10 @@ void read_fac_file(struct all_targets *all, const char *path) {
       break;
     }
   }
-  if (!feof(f))
-    error(1, errno, "Error reading file %s", path);
+  if (!feof(f)) {
+    fprintf(stderr, "error: reading file %s\n  %s", path, strerror(errno));
+    exit(1);
+  }
   fclose(f);
 
   char *donename = done_name(path);
@@ -180,9 +185,10 @@ void read_fac_file(struct all_targets *all, const char *path) {
       if (line_length < 2) continue;
       if (one_line[0] == '#') continue; /* it is a comment! */
 
-      if (one_line[1] != ' ')
-        error_at_line(1, 0, donename, linenum,
-                    "Second character of line should be a space");
+      /* in case of error in the done file, just ignore the rest of
+         it. */
+      if (one_line[1] != ' ') break;
+
       switch (one_line[0]) {
       case '|':
         therule = lookup_rule(all, one_line+2, the_directory);
@@ -253,14 +259,14 @@ void read_fac_file(struct all_targets *all, const char *path) {
         break;
       case 'T':
         if (stat_last_file) {
-          if (sscanf(one_line+2, "%ld", &stat_last_file->time) != 1)
-            error_at_line(1, 0, pretty_path(path), linenum, "Error parsing %s", one_line);
+          /* ignore errors in the done file: */
+          stat_last_file->time = strtol(one_line+2, 0, 0);
         }
         break;
       case 'S':
         if (stat_last_file) {
-          if (sscanf(one_line+2, "%ld", &stat_last_file->size) != 1)
-            error_at_line(1, 0, pretty_path(path), linenum, "Error parsing %s", one_line);
+          /* ignore errors in the done file: */
+          stat_last_file->size = strtol(one_line+2, 0, 0);
         }
         break;
       case 'H':
@@ -271,8 +277,8 @@ void read_fac_file(struct all_targets *all, const char *path) {
       case 'B':
         if (therule) {
           all->estimated_times[therule->status] -= therule->build_time;
-          if (sscanf(one_line+2, "%lg", &therule->build_time) != 1)
-            error_at_line(1, 0, pretty_path(path), linenum, "Error parsing %s", one_line);
+          /* ignore errors in the done file: */
+          sscanf(one_line+2, "%lg", &therule->build_time);
           all->estimated_times[therule->status] += therule->build_time;
         }
         break;
@@ -294,8 +300,6 @@ void read_fac_file(struct all_targets *all, const char *path) {
         break;
       }
     }
-    if (!feof(f))
-      error(1, errno, "Error reading file %s", donename);
     fclose(f);
   }
 
@@ -321,8 +325,8 @@ void fprint_facfile(FILE *f, struct all_targets *tt, const char *bpath) {
       for (int i=0; i<r->num_outputs; i++) {
         fprintf(f, "> %s\n", r->outputs[i]->path);
         if (r->outputs[i]->stat.time) {
-          fprintf(f, "T %ld\n", r->outputs[i]->stat.time);
-          fprintf(f, "S %ld\n", r->outputs[i]->stat.size);
+          fprintf(f, "T %ld\n", (long)r->outputs[i]->stat.time);
+          fprintf(f, "S %ld\n", (long)r->outputs[i]->stat.size);
           sha1hash h = r->outputs[i]->stat.hash;
           if (h.abc.a || h.abc.b || h.abc.c) {
             fprintf(f, "H ");
@@ -334,8 +338,8 @@ void fprint_facfile(FILE *f, struct all_targets *tt, const char *bpath) {
       for (int i=0; i<r->num_inputs; i++) {
         fprintf(f, "< %s\n", r->inputs[i]->path);
         if (r->inputs[i]->stat.time) {
-          fprintf(f, "T %ld\n", r->inputs[i]->stat.time);
-          fprintf(f, "S %ld\n", r->inputs[i]->stat.size);
+          fprintf(f, "T %ld\n", (long)r->inputs[i]->stat.time);
+          fprintf(f, "S %ld\n", (long)r->inputs[i]->stat.size);
           sha1hash h = r->inputs[i]->stat.hash;
           if (h.abc.a || h.abc.b || h.abc.c) {
             fprintf(f, "H ");

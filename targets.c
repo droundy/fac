@@ -5,7 +5,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
-#include <error.h>
 
 void insert_target(struct all_targets *all, struct target *t);
 
@@ -92,8 +91,9 @@ void set_status(struct all_targets *all, struct rule *r, enum target_status stat
     all->num_with_status[r->status]--;
     all->estimated_times[r->status] -= r->build_time;
   } else if (status) {
-    error(1, 0, "%s was in no list at all but had status %s!",
-           pretty_rule(r), pretty_status(r->status));
+    fprintf(stderr, "%s was in no list at all but had status %s!",
+            pretty_rule(r), pretty_status(r->status));
+    exit(1);
   }
   if (r->status_next) {
     r->status_next->status_prev = r->status_prev;

@@ -83,8 +83,7 @@ linkflags32 = filter(None, linkflags32)
 
 sources = ['fac', 'files', 'targets', 'clean', 'new-build', 'git', 'environ']
 
-libsources = ['listset', 'iterablehash', 'arrayset', 'bigbrother', 'sha1',
-              'hashset']
+libsources = ['listset', 'iterablehash', 'bigbrother', 'sha1', 'hashset']
 
 for s in sources:
     print '| %s %s -c %s.c' % (cc, ' '.join(flags), s)
@@ -130,7 +129,7 @@ print '> lib/fileaccesses'
 print
 
 
-ctests = ['arrayset', 'hashset', 'listset', 'spinner', 'iterable_hash_test']
+ctests = ['hashset', 'listset', 'spinner', 'iterable_hash_test', 'assertion-fails']
 
 for test in ctests:
     print '| %s '%cc+' '.join(linkflags)+' -o tests/%s.test' % test, 'tests/%s.o' % test, string.join(['lib/%s.o' % s for s in libsources])

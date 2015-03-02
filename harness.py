@@ -14,6 +14,10 @@ if os.system('MINIMAL=1 ./fac --makefile Makefile --script build.sh fac'):
     print 'Build failed!'
     exit(1)
 
+if os.system('MINIMAL=1 CC=clang ./fac --script build-clang.sh fac'):
+    print 'Build failed!'
+    exit(1)
+
 if os.system('./fac'):
     print 'Build failed!'
     exit(1)
@@ -29,6 +33,8 @@ for sh in sorted(glob.glob('tests/*.sh')):
         print bcolors.OKGREEN+'PASS:', bcolors.ENDC+sh
         numpassed += 1
 for sh in sorted(glob.glob('tests/*.test')):
+    if sh in ['tests/assertion-fails.test', 'tests/assertion-fails-32.test']:
+        continue
     if os.system('%s > %s.log 2>&1' % (sh, sh)):
         print bcolors.FAIL+'FAIL:', bcolors.ENDC+sh
         numfailed += 1
