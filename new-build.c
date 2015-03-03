@@ -495,14 +495,20 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
           bs[i]->rule->build_time = bs[i]->build_time;
           all->estimated_times[bs[i]->rule->status] += bs[i]->rule->build_time;
           /* the blank spaces below clear out the progress message */
-          printf("                                                                   \r%d/%d [%.2fs]: %s\n",
-                 1 + all->num_with_status[failed] + all->num_with_status[built],
-                 all->num_with_status[failed] +
-                 all->num_with_status[built] +
-                 all->num_with_status[building] +
-                 all->num_with_status[dirty] +
-                 all->num_with_status[unready],
-                 bs[i]->build_time, bs[i]->rule->command);
+          const int num_built = 1 + all->num_with_status[failed] + all->num_with_status[built];
+          const int num_total = all->num_with_status[failed] + all->num_with_status[built] +
+            all->num_with_status[building] + all->num_with_status[dirty] +
+            all->num_with_status[unready];
+          if (bs[i]->build_time < 10) {
+            printf("                                                                   \r%d/%d [%.2fs]: %s\n",
+                   num_built, num_total, bs[i]->build_time, bs[i]->rule->command);
+          } else if (bs[i]->build_time < 100) {
+            printf("                                                                   \r%d/%d [%.1fs]: %s\n",
+                   num_built, num_total, bs[i]->build_time, bs[i]->rule->command);
+          } else {
+            printf("                                                                   \r%d/%d [%.0fs]: %s\n",
+                   num_built, num_total, bs[i]->build_time, bs[i]->rule->command);
+          }
           double estimated_time = (all->estimated_times[building] +
                                    all->estimated_times[dirty] +
                                    all->estimated_times[unready])/num_jobs;
