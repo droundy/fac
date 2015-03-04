@@ -193,7 +193,7 @@ static char *read_a_path_at(pid_t child, int dirfd, unsigned long addr) {
   return abspath;
 }
 
-pid_t wait_for_syscall(int firstborn) {
+static pid_t wait_for_syscall(int firstborn) {
   pid_t child = 0;
   int status = 0;
   while (1) {
@@ -572,7 +572,7 @@ int bigbrother_process(const char *workingdir,
 
 #include <sys/syscall.h>
 #include "syscalls-freebsd.h"
-int nsyscalls = sizeof(syscalls)/sizeof(syscalls[0]);
+int nsyscalls = sizeof(syscallnames)/sizeof(syscallnames[0]);
 
 int bigbrother_process(const char *workingdir,
                        pid_t *child_ptr,
@@ -636,7 +636,7 @@ int bigbrother_process(const char *workingdir,
     case KTR_SYSCALL:
       {
 	struct ktr_syscall *sc = (struct ktr_syscall *)buf;
-	printf("CALL %s\n", syscalls[sc->ktr_code]);
+	printf("CALL %s\n", syscallnames[sc->ktr_code]);
       }
       break;
     case KTR_NAMEI:

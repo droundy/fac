@@ -251,8 +251,14 @@ void check_cleanliness(struct all_targets *all, struct rule *r) {
   }
   for (int i=0;i<r->num_inputs;i++) {
     if (!r->inputs[i]->is_in_git && !r->inputs[i]->rule && is_in_root(r->inputs[i]->path)) {
-      set_status(all, r, unready);
-      return;
+      if (i < r->num_explicit_inputs) {
+        set_status(all, r, unready);
+        return;
+      } else {
+        rebuild_excuse(r, "input %s does not exist", pretty_path(r->inputs[i]->path));
+        rule_is_ready(all, r);
+        return;
+      }
     }
     if (is_dirty) continue; // no need to do the rest now
     if (r->inputs[i]->rule && r->inputs[i]->rule->status == built) {
@@ -351,7 +357,7 @@ static void *run_bigbrother(void *ptr) {
 
   struct timeval started;
   gettimeofday(&started, 0);
-  int ret = bigbrother_process_hashset(b->rule->working_directory,
+  int ret = bigbrother_process(b->rule->working_directory,
                                &b->child_pid,
                                b->stdouterrfd,
                                (char **)args,
@@ -398,6 +404,8 @@ static struct building *build_rule(struct all_targets *all,
       switch (rname[i]) {
       case '/':
       case ' ':
+      case '"':
+      case '\'':
         fname[start+i] = '_';
         break;
       default:
@@ -495,14 +503,20 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
           bs[i]->rule->build_time = bs[i]->build_time;
           all->estimated_times[bs[i]->rule->status] += bs[i]->rule->build_time;
           /* the blank spaces below clear out the progress message */
-          printf("                                                                   \r%d/%d [%.2fs]: %s\n",
-                 1 + all->num_with_status[failed] + all->num_with_status[built],
-                 all->num_with_status[failed] +
-                 all->num_with_status[built] +
-                 all->num_with_status[building] +
-                 all->num_with_status[dirty] +
-                 all->num_with_status[unready],
-                 bs[i]->build_time, bs[i]->rule->command);
+          const int num_built = 1 + all->num_with_status[failed] + all->num_with_status[built];
+          const int num_total = all->num_with_status[failed] + all->num_with_status[built] +
+            all->num_with_status[building] + all->num_with_status[dirty] +
+            all->num_with_status[unready];
+          if (bs[i]->build_time < 10) {
+            printf("                                                                   \r%d/%d [%.2fs]: %s\n",
+                   num_built, num_total, bs[i]->build_time, bs[i]->rule->command);
+          } else if (bs[i]->build_time < 100) {
+            printf("                                                                   \r%d/%d [%.1fs]: %s\n",
+                   num_built, num_total, bs[i]->build_time, bs[i]->rule->command);
+          } else {
+            printf("                                                                   \r%d/%d [%.0fs]: %s\n",
+                   num_built, num_total, bs[i]->build_time, bs[i]->rule->command);
+          }
           double estimated_time = (all->estimated_times[building] +
                                    all->estimated_times[dirty] +
                                    all->estimated_times[unready])/num_jobs;
@@ -521,7 +535,7 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
             fflush(stdout);
           }
           if (bs[i]->all_done != built || show_output) {
-	    dump_to_stdout(bs[i]->stdouterrfd);
+            dump_to_stdout(bs[i]->stdouterrfd);
           }
           if (bs[i]->all_done != built && bs[i]->all_done != failed) {
             printf("INTERRUPTED!  bs[i]->all_done == %s\n",
@@ -533,8 +547,8 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
           if (bs[i]->all_done == failed) {
             rule_failed(all, bs[i]->rule);
             printf("build failed: %s\n", pretty_rule(bs[i]->rule));
-	    dump_to_stdout(bs[i]->stdouterrfd);
-	    close(bs[i]->stdouterrfd);
+            dump_to_stdout(bs[i]->stdouterrfd);
+            close(bs[i]->stdouterrfd);
             free_hashset(&bs[i]->read);
             free_hashset(&bs[i]->readdir);
             free_hashset(&bs[i]->written);
@@ -589,8 +603,8 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
               printf("build failed to create: %s\n",
                      pretty_path(r->outputs[ii]->path));
               rule_failed(all, r);
-	      dump_to_stdout(bs[i]->stdouterrfd);
-	      close(bs[i]->stdouterrfd);
+              dump_to_stdout(bs[i]->stdouterrfd);
+              close(bs[i]->stdouterrfd);
               free_hashset(&bs[i]->read);
               free_hashset(&bs[i]->readdir);
               free_hashset(&bs[i]->written);
@@ -678,7 +692,6 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
           }
           insert_to_listset(&facfiles_used, r->facfile_path);
 
-	  dump_to_stdout(bs[i]->stdouterrfd);
           close(bs[i]->stdouterrfd);
           free_hashset(&bs[i]->read);
           free_hashset(&bs[i]->readdir);

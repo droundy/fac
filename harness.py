@@ -1,6 +1,9 @@
 #!/usr/bin/python2
 
-import glob, os
+import glob, os, subprocess
+
+def system(cmd):
+    return subprocess.call(cmd, shell=True)
 
 class bcolors:
     HEADER = '\033[95m'
@@ -10,15 +13,15 @@ class bcolors:
     FAIL = '\033[91m'
     ENDC = '\033[0m'
 
-if os.system('MINIMAL=1 ./fac --makefile Makefile --script build.sh fac'):
+if system('MINIMAL=1 ./fac --makefile Makefile --script build.sh fac'):
     print 'Build failed!'
     exit(1)
 
-if os.system('MINIMAL=1 CC=clang ./fac --script build-clang.sh fac'):
+if system('MINIMAL=1 CC=clang ./fac --script build-clang.sh fac'):
     print 'Build failed!'
     exit(1)
 
-if os.system('./fac'):
+if system('./fac'):
     print 'Build failed!'
     exit(1)
 
@@ -26,14 +29,16 @@ numpassed = 0
 numfailed = 0
 
 for sh in sorted(glob.glob('tests/*.sh')):
-    if os.system('bash %s > %s.log 2>&1' % (sh, sh)):
+    if system('bash %s > %s.log 2>&1' % (sh, sh)):
         print bcolors.FAIL+'FAIL:', bcolors.ENDC+sh
         numfailed += 1
     else:
         print bcolors.OKGREEN+'PASS:', bcolors.ENDC+sh
         numpassed += 1
 for sh in sorted(glob.glob('tests/*.test')):
-    if os.system('%s > %s.log 2>&1' % (sh, sh)):
+    if sh in ['tests/assertion-fails.test', 'tests/assertion-fails-32.test']:
+        continue
+    if system('%s > %s.log 2>&1' % (sh, sh)):
         print bcolors.FAIL+'FAIL:', bcolors.ENDC+sh
         numfailed += 1
     else:
@@ -44,14 +49,14 @@ expectedfailures = 0
 unexpectedpasses = 0
 
 for sh in sorted(glob.glob('bugs/*.sh')):
-    if os.system('bash %s > %s.log 2>&1' % (sh, sh)):
+    if system('bash %s > %s.log 2>&1' % (sh, sh)):
         print bcolors.OKGREEN+'fail:', bcolors.ENDC+sh
         expectedfailures += 1
     else:
         print bcolors.FAIL+'pass:', bcolors.ENDC, sh
         unexpectedpasses += 1
 for sh in sorted(glob.glob('bugs/*.test')):
-    if os.system('bash %s > %s.log 2>&1' % (sh, sh)):
+    if system('bash %s > %s.log 2>&1' % (sh, sh)):
         print bcolors.OKGREEN+'fail:', bcolors.ENDC+sh
         expectedfailures += 1
     else:

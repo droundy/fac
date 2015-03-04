@@ -83,7 +83,7 @@ linkflags32 = filter(None, linkflags32)
 
 sources = ['fac', 'files', 'targets', 'clean', 'new-build', 'git', 'environ']
 
-libsources = ['listset', 'iterablehash', 'bigbrother', 'sha1', 'hashset']
+libsources = ['listset', 'iterablehash', 'sha1', 'hashset', 'posixmodel']
 
 for s in sources:
     print '| %s %s -c %s.c' % (cc, ' '.join(flags), s)
@@ -94,13 +94,13 @@ for s in sources:
         print '> %s-32.o' % s
         print
 
-for s in libsources + ['fileaccesses']:
+for s in libsources + ['bigbrother', 'bigbrotheralt', 'fileaccesses']:
     print '| cd lib && %s %s -c %s.c' % (cc, ' '.join(flags), s)
     print '> lib/%s.o' % s
-    if s in ['bigbrother']:
+    if s in ['bigbrother', 'bigbrotheralt']:
         print '< lib/syscalls.h'
     print
-    if s in ['bigbrother', 'fileaccesses']:
+    if s in ['fileaccesses', 'fileaccessesalt']:
         continue
     if compile32:
         print '| cd lib && %s %s -o %s-32.o -c %s.c' % (cc, ' '.join(flags32), s, s)
@@ -114,22 +114,36 @@ if os.path.exists("/usr/src/linux-headers-3.2.0-4-common") and os.getenv('MINIMA
 > lib/syscalls.h
 """
 
-print '| %s '%cc+' '.join(linkflags)+' -o fac', string.join(['%s.o' % s for s in sources] + ['lib/%s.o' % s for s in libsources])
+print '| %s '%cc+' '.join(linkflags)+' -o fac', string.join(['%s.o' % s for s in sources] + ['lib/%s.o' % s for s in libsources+['bigbrother']])
 for s in sources:
     print '< %s.o' % s
-for s in libsources:
+for s in libsources+['bigbrother']:
     print '< lib/%s.o' % s
 print '> fac'
 print
 
-print '| cd lib && %s '%cc+' '.join(linkflags)+' -o fileaccesses fileaccesses.o', string.join(['%s.o' % s for s in libsources])
-for s in libsources + ['fileaccesses']:
+print '| %s '%cc+' '.join(linkflags)+' -o altfac', string.join(['%s.o' % s for s in sources] + ['lib/%s.o' % s for s in libsources+['bigbrotheralt']])
+for s in sources:
+    print '< %s.o' % s
+for s in libsources+['bigbrotheralt']:
+    print '< lib/%s.o' % s
+print '> altfac'
+print
+
+print '| cd lib && %s '%cc+' '.join(linkflags)+' -o fileaccesses fileaccesses.o', string.join(['%s.o' % s for s in libsources+['bigbrother']])
+for s in libsources + ['fileaccesses', 'bigbrother']:
     print '< lib/%s.o' % s
 print '> lib/fileaccesses'
 print
 
+print '| cd lib && %s '%cc+' '.join(linkflags)+' -o fileaccessesalt fileaccesses.o', string.join(['%s.o' % s for s in libsources+['bigbrotheralt']])
+for s in libsources + ['fileaccesses', 'bigbrotheralt']:
+    print '< lib/%s.o' % s
+print '> lib/fileaccessesalt'
+print
 
-ctests = ['hashset', 'listset', 'spinner', 'iterable_hash_test']
+
+ctests = ['hashset', 'listset', 'spinner', 'iterable_hash_test', 'assertion-fails']
 
 for test in ctests:
     print '| %s '%cc+' '.join(linkflags)+' -o tests/%s.test' % test, 'tests/%s.o' % test, string.join(['lib/%s.o' % s for s in libsources])
@@ -144,8 +158,6 @@ for test in ctests:
     print
 
 if compile32:
-    libsources.remove('bigbrother') # it doesn't work yet with 32 bit
-
     for test in ctests:
         print '| %s '%cc+' '.join(linkflags32)+' -o tests/%s-32.test' % test, 'tests/%s-32.o' % test, string.join(['lib/%s-32.o' % s for s in libsources])
         print '> tests/%s-32.test' % test

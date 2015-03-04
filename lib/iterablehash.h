@@ -20,5 +20,6 @@ struct hash_entry * lookup_in_hash(struct hash_table *hash, const char *str);
 
 /* Add the entry to the hash */
 void add_to_hash(struct hash_table *hash, struct hash_entry *e);
+void remove_from_hash(struct hash_table *hash, struct hash_entry *e);
 
 #endif
