@@ -96,6 +96,10 @@ with the following options.
 
 ## To do list
 
+1. Ignore missing files if they aren't explicitly required.  This
+   should deal with the case where a dependency is removed (i.e. we no
+   longer depend on it) and the file itself is also removed.
+
 2. Use inotify to avoid rescanning the entire source tree.
 
 5. On BSD and Darwin systems, use ktrace rather than ptrace.
