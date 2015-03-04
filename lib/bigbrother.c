@@ -550,7 +550,7 @@ int bigbrother_process_hashset(const char *workingdir,
 
 #include <sys/syscall.h>
 #include "syscalls-freebsd.h"
-int nsyscalls = sizeof(syscallnames)/sizeof(syscallnames[0]);
+int nsyscalls = sizeof(syscalls)/sizeof(syscalls[0]);
 
 int bigbrother_process_hashset(const char *workingdir,
                                pid_t *child_ptr,
@@ -614,7 +614,7 @@ int bigbrother_process_hashset(const char *workingdir,
     case KTR_SYSCALL:
       {
 	struct ktr_syscall *sc = (struct ktr_syscall *)buf;
-	printf("CALL %s\n", syscallnames[sc->ktr_code]);
+	printf("CALL %s\n", syscalls[sc->ktr_code]);
       }
       break;
     case KTR_NAMEI:
