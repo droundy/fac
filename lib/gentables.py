@@ -1,76 +1,67 @@
 #!/usr/bin/python2
 
-import sys, re, os
+import re, os
 
-if len(sys.argv) != 2:
-    print "usage: python %s /path/to/linux-headers > syscalls.h" % sys.argv[0]
-    sys.exit(1)
-
-linux_dir = sys.argv[1]
-
-re_syscall = re.compile(r'define __NR_(\S+)\s+([0-9]+)')
-
-def bool_table(name, syscalls):
+def bool_table(name, syscalls, sysnames, postfix):
     print """
 const int %s%s[] = {""" % (name, postfix)
 
-    for i in range(maxnum):
+    successive_borings = ''
+    for i in range(len(sysnames)-1):
         if sysnames[i] in syscalls:
-            print '  1,'
+            if len(successive_borings) > 0:
+                print ' %s\n  1, /* %s */' % (successive_borings,
+                                               sysnames[i])
+            else:
+                print '  1, /* %s */' % sysnames[i]
+            successive_borings = ''
         else:
-            print '  0,'
-
-    if sysnames[maxnum] in syscalls:
+            if len(successive_borings)/(1+successive_borings.count('\n')) > 75:
+                successive_borings += '\n  0,'
+            else:
+                successive_borings += ' 0,'
+    print successive_borings
+    if sysnames[-1] in syscalls:
         print '  1'
     else:
         print '  0'
     print "};\n"
 
 
-def argument_table(name, syscall_argument):
+def argument_table(name, syscall_argument, sysnames, postfix):
     print """
 const int %s%s[] = {""" % (name, postfix)
 
-    for i in range(maxnum):
+    successive_borings = ''
+    for i in range(len(sysnames)-1):
         if sysnames[i] in syscall_argument:
-            print '  %d,' % syscall_argument[sysnames[i]]
+            if len(successive_borings) > 0:
+                print ' %s\n  %d, /* %s */' % (successive_borings,
+                                                syscall_argument[sysnames[i]],
+                                                sysnames[i])
+            else:
+                print '  %d, /* %s */' % (syscall_argument[sysnames[i]],
+                                           sysnames[i])
+            successive_borings = ''
         else:
-            print '  -1,'
-
-    if sysnames[maxnum] in syscall_argument:
-        print '  %d' % syscall_argument[sysnames[maxnum]]
+            if len(successive_borings)/(1+successive_borings.count('\n')) > 75:
+                successive_borings += '\n  -1,'
+            else:
+                successive_borings += ' -1,'
+    print successive_borings
+    if sysnames[-1] in syscall_argument:
+        print '  %d' % syscall_argument[sysnames[-1]]
     else:
         print '  -1'
     print "};\n"
 
-for postfix in ['_32', '_64']:
-    if os.uname()[4] == 'x86_64':
-        unistd_h = "/arch/x86/include/asm/unistd%s.h" % postfix
-    else:
-        unistd_h = "/arch/x86/include/asm/unistd_32.h"
-
-    with open(linux_dir+unistd_h, 'r') as unistd_file:
-        unistd = unistd_file.read()
-
-    sysnames = {}
-    sysnums = {}
-    maxnum = 0
-    for (syscall, num) in re_syscall.findall(unistd):
-        num = int(num)
-        sysnames[num] = syscall
-        sysnames[syscall] = num
-        maxnum = max(maxnum, num)
-
+def tables(sysnames, postfix):
+    maxnum = len(sysnames)-1
     print """
 const char *syscalls%s[] = {""" % postfix
-
-    for i in range(maxnum):
-        if i not in sysnames:
-            sysnames[i] = 'unused'
-    for i in range(maxnum):
-        print '  "%s",' % sysnames[i]
-
-    print '  "%s"' % sysnames[maxnum]
+    for i in range(len(sysnames)-1):
+        print '  /*%4d */ "%s",' % (i, sysnames[i])
+    print '  "%s"' % sysnames[-1]
     print "};\n"
 
     argument_table('fd_argument', { 'read': 0,
@@ -96,14 +87,16 @@ const char *syscalls%s[] = {""" % postfix
                                     'fstatfs': 0,
                                     'fadvise64': 0,
                                     'fallocate': 0,
-                                    })
+                                    },
+                   sysnames, postfix)
 
 
     bool_table('fd_return', ['open',
                              'creat',
                              'openat',
                              'open_by_handle_at',
-                             ])
+                             ],
+               sysnames, postfix)
 
     argument_table('string_argument', { 'open': 0,
                                         'stat': 0,
@@ -113,16 +106,8 @@ const char *syscalls%s[] = {""" % postfix
                                         'execve': 0,
                                         'access': 0,
                                         'rename': 1, # also 0
-                                        })
-
-    bool_table('is_wait_or_exit', ['wait4',
-                                   'waitid',
-                                   'epoll_pwait',
-                                   'epoll_wait',
-                                   'futex',
-                                   'select',
-                                   'exit',
-                                   'exit_group'])
+                                        },
+                   sysnames, postfix)
 
     argument_table('write_fd', {'write': 0,
                                 'writev': 0,
@@ -130,10 +115,12 @@ const char *syscalls%s[] = {""" % postfix
                                 'pwrite64': 0,
                                 'sendfile': 0,
                                 'ftruncate': 0,
-                                'fallocate': 0})
+                                'fallocate': 0},
+                   sysnames, postfix)
 
     argument_table('write_string', {'rename': 1,
-                                    'truncate': 0})
+                                    'truncate': 0},
+                   sysnames, postfix)
 
     argument_table('read_fd', {'read': 0,
                                'readv': 0,
@@ -142,7 +129,8 @@ const char *syscalls%s[] = {""" % postfix
                                'fstat': 0,
                                'fstat64': 0,
                                'mmap': 0,
-                               'sendfile': 1})
+                               'sendfile': 1},
+                   sysnames, postfix)
 
     argument_table('read_string', {'rename': 1,
                                    'stat': 0,
@@ -150,15 +138,20 @@ const char *syscalls%s[] = {""" % postfix
                                    'stat64': 0,
                                    'lstat64': 0,
                                    'execve': 0,
-                                   'truncate': 0})
+                                   'truncate': 0},
+                   sysnames, postfix)
 
     argument_table('unlink_string', {'unlink': 0,
                                      'rmdir': 0,
-                                     'rename': 0})
+                                     'rename': 0},
+                   sysnames, postfix)
 
     argument_table('unlinkat_string', {'unlinkat': 0,
-                                       'renameat': 0})
-    argument_table('renameat_string', {'renameat': 2})
+                                       'renameat': 0},
+                   sysnames, postfix)
+    argument_table('renameat_string', {'renameat': 2},
+                   sysnames, postfix)
 
     argument_table('readdir_fd', {'getdents': 0,
-                                  'getdents64': 0})
+                                  'getdents64': 0},
+                   sysnames, postfix)

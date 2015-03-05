@@ -98,7 +98,7 @@ for s in libsources + ['bigbrother', 'bigbrotheralt', 'fileaccesses']:
     print '| cd lib && %s %s -c %s.c' % (cc, ' '.join(flags), s)
     print '> lib/%s.o' % s
     if s in ['bigbrother', 'bigbrotheralt']:
-        print '< lib/syscalls.h'
+        print '< lib/linux-syscalls.h'
     print
     if s in ['fileaccesses', 'fileaccessesalt']:
         continue
@@ -106,13 +106,6 @@ for s in libsources + ['bigbrother', 'bigbrotheralt', 'fileaccesses']:
         print '| cd lib && %s %s -o %s-32.o -c %s.c' % (cc, ' '.join(flags32), s, s)
         print '> lib/%s-32.o' % s
         print
-
-
-if os.path.exists("/usr/src/linux-headers-3.2.0-4-common") and os.getenv('MINIMAL','') == '':
-    print """
-| python2 lib/get_syscalls.py /usr/src/linux-headers-3.2.0-4-common > lib/syscalls.h
-> lib/syscalls.h
-"""
 
 print '| %s '%cc+' '.join(linkflags)+' -o fac', string.join(['%s.o' % s for s in sources] + ['lib/%s.o' % s for s in libsources+['bigbrother']])
 for s in sources:
