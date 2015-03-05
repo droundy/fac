@@ -575,7 +575,7 @@ int bigbrother_process(const char *workingdir,
 
 #include <stdint.h>
 
-#include "linux-syscalls.h"
+#include "freebsd-syscalls.h"
 
 static const int debug_output = 1;
 
@@ -747,116 +747,116 @@ static int save_syscall_access(pid_t child,
   }
 
   syscall = regs.r_rax;
-  debugprintf("%s() 32 = %d\n", syscalls_32[syscall], syscall);
+  debugprintf("%s() 32 = %d\n", syscalls_freebsd[syscall], syscall);
 
-  if (write_fd_32[syscall] >= 0) {
-    int fd = get_syscall_arg(&regs, write_fd_32[syscall]);
+  if (write_fd_freebsd[syscall] >= 0) {
+    int fd = get_syscall_arg(&regs, write_fd_freebsd[syscall]);
     if (fd >= 0) {
       char *filename = (char *)malloc(PATH_MAX);
       identify_fd(filename, child, fd);
       if (interesting_path(filename)) {
-        debugprintf("W: %s(%s)\n", syscalls_32[syscall], filename);
+        debugprintf("W: %s(%s)\n", syscalls_freebsd[syscall], filename);
         insert_to_hashset(written_to_files, filename);
         delete_from_hashset(read_from_files, filename);
         delete_from_hashset(deleted_files, filename);
       } else {
-        debugprintf("W~ %s(%s)\n", syscalls_32[syscall], filename);
+        debugprintf("W~ %s(%s)\n", syscalls_freebsd[syscall], filename);
       }
       free(filename);
     }
   }
-  if (read_fd_32[syscall] >= 0) {
-    int fd = get_syscall_arg(&regs, read_fd_32[syscall]);
+  if (read_fd_freebsd[syscall] >= 0) {
+    int fd = get_syscall_arg(&regs, read_fd_freebsd[syscall]);
     if (fd >= 0) {
       char *filename = (char *)malloc(PATH_MAX);
       identify_fd(filename, child, fd);
       if (interesting_path(filename) &&
           !is_in_hashset(written_to_files, filename)) {
-        debugprintf("R: %s(%s)\n", syscalls_32[syscall], filename);
+        debugprintf("R: %s(%s)\n", syscalls_freebsd[syscall], filename);
         insert_to_hashset(read_from_files, filename);
       } else {
-        debugprintf("R~ %s(%s)\n", syscalls_32[syscall], filename);
+        debugprintf("R~ %s(%s)\n", syscalls_freebsd[syscall], filename);
       }
       free(filename);
     }
   }
-  if (readdir_fd_32[syscall] >= 0) {
-    int fd = get_syscall_arg(&regs, readdir_fd_32[syscall]);
+  if (readdir_fd_freebsd[syscall] >= 0) {
+    int fd = get_syscall_arg(&regs, readdir_fd_freebsd[syscall]);
     debugprintf("!!!!!!!!! Got readdir with fd %d\n", fd);
     if (fd >= 0) {
       char *filename = (char *)malloc(PATH_MAX);
       identify_fd(filename, child, fd);
       if (interesting_path(filename)) {
-        debugprintf("readdir: %s(%s)\n", syscalls_32[syscall], filename);
+        debugprintf("readdir: %s(%s)\n", syscalls_freebsd[syscall], filename);
         insert_to_hashset(read_from_directories, filename);
       } else {
-        debugprintf("readdir~ %s(%s)\n", syscalls_32[syscall], filename);
+        debugprintf("readdir~ %s(%s)\n", syscalls_freebsd[syscall], filename);
       }
       free(filename);
     }
   }
-  if (read_string_32[syscall] >= 0) {
-    char *arg = read_a_path(child, get_syscall_arg(&regs, read_string_32[syscall]));
+  if (read_string_freebsd[syscall] >= 0) {
+    char *arg = read_a_path(child, get_syscall_arg(&regs, read_string_freebsd[syscall]));
     if (interesting_path(arg) && !access(arg, R_OK) &&
         !is_in_hashset(written_to_files, arg)) {
-      debugprintf("R: %s(%s)\n", syscalls_32[syscall], arg);
+      debugprintf("R: %s(%s)\n", syscalls_freebsd[syscall], arg);
       insert_to_hashset(read_from_files, arg);
     } else {
-      debugprintf("R~ %s(%s)\n", syscalls_32[syscall], arg);
+      debugprintf("R~ %s(%s)\n", syscalls_freebsd[syscall], arg);
     }
     free(arg);
   }
-  if (write_string_32[syscall] >= 0) {
-    char *arg = read_a_path(child, get_syscall_arg(&regs, write_string_32[syscall]));
+  if (write_string_freebsd[syscall] >= 0) {
+    char *arg = read_a_path(child, get_syscall_arg(&regs, write_string_freebsd[syscall]));
     if (interesting_path(arg) && !access(arg, W_OK)) {
-      debugprintf("W: %s(%s)\n", syscalls_32[syscall], arg);
+      debugprintf("W: %s(%s)\n", syscalls_freebsd[syscall], arg);
       insert_to_hashset(written_to_files, arg);
       delete_from_hashset(deleted_files, arg);
       delete_from_hashset(read_from_files, arg);
     } else {
-      debugprintf("W~ %s(%s)\n", syscalls_32[syscall], arg);
+      debugprintf("W~ %s(%s)\n", syscalls_freebsd[syscall], arg);
     }
     free(arg);
   }
-  if (unlink_string_32[syscall] >= 0) {
-    char *arg = read_a_path(child, get_syscall_arg(&regs, unlink_string_32[syscall]));
+  if (unlink_string_freebsd[syscall] >= 0) {
+    char *arg = read_a_path(child, get_syscall_arg(&regs, unlink_string_freebsd[syscall]));
     if (interesting_path(arg) && !access(arg, W_OK)) {
-      debugprintf("D: %s(%s)\n", syscalls_32[syscall], arg);
+      debugprintf("D: %s(%s)\n", syscalls_freebsd[syscall], arg);
       insert_to_hashset(deleted_files, arg);
       delete_from_hashset(written_to_files, arg);
       delete_from_hashset(read_from_files, arg);
       delete_from_hashset(read_from_directories, arg);
     } else {
-      debugprintf("D~ %s(%s)\n", syscalls_32[syscall], arg);
+      debugprintf("D~ %s(%s)\n", syscalls_freebsd[syscall], arg);
     }
     free(arg);
   }
-  if (unlinkat_string_32[syscall] >= 0) {
+  if (unlinkat_string_freebsd[syscall] >= 0) {
     char *arg = read_a_path_at(child,
                                get_syscall_arg(&regs, 0) /* dirfd */,
                                get_syscall_arg(&regs, 1) /* path */);
     if (interesting_path(arg) && !access(arg, W_OK)) {
-      debugprintf("D: %s(%s)\n", syscalls_32[syscall], arg);
+      debugprintf("D: %s(%s)\n", syscalls_freebsd[syscall], arg);
       insert_to_hashset(deleted_files, arg);
       delete_from_hashset(written_to_files, arg);
       delete_from_hashset(read_from_files, arg);
       delete_from_hashset(read_from_directories, arg);
     } else {
-      debugprintf("D~ %s(%s)\n", syscalls_32[syscall], arg);
+      debugprintf("D~ %s(%s)\n", syscalls_freebsd[syscall], arg);
     }
     free(arg);
   }
-  if (renameat_string_32[syscall] >= 0) {
+  if (renameat_string_freebsd[syscall] >= 0) {
     char *arg = read_a_path_at(child,
                                get_syscall_arg(&regs, 2) /* dirfd */,
                                get_syscall_arg(&regs, 3) /* path */);
     if (interesting_path(arg) && !access(arg, W_OK)) {
-      debugprintf("W: %s(%s)\n", syscalls_32[syscall], arg);
+      debugprintf("W: %s(%s)\n", syscalls_freebsd[syscall], arg);
       insert_to_hashset(written_to_files, arg);
       delete_from_hashset(deleted_files, arg);
       delete_from_hashset(read_from_files, arg);
     } else {
-      debugprintf("W~ %s(%s)\n", syscalls_32[syscall], arg);
+      debugprintf("W~ %s(%s)\n", syscalls_freebsd[syscall], arg);
     }
     free(arg);
   }
