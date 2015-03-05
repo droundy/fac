@@ -16,6 +16,7 @@ static inline void error(int retval, int errno, const char *format, ...) {
   fprintf(stderr, "error: ");
   vfprintf(stderr, format, args);
   if (errno) fprintf(stderr, "\n  %s\n", strerror(errno));
+  else fprintf(stderr, "\n");
   va_end(args);
   exit(retval);
 }
@@ -576,7 +577,7 @@ int bigbrother_process(const char *workingdir,
 
 #include "syscalls.h"
 
-static const int debug_output = 0;
+static const int debug_output = 1;
 
 static inline void debugprintf(const char *format, ...) {
   va_list args;
@@ -694,8 +695,11 @@ pid_t wait_for_syscall(int firstborn) {
   while (1) {
     long signal_to_send_back = 0;
     child = waitpid(-firstborn, &status, 0);
+    debugprintf("just waited and got child %d with status %d\n",
+		child, status);
     if (child == -1) error(1, errno, "trouble waiting");
     if (WIFSTOPPED(status) && WSTOPSIG(status) & 0x80) {
+      debugprintf("we saw a syscall of some sort!\n");
       return child;
     } else if (WIFEXITED(status)) {
       debugprintf("process %d exited!\n", child);
@@ -721,7 +725,7 @@ pid_t wait_for_syscall(int firstborn) {
       debugprintf("unexpected something from process %d\n", child);
     }
     // tell the child to keep going!
-    if (ptrace(PT_TO_SCE, child, 0, (void *)signal_to_send_back) == -1) {
+    if (ptrace(PT_TO_SCE, child, (caddr_t)1, signal_to_send_back) == -1) {
       /* Assume child died and that we will get a WIFEXITED
          shortly. */
     }
@@ -733,6 +737,7 @@ static int save_syscall_access(pid_t child,
                                hashset *read_from_files,
                                hashset *written_to_files,
                                hashset *deleted_files) {
+  printf("starting save_syscall_access...\n");
   struct reg regs;
   int syscall;
 
@@ -867,41 +872,41 @@ int bigbrother_process(const char *workingdir,
                        hashset *read_from_files,
                        hashset *written_to_files,
                        hashset *deleted_files) {
+  printf("hello bigbrother_process!\n");
   initialize_hashset(read_from_directories);
   initialize_hashset(read_from_files);
   initialize_hashset(written_to_files);
   initialize_hashset(deleted_files);
 
-  pid_t firstborn = fork();
-  if (firstborn == -1) {
-  }
-  setpgid(firstborn, firstborn); // causes grandchildren to be killed along with firstborn
-
+  debugprintf("About to fork... %s\n", args[0]);
+  pid_t firstborn = vfork();
   if (firstborn == 0) {
-    if (stdouterrfd > 0) {
-      close(1);
-      close(2);
-      dup(stdouterrfd);
-      dup(stdouterrfd);
-    }
-    if (workingdir && chdir(workingdir) != 0) return -1;
     ptrace(PT_TRACE_ME, 0, 0, 0);
-    kill(getpid(), SIGSTOP);
-    return execvp(args[0], args);
+    execvp(args[0], args);
+    error(1, 0, "execvp failed: %s", args[0]);
   } else {
-    *child_ptr = firstborn;
-    waitpid(firstborn, 0, 0);
+    /* *child_ptr = firstborn; */
+    debugprintf("I have now forked...\n");
+    if (waitpid(firstborn, 0, 0) < 0) {
+      error(1, 0, "unespected bad wait for %d!!!\n", firstborn);
+    }
+    debugprintf("the process has now stopped!\n");
+    
     //ptrace(PTRACE_SETOPTIONS, firstborn, 0, my_ptrace_options);
-    if (ptrace(PT_TO_SCE, firstborn, 0, 0) == -1) {
+    if (ptrace(PT_TO_SCE, firstborn, (caddr_t)1, 0) == -1) {
       return -1;
     }
+    debugprintf("we have ptraced it a bit\n");
 
     while (1) {
+      debugprintf("about to wait for syscall from firstborn %d\n",
+		  firstborn);
       pid_t child = wait_for_syscall(firstborn);
       if (child <= 0) {
         debugprintf("Returning with exit value %d\n", -child);
         return -child;
       }
+      debugprintf("wait mentioned child %d\n", child);
 
       if (save_syscall_access(child, read_from_directories,
                               read_from_files, written_to_files,
@@ -912,7 +917,7 @@ int bigbrother_process(const char *workingdir,
         return -1;
       }
 
-      ptrace(PT_TO_SCE, child, 0, 0); // ignore return value
+      ptrace(PT_TO_SCE, child, (caddr_t)1, 0); // ignore return value
     }
   }
   return 0;
