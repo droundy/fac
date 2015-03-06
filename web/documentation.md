@@ -96,10 +96,6 @@ with the following options.
 
 ## To do list
 
-1. Ignore missing files if they aren't explicitly required.  This
-   should deal with the case where a dependency is removed (i.e. we no
-   longer depend on it) and the file itself is also removed.
-
 2. Handle nonexistent files as dependencies, if a process tried to
    open them or stat them.
 
