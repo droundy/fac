@@ -351,7 +351,7 @@ static void *run_bigbrother(void *ptr) {
 
   struct timeval started;
   gettimeofday(&started, 0);
-  int ret = bigbrother_process_hashset(b->rule->working_directory,
+  int ret = bigbrother_process(b->rule->working_directory,
                                &b->child_pid,
                                b->stdouterrfd,
                                (char **)args,

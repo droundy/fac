@@ -233,11 +233,11 @@ pid_t wait_for_syscall(int firstborn) {
   }
 }
 
-static int save_syscall_access_hashset(pid_t child,
-                                        hashset *read_from_directories,
-                                        hashset *read_from_files,
-                                        hashset *written_to_files,
-                                        hashset *deleted_files) {
+static int save_syscall_access(pid_t child,
+                               hashset *read_from_directories,
+                               hashset *read_from_files,
+                               hashset *written_to_files,
+                               hashset *deleted_files) {
   struct user_regs_struct regs;
   int syscall;
 
@@ -502,14 +502,14 @@ static int save_syscall_access_hashset(pid_t child,
 }
 
 
-int bigbrother_process_hashset(const char *workingdir,
-                               pid_t *child_ptr,
-                               int stdouterrfd,
-                               char **args,
-                               hashset *read_from_directories,
-                               hashset *read_from_files,
-                               hashset *written_to_files,
-                               hashset *deleted_files) {
+int bigbrother_process(const char *workingdir,
+                       pid_t *child_ptr,
+                       int stdouterrfd,
+                       char **args,
+                       hashset *read_from_directories,
+                       hashset *read_from_files,
+                       hashset *written_to_files,
+                       hashset *deleted_files) {
   initialize_hashset(read_from_directories);
   initialize_hashset(read_from_files);
   initialize_hashset(written_to_files);
@@ -546,9 +546,9 @@ int bigbrother_process_hashset(const char *workingdir,
         return -child;
       }
 
-      if (save_syscall_access_hashset(child, read_from_directories,
-                                       read_from_files, written_to_files,
-                                       deleted_files) == -1) {
+      if (save_syscall_access(child, read_from_directories,
+                              read_from_files, written_to_files,
+                              deleted_files) == -1) {
         /* We were unable to read the process's registers.  Assume
            that this is bad news, and that we should exit.  I'm not
            sure what else to do here. */
@@ -574,14 +574,14 @@ int bigbrother_process_hashset(const char *workingdir,
 #include "syscalls-freebsd.h"
 int nsyscalls = sizeof(syscallnames)/sizeof(syscallnames[0]);
 
-int bigbrother_process_hashset(const char *workingdir,
-                               pid_t *child_ptr,
-                               int stdouterrfd,
-                               char **args,
-                               hashset *read_from_directories,
-                               hashset *read_from_files,
-                               hashset *written_to_files,
-                               hashset *deleted_files) {
+int bigbrother_process(const char *workingdir,
+                       pid_t *child_ptr,
+                       int stdouterrfd,
+                       char **args,
+                       hashset *read_from_directories,
+                       hashset *read_from_files,
+                       hashset *written_to_files,
+                       hashset *deleted_files) {
   initialize_hashset(read_from_directories);
   initialize_hashset(read_from_files);
   initialize_hashset(written_to_files);

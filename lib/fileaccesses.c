@@ -23,8 +23,8 @@ int main(int argc, char **argv) {
   memcpy(args, argv+1, (argc-1) * sizeof(char*));
   args[argc-1] = NULL;
   pid_t child_pid;
-  bigbrother_process_hashset(".", &child_pid, 0, args, &read_from_directories,
-                             &read_from_files, &written_to_files, &deleted_files);
+  bigbrother_process(".", &child_pid, 0, args, &read_from_directories,
+                     &read_from_files, &written_to_files, &deleted_files);
   free(args);
 
   for (struct set_entry *e = (struct set_entry *)read_from_directories.first;
