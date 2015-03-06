@@ -20,11 +20,11 @@ set -ev
 
 (cd lib && clang -std=c99 -c iterablehash.c)
 
-(cd lib && clang -std=c99 -c bigbrother.c)
-
 (cd lib && clang -std=c99 -c sha1.c)
 
 (cd lib && clang -std=c99 -c hashset.c)
 
-(clang -lpopt -lpthread -o fac fac.o files.o targets.o clean.o new-build.o git.o environ.o lib/listset.o lib/iterablehash.o lib/bigbrother.o lib/sha1.o lib/hashset.o)
+(cd lib && clang -std=c99 -c bigbrother.c)
+
+(clang -lpopt -lpthread -o fac fac.o files.o targets.o clean.o new-build.o git.o environ.o lib/listset.o lib/iterablehash.o lib/sha1.o lib/hashset.o lib/bigbrother.o)
 
