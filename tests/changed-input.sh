@@ -37,7 +37,7 @@ cat input2
 EOF
 
 git mv input input2
-echo baz input2
+echo baz > input2
 
 ../../fac
 

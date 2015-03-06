@@ -251,8 +251,14 @@ void check_cleanliness(struct all_targets *all, struct rule *r) {
   }
   for (int i=0;i<r->num_inputs;i++) {
     if (!r->inputs[i]->is_in_git && !r->inputs[i]->rule && is_in_root(r->inputs[i]->path)) {
-      set_status(all, r, unready);
-      return;
+      if (i < r->num_explicit_inputs) {
+        set_status(all, r, unready);
+        return;
+      } else {
+        rebuild_excuse(r, "input %s does not exist", pretty_path(r->inputs[i]->path));
+        rule_is_ready(all, r);
+        return;
+      }
     }
     if (is_dirty) continue; // no need to do the rest now
     if (r->inputs[i]->rule && r->inputs[i]->rule->status == built) {
