@@ -193,7 +193,7 @@ static char *read_a_path_at(pid_t child, int dirfd, unsigned long addr) {
   return abspath;
 }
 
-pid_t wait_for_syscall(int firstborn) {
+static pid_t wait_for_syscall(int firstborn) {
   pid_t child = 0;
   int status = 0;
   while (1) {

@@ -27,15 +27,15 @@ lib/listset.o : lib/listset.h lib/listset.c
 lib/iterablehash.o : lib/iterablehash.h lib/iterablehash.c
 	cd lib && gcc -std=c11 -c iterablehash.c
 
-lib/bigbrother.o : lib/syscalls.h lib/iterablehash.h lib/hashset.h lib/bigbrother.h lib/bigbrother.c
-	cd lib && gcc -std=c11 -c bigbrother.c
-
 lib/sha1.o : lib/sha1.h lib/sha1.c
 	cd lib && gcc -std=c11 -c sha1.c
 
 lib/hashset.o : lib/iterablehash.h lib/hashset.h lib/hashset.c
 	cd lib && gcc -std=c11 -c hashset.c
 
-fac : fac.o files.o targets.o clean.o new-build.o git.o environ.o lib/listset.o lib/iterablehash.o lib/bigbrother.o lib/sha1.o lib/hashset.o
-	gcc -lpopt -lpthread -o fac fac.o files.o targets.o clean.o new-build.o git.o environ.o lib/listset.o lib/iterablehash.o lib/bigbrother.o lib/sha1.o lib/hashset.o
+lib/bigbrother.o : lib/syscalls.h lib/iterablehash.h lib/hashset.h lib/bigbrother.h lib/bigbrother.c
+	cd lib && gcc -std=c11 -c bigbrother.c
+
+fac : fac.o files.o targets.o clean.o new-build.o git.o environ.o lib/listset.o lib/iterablehash.o lib/sha1.o lib/hashset.o lib/bigbrother.o
+	gcc -lpopt -lpthread -o fac fac.o files.o targets.o clean.o new-build.o git.o environ.o lib/listset.o lib/iterablehash.o lib/sha1.o lib/hashset.o lib/bigbrother.o
 

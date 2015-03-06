@@ -96,15 +96,20 @@ with the following options.
 
 ## To do list
 
-2. Use inotify to avoid rescanning the entire source tree.
+1. Ignore missing files if they aren't explicitly required.  This
+   should deal with the case where a dependency is removed (i.e. we no
+   longer depend on it) and the file itself is also removed.
+
+2. Handle nonexistent files as dependencies, if a process tried to
+   open them or stat them.
+
+3. Create posix modeling code to handle ktrace, possibly also use this
+   on linux with ptrace, since it could reduce the number of calls to
+   realpath, etc, and make things more efficient.
 
 5. On BSD and Darwin systems, use ktrace rather than ptrace.
 
-- Enable fac to call fac recursively (requires ptrace effort)
-
-- Create .gitignore files?
-
-- Support for ~ as home directory? :(
+6. Support for ~ as home directory? :(
 
 ## See also
 
