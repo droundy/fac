@@ -83,7 +83,7 @@ linkflags32 = filter(None, linkflags32)
 
 sources = ['fac', 'files', 'targets', 'clean', 'new-build', 'git', 'environ']
 
-libsources = ['listset', 'iterablehash', 'sha1', 'hashset']
+libsources = ['listset', 'iterablehash', 'sha1', 'hashset', 'posixmodel']
 
 for s in sources:
     print '| %s %s -c %s.c' % (cc, ' '.join(flags), s)

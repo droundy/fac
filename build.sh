@@ -24,7 +24,9 @@ set -ev
 
 (cd lib && gcc -std=c11 -c hashset.c)
 
+(cd lib && gcc -std=c11 -c posixmodel.c)
+
 (cd lib && gcc -std=c11 -c bigbrother.c)
 
-(gcc -lpopt -lpthread -o fac fac.o files.o targets.o clean.o new-build.o git.o environ.o lib/listset.o lib/iterablehash.o lib/sha1.o lib/hashset.o lib/bigbrother.o)
+(gcc -lpopt -lpthread -o fac fac.o files.o targets.o clean.o new-build.o git.o environ.o lib/listset.o lib/iterablehash.o lib/sha1.o lib/hashset.o lib/posixmodel.o lib/bigbrother.o)
 
