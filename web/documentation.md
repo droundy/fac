@@ -96,6 +96,9 @@ with the following options.
 
 ## To do list
 
+1. Look into using libseccomp to optimize the ptrace usage by having
+   only the system calls we want to trace generate events.
+
 2. Handle nonexistent files as dependencies, if a process tried to
    open them or stat them.
 
