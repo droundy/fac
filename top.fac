@@ -1,7 +1,7 @@
 | python2 top.py > .fac
 > .fac
 
-| python2 lib/get_syscalls.py > lib/linux-syscalls.h
+| python2 lib/linux-syscalls.py > lib/linux-syscalls.h
 > lib/linux-syscalls.h
 
 | python2 web/mkdown.py
