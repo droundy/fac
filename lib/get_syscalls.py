@@ -1,12 +1,6 @@
 #!/usr/bin/python2
 
-import sys, re, os
-
-if len(sys.argv) != 2:
-    print "usage: python %s /path/to/linux-headers > syscalls.h" % sys.argv[0]
-    sys.exit(1)
-
-linux_dir = sys.argv[1]
+import re, os
 
 re_syscall = re.compile(r'define __NR_(\S+)\s+([0-9]+)')
 
@@ -45,11 +39,11 @@ const int %s%s[] = {""" % (name, postfix)
 
 for postfix in ['_32', '_64']:
     if os.uname()[4] == 'x86_64':
-        unistd_h = "/arch/x86/include/asm/unistd%s.h" % postfix
+        unistd_h = "lib/linux/unistd%s.h" % postfix
     else:
-        unistd_h = "/arch/x86/include/asm/unistd_32.h"
+        unistd_h = "lib/linux/unistd_32.h"
 
-    with open(linux_dir+unistd_h, 'r') as unistd_file:
+    with open(unistd_h, 'r') as unistd_file:
         unistd = unistd_file.read()
 
     sysnames = {}

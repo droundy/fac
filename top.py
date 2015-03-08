@@ -107,13 +107,6 @@ for s in libsources + ['bigbrother', 'bigbrotheralt', 'fileaccesses']:
         print '> lib/%s-32.o' % s
         print
 
-
-if os.path.exists("/usr/src/linux-headers-3.2.0-4-common") and os.getenv('MINIMAL','') == '':
-    print """
-| python2 lib/get_syscalls.py /usr/src/linux-headers-3.2.0-4-common > lib/syscalls.h
-> lib/syscalls.h
-"""
-
 print '| %s '%cc+' '.join(linkflags)+' -o fac', string.join(['%s.o' % s for s in sources] + ['lib/%s.o' % s for s in libsources+['bigbrother']])
 for s in sources:
     print '< %s.o' % s

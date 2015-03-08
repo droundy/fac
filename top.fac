@@ -1,6 +1,9 @@
 | python2 top.py > .fac
 > .fac
 
+| python2 lib/get_syscalls.py > lib/syscalls.h
+> lib/syscalls.h
+
 | python2 web/mkdown.py
 > web/index.html
 

@@ -1,6 +1,6 @@
 all: fac
 
-fac.o : lib/listset.h fac.h lib/iterablehash.h lib/sha1.h new-build.h fac.c
+fac.o : lib/listset.h lib/sha1.h fac.h lib/iterablehash.h new-build.h fac.c
 	gcc -std=c11 -c fac.c
 
 files.o : environ.h lib/listset.h lib/sha1.h fac.h files.c lib/iterablehash.h
@@ -35,6 +35,9 @@ lib/hashset.o : lib/iterablehash.h lib/hashset.h lib/hashset.c
 
 lib/posixmodel.o : lib/iterablehash.h lib/posixmodel.c lib/posixmodel.h
 	cd lib && gcc -std=c11 -c posixmodel.c
+
+lib/syscalls.h : lib/linux/unistd_64.h lib/linux/unistd_32.h lib/get_syscalls.py
+	python2 lib/get_syscalls.py > lib/syscalls.h
 
 lib/bigbrother.o : lib/syscalls.h lib/iterablehash.h lib/hashset.h lib/bigbrother.h lib/bigbrother.c
 	cd lib && gcc -std=c11 -c bigbrother.c
