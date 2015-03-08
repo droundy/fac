@@ -47,7 +47,7 @@
 17	 NONE	NONE	UALL	{ int obreak(char *nsize); }   { old break }
 
 #if COMPAT_GETFSSTAT
-18  NONE	NONE	ALL	{ int ogetfsstat(user_addr_t buf, int bufsize, int flags); } 
+; 18  NONE	NONE	ALL	{ int ogetfsstat(user_addr_t buf, int bufsize, int flags); } 
 #else
 18	NONE	NONE	ALL	{ int getfsstat(user_addr_t buf, int bufsize, int flags); } 
 #endif
@@ -138,7 +138,7 @@
 102	NONE	NONE	ALL	{ int nosys(void); }   { old recv }
 
 #ifdef __ppc__
-103    NONE	NONE	ALL	{ int nosys(void); }   { old sigreturn }
+; 103    NONE	NONE	ALL	{ int nosys(void); }   { old sigreturn }
 #else
 103	NONE	KERN	UALL	{ int sigreturn(struct sigcontext *sigcntxp); } 
 #endif
@@ -157,7 +157,7 @@
 115	NONE	NONE	ALL	{ int nosys(void); }   { old vtrace }
 
 #ifdef __ppc__
-116    NONE	NONE	ALL	{ int ppc_gettimeofday(struct timeval *tp, struct timezone *tzp); } 
+; 116    NONE	NONE	ALL	{ int ppc_gettimeofday(struct timeval *tp, struct timezone *tzp); } 
 #else
 116	NONE	NONE	ALL	{ int gettimeofday(struct timeval *tp, struct timezone *tzp); } 
 #endif
@@ -204,7 +204,7 @@
 #if NFSSERVER
 155 NONE	KERN	ALL	{ int nfssvc(int flag, caddr_t argp); } 
 #else
-155	NONE	NONE	ALL	{ int nosys(void); } 
+; 155	NONE	NONE	ALL	{ int nosys(void); } 
 #endif
 
 156	NONE	NONE	ALL	{ int nosys(void); }   { old getdirentries }
@@ -216,7 +216,7 @@
 #if NFSCLIENT
 161 NONE	KERN	ALL	{ int getfh(char *fname, fhandle_t *fhp); } 
 #else
-161	NONE	NONE	ALL	{ int nosys(void); } 
+; 161	NONE	NONE	ALL	{ int nosys(void); } 
 #endif
 
 162	NONE	NONE	ALL	{ int nosys(void); }   { old getdomainname }
@@ -243,7 +243,7 @@
 183	NONE	KERN	ALL  { int seteuid(uid_t euid); } 
 
 #ifdef __ppc__
-184    NONE	KERN	ALL	{ int sigreturn(struct ucontext *uctx, int infostyle); } 
+; 184    NONE	KERN	ALL	{ int sigreturn(struct ucontext *uctx, int infostyle); } 
 #else
 184	NONE	NONE	ALL	{ int nosys(void); } 
 #endif
@@ -260,7 +260,7 @@
 #if COMPAT_GETFSSTAT
 193 NONE	NONE	ALL	{ int getfsstat(user_addr_t buf, user_long_t bufsize, int flags); } 
 #else
-193	NONE	NONE	ALL	{ int nosys(void); } 
+; 193	NONE	NONE	ALL	{ int nosys(void); } 
 #endif
 
 194	NONE	KERN	ALL	{ int getrlimit(u_int which, struct rlimit *rlp); } 
@@ -277,14 +277,14 @@
 205	NONE	NONE	ALL { int undelete(user_addr_t path); } 
 
 #ifdef __ppc__
-206    NONE	NONE	ALL	{ int ATsocket(int proto); } 
-207    NONE	NONE	UALL	{ int ATgetmsg(int fd, void *ctlptr, void *datptr, int *flags); } 
-208    NONE	NONE	UALL	{ int ATputmsg(int fd, void *ctlptr, void *datptr, int flags); } 
-209    NONE	NONE	UALL	{ int ATPsndreq(int fd, unsigned char *buf, int len, int nowait); } 
-210    NONE	NONE	UALL	{ int ATPsndrsp(int fd, unsigned char *respbuff, int resplen, int datalen); } 
-211    NONE	NONE	UALL	{ int ATPgetreq(int fd, unsigned char *buf, int buflen); } 
-212    NONE	NONE	UALL	{ int ATPgetrsp(int fd, unsigned char *bdsp); } 
-213    NONE	NONE	ALL	{ int nosys(void); }	{ Reserved for AppleTalk }
+;206    NONE	NONE	ALL	{ int ATsocket(int proto); } 
+;207    NONE	NONE	UALL	{ int ATgetmsg(int fd, void *ctlptr, void *datptr, int *flags); } 
+;208    NONE	NONE	UALL	{ int ATputmsg(int fd, void *ctlptr, void *datptr, int flags); } 
+;209    NONE	NONE	UALL	{ int ATPsndreq(int fd, unsigned char *buf, int len, int nowait); } 
+;210    NONE	NONE	UALL	{ int ATPsndrsp(int fd, unsigned char *respbuff, int resplen, int datalen); } 
+;211    NONE	NONE	UALL	{ int ATPgetreq(int fd, unsigned char *buf, int buflen); } 
+;212    NONE	NONE	UALL	{ int ATPgetrsp(int fd, unsigned char *bdsp); } 
+;213    NONE	NONE	ALL	{ int nosys(void); }	{ Reserved for AppleTalk }
 #else
 206	NONE	NONE	HN	{ int ATsocket(int proto); } 
 207	NONE	NONE	UHN	{ int ATgetmsg(int fd, void *ctlptr, void *datptr, int *flags); } 
@@ -318,7 +318,7 @@
 #ifdef __APPLE_API_OBSOLETE
 224    NONE	NONE	UALL	{ int checkuseraccess(const char *path, uid_t userid, gid_t *groups, int ngroups, int accessrequired, u_long options); } 
 #else
-224	NONE	NONE	ALL	{ int nosys(void); }	{ HFS checkuseraccess check access to a file }
+;224	NONE	NONE	ALL	{ int nosys(void); }	{ HFS checkuseraccess check access to a file }
 #endif /* __APPLE_API_OBSOLETE */
 225    NONE		       KERN	ALL	{ int searchfs(const char *path, struct fssearchblock *searchblock, u_long *nummatches, u_long scriptcode, u_long options, struct searchstate *state); } 
 226    NONE		       NONE    ALL	{ int delete(user_addr_t path); }       { private delete (Carbon semantics) }
@@ -347,8 +347,8 @@
 247 NONE	KERN	ALL	{ int nfsclnt(int flag, caddr_t argp); } 
 248 NONE	KERN	ALL	{ int fhopen(const struct fhandle *u_fhp, int flags); } 
 #else
-247	NONE	NONE	ALL	{ int nosys(void); } 
-248	NONE	NONE	ALL	{ int nosys(void); } 
+;247	NONE	NONE	ALL	{ int nosys(void); } 
+;248	NONE	NONE	ALL	{ int nosys(void); } 
 #endif
 
 249	NONE	NONE	ALL	{ int nosys(void); } 

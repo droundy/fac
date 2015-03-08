@@ -225,9 +225,9 @@
 #define __NR_pivot_root		217
 #define __NR_mincore		218
 #define __NR_madvise		219
-#define __NR_madvise1		219	/* delete when C lib stub is removed */
 #define __NR_getdents64		220
 #define __NR_fcntl64		221
+/* 222 is unused */
 /* 223 is unused */
 #define __NR_gettid		224
 #define __NR_readahead		225
@@ -265,14 +265,14 @@
 #define __NR_remap_file_pages	257
 #define __NR_set_tid_address	258
 #define __NR_timer_create	259
-#define __NR_timer_settime	(__NR_timer_create+1)
-#define __NR_timer_gettime	(__NR_timer_create+2)
-#define __NR_timer_getoverrun	(__NR_timer_create+3)
-#define __NR_timer_delete	(__NR_timer_create+4)
-#define __NR_clock_settime	(__NR_timer_create+5)
-#define __NR_clock_gettime	(__NR_timer_create+6)
-#define __NR_clock_getres	(__NR_timer_create+7)
-#define __NR_clock_nanosleep	(__NR_timer_create+8)
+#define __NR_timer_settime	260
+#define __NR_timer_gettime	261
+#define __NR_timer_getoverrun	262
+#define __NR_timer_delete	263
+#define __NR_clock_settime	264
+#define __NR_clock_gettime	265
+#define __NR_clock_getres	266
+#define __NR_clock_nanosleep	267
 #define __NR_statfs64		268
 #define __NR_fstatfs64		269
 #define __NR_tgkill		270
@@ -283,14 +283,14 @@
 #define __NR_get_mempolicy	275
 #define __NR_set_mempolicy	276
 #define __NR_mq_open 		277
-#define __NR_mq_unlink		(__NR_mq_open+1)
-#define __NR_mq_timedsend	(__NR_mq_open+2)
-#define __NR_mq_timedreceive	(__NR_mq_open+3)
-#define __NR_mq_notify		(__NR_mq_open+4)
-#define __NR_mq_getsetattr	(__NR_mq_open+5)
+#define __NR_mq_unlink		278
+#define __NR_mq_timedsend	279
+#define __NR_mq_timedreceive	280
+#define __NR_mq_notify		281
+#define __NR_mq_getsetattr	282
 #define __NR_kexec_load		283
 #define __NR_waitid		284
-/* #define __NR_sys_setaltroot	285 */
+#define __NR_sys_setaltroot	285
 #define __NR_add_key		286
 #define __NR_request_key	287
 #define __NR_keyctl		288
