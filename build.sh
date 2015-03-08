@@ -26,7 +26,7 @@ set -ev
 
 (cd lib && gcc -std=c11 -c posixmodel.c)
 
-(python2 lib/get_syscalls.py > lib/syscalls.h)
+(python2 lib/get_syscalls.py > lib/linux-syscalls.h)
 
 (cd lib && gcc -std=c11 -c bigbrother.c)
 

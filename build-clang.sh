@@ -26,7 +26,7 @@ set -ev
 
 (cd lib && clang -std=c99 -c posixmodel.c)
 
-(python2 lib/get_syscalls.py > lib/syscalls.h)
+(python2 lib/get_syscalls.py > lib/linux-syscalls.h)
 
 (cd lib && clang -std=c99 -c bigbrother.c)
 
