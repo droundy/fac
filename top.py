@@ -98,7 +98,7 @@ for s in libsources + ['bigbrother', 'bigbrotheralt', 'fileaccesses']:
     print '| cd lib && %s %s -c %s.c' % (cc, ' '.join(flags), s)
     print '> lib/%s.o' % s
     if s in ['bigbrother', 'bigbrotheralt']:
-        print '< lib/syscalls.h'
+        print '< lib/linux-syscalls.h'
     print
     if s in ['fileaccesses', 'fileaccessesalt']:
         continue

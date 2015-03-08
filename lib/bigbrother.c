@@ -30,7 +30,7 @@ static inline void error(int retval, int errno, const char *format, ...) {
 
 #include <stdint.h>
 
-#include "syscalls.h"
+#include "linux-syscalls.h"
 
 static const int debug_output = 0;
 
@@ -574,7 +574,7 @@ int bigbrother_process(const char *workingdir,
 
 #include <stdint.h>
 
-#include "syscalls.h"
+#include "linux-syscalls.h"
 
 static const int debug_output = 0;
 
