@@ -1,9 +1,13 @@
+#define _XOPEN_SOURCE 700
+
 #include "iterablehash.h"
 #include "posixmodel.h"
 #include <sys/types.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <assert.h>
+#include <stdbool.h>
 
 static const int CWD = -1;
 static struct inode *model_root = 0;
@@ -74,12 +78,17 @@ struct inode *interpret_path_as_directory(struct inode *cwd, const char *dir) {
     cwd = model_root;
     dir++;
   }
-  while (*dir) {
+  bool done = false;
+  while (!done) {
+    /* FIXME: the following is broke under symlinks.  I am leaving
+       symlink implementation for later. */
+    if (cwd->type != is_directory) return 0;
     char *tmp = malloc(strlen(dir)+1);
     int i;
     for (i=0;dir[i] && dir[i] != '/';i++) {
       tmp[i] = dir[i];
     }
+    if (!dir[i]) done = true;
     tmp[i] = 0;
     struct inode *child = (struct inode *)lookup_in_hash(&cwd->children, tmp);
     if (!child) child = alloc_directory(cwd, tmp);
@@ -91,28 +100,26 @@ struct inode *interpret_path_as_directory(struct inode *cwd, const char *dir) {
   return cwd;
 }
 
-void model_chdir(struct inode *cwd, const char *dir, pid_t pid) {
+char *model_realpath(struct inode *i) {
+  assert(i);
+  if (i->parent == 0) return strdup("/");
+
+  char *parent_path = model_realpath(i->parent);
+  char *mypath = realloc(parent_path, strlen(parent_path)+1+strlen(i->e.key)+1);
+  if (i->parent->parent) strcat(mypath, "/");
+  strcat(mypath, i->e.key);
+  return mypath;
+}
+
+struct inode *model_cwd(pid_t pid) {
+  return lookup_fd(pid, CWD);
+}
+
+int model_chdir(struct inode *cwd, const char *dir, pid_t pid) {
   struct inode *thisdir = interpret_path_as_directory(cwd, dir);
-  create_fd(pid, CWD, thisdir);
+  if (thisdir) {
+    create_fd(pid, CWD, thisdir);
+    return 0;
+  }
+  return -1;
 }
-
-void model_move(struct inode *cwd, const char *from, const char *to) {
-  init_root();
-}
-
-void model_mkdir(struct inode *cwd, const char *from) {
-  init_root();
-}
-
-void model_stat(struct inode *cwd, const char *from) {
-  init_root();
-}
-
-void model_open_read(struct inode *cwd, const char *from, int fdresult) {
-  init_root();
-}
-
-void model_open_write(struct inode *cwd, const char *from) {
-  init_root();
-}
-

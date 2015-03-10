@@ -1,6 +1,8 @@
 #ifndef POSIXMODEL_H
 #define POSIXMODEL_H
 
+#include <sys/types.h>
+
 enum inode_type {
   not_here = 0, is_file, is_directory, is_symlink, is_dir_or_symlink
 };
@@ -13,10 +15,11 @@ struct inode {
   char name[];
 };
 
-/* void model_move(const char *from, const char *to); */
-/* void model_mkdir(const char *from); */
-/* void model_stat(const char *from); */
-/* void model_open_read(const char *from, pid_t pid, int fdresult); */
-/* void model_open_write(const char *from); */
+struct inode *lookup_fd(pid_t pid, int fd);
+
+char *model_realpath(struct inode *i);
+struct inode *model_cwd(pid_t pid);
+
+int model_chdir(struct inode *cwd, const char *dir, pid_t pid);
 
 #endif
