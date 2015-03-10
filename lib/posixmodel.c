@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <assert.h>
 
+static const int CWD = -1;
 static struct inode *model_root = 0;
 
 struct inode_pid_fd {
@@ -65,9 +66,34 @@ static void init_root() {
   if (!model_root) model_root = alloc_directory(0, "/");
 }
 
-void model_chdir(struct inode *cwd, const char *dir) {
+struct inode *interpret_path_as_directory(struct inode *cwd, const char *dir) {
   init_root();
   assert(dir[0] == '/' || cwd);
+  if (dir[0] == '/') {
+    /* absolute paths can be interpreted as relative paths to root */
+    cwd = model_root;
+    dir++;
+  }
+  while (*dir) {
+    char *tmp = malloc(strlen(dir)+1);
+    int i;
+    for (i=0;dir[i] && dir[i] != '/';i++) {
+      tmp[i] = dir[i];
+    }
+    tmp[i] = 0;
+    struct inode *child = (struct inode *)lookup_in_hash(&cwd->children, tmp);
+    if (!child) child = alloc_directory(cwd, tmp);
+    free(tmp);
+    cwd = child;
+    dir += i+1;
+  }
+
+  return cwd;
+}
+
+void model_chdir(struct inode *cwd, const char *dir, pid_t pid) {
+  struct inode *thisdir = interpret_path_as_directory(cwd, dir);
+  create_fd(pid, CWD, thisdir);
 }
 
 void model_move(struct inode *cwd, const char *from, const char *to) {
