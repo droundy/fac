@@ -3,6 +3,8 @@
 
 #include <sys/types.h>
 
+#include <stdbool.h>
+
 enum inode_type {
   not_here = 0, is_file, is_directory, is_symlink, is_dir_or_symlink
 };
@@ -11,7 +13,12 @@ struct inode {
   struct hash_entry e;
   enum inode_type type;
   struct inode *parent;
-  struct hash_table children;
+  bool is_written;
+  bool is_read;
+  union {
+    struct hash_table children;
+    char *readlink;
+  } c; /* c for "contents" */
   char name[];
 };
 
