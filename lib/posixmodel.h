@@ -26,7 +26,9 @@ struct inode *lookup_fd(pid_t pid, int fd);
 
 char *model_realpath(struct inode *i);
 struct inode *model_cwd(pid_t pid);
+struct inode *model_lstat(struct inode *cwd, const char *path0);
 
 int model_chdir(struct inode *cwd, const char *dir, pid_t pid);
+int model_mkdir(struct inode *cwd, const char *dir);
 
 #endif

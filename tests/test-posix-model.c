@@ -30,6 +30,25 @@ int test_chdir(const char *dir, pid_t pid) {
   return 0;
 }
 
+int test_mkdir(const char *dir, pid_t pid, bool should_fail) {
+  printf("%5d: mkdir %s\n", pid, dir);
+  if (model_mkdir(model_cwd(pid), dir)) {
+    printf("%5d: mkdir fails %s\n", pid, dir);
+    return should_fail;
+  }
+
+  struct inode *d = model_lstat(model_cwd(pid), dir);
+  if (!d) {
+    printf("%5d: does not exist: %s\n", pid, dir);
+    return should_fail;
+  }
+  if (d->type != is_directory) {
+    printf("%5d: not a directory: %s\n", pid, dir);
+    return should_fail;
+  }
+  return !should_fail;
+}
+
 void attempt(int err) {
   if (err) {
     printf("FAIL!\n");
@@ -89,6 +108,30 @@ int main(int argc, char **argv) {
 
   attempt(test_chdir("abs_symlink_directory/subdir", pid));
   attempt(verify_cwd(cmd, pid));
+
+  attempt(test_chdir("../..", pid));
+  attempt(verify_cwd(cwd, pid));
+
+  attempt(test_chdir("abs_symlink_directory//subdir", pid));
+  attempt(verify_cwd(cmd, pid));
+
+  attempt(test_chdir("../../", pid));
+  attempt(verify_cwd(cwd, pid));
+
+  attempt(test_chdir("abs_symlink_directory/../actual_directory/subdir", pid));
+  attempt(verify_cwd(cmd, pid));
+
+  attempt(test_chdir("./../././../", pid));
+  attempt(verify_cwd(cwd, pid));
+
+  attempt(!test_mkdir("abs_symlink_directory", pid, true));
+
+  attempt(test_mkdir("abs_symlink_directory/subdir/subsubdir", pid, true));
+
+  attempt(test_chdir("abs_symlink_directory/subdir/subsubdir", pid));
+
+  attempt(test_chdir("../../..", pid));
+  attempt(verify_cwd(cwd, pid));
 
   printf("Success!\n");
   return 0;

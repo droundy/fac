@@ -15,7 +15,7 @@ clean.o : lib/iterablehash.h lib/listset.h lib/sha1.h fac.h clean.c
 new-build.o : lib/hashset.h environ.h lib/iterablehash.h lib/listset.h lib/bigbrother.h lib/sha1.h fac.h new-build.c new-build.h
 	gcc -std=c11 -c new-build.c
 
-git.o : lib/iterablehash.h lib/listset.h lib/sha1.h fac.h git.c
+git.o : lib/iterablehash.h lib/listset.h fac.h lib/sha1.h git.c
 	gcc -std=c11 -c git.c
 
 environ.o : lib/sha1.h environ.h environ.c

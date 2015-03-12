@@ -90,7 +90,7 @@ struct inode *alloc_symlink(struct inode *parent, const char *name,
     strcpy(inode->c.readlink, contents);
   } else {
     char *path = model_realpath(parent);
-    path = realloc(path, strlen(path) + 1 + strlen(name));
+    path = realloc(path, strlen(path) + 1 + strlen(name)+1);
     strcat(path, "/");
     strcat(path, name);
     if (!size) {
@@ -141,17 +141,29 @@ struct inode *interpret_path_as_directory(struct inode *cwd, const char *dir) {
     /* FIXME: the following is broke under symlinks.  I am leaving
        symlink implementation for later. */
     if (cwd->type != is_directory) return 0;
-    char *tmp = malloc(strlen(dir)+1);
+    char *tmp = malloc(strlen(dir)+4);
     int i;
     for (i=0;dir[i] && dir[i] != '/';i++) {
       tmp[i] = dir[i];
     }
     if (!dir[i]) done = true;
     tmp[i] = 0;
+    if (!strcmp(tmp, "..")) {
+      /* handle .. case as parent directory */
+      free(tmp);
+      dir += i+1;
+      cwd = cwd->parent;
+      continue;
+    } else if (tmp[0] == 0 || !strcmp(tmp, ".")) {
+      /* handle case of two slashes in a row or a . */
+      free(tmp);
+      dir += i+1;
+      continue;
+    }
     struct inode *child = (struct inode *)lookup_in_hash(&cwd->c.children, tmp);
     if (!child) {
       char *path = model_realpath(cwd);
-      path = realloc(path, strlen(path) + 1 + strlen(tmp));
+      path = realloc(path, strlen(path) + 1 + strlen(tmp)+1);
       strcat(path, "/");
       strcat(path, tmp);
       struct stat st;
@@ -162,7 +174,6 @@ struct inode *interpret_path_as_directory(struct inode *cwd, const char *dir) {
           if (!done) {
             char *newpath = malloc(strlen(child->c.readlink) + 1 + strlen(dir) + 1);
             sprintf(newpath, "%s/%s", child->c.readlink, dir + i + 1);
-            printf("we are going into %s\n", newpath);
             struct inode *in = interpret_path_as_directory(cwd, newpath);
             free(newpath);
             return in;
@@ -217,4 +228,55 @@ int model_chdir(struct inode *cwd, const char *dir, pid_t pid) {
     return 0;
   }
   return -1;
+}
+
+char *split_at_base(char *path) {
+  int len = strlen(path);
+  int slashpos = -1;
+  for (int i=len-1;i>=0;i--) {
+    if (path[i] == '/') {
+      slashpos = i;
+      break;
+    }
+  }
+  if (slashpos < 0) return 0;
+  path[slashpos] = 0;
+  return path + slashpos + 1;
+}
+
+struct inode *model_lstat(struct inode *cwd, const char *path0) {
+  char *dirpath = strdup(path0);
+  const char *basepath = split_at_base(dirpath);
+  if (!basepath) {
+    free(dirpath);
+    dirpath = strdup(".");
+    basepath = path0;
+  }
+  struct inode *dir = interpret_path_as_directory(cwd, dirpath);
+  if (!dir) {
+    free(dirpath);
+    return 0;
+  }
+  struct inode *child = 0;
+  if (!strcmp(basepath, "") || !strcmp(basepath, ".")) {
+    child = dir;
+  } else if (!strcmp(basepath, "..")) {
+    child = dir->parent;
+  } else {
+    child = (struct inode *)lookup_in_hash(&dir->c.children, basepath);
+  }
+  free(dirpath);
+  return child;
+}
+
+int model_mkdir(struct inode *cwd, const char *dir) {
+  struct inode *in = model_lstat(cwd, dir);
+  if (in) {
+    if (in->type == is_directory) return 0;
+    return -1;
+  }
+  struct inode *thisdir = interpret_path_as_directory(cwd, dir);
+  if (!thisdir) return -1;
+  
+  return 0; /* We don't track writes to directories directly */
 }
