@@ -863,6 +863,7 @@ void do_actual_build(struct cmd_args *args) {
 
     build_marked(&all, args->log_directory);
     summarize_build_results(&all);
+    chdir(root); /* not sure why this might be needed... */
 
     if (args->create_makefile || args->create_tupfile || args->create_script) {
       for (struct rule *r = (struct rule *)all.r.first; r; r = (struct rule *)r->e.next) {
