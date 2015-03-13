@@ -59,31 +59,30 @@ void close_fd(pid_t pid, int fd) {
   num_fds -= 1;
 }
 
-struct inode *alloc_directory(struct inode *parent, const char *name) {
+struct inode *alloc_file(struct inode *parent, const char *name) {
   struct inode *inode = malloc(sizeof(struct inode) + strlen(name) + 1);
   strcpy(inode->name, name);
   inode->e.key = inode->name;
   inode->e.next = 0;
   inode->parent = parent;
-  inode->type = is_directory;
+  inode->type = is_file;
   inode->is_written = false;
   inode->is_read = false;
   if (parent) add_to_hash(&parent->c.children, &inode->e);
+  return inode;
+}
+
+struct inode *alloc_directory(struct inode *parent, const char *name) {
+  struct inode *inode = alloc_file(parent, name);
+  inode->type = is_directory;
   init_hash_table(&inode->c.children, 5);
   return inode;
 }
 
 struct inode *alloc_symlink(struct inode *parent, const char *name,
                             const char *contents, int size) {
-  struct inode *inode = malloc(sizeof(struct inode) + strlen(name) + 1);
-  strcpy(inode->name, name);
-  inode->e.key = inode->name;
-  inode->e.next = 0;
-  inode->parent = parent;
+  struct inode *inode = alloc_file(parent, name);
   inode->type = is_symlink;
-  inode->is_written = false;
-  inode->is_read = false;
-  add_to_hash(&parent->c.children, &inode->e);
 
   if (contents) {
     inode->c.readlink = malloc(strlen(contents)+1);
@@ -170,6 +169,8 @@ struct inode *interpret_path_as_directory(struct inode *cwd, const char *dir) {
       if (!lstat(path, &st) && S_ISLNK(st.st_mode)) {
         child = alloc_symlink(cwd, tmp, 0, st.st_size);
         if (child) {
+          free(tmp);
+          free(path);
           child->is_read = true; /* we read any symlinks that we dereference */
           if (!done) {
             char *newpath = malloc(strlen(child->c.readlink) + 1 + strlen(dir) + 1);
@@ -182,8 +183,8 @@ struct inode *interpret_path_as_directory(struct inode *cwd, const char *dir) {
           }
         }
       }
-      child = alloc_directory(cwd, tmp);
       free(path);
+      child = alloc_directory(cwd, tmp);
     }
     free(tmp);
     dir += i+1;
@@ -264,6 +265,32 @@ struct inode *model_lstat(struct inode *cwd, const char *path0) {
     child = dir->parent;
   } else {
     child = (struct inode *)lookup_in_hash(&dir->c.children, basepath);
+    if (!child) {
+      struct stat st;
+      char *path;
+      if (path0[0] == '/') {
+        path = (char *)path0;
+      } else {
+        path = model_realpath(cwd);
+        path = realloc(path, strlen(path)+1+strlen(path0)+4);
+        strcat(path, "/");
+        strcat(path, path0);
+      }
+      if (!lstat(path, &st)) {
+        if (S_ISLNK(st.st_mode)) {
+          child = alloc_symlink(dir, basepath, 0, 0);
+        } else if (S_ISDIR(st.st_mode)) {
+          child = alloc_directory(dir, basepath);
+        } else if (S_ISREG(st.st_mode)) {
+          child = alloc_file(dir, basepath);
+        } else {
+          free(dirpath);
+          if (path != path0) free(path);
+          return 0;
+        }
+      }
+      if (path != path0) free(path);
+    }
   }
   free(dirpath);
   return child;

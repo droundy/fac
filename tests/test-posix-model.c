@@ -133,6 +133,9 @@ int main(int argc, char **argv) {
   attempt(test_chdir("../../..", pid));
   attempt(verify_cwd(cwd, pid));
 
+  free(cwd);
+  free(cmd);
+
   printf("Success!\n");
   return 0;
 }
