@@ -280,8 +280,10 @@ static int save_syscall_access(pid_t child, struct posixmodel *m) {
       model_opendir(m, model_cwd(m, child), arg, child, fd);
     } else if (flags & (O_WRONLY | O_RDWR)) {
       debugprintf("%d: open('%s', 'w') -> %d\n", child, arg, fd);
-      struct inode *i = model_lstat(m, model_cwd(m, child), arg);
-      if (i) i->is_written = true;
+      if (fd >= 0) {
+        struct inode *i = model_lstat(m, model_cwd(m, child), arg);
+        if (i) i->is_written = true;
+      }
     } else {
       debugprintf("%d: open('%s', 'r') -> %d\n", child, arg, fd);
       struct inode *i = model_lstat(m, model_cwd(m, child), arg);
