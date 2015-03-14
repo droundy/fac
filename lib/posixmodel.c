@@ -20,6 +20,11 @@ struct inode *lookup_fd(struct posixmodel *m, pid_t pid, int fd) {
     if (m->open_stuff[i].pid == pid && m->open_stuff[i].fd == fd) {
       return m->open_stuff[i].inode;
     }
+    if (m->open_stuff[i].pid == pid && !m->open_stuff[i].inode) {
+      // This indicates we are a separate thread, and the fd field
+      // holds the "real" pid!
+      return lookup_fd(m, m->open_stuff[i].fd, fd);
+    }
   }
   return 0;
 }
@@ -226,6 +231,11 @@ int model_chdir(struct posixmodel *m, struct inode *cwd, const char *dir, pid_t 
     return 0;
   }
   return -1;
+}
+
+void model_newthread(struct posixmodel *m, pid_t parent, pid_t child) {
+  // this sets the two threads to have the same set of fds
+  create_fd(m, child, parent, 0);
 }
 
 char *split_at_base(char *path) {

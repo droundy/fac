@@ -36,7 +36,7 @@ static inline void error(int retval, int errno, const char *format, ...) {
 
 #include "linux-syscalls.h"
 
-static const int debug_output = 0;
+static const int debug_output = 1;
 
 static inline void debugprintf(const char *format, ...) {
   va_list args;
@@ -144,7 +144,7 @@ static char *read_a_string(pid_t child, unsigned long addr) {
     return val;
 }
 
-static pid_t wait_for_syscall(int firstborn) {
+static pid_t wait_for_syscall(struct posixmodel *m, int firstborn) {
   pid_t child = 0;
   int status = 0;
   while (1) {
@@ -154,27 +154,47 @@ static pid_t wait_for_syscall(int firstborn) {
     if (WIFSTOPPED(status) && WSTOPSIG(status) & 0x80) {
       return child;
     } else if (WIFEXITED(status)) {
-      debugprintf("process %d exited!\n", child);
+      debugprintf("%d: exited -> %d\n", child, -WEXITSTATUS(status));
       if (child == firstborn) return -WEXITSTATUS(status);
       continue; /* no need to do anything more for this guy */
     } else if (WIFSIGNALED(status)) {
       debugprintf("process %d died of a signal!\n", child);
       if (child == firstborn) return -WTERMSIG(status);
       continue; /* no need to do anything more for this guy */
+    } else if (WIFSTOPPED(status) && (status>>8) == (SIGTRAP | PTRACE_EVENT_FORK << 8)) {
+      unsigned long pid;
+      ptrace(PTRACE_GETEVENTMSG, child, 0, &pid);
+      printf("%ld: forked from %d\n", pid, child);
+      model_chdir(m, model_cwd(m, child), ".", pid);
+    } else if (WIFSTOPPED(status) && (status>>8) == (SIGTRAP | PTRACE_EVENT_VFORK << 8)) {
+      unsigned long pid;
+      ptrace(PTRACE_GETEVENTMSG, child, 0, &pid);
+      printf("%ld: vforked from %d\n", pid, child);
+      model_chdir(m, model_cwd(m, child), ".", pid);
+    } else if (WIFSTOPPED(status) && (status>>8) == (SIGTRAP | PTRACE_EVENT_CLONE << 8)) {
+      unsigned long pid;
+      ptrace(PTRACE_GETEVENTMSG, child, 0, &pid);
+      printf("%ld: cloned from %d\n", pid, child);
+      model_newthread(m, child, pid);
+    } else if (WIFSTOPPED(status) && (status>>8) == (SIGTRAP | PTRACE_EVENT_EXEC << 8)) {
+      unsigned long pid;
+      ptrace(PTRACE_GETEVENTMSG, child, 0, &pid);
+      printf("%ld: execed from %d\n", pid, child);
+      model_chdir(m, model_cwd(m, child), ".", pid);
     } else if (WIFSTOPPED(status)) {
       // ensure that the signal we interrupted is actually delivered.
       switch (WSTOPSIG(status)) {
       case SIGCHLD: // I don't know why forwarding SIGCHLD along causes trouble.  :(
       case SIGTRAP: // SIGTRAP is what we get from ptrace
       case SIGVTALRM: // for some reason this causes trouble with ghc
-        debugprintf("ignoring signal %d\n", WSTOPSIG(status));
+        debugprintf("%d: ignoring signal %d\n", child, WSTOPSIG(status));
         break;
       default:
         signal_to_send_back = WSTOPSIG(status);
-        debugprintf("sending signal %d\n", signal_to_send_back);
+        debugprintf("%d: sending signal %d\n", child, signal_to_send_back);
       }
     } else {
-      debugprintf("unexpected something from process %d\n", child);
+      debugprintf("%d: unexpected something\n", child);
     }
     // tell the child to keep going!
     if (ptrace(PTRACE_SYSCALL, child, 0, (void *)signal_to_send_back) == -1) {
@@ -231,9 +251,9 @@ static const char *get_registers(pid_t child, void **voidregs,
 #endif
 }
 
-static long wait_for_return_value(pid_t child) {
+static long wait_for_return_value(struct posixmodel *m, pid_t child) {
   ptrace(PTRACE_SYSCALL, child, 0, 0); // ignore return value
-  wait_for_syscall(-child);
+  wait_for_syscall(m, -child);
   void *regs = 0;
   long (*get_syscall_arg)(void *regs, int which) = 0;
   get_registers(child, &regs, &get_syscall_arg);
@@ -249,30 +269,30 @@ static int save_syscall_access(pid_t child, struct posixmodel *m) {
   const char *name = get_registers(child, &regs, &get_syscall_arg);
   if (!name) return -1;
 
-  debugprintf("%s(?)\n",name);
+  //debugprintf("%s(?)\n",name);
 
   if (!strcmp(name, "open")) {
     char *arg = read_a_string(child, get_syscall_arg(regs, 0));
     long flags = get_syscall_arg(regs, 1);
-    int fd = wait_for_return_value(child);
+    int fd = wait_for_return_value(m, child);
     if (flags & O_DIRECTORY) {
-      printf("opendir('%s') -> %d\n", arg, fd);
+      debugprintf("%d: opendir('%s') -> %d\n", child, arg, fd);
       model_opendir(m, model_cwd(m, child), arg, child, fd);
     } else if (flags & (O_WRONLY | O_RDWR)) {
-      printf("open('%s', 'w') -> %d\n", arg, fd);
+      debugprintf("%d: open('%s', 'w') -> %d\n", child, arg, fd);
       struct inode *i = model_lstat(m, model_cwd(m, child), arg);
       if (i) i->is_written = true;
     } else {
-      printf("open('%s', 'r') -> %d\n", arg, fd);
+      debugprintf("%d: open('%s', 'r') -> %d\n", child, arg, fd);
       struct inode *i = model_lstat(m, model_cwd(m, child), arg);
       if (i) i->is_read = true;
     }
     free(arg);
   } else if (!strcmp(name, "close")) {
     int fd = get_syscall_arg(regs, 0);
-    printf("close(%d)\n", fd);
+    debugprintf("%d: close(%d)\n", child, fd);
     model_close(m, child, fd);
-    wait_for_return_value(child);
+    wait_for_return_value(m, child);
   }
 
   free(regs);
@@ -326,9 +346,10 @@ int bigbrother_process(const char *workingdir,
     }
 
     while (1) {
-      pid_t child = wait_for_syscall(firstborn);
+      pid_t child = wait_for_syscall(&m, firstborn);
       if (child <= 0) {
         debugprintf("Returning with exit value %d\n", -child);
+        model_output(&m, read_from_directories, read_from_files, written_to_files);
         return -child;
       }
 

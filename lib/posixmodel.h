@@ -47,6 +47,8 @@ struct inode *model_lstat(struct posixmodel *m, struct inode *cwd,
 
 int model_chdir(struct posixmodel *m, struct inode *cwd,
                 const char *dir, pid_t pid);
+void model_newthread(struct posixmodel *m, pid_t parent, pid_t child);
+
 int model_mkdir(struct posixmodel *m, struct inode *cwd, const char *dir);
 
 int model_opendir(struct posixmodel *m, struct inode *cwd,
