@@ -2,6 +2,7 @@
 #define __BSD_VISIBLE 1
 
 #include "bigbrother.h"
+#include "posixmodel.h"
 #include <sys/wait.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -21,6 +22,9 @@ static inline void error(int retval, int errno, const char *format, ...) {
 }
 
 #ifdef __linux__
+
+#include <sys/stat.h>
+#include <fcntl.h>
 
 #include <sys/ptrace.h>
 #include <sys/user.h>
@@ -49,7 +53,7 @@ static const void *my_ptrace_options =
            PTRACE_O_TRACECLONE |
            PTRACE_O_TRACEEXEC);
 
-static int interesting_path(const char *path) {
+int interesting_path(const char *path) {
   if (strlen(path) == 0) return 0; /* ?! */
   if (path[0] != '/') return 0;
   if (strlen(path) > 4) {
@@ -62,6 +66,10 @@ static int interesting_path(const char *path) {
   }
   return 1;
 }
+
+enum arguments {
+  RETURN_VALUE = -1
+};
 
 #ifdef __x86_64__
 struct i386_user_regs_struct {
@@ -86,6 +94,7 @@ struct i386_user_regs_struct {
 
 static long get_syscall_arg_64(const struct user_regs_struct *regs, int which) {
     switch (which) {
+    case RETURN_VALUE: return regs->rax;
     case 0: return regs->rdi;
     case 1: return regs->rsi;
     case 2: return regs->rdx;
@@ -101,6 +110,7 @@ static long get_syscall_arg_32(const struct i386_user_regs_struct *regs, int whi
 static long get_syscall_arg_32(const struct user_regs_struct *regs, int which) {
 #endif
     switch (which) {
+    case RETURN_VALUE: return regs->eax;
     case 0: return regs->ebx;
     case 1: return regs->ecx;
     case 2: return regs->edx;
@@ -132,65 +142,6 @@ static char *read_a_string(pid_t child, unsigned long addr) {
         read += sizeof tmp;
     }
     return val;
-}
-
-static int identify_fd(char *path_buffer, pid_t child, int fd) {
-  int ret;
-  char *proc = (char *)malloc(PATH_MAX);
-  if (snprintf(proc, PATH_MAX, "/proc/%d/fd/%d", child, fd) >= PATH_MAX) {
-    fprintf(stderr, "filename too large!!!\n");
-    exit(1);
-  }
-  ret = readlink(proc, path_buffer, PATH_MAX);
-  free(proc);
-  if (ret == -1) *path_buffer = 0;
-  else path_buffer[ret] = 0;
-  return ret;
-}
-
-static int absolute_path(char *path_buffer, pid_t child, const char *path) {
-  char *filename = malloc(PATH_MAX);
-  if (snprintf(filename, PATH_MAX, "/proc/%d/cwd", child) >= PATH_MAX) {
-    fprintf(stderr, "filename too large!!!\n");
-    exit(1);
-  }
-  char *dirname = getcwd(0, 0);
-  chdir(filename);
-  if (!realpath(path, path_buffer)) {
-    *path_buffer = 0; /* in case of trouble, make it an empty string */
-  }
-  chdir(dirname);
-  free(dirname);
-  free(filename);
-  return 0;
-}
-
-static int absolute_path_at(char *path_buffer, pid_t child, int dirfd, const char *path) {
-  char *filename = malloc(PATH_MAX);
-  identify_fd(filename, child, dirfd);
-  char *dirname = getcwd(0, 0);
-  chdir(filename);
-  realpath(path, path_buffer);
-  chdir(dirname);
-  free(dirname);
-  free(filename);
-  return 0;
-}
-
-static char *read_a_path(pid_t child, unsigned long addr) {
-  char *foo = read_a_string(child, addr);
-  char *abspath = malloc(PATH_MAX);
-  absolute_path(abspath, child, foo);
-  free(foo);
-  return abspath;
-}
-
-static char *read_a_path_at(pid_t child, int dirfd, unsigned long addr) {
-  char *foo = read_a_string(child, addr);
-  char *abspath = malloc(PATH_MAX);
-  absolute_path_at(abspath, child, dirfd, foo);
-  free(foo);
-  return abspath;
 }
 
 static pid_t wait_for_syscall(int firstborn) {
@@ -233,272 +184,99 @@ static pid_t wait_for_syscall(int firstborn) {
   }
 }
 
-static int save_syscall_access(pid_t child,
-                               hashset *read_from_directories,
-                               hashset *read_from_files,
-                               hashset *written_to_files,
-                               hashset *deleted_files) {
-  struct user_regs_struct regs;
-  int syscall;
+static const char *get_registers(pid_t child, void **voidregs,
+                                 long (**get_syscall_arg)(void *regs, int which)) {
+  struct user_regs_struct *regs = malloc(sizeof(struct user_regs_struct));
 
-  if (ptrace(PTRACE_GETREGS, child, NULL, &regs) == -1) {
+  if (ptrace(PTRACE_GETREGS, child, NULL, regs) == -1) {
     debugprintf("error getting registers for %d!\n", child);
-    return -1;
+    free(regs);
+    return 0;
   }
 #ifdef __x86_64__
-  struct i386_user_regs_struct i386_regs;
-  if (regs.cs == 0x23) {
-		i386_regs.ebx = regs.rbx;
-		i386_regs.ecx = regs.rcx;
-		i386_regs.edx = regs.rdx;
-		i386_regs.esi = regs.rsi;
-		i386_regs.edi = regs.rdi;
-		i386_regs.ebp = regs.rbp;
-		i386_regs.eax = regs.rax;
-		i386_regs.orig_eax = regs.orig_rax;
-		i386_regs.eip = regs.rip;
-		i386_regs.esp = regs.rsp;
-
-    struct i386_user_regs_struct regs = i386_regs;
+  struct i386_user_regs_struct *i386_regs = malloc(sizeof(struct i386_user_regs_struct));
+  if (regs->cs == 0x23) {
+		i386_regs->ebx = regs->rbx;
+		i386_regs->ecx = regs->rcx;
+		i386_regs->edx = regs->rdx;
+		i386_regs->esi = regs->rsi;
+		i386_regs->edi = regs->rdi;
+		i386_regs->ebp = regs->rbp;
+		i386_regs->eax = regs->rax;
+		i386_regs->orig_eax = regs->orig_rax;
+		i386_regs->eip = regs->rip;
+		i386_regs->esp = regs->rsp;
+    free(regs);
+    *voidregs = i386_regs;
+    struct i386_user_regs_struct *regs = i386_regs;
+#else
+    *voidregs = regs;
 #endif
-
-    syscall = regs.orig_eax;
-    debugprintf("%s() 32 = %d\n", syscalls_32[syscall], syscall);
-
-    if (write_fd_32[syscall] >= 0) {
-      int fd = get_syscall_arg_32(&regs, write_fd_32[syscall]);
-      if (fd >= 0) {
-        char *filename = (char *)malloc(PATH_MAX);
-        identify_fd(filename, child, fd);
-        if (interesting_path(filename)) {
-          debugprintf("W: %s(%s)\n", syscalls_32[syscall], filename);
-          insert_to_hashset(written_to_files, filename);
-          delete_from_hashset(read_from_files, filename);
-          delete_from_hashset(deleted_files, filename);
-        } else {
-          debugprintf("W~ %s(%s)\n", syscalls_32[syscall], filename);
-        }
-        free(filename);
-      }
+    *get_syscall_arg = (long (*)(void *regs, int which))get_syscall_arg_32;
+    if (regs->orig_eax < 0) {
+      free(regs);
+      return 0;
     }
-    if (read_fd_32[syscall] >= 0) {
-      int fd = get_syscall_arg_32(&regs, read_fd_32[syscall]);
-      if (fd >= 0) {
-        char *filename = (char *)malloc(PATH_MAX);
-        identify_fd(filename, child, fd);
-        if (interesting_path(filename) &&
-            !is_in_hashset(written_to_files, filename)) {
-          debugprintf("R: %s(%s)\n", syscalls_32[syscall], filename);
-          insert_to_hashset(read_from_files, filename);
-        } else {
-          debugprintf("R~ %s(%s)\n", syscalls_32[syscall], filename);
-        }
-        free(filename);
-      }
-    }
-    if (readdir_fd_32[syscall] >= 0) {
-      int fd = get_syscall_arg_32(&regs, readdir_fd_32[syscall]);
-      debugprintf("!!!!!!!!! Got readdir with fd %d\n", fd);
-      if (fd >= 0) {
-        char *filename = (char *)malloc(PATH_MAX);
-        identify_fd(filename, child, fd);
-        if (interesting_path(filename)) {
-          debugprintf("readdir: %s(%s)\n", syscalls_32[syscall], filename);
-          insert_to_hashset(read_from_directories, filename);
-        } else {
-          debugprintf("readdir~ %s(%s)\n", syscalls_32[syscall], filename);
-        }
-        free(filename);
-      }
-    }
-    if (read_string_32[syscall] >= 0) {
-      char *arg = read_a_path(child, get_syscall_arg_32(&regs, read_string_32[syscall]));
-      if (interesting_path(arg) && !access(arg, R_OK) &&
-          !is_in_hashset(written_to_files, arg)) {
-        debugprintf("R: %s(%s)\n", syscalls_32[syscall], arg);
-        insert_to_hashset(read_from_files, arg);
-      } else {
-        debugprintf("R~ %s(%s)\n", syscalls_32[syscall], arg);
-      }
-      free(arg);
-    }
-    if (write_string_32[syscall] >= 0) {
-      char *arg = read_a_path(child, get_syscall_arg_32(&regs, write_string_32[syscall]));
-      if (interesting_path(arg) && !access(arg, W_OK)) {
-        debugprintf("W: %s(%s)\n", syscalls_32[syscall], arg);
-        insert_to_hashset(written_to_files, arg);
-        delete_from_hashset(deleted_files, arg);
-        delete_from_hashset(read_from_files, arg);
-      } else {
-        debugprintf("W~ %s(%s)\n", syscalls_32[syscall], arg);
-      }
-      free(arg);
-    }
-    if (unlink_string_32[syscall] >= 0) {
-      char *arg = read_a_path(child, get_syscall_arg_32(&regs, unlink_string_32[syscall]));
-      if (interesting_path(arg) && !access(arg, W_OK)) {
-        debugprintf("D: %s(%s)\n", syscalls_32[syscall], arg);
-        insert_to_hashset(deleted_files, arg);
-        delete_from_hashset(written_to_files, arg);
-        delete_from_hashset(read_from_files, arg);
-        delete_from_hashset(read_from_directories, arg);
-      } else {
-        debugprintf("D~ %s(%s)\n", syscalls_32[syscall], arg);
-      }
-      free(arg);
-    }
-    if (unlinkat_string_32[syscall] >= 0) {
-      char *arg = read_a_path_at(child,
-                                 get_syscall_arg_32(&regs, 0) /* dirfd */,
-                                 get_syscall_arg_32(&regs, 1) /* path */);
-      if (interesting_path(arg) && !access(arg, W_OK)) {
-        debugprintf("D: %s(%s)\n", syscalls_32[syscall], arg);
-        insert_to_hashset(deleted_files, arg);
-        delete_from_hashset(written_to_files, arg);
-        delete_from_hashset(read_from_files, arg);
-        delete_from_hashset(read_from_directories, arg);
-      } else {
-        debugprintf("D~ %s(%s)\n", syscalls_32[syscall], arg);
-      }
-      free(arg);
-    }
-    if (renameat_string_32[syscall] >= 0) {
-      char *arg = read_a_path_at(child,
-                                 get_syscall_arg_32(&regs, 2) /* dirfd */,
-                                 get_syscall_arg_32(&regs, 3) /* path */);
-      if (interesting_path(arg) && !access(arg, W_OK)) {
-        debugprintf("W: %s(%s)\n", syscalls_32[syscall], arg);
-        insert_to_hashset(written_to_files, arg);
-        delete_from_hashset(deleted_files, arg);
-        delete_from_hashset(read_from_files, arg);
-      } else {
-        debugprintf("W~ %s(%s)\n", syscalls_32[syscall], arg);
-      }
-      free(arg);
-    }
+    return syscalls_32[regs->orig_eax];
 #ifdef __x86_64__
   } else {
-    syscall = regs.orig_rax;
-    if (syscall < 0) {
-      debugprintf("invalid system call %d\n", syscall);
-      return -1;
+    *voidregs = regs;
+    *get_syscall_arg = (long (*)(void *regs, int which))get_syscall_arg_64;
+    if (regs->orig_rax < 0) {
+      free(regs);
+      return 0;
     }
-    debugprintf("%s() 64\n", syscalls_64[syscall]);
-
-    if (write_fd_64[syscall] >= 0) {
-      int fd = get_syscall_arg_64(&regs, write_fd_64[syscall]);
-      if (fd >= 0) {
-        char *filename = (char *)malloc(PATH_MAX);
-        identify_fd(filename, child, fd);
-        if (interesting_path(filename)) {
-          debugprintf("W: %s(%s)\n", syscalls_64[syscall], filename);
-          insert_to_hashset(written_to_files, filename);
-          delete_from_hashset(read_from_files, filename);
-          delete_from_hashset(deleted_files, filename);
-        } else {
-          debugprintf("W~ %s(%s)\n", syscalls_64[syscall], filename);
-        }
-        free(filename);
-      }
-    }
-    if (read_fd_64[syscall] >= 0) {
-      int fd = get_syscall_arg_64(&regs, read_fd_64[syscall]);
-      if (fd >= 0) {
-        char *filename = (char *)malloc(PATH_MAX);
-        identify_fd(filename, child, fd);
-        if (interesting_path(filename) &&
-            !is_in_hashset(written_to_files, filename)) {
-          debugprintf("R: %s(%s)\n", syscalls_64[syscall], filename);
-          insert_to_hashset(read_from_files, filename);
-        } else {
-          debugprintf("R~ %s(%s)\n", syscalls_64[syscall], filename);
-        }
-        free(filename);
-      }
-    }
-    if (readdir_fd_64[syscall] >= 0) {
-      int fd = get_syscall_arg_64(&regs, readdir_fd_64[syscall]);
-      debugprintf("!!!!!!!!! Got readdir with fd %d\n", fd);
-      if (fd >= 0) {
-        char *filename = (char *)malloc(PATH_MAX);
-        identify_fd(filename, child, fd);
-        if (interesting_path(filename)) {
-          debugprintf("readdir: %s(%s)\n", syscalls_64[syscall], filename);
-          insert_to_hashset(read_from_directories, filename);
-        } else {
-          debugprintf("readdir~ %s(%s)\n", syscalls_64[syscall], filename);
-        }
-        free(filename);
-      }
-    }
-    if (read_string_64[syscall] >= 0) {
-      char *arg = read_a_path(child, get_syscall_arg_64(&regs, read_string_64[syscall]));
-      if (interesting_path(arg) && !access(arg, R_OK) &&
-          !is_in_hashset(written_to_files, arg)) {
-        debugprintf("R: %s(%s)\n", syscalls_64[syscall], arg);
-        insert_to_hashset(read_from_files, arg);
-      } else {
-        debugprintf("R~ %s(%s)\n", syscalls_64[syscall], arg);
-      }
-      free(arg);
-    }
-    if (write_string_64[syscall] >= 0) {
-      char *arg = read_a_path(child, get_syscall_arg_64(&regs, write_string_64[syscall]));
-      if (interesting_path(arg) && !access(arg, W_OK)) {
-        debugprintf("W: %s(%s)\n", syscalls_64[syscall], arg);
-        insert_to_hashset(written_to_files, arg);
-        delete_from_hashset(deleted_files, arg);
-        delete_from_hashset(read_from_files, arg);
-      } else {
-        debugprintf("W~ %s(%s)\n", syscalls_64[syscall], arg);
-      }
-      free(arg);
-    }
-    if (unlink_string_64[syscall] >= 0) {
-      char *arg = read_a_path(child, get_syscall_arg_64(&regs, unlink_string_64[syscall]));
-      if (interesting_path(arg) && !access(arg, W_OK)) {
-        debugprintf("D: %s(%s)\n", syscalls_64[syscall], arg);
-        insert_to_hashset(deleted_files, arg);
-        delete_from_hashset(written_to_files, arg);
-        delete_from_hashset(read_from_files, arg);
-        delete_from_hashset(read_from_directories, arg);
-      } else {
-        debugprintf("D~ %s(%s)\n", syscalls_64[syscall], arg);
-      }
-      free(arg);
-    }
-    if (unlinkat_string_64[syscall] >= 0) {
-      char *arg = read_a_path_at(child,
-                                 get_syscall_arg_64(&regs, 0) /* dirfd */,
-                                 get_syscall_arg_64(&regs, 1) /* path */);
-      if (interesting_path(arg) && !access(arg, W_OK)) {
-        debugprintf("D: %s(%s)\n", syscalls_64[syscall], arg);
-        insert_to_hashset(deleted_files, arg);
-        delete_from_hashset(written_to_files, arg);
-        delete_from_hashset(read_from_files, arg);
-        delete_from_hashset(read_from_directories, arg);
-      } else {
-        debugprintf("D~ %s(%s)\n", syscalls_64[syscall], arg);
-      }
-      free(arg);
-    }
-    if (renameat_string_64[syscall] >= 0) {
-      char *arg = read_a_path_at(child,
-                                 get_syscall_arg_64(&regs, 2) /* dirfd */,
-                                 get_syscall_arg_64(&regs, 3) /* path */);
-      if (interesting_path(arg) && !access(arg, W_OK)) {
-        debugprintf("W: %s(%s)\n", syscalls_64[syscall], arg);
-        insert_to_hashset(written_to_files, arg);
-        delete_from_hashset(deleted_files, arg);
-        delete_from_hashset(read_from_files, arg);
-      } else {
-        debugprintf("W~ %s(%s)\n", syscalls_64[syscall], arg);
-      }
-      free(arg);
-    }
+    return syscalls_64[regs->orig_rax];
   }
 #endif
-  return syscall;
+}
+
+static long wait_for_return_value(pid_t child) {
+  ptrace(PTRACE_SYSCALL, child, 0, 0); // ignore return value
+  wait_for_syscall(-child);
+  void *regs = 0;
+  long (*get_syscall_arg)(void *regs, int which) = 0;
+  get_registers(child, &regs, &get_syscall_arg);
+  long retval = get_syscall_arg(regs, RETURN_VALUE);
+  free(regs);
+  return retval;
+}
+
+static int save_syscall_access(pid_t child, struct posixmodel *m) {
+  void *regs = 0;
+  long (*get_syscall_arg)(void *regs, int which) = 0;
+
+  const char *name = get_registers(child, &regs, &get_syscall_arg);
+  if (!name) return -1;
+
+  debugprintf("%s(?)\n",name);
+
+  if (!strcmp(name, "open")) {
+    char *arg = read_a_string(child, get_syscall_arg(regs, 0));
+    long flags = get_syscall_arg(regs, 1);
+    int fd = wait_for_return_value(child);
+    if (flags & O_DIRECTORY) {
+      printf("opendir('%s') -> %d\n", arg, fd);
+      model_opendir(m, model_cwd(m, child), arg, child, fd);
+    } else if (flags & (O_WRONLY | O_RDWR)) {
+      printf("open('%s', 'w') -> %d\n", arg, fd);
+      struct inode *i = model_lstat(m, model_cwd(m, child), arg);
+      if (i) i->is_written = true;
+    } else {
+      printf("open('%s', 'r') -> %d\n", arg, fd);
+      struct inode *i = model_lstat(m, model_cwd(m, child), arg);
+      if (i) i->is_read = true;
+    }
+    free(arg);
+  } else if (!strcmp(name, "close")) {
+    int fd = get_syscall_arg(regs, 0);
+    printf("close(%d)\n", fd);
+    model_close(m, child, fd);
+    wait_for_return_value(child);
+  }
+
+  free(regs);
+  return 0;
 }
 
 
@@ -539,6 +317,14 @@ int bigbrother_process(const char *workingdir,
       return -1;
     }
 
+    struct posixmodel m;
+    init_posixmodel(&m);
+    {
+      char *cwd = getcwd(0,0);
+      model_chdir(&m, 0, cwd, firstborn);
+      free(cwd);
+    }
+
     while (1) {
       pid_t child = wait_for_syscall(firstborn);
       if (child <= 0) {
@@ -546,9 +332,7 @@ int bigbrother_process(const char *workingdir,
         return -child;
       }
 
-      if (save_syscall_access(child, read_from_directories,
-                              read_from_files, written_to_files,
-                              deleted_files) == -1) {
+      if (save_syscall_access(child, &m) == -1) {
         /* We were unable to read the process's registers.  Assume
            that this is bad news, and that we should exit.  I'm not
            sure what else to do here. */

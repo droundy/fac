@@ -37,16 +37,21 @@ void create_fd(struct posixmodel *m, pid_t pid, int fd, struct inode *inode) {
   m->num_fds += 1;
 }
 
-void close_fd(struct posixmodel *m, pid_t pid, int fd) {
+void model_close(struct posixmodel *m, pid_t pid, int fd) {
+  /* printf("closing [%d]: %d\n", pid, fd); */
+  /* for (int i=0; i<m->num_fds; i++) { */
+  /*   printf("[%d]: %d = %s\n", m->open_stuff[i].pid, */
+  /*          m->open_stuff[i].fd, model_realpath(m->open_stuff[i].inode)); */
+  /* } */
   for (int i=0; i<m->num_fds; i++) {
     if (m->open_stuff[i].pid == pid && m->open_stuff[i].fd == fd) {
       for (int j=i+1;j<m->num_fds;j++) {
         m->open_stuff[j-1] = m->open_stuff[j];
       }
+      m->num_fds -= 1;
       return;
     }
   }
-  m->num_fds -= 1;
 }
 
 struct inode *alloc_file(struct inode *parent, const char *name) {
@@ -84,7 +89,7 @@ struct inode *alloc_symlink(struct posixmodel *m, struct inode *parent, const ch
     inode->c.readlink = malloc(strlen(contents)+1);
     strcpy(inode->c.readlink, contents);
   } else {
-    char *path = model_realpath(m, parent);
+    char *path = model_realpath(parent);
     path = realloc(path, strlen(path) + 1 + strlen(name)+1);
     strcat(path, "/");
     strcat(path, name);
@@ -153,7 +158,7 @@ struct inode *interpret_path_as_directory(struct posixmodel *m,
     }
     struct inode *child = (struct inode *)lookup_in_hash(&cwd->c.children, tmp);
     if (!child) {
-      char *path = model_realpath(m, cwd);
+      char *path = model_realpath(cwd);
       path = realloc(path, strlen(path) + 1 + strlen(tmp)+1);
       strcat(path, "/");
       strcat(path, tmp);
@@ -199,11 +204,11 @@ struct inode *interpret_path_as_directory(struct posixmodel *m,
   return cwd;
 }
 
-char *model_realpath(struct posixmodel *m, struct inode *i) {
+char *model_realpath(struct inode *i) {
   assert(i);
   if (i->parent == 0) return strdup("/");
 
-  char *parent_path = model_realpath(m, i->parent);
+  char *parent_path = model_realpath(i->parent);
   char *mypath = realloc(parent_path, strlen(parent_path)+1+strlen(i->e.key)+1);
   if (i->parent->parent) strcat(mypath, "/");
   strcat(mypath, i->e.key);
@@ -263,7 +268,7 @@ struct inode *model_lstat(struct posixmodel *m, struct inode *cwd, const char *p
       if (path0[0] == '/') {
         path = (char *)path0;
       } else {
-        path = model_realpath(m, cwd);
+        path = model_realpath(cwd);
         path = realloc(path, strlen(path)+1+strlen(path0)+4);
         strcat(path, "/");
         strcat(path, path0);
@@ -313,4 +318,38 @@ int model_readdir(struct posixmodel *m, pid_t pid, int fd) {
   if (!thisdir) return -1;
   thisdir->is_read = true;
   return 0;
+}
+
+static void inode_output(struct inode *i,
+                         hashset *read_from_directories,
+                         hashset *read_from_files,
+                         hashset *written_to_files) {
+  if (i->type == is_directory) {
+    if (i->is_read) {
+      char *iname = model_realpath(i);
+      insert_to_hashset(read_from_directories, iname);
+      free(iname);
+    }
+    for (struct hash_entry *e = i->c.children.first; e; e = e->next) {
+      inode_output((struct inode *)e,
+                   read_from_directories, read_from_files, written_to_files);
+    }
+    return;
+  }
+  if (i->is_written) {
+    char *iname = model_realpath(i);
+    insert_to_hashset(written_to_files, iname);
+    free(iname);
+  } else if (i->is_read) {
+    char *iname = model_realpath(i);
+    insert_to_hashset(read_from_files, iname);
+    free(iname);
+  }
+}
+
+void model_output(struct posixmodel *m,
+                  hashset *read_from_directories,
+                  hashset *read_from_files,
+                  hashset *written_to_files) {
+  inode_output(m->root, read_from_directories, read_from_files, written_to_files);
 }

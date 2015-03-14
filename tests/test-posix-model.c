@@ -15,7 +15,7 @@ static struct posixmodel m;
 
 int verify_cwd(const char *dir_expected, pid_t pid) {
   struct inode *cwd = model_cwd(&m, pid);
-  char *dname = model_realpath(&m, cwd);
+  char *dname = model_realpath(cwd);
   printf("%5d: cwd -> %s\n", pid, dname);
   if (strcmp(dir_expected, dname)) {
     printf("\nFAIL: %5d: %s != %s\n", pid, dname, dir_expected);
@@ -27,7 +27,7 @@ int verify_cwd(const char *dir_expected, pid_t pid) {
 
 int verify_fd(const char *dir_expected, pid_t pid, int fd) {
   struct inode *in = lookup_fd(&m, pid, fd);
-  char *dname = model_realpath(&m, in);
+  char *dname = model_realpath(in);
   printf("%5d: %d -> %s\n", pid, fd, dname);
   if (strcmp(dir_expected, dname)) {
     printf("\nFAIL: %5d: %s != %s\n", pid, dname, dir_expected);
