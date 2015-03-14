@@ -315,3 +315,10 @@ int model_opendir(struct inode *cwd, const char *dir, pid_t pid, int fd) {
   }
   return -1;
 }
+
+int model_readdir(pid_t pid, int fd) {
+  struct inode *thisdir = lookup_fd(pid, fd);
+  if (!thisdir) return -1;
+  thisdir->is_read = true;
+  return 0;
+}
