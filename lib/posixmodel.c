@@ -14,49 +14,39 @@
 #include <stdbool.h>
 
 static const int CWD = -1;
-static struct inode *model_root = 0;
 
-struct inode_pid_fd {
-  struct inode *inode;
-  pid_t pid;
-  int fd;
-};
-
-static int num_fds = 0;
-static struct inode_pid_fd *open_stuff = 0;
-
-struct inode *lookup_fd(pid_t pid, int fd) {
-  for (int i=0; i<num_fds; i++) {
-    if (open_stuff[i].pid == pid && open_stuff[i].fd == fd) {
-      return open_stuff[i].inode;
+struct inode *lookup_fd(struct posixmodel *m, pid_t pid, int fd) {
+  for (int i=0; i<m->num_fds; i++) {
+    if (m->open_stuff[i].pid == pid && m->open_stuff[i].fd == fd) {
+      return m->open_stuff[i].inode;
     }
   }
   return 0;
 }
 
-void create_fd(pid_t pid, int fd, struct inode *inode) {
-  for (int i=0; i<num_fds; i++) {
-    if (open_stuff[i].pid == pid && open_stuff[i].fd == fd) {
-      open_stuff[i].inode = inode;
+void create_fd(struct posixmodel *m, pid_t pid, int fd, struct inode *inode) {
+  for (int i=0; i<m->num_fds; i++) {
+    if (m->open_stuff[i].pid == pid && m->open_stuff[i].fd == fd) {
+      m->open_stuff[i].inode = inode;
     }
   }
-  open_stuff = realloc(open_stuff, (num_fds+1)*sizeof(struct inode_pid_fd));
-  open_stuff[num_fds].inode = inode;
-  open_stuff[num_fds].fd = fd;
-  open_stuff[num_fds].pid = pid;
-  num_fds += 1;
+  m->open_stuff = realloc(m->open_stuff, (m->num_fds+1)*sizeof(struct inode_pid_fd));
+  m->open_stuff[m->num_fds].inode = inode;
+  m->open_stuff[m->num_fds].fd = fd;
+  m->open_stuff[m->num_fds].pid = pid;
+  m->num_fds += 1;
 }
 
-void close_fd(pid_t pid, int fd) {
-  for (int i=0; i<num_fds; i++) {
-    if (open_stuff[i].pid == pid && open_stuff[i].fd == fd) {
-      for (int j=i+1;j<num_fds;j++) {
-        open_stuff[j-1] = open_stuff[j];
+void close_fd(struct posixmodel *m, pid_t pid, int fd) {
+  for (int i=0; i<m->num_fds; i++) {
+    if (m->open_stuff[i].pid == pid && m->open_stuff[i].fd == fd) {
+      for (int j=i+1;j<m->num_fds;j++) {
+        m->open_stuff[j-1] = m->open_stuff[j];
       }
       return;
     }
   }
-  num_fds -= 1;
+  m->num_fds -= 1;
 }
 
 struct inode *alloc_file(struct inode *parent, const char *name) {
@@ -79,7 +69,13 @@ struct inode *alloc_directory(struct inode *parent, const char *name) {
   return inode;
 }
 
-struct inode *alloc_symlink(struct inode *parent, const char *name,
+void init_posixmodel(struct posixmodel *m) {
+  m->root = alloc_directory(0, "/");
+  m->num_fds = 0;
+  m->open_stuff = 0;
+}
+
+struct inode *alloc_symlink(struct posixmodel *m, struct inode *parent, const char *name,
                             const char *contents, int size) {
   struct inode *inode = alloc_file(parent, name);
   inode->type = is_symlink;
@@ -88,7 +84,7 @@ struct inode *alloc_symlink(struct inode *parent, const char *name,
     inode->c.readlink = malloc(strlen(contents)+1);
     strcpy(inode->c.readlink, contents);
   } else {
-    char *path = model_realpath(parent);
+    char *path = model_realpath(m, parent);
     path = realloc(path, strlen(path) + 1 + strlen(name)+1);
     strcat(path, "/");
     strcat(path, name);
@@ -123,16 +119,12 @@ struct inode *alloc_symlink(struct inode *parent, const char *name,
   return inode;
 }
 
-static void init_root() {
-  if (!model_root) model_root = alloc_directory(0, "/");
-}
-
-struct inode *interpret_path_as_directory(struct inode *cwd, const char *dir) {
-  init_root();
+struct inode *interpret_path_as_directory(struct posixmodel *m,
+                                          struct inode *cwd, const char *dir) {
   assert(dir[0] == '/' || cwd);
   if (dir[0] == '/') {
     /* absolute paths can be interpreted as relative paths to root */
-    cwd = model_root;
+    cwd = m->root;
     dir++;
   }
   bool done = false;
@@ -161,13 +153,13 @@ struct inode *interpret_path_as_directory(struct inode *cwd, const char *dir) {
     }
     struct inode *child = (struct inode *)lookup_in_hash(&cwd->c.children, tmp);
     if (!child) {
-      char *path = model_realpath(cwd);
+      char *path = model_realpath(m, cwd);
       path = realloc(path, strlen(path) + 1 + strlen(tmp)+1);
       strcat(path, "/");
       strcat(path, tmp);
       struct stat st;
       if (!lstat(path, &st) && S_ISLNK(st.st_mode)) {
-        child = alloc_symlink(cwd, tmp, 0, st.st_size);
+        child = alloc_symlink(m, cwd, tmp, 0, st.st_size);
         if (child) {
           free(tmp);
           free(path);
@@ -175,11 +167,11 @@ struct inode *interpret_path_as_directory(struct inode *cwd, const char *dir) {
           if (!done) {
             char *newpath = malloc(strlen(child->c.readlink) + 1 + strlen(dir) + 1);
             sprintf(newpath, "%s/%s", child->c.readlink, dir + i + 1);
-            struct inode *in = interpret_path_as_directory(cwd, newpath);
+            struct inode *in = interpret_path_as_directory(m, cwd, newpath);
             free(newpath);
             return in;
           } else {
-            return interpret_path_as_directory(cwd, child->c.readlink);
+            return interpret_path_as_directory(m, cwd, child->c.readlink);
           }
         }
       }
@@ -192,11 +184,11 @@ struct inode *interpret_path_as_directory(struct inode *cwd, const char *dir) {
     if (child->type == is_symlink) {
       child->is_read = true; /* we read any symlinks that we dereference */
       if (done) {
-        return interpret_path_as_directory(cwd, child->c.readlink);
+        return interpret_path_as_directory(m, cwd, child->c.readlink);
       } else {
         char *newpath = malloc(strlen(child->c.readlink) + 1 + strlen(dir) + 1);
         sprintf(newpath, "%s/%s", child->c.readlink, dir);
-        struct inode *in = interpret_path_as_directory(cwd, newpath);
+        struct inode *in = interpret_path_as_directory(m, cwd, newpath);
         free(newpath);
         return in;
       }
@@ -207,25 +199,25 @@ struct inode *interpret_path_as_directory(struct inode *cwd, const char *dir) {
   return cwd;
 }
 
-char *model_realpath(struct inode *i) {
+char *model_realpath(struct posixmodel *m, struct inode *i) {
   assert(i);
   if (i->parent == 0) return strdup("/");
 
-  char *parent_path = model_realpath(i->parent);
+  char *parent_path = model_realpath(m, i->parent);
   char *mypath = realloc(parent_path, strlen(parent_path)+1+strlen(i->e.key)+1);
   if (i->parent->parent) strcat(mypath, "/");
   strcat(mypath, i->e.key);
   return mypath;
 }
 
-struct inode *model_cwd(pid_t pid) {
-  return lookup_fd(pid, CWD);
+struct inode *model_cwd(struct posixmodel *m, pid_t pid) {
+  return lookup_fd(m, pid, CWD);
 }
 
-int model_chdir(struct inode *cwd, const char *dir, pid_t pid) {
-  struct inode *thisdir = interpret_path_as_directory(cwd, dir);
+int model_chdir(struct posixmodel *m, struct inode *cwd, const char *dir, pid_t pid) {
+  struct inode *thisdir = interpret_path_as_directory(m, cwd, dir);
   if (thisdir) {
-    create_fd(pid, CWD, thisdir);
+    create_fd(m, pid, CWD, thisdir);
     return 0;
   }
   return -1;
@@ -245,7 +237,7 @@ char *split_at_base(char *path) {
   return path + slashpos + 1;
 }
 
-struct inode *model_lstat(struct inode *cwd, const char *path0) {
+struct inode *model_lstat(struct posixmodel *m, struct inode *cwd, const char *path0) {
   char *dirpath = strdup(path0);
   const char *basepath = split_at_base(dirpath);
   if (!basepath) {
@@ -253,7 +245,7 @@ struct inode *model_lstat(struct inode *cwd, const char *path0) {
     dirpath = strdup(".");
     basepath = path0;
   }
-  struct inode *dir = interpret_path_as_directory(cwd, dirpath);
+  struct inode *dir = interpret_path_as_directory(m, cwd, dirpath);
   if (!dir) {
     free(dirpath);
     return 0;
@@ -271,14 +263,14 @@ struct inode *model_lstat(struct inode *cwd, const char *path0) {
       if (path0[0] == '/') {
         path = (char *)path0;
       } else {
-        path = model_realpath(cwd);
+        path = model_realpath(m, cwd);
         path = realloc(path, strlen(path)+1+strlen(path0)+4);
         strcat(path, "/");
         strcat(path, path0);
       }
       if (!lstat(path, &st)) {
         if (S_ISLNK(st.st_mode)) {
-          child = alloc_symlink(dir, basepath, 0, 0);
+          child = alloc_symlink(m, dir, basepath, 0, 0);
         } else if (S_ISDIR(st.st_mode)) {
           child = alloc_directory(dir, basepath);
         } else if (S_ISREG(st.st_mode)) {
@@ -296,28 +288,28 @@ struct inode *model_lstat(struct inode *cwd, const char *path0) {
   return child;
 }
 
-int model_mkdir(struct inode *cwd, const char *dir) {
-  struct inode *in = model_lstat(cwd, dir);
+int model_mkdir(struct posixmodel *m, struct inode *cwd, const char *dir) {
+  struct inode *in = model_lstat(m, cwd, dir);
   if (in) {
     if (in->type == is_directory) return 0;
     return -1;
   }
-  struct inode *thisdir = interpret_path_as_directory(cwd, dir);
+  struct inode *thisdir = interpret_path_as_directory(m, cwd, dir);
   if (!thisdir) return -1;
   return 0; /* We don't track writes to directories directly */
 }
 
-int model_opendir(struct inode *cwd, const char *dir, pid_t pid, int fd) {
-  struct inode *thisdir = interpret_path_as_directory(cwd, dir);
+int model_opendir(struct posixmodel *m, struct inode *cwd, const char *dir, pid_t pid, int fd) {
+  struct inode *thisdir = interpret_path_as_directory(m, cwd, dir);
   if (thisdir) {
-    create_fd(pid, fd, thisdir);
+    create_fd(m, pid, fd, thisdir);
     return 0;
   }
   return -1;
 }
 
-int model_readdir(pid_t pid, int fd) {
-  struct inode *thisdir = lookup_fd(pid, fd);
+int model_readdir(struct posixmodel *m, pid_t pid, int fd) {
+  struct inode *thisdir = lookup_fd(m, pid, fd);
   if (!thisdir) return -1;
   thisdir->is_read = true;
   return 0;

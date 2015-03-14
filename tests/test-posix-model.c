@@ -11,9 +11,11 @@
 #include <string.h>
 #include <errno.h>
 
+static struct posixmodel m;
+
 int verify_cwd(const char *dir_expected, pid_t pid) {
-  struct inode *cwd = model_cwd(pid);
-  char *dname = model_realpath(cwd);
+  struct inode *cwd = model_cwd(&m, pid);
+  char *dname = model_realpath(&m, cwd);
   printf("%5d: cwd -> %s\n", pid, dname);
   if (strcmp(dir_expected, dname)) {
     printf("\nFAIL: %5d: %s != %s\n", pid, dname, dir_expected);
@@ -24,8 +26,8 @@ int verify_cwd(const char *dir_expected, pid_t pid) {
 }
 
 int verify_fd(const char *dir_expected, pid_t pid, int fd) {
-  struct inode *in = lookup_fd(pid, fd);
-  char *dname = model_realpath(in);
+  struct inode *in = lookup_fd(&m, pid, fd);
+  char *dname = model_realpath(&m, in);
   printf("%5d: %d -> %s\n", pid, fd, dname);
   if (strcmp(dir_expected, dname)) {
     printf("\nFAIL: %5d: %s != %s\n", pid, dname, dir_expected);
@@ -37,26 +39,26 @@ int verify_fd(const char *dir_expected, pid_t pid, int fd) {
 
 int test_chdir(const char *dir, pid_t pid) {
   printf("%5d: chdir %s\n", pid, dir);
-  if (model_chdir(model_cwd(pid), dir, pid)) return 1;
+  if (model_chdir(&m, model_cwd(&m, pid), dir, pid)) return 1;
   if (dir[0] == '/') return verify_cwd(dir, pid);
   return 0;
 }
 
 int test_opendir(const char *dir, pid_t pid, int fd) {
   printf("%5d: opendir %s -> %d\n", pid, dir, fd);
-  if (model_opendir(model_cwd(pid), dir, pid, fd)) return 1;
+  if (model_opendir(&m, model_cwd(&m, pid), dir, pid, fd)) return 1;
   if (dir[0] == '/') return verify_fd(dir, pid, fd);
   return 0;
 }
 
 int test_mkdir(const char *dir, pid_t pid, bool should_fail) {
   printf("%5d: mkdir %s\n", pid, dir);
-  if (model_mkdir(model_cwd(pid), dir)) {
+  if (model_mkdir(&m, model_cwd(&m, pid), dir)) {
     printf("%5d: mkdir fails %s\n", pid, dir);
     return should_fail;
   }
 
-  struct inode *d = model_lstat(model_cwd(pid), dir);
+  struct inode *d = model_lstat(&m, model_cwd(&m, pid), dir);
   if (!d) {
     printf("%5d: does not exist: %s\n", pid, dir);
     return should_fail;
@@ -83,6 +85,8 @@ void attempt_errno(int err, const char *msg) {
 }
 
 int main(int argc, char **argv) {
+  init_posixmodel(&m);
+
   pid_t pid = 100;
   attempt(test_chdir("/test/directory", pid));
 

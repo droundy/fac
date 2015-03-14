@@ -22,16 +22,33 @@ struct inode {
   char name[];
 };
 
-struct inode *lookup_fd(pid_t pid, int fd);
+struct inode_pid_fd {
+  struct inode *inode;
+  pid_t pid;
+  int fd;
+};
 
-char *model_realpath(struct inode *i);
-struct inode *model_cwd(pid_t pid);
-struct inode *model_lstat(struct inode *cwd, const char *path0);
+struct posixmodel {
+  struct inode *root;
+  int num_fds;
+  struct inode_pid_fd *open_stuff;
+};
 
-int model_chdir(struct inode *cwd, const char *dir, pid_t pid);
-int model_mkdir(struct inode *cwd, const char *dir);
+void init_posixmodel(struct posixmodel *m);
 
-int model_opendir(struct inode *cwd, const char *dir, pid_t pid, int fd);
-int model_readdir(pid_t pid, int fd);
+struct inode *lookup_fd(struct posixmodel *m, pid_t pid, int fd);
+
+char *model_realpath(struct posixmodel *m, struct inode *i);
+struct inode *model_cwd(struct posixmodel *m, pid_t pid);
+struct inode *model_lstat(struct posixmodel *m, struct inode *cwd,
+                          const char *path0);
+
+int model_chdir(struct posixmodel *m, struct inode *cwd,
+                const char *dir, pid_t pid);
+int model_mkdir(struct posixmodel *m, struct inode *cwd, const char *dir);
+
+int model_opendir(struct posixmodel *m, struct inode *cwd,
+                  const char *dir, pid_t pid, int fd);
+int model_readdir(struct posixmodel *m, pid_t pid, int fd);
 
 #endif
