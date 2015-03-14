@@ -304,6 +304,14 @@ int model_mkdir(struct inode *cwd, const char *dir) {
   }
   struct inode *thisdir = interpret_path_as_directory(cwd, dir);
   if (!thisdir) return -1;
-  
   return 0; /* We don't track writes to directories directly */
+}
+
+int model_opendir(struct inode *cwd, const char *dir, pid_t pid, int fd) {
+  struct inode *thisdir = interpret_path_as_directory(cwd, dir);
+  if (thisdir) {
+    create_fd(pid, fd, thisdir);
+    return 0;
+  }
+  return -1;
 }

@@ -31,4 +31,6 @@ struct inode *model_lstat(struct inode *cwd, const char *path0);
 int model_chdir(struct inode *cwd, const char *dir, pid_t pid);
 int model_mkdir(struct inode *cwd, const char *dir);
 
+int model_opendir(struct inode *cwd, const char *dir, pid_t pid, int fd);
+
 #endif

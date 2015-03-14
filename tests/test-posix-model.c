@@ -23,10 +23,29 @@ int verify_cwd(const char *dir_expected, pid_t pid) {
   return 0;
 }
 
+int verify_fd(const char *dir_expected, pid_t pid, int fd) {
+  struct inode *in = lookup_fd(pid, fd);
+  char *dname = model_realpath(in);
+  printf("%5d: %d -> %s\n", pid, fd, dname);
+  if (strcmp(dir_expected, dname)) {
+    printf("\nFAIL: %5d: %s != %s\n", pid, dname, dir_expected);
+    return 1;
+  }
+  free(dname);
+  return 0;
+}
+
 int test_chdir(const char *dir, pid_t pid) {
   printf("%5d: chdir %s\n", pid, dir);
   if (model_chdir(model_cwd(pid), dir, pid)) return 1;
-  if (dir[0] == '/') verify_cwd(dir, pid);
+  if (dir[0] == '/') return verify_cwd(dir, pid);
+  return 0;
+}
+
+int test_opendir(const char *dir, pid_t pid, int fd) {
+  printf("%5d: opendir %s -> %d\n", pid, dir, fd);
+  if (model_opendir(model_cwd(pid), dir, pid, fd)) return 1;
+  if (dir[0] == '/') return verify_fd(dir, pid, fd);
   return 0;
 }
 
@@ -132,6 +151,9 @@ int main(int argc, char **argv) {
 
   attempt(test_chdir("../../..", pid));
   attempt(verify_cwd(cwd, pid));
+
+  attempt(test_opendir("abs_symlink_directory/subdir/subsubdir", pid, 7));
+  attempt(test_opendir("/usr/local/bin", pid, 7));
 
   free(cwd);
   free(cmd);
