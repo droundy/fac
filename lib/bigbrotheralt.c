@@ -59,23 +59,23 @@ enum arguments {
 
 #ifdef __x86_64__
 struct i386_user_regs_struct {
-	uint32_t ebx;
-	uint32_t ecx;
-	uint32_t edx;
-	uint32_t esi;
-	uint32_t edi;
-	uint32_t ebp;
-	uint32_t eax;
-	uint32_t xds;
-	uint32_t xes;
-	uint32_t xfs;
-	uint32_t xgs;
-	uint32_t orig_eax;
-	uint32_t eip;
-	uint32_t xcs;
-	uint32_t eflags;
-	uint32_t esp;
-	uint32_t xss;
+  uint32_t ebx;
+  uint32_t ecx;
+  uint32_t edx;
+  uint32_t esi;
+  uint32_t edi;
+  uint32_t ebp;
+  uint32_t eax;
+  uint32_t xds;
+  uint32_t xes;
+  uint32_t xfs;
+  uint32_t xgs;
+  uint32_t orig_eax;
+  uint32_t eip;
+  uint32_t xcs;
+  uint32_t eflags;
+  uint32_t esp;
+  uint32_t xss;
 };
 
 static long get_syscall_arg_64(const struct user_regs_struct *regs, int which) {
@@ -202,16 +202,16 @@ static const char *get_registers(pid_t child, void **voidregs,
 #ifdef __x86_64__
   struct i386_user_regs_struct *i386_regs = malloc(sizeof(struct i386_user_regs_struct));
   if (regs->cs == 0x23) {
-		i386_regs->ebx = regs->rbx;
-		i386_regs->ecx = regs->rcx;
-		i386_regs->edx = regs->rdx;
-		i386_regs->esi = regs->rsi;
-		i386_regs->edi = regs->rdi;
-		i386_regs->ebp = regs->rbp;
-		i386_regs->eax = regs->rax;
-		i386_regs->orig_eax = regs->orig_rax;
-		i386_regs->eip = regs->rip;
-		i386_regs->esp = regs->rsp;
+    i386_regs->ebx = regs->rbx;
+    i386_regs->ecx = regs->rcx;
+    i386_regs->edx = regs->rdx;
+    i386_regs->esi = regs->rsi;
+    i386_regs->edi = regs->rdi;
+    i386_regs->ebp = regs->rbp;
+    i386_regs->eax = regs->rax;
+    i386_regs->orig_eax = regs->orig_rax;
+    i386_regs->eip = regs->rip;
+    i386_regs->esp = regs->rsp;
     free(regs);
     *voidregs = i386_regs;
     struct i386_user_regs_struct *regs = i386_regs;
@@ -536,8 +536,8 @@ int bigbrother_process(const char *workingdir,
 
   if (firstborn == 0) {
     int retval = ktrace(namebuf, KTROP_SET,
-			KTRFAC_SYSCALL | KTRFAC_NAMEI | KTRFAC_INHERIT,
-			getpid());
+      KTRFAC_SYSCALL | KTRFAC_NAMEI | KTRFAC_INHERIT,
+      getpid());
     if (retval) error(1, errno, "ktrace gives %d", retval);
     if (stdouterrfd > 0) {
       close(1);
@@ -552,7 +552,7 @@ int bigbrother_process(const char *workingdir,
 
   /* for debugging purposes, send trace info to stdout */
   printf("dumping trace info from %s... %d\n",
-	 namebuf, (int)lseek(tracefd, 0, SEEK_END));
+   namebuf, (int)lseek(tracefd, 0, SEEK_END));
   /* unlink(namebuf); */
   free(namebuf);
 
@@ -572,8 +572,8 @@ int bigbrother_process(const char *workingdir,
     switch (kth.ktr_type) {
     case KTR_SYSCALL:
       {
-	struct ktr_syscall *sc = (struct ktr_syscall *)buf;
-	printf("CALL %s\n", syscallnames[sc->ktr_code]);
+        struct ktr_syscall *sc = (struct ktr_syscall *)buf;
+        printf("CALL %s\n", syscallnames[sc->ktr_code]);
       }
       break;
     case KTR_NAMEI:
@@ -591,5 +591,5 @@ int bigbrother_process(const char *workingdir,
   if (WIFEXITED(status)) return -WEXITSTATUS(status);
   return 1;
 }
- 
+
 #endif
