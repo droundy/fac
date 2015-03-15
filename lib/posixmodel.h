@@ -40,6 +40,8 @@ void init_posixmodel(struct posixmodel *m);
 
 struct inode *lookup_fd(struct posixmodel *m, pid_t pid, int fd);
 
+void model_dup2(struct posixmodel *m, pid_t pid, int fdorig, int fdtarget);
+
 char *model_realpath(struct inode *i);
 struct inode *model_cwd(struct posixmodel *m, pid_t pid);
 struct inode *model_lstat(struct posixmodel *m, struct inode *cwd,

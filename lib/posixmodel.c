@@ -42,6 +42,11 @@ void create_fd(struct posixmodel *m, pid_t pid, int fd, struct inode *inode) {
   m->num_fds += 1;
 }
 
+void model_dup2(struct posixmodel *m, pid_t pid, int fdorig, int fdtarget) {
+  struct inode *i = lookup_fd(m, pid, fdorig);
+  if (i) create_fd(m, pid, fdtarget, i);
+}
+
 void model_close(struct posixmodel *m, pid_t pid, int fd) {
   /* printf("closing [%d]: %d\n", pid, fd); */
   /* for (int i=0; i<m->num_fds; i++) { */
@@ -307,6 +312,7 @@ struct inode *model_stat(struct posixmodel *m, struct inode *cwd,
                          const char *path) {
   struct inode *i = model_lstat(m, cwd, path);
   if (i && i->type == is_symlink) {
+    i->is_read = true;
     return model_stat(m, i->parent, i->c.readlink);
   }
   return i;
