@@ -50,20 +50,6 @@ static const void *my_ptrace_options =
            PTRACE_O_TRACECLONE |
            PTRACE_O_TRACEEXEC);
 
-static int interesting_path(const char *path) {
-  if (strlen(path) == 0) return 0; /* ?! */
-  if (path[0] != '/') return 0;
-  if (strlen(path) > 4) {
-    if (memcmp(path, "/dev/", 5) == 0) return 0;
-    if (memcmp(path, "/sys/", 5) == 0) return 0;
-    /* the following seems like a good idea, but causes trouble when
-       the entire source tree happens to reside in /tmp.  */
-    //if (memcmp(path, "/tmp/", 5) == 0) return 0;
-    if (memcmp(path, "/proc/", 6) == 0) return 0;
-  }
-  return 1;
-}
-
 #ifdef __x86_64__
 struct i386_user_regs_struct {
   uint32_t ebx;
@@ -271,14 +257,12 @@ static int save_syscall_access(pid_t child,
       if (fd >= 0) {
         char *filename = (char *)malloc(PATH_MAX);
         identify_fd(filename, child, fd);
-        if (interesting_path(filename)) {
-          debugprintf("W: %s(%s)\n", syscalls_32[syscall], filename);
-          insert_to_hashset(written_to_files, filename);
-          delete_from_hashset(read_from_files, filename);
-          delete_from_hashset(deleted_files, filename);
-        } else {
-          debugprintf("W~ %s(%s)\n", syscalls_32[syscall], filename);
-        }
+
+        debugprintf("W: %s(%s)\n", syscalls_32[syscall], filename);
+        insert_to_hashset(written_to_files, filename);
+        delete_from_hashset(read_from_files, filename);
+        delete_from_hashset(deleted_files, filename);
+
         free(filename);
       }
     }
@@ -287,8 +271,7 @@ static int save_syscall_access(pid_t child,
       if (fd >= 0) {
         char *filename = (char *)malloc(PATH_MAX);
         identify_fd(filename, child, fd);
-        if (interesting_path(filename) &&
-            !is_in_hashset(written_to_files, filename)) {
+        if (!is_in_hashset(written_to_files, filename)) {
           debugprintf("R: %s(%s)\n", syscalls_32[syscall], filename);
           insert_to_hashset(read_from_files, filename);
         } else {
@@ -303,19 +286,16 @@ static int save_syscall_access(pid_t child,
       if (fd >= 0) {
         char *filename = (char *)malloc(PATH_MAX);
         identify_fd(filename, child, fd);
-        if (interesting_path(filename)) {
-          debugprintf("readdir: %s(%s)\n", syscalls_32[syscall], filename);
-          insert_to_hashset(read_from_directories, filename);
-        } else {
-          debugprintf("readdir~ %s(%s)\n", syscalls_32[syscall], filename);
-        }
+
+        debugprintf("readdir: %s(%s)\n", syscalls_32[syscall], filename);
+        insert_to_hashset(read_from_directories, filename);
+
         free(filename);
       }
     }
     if (read_string_32[syscall] >= 0) {
       char *arg = read_a_path(child, get_syscall_arg_32(&regs, read_string_32[syscall]));
-      if (interesting_path(arg) && !access(arg, R_OK) &&
-          !is_in_hashset(written_to_files, arg)) {
+      if (!access(arg, R_OK) && !is_in_hashset(written_to_files, arg)) {
         debugprintf("R: %s(%s)\n", syscalls_32[syscall], arg);
         insert_to_hashset(read_from_files, arg);
       } else {
@@ -325,7 +305,7 @@ static int save_syscall_access(pid_t child,
     }
     if (write_string_32[syscall] >= 0) {
       char *arg = read_a_path(child, get_syscall_arg_32(&regs, write_string_32[syscall]));
-      if (interesting_path(arg) && !access(arg, W_OK)) {
+      if (!access(arg, W_OK)) {
         debugprintf("W: %s(%s)\n", syscalls_32[syscall], arg);
         insert_to_hashset(written_to_files, arg);
         delete_from_hashset(deleted_files, arg);
@@ -337,7 +317,7 @@ static int save_syscall_access(pid_t child,
     }
     if (unlink_string_32[syscall] >= 0) {
       char *arg = read_a_path(child, get_syscall_arg_32(&regs, unlink_string_32[syscall]));
-      if (interesting_path(arg) && !access(arg, W_OK)) {
+      if (!access(arg, W_OK)) {
         debugprintf("D: %s(%s)\n", syscalls_32[syscall], arg);
         insert_to_hashset(deleted_files, arg);
         delete_from_hashset(written_to_files, arg);
@@ -352,7 +332,7 @@ static int save_syscall_access(pid_t child,
       char *arg = read_a_path_at(child,
                                  get_syscall_arg_32(&regs, 0) /* dirfd */,
                                  get_syscall_arg_32(&regs, 1) /* path */);
-      if (interesting_path(arg) && !access(arg, W_OK)) {
+      if (!access(arg, W_OK)) {
         debugprintf("D: %s(%s)\n", syscalls_32[syscall], arg);
         insert_to_hashset(deleted_files, arg);
         delete_from_hashset(written_to_files, arg);
@@ -367,7 +347,7 @@ static int save_syscall_access(pid_t child,
       char *arg = read_a_path_at(child,
                                  get_syscall_arg_32(&regs, 2) /* dirfd */,
                                  get_syscall_arg_32(&regs, 3) /* path */);
-      if (interesting_path(arg) && !access(arg, W_OK)) {
+      if (!access(arg, W_OK)) {
         debugprintf("W: %s(%s)\n", syscalls_32[syscall], arg);
         insert_to_hashset(written_to_files, arg);
         delete_from_hashset(deleted_files, arg);
@@ -391,14 +371,12 @@ static int save_syscall_access(pid_t child,
       if (fd >= 0) {
         char *filename = (char *)malloc(PATH_MAX);
         identify_fd(filename, child, fd);
-        if (interesting_path(filename)) {
-          debugprintf("W: %s(%s)\n", syscalls_64[syscall], filename);
-          insert_to_hashset(written_to_files, filename);
-          delete_from_hashset(read_from_files, filename);
-          delete_from_hashset(deleted_files, filename);
-        } else {
-          debugprintf("W~ %s(%s)\n", syscalls_64[syscall], filename);
-        }
+
+        debugprintf("W: %s(%s)\n", syscalls_64[syscall], filename);
+        insert_to_hashset(written_to_files, filename);
+        delete_from_hashset(read_from_files, filename);
+        delete_from_hashset(deleted_files, filename);
+
         free(filename);
       }
     }
@@ -407,8 +385,7 @@ static int save_syscall_access(pid_t child,
       if (fd >= 0) {
         char *filename = (char *)malloc(PATH_MAX);
         identify_fd(filename, child, fd);
-        if (interesting_path(filename) &&
-            !is_in_hashset(written_to_files, filename)) {
+        if (!is_in_hashset(written_to_files, filename)) {
           debugprintf("R: %s(%s)\n", syscalls_64[syscall], filename);
           insert_to_hashset(read_from_files, filename);
         } else {
@@ -423,19 +400,16 @@ static int save_syscall_access(pid_t child,
       if (fd >= 0) {
         char *filename = (char *)malloc(PATH_MAX);
         identify_fd(filename, child, fd);
-        if (interesting_path(filename)) {
-          debugprintf("readdir: %s(%s)\n", syscalls_64[syscall], filename);
-          insert_to_hashset(read_from_directories, filename);
-        } else {
-          debugprintf("readdir~ %s(%s)\n", syscalls_64[syscall], filename);
-        }
+
+        debugprintf("readdir: %s(%s)\n", syscalls_64[syscall], filename);
+        insert_to_hashset(read_from_directories, filename);
+
         free(filename);
       }
     }
     if (read_string_64[syscall] >= 0) {
       char *arg = read_a_path(child, get_syscall_arg_64(&regs, read_string_64[syscall]));
-      if (interesting_path(arg) && !access(arg, R_OK) &&
-          !is_in_hashset(written_to_files, arg)) {
+      if (!access(arg, R_OK) && !is_in_hashset(written_to_files, arg)) {
         debugprintf("R: %s(%s)\n", syscalls_64[syscall], arg);
         insert_to_hashset(read_from_files, arg);
       } else {
@@ -445,7 +419,7 @@ static int save_syscall_access(pid_t child,
     }
     if (write_string_64[syscall] >= 0) {
       char *arg = read_a_path(child, get_syscall_arg_64(&regs, write_string_64[syscall]));
-      if (interesting_path(arg) && !access(arg, W_OK)) {
+      if (!access(arg, W_OK)) {
         debugprintf("W: %s(%s)\n", syscalls_64[syscall], arg);
         insert_to_hashset(written_to_files, arg);
         delete_from_hashset(deleted_files, arg);
@@ -457,7 +431,7 @@ static int save_syscall_access(pid_t child,
     }
     if (unlink_string_64[syscall] >= 0) {
       char *arg = read_a_path(child, get_syscall_arg_64(&regs, unlink_string_64[syscall]));
-      if (interesting_path(arg) && !access(arg, W_OK)) {
+      if (!access(arg, W_OK)) {
         debugprintf("D: %s(%s)\n", syscalls_64[syscall], arg);
         insert_to_hashset(deleted_files, arg);
         delete_from_hashset(written_to_files, arg);
@@ -472,7 +446,7 @@ static int save_syscall_access(pid_t child,
       char *arg = read_a_path_at(child,
                                  get_syscall_arg_64(&regs, 0) /* dirfd */,
                                  get_syscall_arg_64(&regs, 1) /* path */);
-      if (interesting_path(arg) && !access(arg, W_OK)) {
+      if (!access(arg, W_OK)) {
         debugprintf("D: %s(%s)\n", syscalls_64[syscall], arg);
         insert_to_hashset(deleted_files, arg);
         delete_from_hashset(written_to_files, arg);
@@ -487,7 +461,7 @@ static int save_syscall_access(pid_t child,
       char *arg = read_a_path_at(child,
                                  get_syscall_arg_64(&regs, 2) /* dirfd */,
                                  get_syscall_arg_64(&regs, 3) /* path */);
-      if (interesting_path(arg) && !access(arg, W_OK)) {
+      if (!access(arg, W_OK)) {
         debugprintf("W: %s(%s)\n", syscalls_64[syscall], arg);
         insert_to_hashset(written_to_files, arg);
         delete_from_hashset(deleted_files, arg);
@@ -584,20 +558,6 @@ static inline void debugprintf(const char *format, ...) {
   va_start(args, format);
   if (debug_output) vfprintf(stderr, format, args);
   va_end(args);
-}
-
-static int interesting_path(const char *path) {
-  if (strlen(path) == 0) return 0; /* ?! */
-  if (path[0] != '/') return 0;
-  if (strlen(path) > 4) {
-    if (memcmp(path, "/dev/", 5) == 0) return 0;
-    if (memcmp(path, "/sys/", 5) == 0) return 0;
-    /* the following seems like a good idea, but causes trouble when
-       the entire source tree happens to reside in /tmp.  */
-    //if (memcmp(path, "/tmp/", 5) == 0) return 0;
-    if (memcmp(path, "/proc/", 6) == 0) return 0;
-  }
-  return 1;
 }
 
 static long get_syscall_arg(const struct reg *regs, int which) {
@@ -754,14 +714,12 @@ static int save_syscall_access(pid_t child,
     if (fd >= 0) {
       char *filename = (char *)malloc(PATH_MAX);
       identify_fd(filename, child, fd);
-      if (interesting_path(filename)) {
-        debugprintf("W: %s(%s)\n", syscalls_freebsd[syscall], filename);
-        insert_to_hashset(written_to_files, filename);
-        delete_from_hashset(read_from_files, filename);
-        delete_from_hashset(deleted_files, filename);
-      } else {
-        debugprintf("W~ %s(%s)\n", syscalls_freebsd[syscall], filename);
-      }
+
+      debugprintf("W: %s(%s)\n", syscalls_freebsd[syscall], filename);
+      insert_to_hashset(written_to_files, filename);
+      delete_from_hashset(read_from_files, filename);
+      delete_from_hashset(deleted_files, filename);
+
       free(filename);
     }
   }
@@ -770,8 +728,7 @@ static int save_syscall_access(pid_t child,
     if (fd >= 0) {
       char *filename = (char *)malloc(PATH_MAX);
       identify_fd(filename, child, fd);
-      if (interesting_path(filename) &&
-          !is_in_hashset(written_to_files, filename)) {
+      if (!is_in_hashset(written_to_files, filename)) {
         debugprintf("R: %s(%s)\n", syscalls_freebsd[syscall], filename);
         insert_to_hashset(read_from_files, filename);
       } else {
@@ -786,19 +743,16 @@ static int save_syscall_access(pid_t child,
     if (fd >= 0) {
       char *filename = (char *)malloc(PATH_MAX);
       identify_fd(filename, child, fd);
-      if (interesting_path(filename)) {
-        debugprintf("readdir: %s(%s)\n", syscalls_freebsd[syscall], filename);
-        insert_to_hashset(read_from_directories, filename);
-      } else {
-        debugprintf("readdir~ %s(%s)\n", syscalls_freebsd[syscall], filename);
-      }
+
+      debugprintf("readdir: %s(%s)\n", syscalls_freebsd[syscall], filename);
+      insert_to_hashset(read_from_directories, filename);
+
       free(filename);
     }
   }
   if (read_string_freebsd[syscall] >= 0) {
     char *arg = read_a_path(child, get_syscall_arg(&regs, read_string_freebsd[syscall]));
-    if (interesting_path(arg) && !access(arg, R_OK) &&
-        !is_in_hashset(written_to_files, arg)) {
+    if (!access(arg, R_OK) && !is_in_hashset(written_to_files, arg)) {
       debugprintf("R: %s(%s)\n", syscalls_freebsd[syscall], arg);
       insert_to_hashset(read_from_files, arg);
     } else {
@@ -808,7 +762,7 @@ static int save_syscall_access(pid_t child,
   }
   if (write_string_freebsd[syscall] >= 0) {
     char *arg = read_a_path(child, get_syscall_arg(&regs, write_string_freebsd[syscall]));
-    if (interesting_path(arg) && !access(arg, W_OK)) {
+    if (!access(arg, W_OK)) {
       debugprintf("W: %s(%s)\n", syscalls_freebsd[syscall], arg);
       insert_to_hashset(written_to_files, arg);
       delete_from_hashset(deleted_files, arg);
@@ -820,7 +774,7 @@ static int save_syscall_access(pid_t child,
   }
   if (unlink_string_freebsd[syscall] >= 0) {
     char *arg = read_a_path(child, get_syscall_arg(&regs, unlink_string_freebsd[syscall]));
-    if (interesting_path(arg) && !access(arg, W_OK)) {
+    if (!access(arg, W_OK)) {
       debugprintf("D: %s(%s)\n", syscalls_freebsd[syscall], arg);
       insert_to_hashset(deleted_files, arg);
       delete_from_hashset(written_to_files, arg);
@@ -835,7 +789,7 @@ static int save_syscall_access(pid_t child,
     char *arg = read_a_path_at(child,
                                get_syscall_arg(&regs, 0) /* dirfd */,
                                get_syscall_arg(&regs, 1) /* path */);
-    if (interesting_path(arg) && !access(arg, W_OK)) {
+    if (!access(arg, W_OK)) {
       debugprintf("D: %s(%s)\n", syscalls_freebsd[syscall], arg);
       insert_to_hashset(deleted_files, arg);
       delete_from_hashset(written_to_files, arg);
@@ -850,7 +804,7 @@ static int save_syscall_access(pid_t child,
     char *arg = read_a_path_at(child,
                                get_syscall_arg(&regs, 2) /* dirfd */,
                                get_syscall_arg(&regs, 3) /* path */);
-    if (interesting_path(arg) && !access(arg, W_OK)) {
+    if (!access(arg, W_OK)) {
       debugprintf("W: %s(%s)\n", syscalls_freebsd[syscall], arg);
       insert_to_hashset(written_to_files, arg);
       delete_from_hashset(deleted_files, arg);

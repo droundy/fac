@@ -53,20 +53,6 @@ static const void *my_ptrace_options =
            PTRACE_O_TRACECLONE |
            PTRACE_O_TRACEEXEC);
 
-int interesting_path(const char *path) {
-  if (strlen(path) == 0) return 0; /* ?! */
-  if (path[0] != '/') return 0;
-  if (strlen(path) > 4) {
-    if (memcmp(path, "/dev/", 5) == 0) return 0;
-    if (memcmp(path, "/sys/", 5) == 0) return 0;
-    /* the following seems like a good idea, but causes trouble when
-       the entire source tree happens to reside in /tmp.  */
-    //if (memcmp(path, "/tmp/", 5) == 0) return 0;
-    if (memcmp(path, "/proc/", 6) == 0) return 0;
-  }
-  return 1;
-}
-
 enum arguments {
   RETURN_VALUE = -1
 };

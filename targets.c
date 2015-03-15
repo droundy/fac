@@ -79,6 +79,9 @@ struct rule *create_rule(struct all_targets *all, const char *facfile_path,
   add_to_hash(&all->r, &r->e);
 
   add_cache_prefix(r, "/tmp/prof");
+  add_cache_prefix(r, "/sys/");
+  add_cache_prefix(r, "/dev/");
+  add_cache_prefix(r, "/proc/");
   return r;
 }
 
