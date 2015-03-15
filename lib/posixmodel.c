@@ -303,6 +303,47 @@ struct inode *model_lstat(struct posixmodel *m, struct inode *cwd, const char *p
   return child;
 }
 
+struct inode *model_stat(struct posixmodel *m, struct inode *cwd,
+                         const char *path) {
+  struct inode *i = model_lstat(m, cwd, path);
+  if (i && i->type == is_symlink) {
+    return model_stat(m, i->parent, i->c.readlink);
+  }
+  return i;
+}
+
+void model_unlink(struct posixmodel *m, struct inode *cwd, const char *path) {
+  struct inode *i = model_lstat(m, cwd, path);
+  remove_from_hash(&i->parent->c.children, (struct hash_entry *)i);
+  if (i->type == is_symlink) free(i->c.readlink);
+  else if (i->type == is_directory) free_hash_table(&i->c.children);
+  free(i);
+}
+
+void model_rename(struct posixmodel *m, struct inode *cwd,
+                  const char *from, const char *to) {
+  struct inode *i = model_lstat(m, cwd, from);
+  remove_from_hash(&i->parent->c.children, (struct hash_entry *)i);
+
+  char *dirpath = strdup(to);
+  const char *basepath = split_at_base(dirpath);
+  if (!basepath) {
+    free(dirpath);
+    dirpath = strdup(".");
+    basepath = to;
+  }
+  struct inode *dir = interpret_path_as_directory(m, cwd, dirpath);
+  if (!dir) {
+    free(dirpath);
+    return;
+  }
+  i->parent = dir;
+  i = realloc(i, sizeof(struct inode) + strlen(basepath) + 1);
+  strcpy(i->name, basepath);
+  add_to_hash(&dir->c.children, (struct hash_entry *)i);
+  free(dirpath);
+}
+
 int model_mkdir(struct posixmodel *m, struct inode *cwd, const char *dir) {
   struct inode *in = model_lstat(m, cwd, dir);
   if (in) {

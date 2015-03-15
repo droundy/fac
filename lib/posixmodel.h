@@ -44,6 +44,8 @@ char *model_realpath(struct inode *i);
 struct inode *model_cwd(struct posixmodel *m, pid_t pid);
 struct inode *model_lstat(struct posixmodel *m, struct inode *cwd,
                           const char *path0);
+struct inode *model_stat(struct posixmodel *m, struct inode *cwd,
+                         const char *path0);
 
 int model_chdir(struct posixmodel *m, struct inode *cwd,
                 const char *dir, pid_t pid);
@@ -55,6 +57,9 @@ int model_opendir(struct posixmodel *m, struct inode *cwd,
                   const char *dir, pid_t pid, int fd);
 void model_close(struct posixmodel *m, pid_t pid, int fd);
 int model_readdir(struct posixmodel *m, pid_t pid, int fd);
+
+void model_rename(struct posixmodel *m, struct inode *cwd,
+                  const char *from, const char *to);
 
 void model_output(struct posixmodel *m,
                   hashset *read_from_directories,

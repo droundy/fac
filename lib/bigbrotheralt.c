@@ -287,9 +287,59 @@ static int save_syscall_access(pid_t child, struct posixmodel *m) {
     } else {
       debugprintf("%d: open('%s', 'r') -> %d\n", child, arg, fd);
       struct inode *i = model_lstat(m, model_cwd(m, child), arg);
-      if (i) i->is_read = true;
+      if (i) {
+        debugprintf("%d: has read %s\n", child, model_realpath(i));
+        i->is_read = true;
+      }
     }
     free(arg);
+  } else if (!strcmp(name, "creat")) {
+    char *arg = read_a_string(child, get_syscall_arg(regs, 0));
+    int fd = wait_for_return_value(m, child);
+    debugprintf("%d: creat('%s') -> %d\n", child, arg, fd);
+    if (fd >= 0) {
+      struct inode *i = model_lstat(m, model_cwd(m, child), arg);
+      if (i) i->is_written = true;
+    }
+    free(arg);
+  } else if (!strcmp(name, "lstat")) {
+    char *arg = read_a_string(child, get_syscall_arg(regs, 0));
+    int retval = wait_for_return_value(m, child);
+    debugprintf("%d: lstat('%s') -> %d\n", child, arg, retval);
+    struct inode *i = model_lstat(m, model_cwd(m, child), arg);
+    if (i && i->type != is_directory) {
+      debugprintf("%d: has read %s\n", child, model_realpath(i));
+      i->is_read = true;
+    }
+    free(arg);
+  } else if (!strcmp(name, "stat")) {
+    char *arg = read_a_string(child, get_syscall_arg(regs, 0));
+    int retval = wait_for_return_value(m, child);
+    debugprintf("%d: stat('%s') -> %d\n", child, arg, retval);
+    struct inode *i = model_stat(m, model_cwd(m, child), arg);
+    if (i && i->type != is_directory) {
+      debugprintf("%d: has read %s\n", child, model_realpath(i));
+      i->is_read = true;
+    }
+    free(arg);
+  } else if (!strcmp(name, "execve")) {
+    char *arg = read_a_string(child, get_syscall_arg(regs, 0));
+    int retval = wait_for_return_value(m, child);
+    debugprintf("%d: execve('%s') -> %d\n", child, arg, retval);
+    struct inode *i = model_stat(m, model_cwd(m, child), arg);
+    if (i) {
+      debugprintf("%d: has read %s\n", child, model_realpath(i));
+      i->is_read = true;
+    }
+    free(arg);
+  } else if (!strcmp(name, "rename")) {
+    char *from = read_a_string(child, get_syscall_arg(regs, 0));
+    char *to = read_a_string(child, get_syscall_arg(regs, 1));
+    int retval = wait_for_return_value(m, child);
+    debugprintf("%d: rename('%s', '%s') -> %d\n", child, from, to, retval);
+    model_rename(m, model_cwd(m, child), from, to);
+    free(from);
+    free(to);
   } else if (!strcmp(name, "close")) {
     int fd = get_syscall_arg(regs, 0);
     debugprintf("%d: close(%d)\n", child, fd);
