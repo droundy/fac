@@ -546,7 +546,9 @@ int bigbrother_process(const char *workingdir,
                         KTRFAC_SYSCALL | KTRFAC_NAMEI |
                         KTRFAC_SYSRET | KTRFAC_INHERIT,
                         getpid());
-    if (retval) error(1, errno, "ktrace gives %d", retval);
+    if (retval) error(1, errno, "ktrace gives %d for %s", retval, namebuf);
+    unlink(namebuf);
+
     if (stdouterrfd > 0) {
       close(1);
       close(2);
@@ -561,7 +563,6 @@ int bigbrother_process(const char *workingdir,
   /* for debugging purposes, send trace info to stdout */
   /* printf("dumping trace info from %s... %d\n", */
   /*  namebuf, (int)lseek(tracefd, 0, SEEK_END)); */
-  unlink(namebuf);
   free(namebuf);
 
   int status = 0;
