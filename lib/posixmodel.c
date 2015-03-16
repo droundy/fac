@@ -136,6 +136,9 @@ struct inode *alloc_symlink(struct posixmodel *m, struct inode *parent, const ch
 
 struct inode *interpret_path_as_directory(struct posixmodel *m,
                                           struct inode *cwd, const char *dir) {
+  if (dir[0] != '/' && !cwd) {
+    fprintf(stderr, "uh oh trouble with %s\n", dir);
+  }
   assert(dir[0] == '/' || cwd);
   if (dir[0] == '/') {
     /* absolute paths can be interpreted as relative paths to root */
@@ -265,7 +268,12 @@ struct inode *model_lstat(struct posixmodel *m, struct inode *cwd, const char *p
     dirpath = strdup(".");
     basepath = path0;
   }
-  struct inode *dir = interpret_path_as_directory(m, cwd, dirpath);
+  struct inode *dir;
+  if (!dirpath[0]) {
+    dir = m->root;
+  } else {
+    dir = interpret_path_as_directory(m, cwd, dirpath);
+  }
   if (!dir) {
     free(dirpath);
     return 0;

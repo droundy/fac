@@ -22,6 +22,15 @@ static inline void error(int retval, int errno, const char *format, ...) {
   exit(retval);
 }
 
+static const int debug_output = 0;
+
+static inline void debugprintf(const char *format, ...) {
+  va_list args;
+  va_start(args, format);
+  if (debug_output) vfprintf(stdout, format, args);
+  va_end(args);
+}
+
 #ifdef __linux__
 
 #include <sys/stat.h>
@@ -35,15 +44,6 @@ static inline void error(int retval, int errno, const char *format, ...) {
 #include <stdint.h>
 
 #include "linux-syscalls.h"
-
-static const int debug_output = 0;
-
-static inline void debugprintf(const char *format, ...) {
-  va_list args;
-  va_start(args, format);
-  if (debug_output) vfprintf(stdout, format, args);
-  va_end(args);
-}
 
 static const void *my_ptrace_options =
   (void *)(PTRACE_O_TRACESYSGOOD |
@@ -561,7 +561,7 @@ int bigbrother_process(const char *workingdir,
   free(namebuf);
 
   int status = 0;
-  waitpid(-firstborn, &status, 0);
+  waitpid(firstborn, &status, 0);
 
   struct posixmodel m;
   init_posixmodel(&m);
@@ -575,10 +575,13 @@ int bigbrother_process(const char *workingdir,
 
   fflush(stdout);
   fflush(stderr);
-  printf("Finished reading ktrace!!!\n");
+
   model_output(&m, read_from_directories, read_from_files, written_to_files);
 
+  printf("I am about to look at the exit value... %d\n",
+         (int)WIFEXITED(status));
   if (WIFEXITED(status)) return -WEXITSTATUS(status);
+  printf("I am not sure about my exit value...\n");
   return 1;
 }
 
@@ -657,25 +660,32 @@ void read_ktrace(int tracefd, struct posixmodel *m) {
                                           &sparebuf, &sparesize);
           lseek(tracefd, where_from, SEEK_SET);
           if (flags & (O_WRONLY | O_RDWR)) {
-            printf("%d: %s('%s', 'w') -> %d\n", child, name, arg, fd);
+            debugprintf("%d: %s('%s', 'w') -> %d\n", child, name, arg, fd);
             if (fd >= 0) {
               struct inode *i = model_stat(m, model_cwd(m, child), arg);
               if (i) i->is_written = true;
             }
           } else {
-            printf("%d: %s('%s', 'r') -> %d\n", child, name, arg, fd);
+            debugprintf("%d: %s('%s', 'r') -> %d\n", child, name, arg, fd);
             if (fd >= 0) {
               struct inode *i = model_stat(m, model_cwd(m, child), arg);
               if (i && i->type == is_file) i->is_read = true;
             }
           }
           free(arg);
+        } else if (!strcmp(name, "vfork") || !strcmp(name, "fork")) {
+          off_t where_from = lseek(tracefd, 0, SEEK_CUR);
+          int retval = read_ktrace_sysret(tracefd, child, &sparekth,
+                                          &sparebuf, &sparesize);
+          lseek(tracefd, where_from, SEEK_SET);
+          debugprintf("%d: %s() -> %d\n", child, name, retval);
+          if (retval > 0) model_chdir(m, model_cwd(m, child), ".", retval);
         } else if (!strcmp(name, "execve")) {
           off_t where_from = lseek(tracefd, 0, SEEK_CUR);
           char *arg = read_ktrace_namei(tracefd, child, &sparekth,
                                         &sparebuf, &sparesize);
           lseek(tracefd, where_from, SEEK_SET);
-          printf("%d: %s('%s')\n", child, name, arg);
+          debugprintf("%d: %s('%s')\n", child, name, arg);
           struct inode *i = model_stat(m, model_cwd(m, child), arg);
           if (i && i->type == is_file) i->is_read = true;
           free(arg);
@@ -686,7 +696,7 @@ void read_ktrace(int tracefd, struct posixmodel *m) {
           int retval = read_ktrace_sysret(tracefd, child, &sparekth,
                                           &sparebuf, &sparesize);
           lseek(tracefd, where_from, SEEK_SET);
-          printf("%d: %s('%s') -> %d\n", child, name, arg, retval);
+          debugprintf("%d: %s('%s') -> %d\n", child, name, arg, retval);
           if (retval >= 0) {
             model_chdir(m, model_cwd(m, child), arg, child);
           }
@@ -698,7 +708,7 @@ void read_ktrace(int tracefd, struct posixmodel *m) {
           int retval = read_ktrace_sysret(tracefd, child, &sparekth,
                                           &sparebuf, &sparesize);
           lseek(tracefd, where_from, SEEK_SET);
-          printf("%d: %s('%s') -> %d\n", child, name, arg, retval);
+          debugprintf("%d: %s('%s') -> %d\n", child, name, arg, retval);
           if (retval >= 0) {
             struct inode *i = model_stat(m, model_cwd(m, child), arg);
             if (i && i->type == is_file) i->is_read = true;
@@ -711,30 +721,30 @@ void read_ktrace(int tracefd, struct posixmodel *m) {
           int retval = read_ktrace_sysret(tracefd, child, &sparekth,
                                           &sparebuf, &sparesize);
           lseek(tracefd, where_from, SEEK_SET);
-          printf("%d: %s('%s') -> %d\n", child, name, arg, retval);
+          debugprintf("%d: %s('%s') -> %d\n", child, name, arg, retval);
           if (retval >= 0) {
             struct inode *i = model_lstat(m, model_cwd(m, child), arg);
             if (i && i->type != is_directory) i->is_read = true;
           }
           free(arg);
         } else {
-          printf("CALL %s", name);
-          for (int i=0; i<buf->sc.ktr_narg; i++) {
-            printf(" %x", (int)buf->sc.ktr_args[i]);
-          }
-          printf("\n");
+          /* printf("CALL %s", name); */
+          /* for (int i=0; i<buf->sc.ktr_narg; i++) { */
+          /*   printf(" %x", (int)buf->sc.ktr_args[i]); */
+          /* } */
+          /* printf("\n"); */
         }
       }
       break;
     case KTR_NAMEI:
       buf->ni[kth.ktr_len] = 0;
-      printf("NAMI %s\n", buf->ni);
+      /* printf("NAMI %s\n", buf->ni); */
       break;
     case KTR_SYSRET:
       {
-        printf("%s RETURNS: %d\n",
-               syscalls_freebsd[buf->sr.ktr_code],
-               (int)buf->sr.ktr_retval);
+        /* printf("%s RETURNS: %d\n", */
+        /*        syscalls_freebsd[buf->sr.ktr_code], */
+        /*        (int)buf->sr.ktr_retval); */
       }
       break;
     default:
