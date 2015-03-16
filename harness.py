@@ -1,6 +1,6 @@
 #!/usr/bin/python2
 
-import glob, os, subprocess
+import glob, os, subprocess, platform
 
 def system(cmd):
     return subprocess.call(cmd, shell=True)
@@ -13,11 +13,8 @@ class bcolors:
     FAIL = '\033[91m'
     ENDC = '\033[0m'
 
-if system('MINIMAL=1 ./fac --makefile Makefile --script build.sh fac'):
-    print 'Build failed!'
-    exit(1)
-
-if system('MINIMAL=1 CC=clang ./fac --script build-clang.sh fac'):
+if system('MINIMAL=1 ./fac --makefile Makefile.%s --script build-%s.sh fac'
+          % (platform.system().lower(), platform.system().lower())):
     print 'Build failed!'
     exit(1)
 
