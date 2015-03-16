@@ -559,9 +559,9 @@ int bigbrother_process(const char *workingdir,
   *child_ptr = firstborn;
 
   /* for debugging purposes, send trace info to stdout */
-  printf("dumping trace info from %s... %d\n",
-   namebuf, (int)lseek(tracefd, 0, SEEK_END));
-  /* unlink(namebuf); */
+  /* printf("dumping trace info from %s... %d\n", */
+  /*  namebuf, (int)lseek(tracefd, 0, SEEK_END)); */
+  unlink(namebuf);
   free(namebuf);
 
   int status = 0;
@@ -582,10 +582,7 @@ int bigbrother_process(const char *workingdir,
 
   model_output(&m, read_from_directories, read_from_files, written_to_files);
 
-  printf("I am about to look at the exit value... %d\n",
-         (int)WIFEXITED(status));
   if (WIFEXITED(status)) return -WEXITSTATUS(status);
-  printf("I am not sure about my exit value...\n");
   return 1;
 }
 
