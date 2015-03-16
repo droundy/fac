@@ -293,7 +293,7 @@ static int save_syscall_access(pid_t child, struct posixmodel *m) {
     } else {
       debugprintf("%d: open('%s', 'r') -> %d\n", child, arg, fd);
       struct inode *i = model_stat(m, cwd, arg);
-      if (i) {
+      if (i && i->type == is_file) {
         debugprintf("%d: has read %s\n", child, model_realpath(i));
         i->is_read = true;
       }
