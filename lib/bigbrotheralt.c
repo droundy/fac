@@ -539,8 +539,9 @@ int bigbrother_process(const char *workingdir,
 
   if (firstborn == 0) {
     int retval = ktrace(namebuf, KTROP_SET,
-      KTRFAC_SYSCALL | KTRFAC_NAMEI | KTRFAC_SYSRET | KTRFAC_INHERIT,
-      getpid());
+                        KTRFAC_SYSCALL | KTRFAC_NAMEI |
+                        KTRFAC_SYSRET | KTRFAC_INHERIT,
+                        getpid());
     if (retval) error(1, errno, "ktrace gives %d", retval);
     if (stdouterrfd > 0) {
       close(1);
@@ -571,6 +572,10 @@ int bigbrother_process(const char *workingdir,
   }
 
   read_ktrace(tracefd, &m);
+
+  fflush(stdout);
+  fflush(stderr);
+  printf("Finished reading ktrace!!!\n");
   model_output(&m, read_from_directories, read_from_files, written_to_files);
 
   if (WIFEXITED(status)) return -WEXITSTATUS(status);
@@ -671,7 +676,7 @@ void read_ktrace(int tracefd, struct posixmodel *m) {
                                           &sparebuf, &sparesize);
           printf("%d: %s('%s') -> %d\n", child, name, arg, retval);
           if (retval >= 0) {
-            model_chdir(m, model_cwd(m, child), arg);
+            model_chdir(m, model_cwd(m, child), arg, child);
           }
           free(arg);
         } else if (!strcmp(name, "stat")) {
@@ -685,7 +690,7 @@ void read_ktrace(int tracefd, struct posixmodel *m) {
             if (i && i->type == is_file) i->is_read = true;
           }
           free(arg);
-        } else if (!strcmp(name, "lstat")) {
+        } else if (!strcmp(name, "lstat") || !strcmp(name, "readlink")) {
           char *arg = read_ktrace_namei(tracefd, child, &sparekth,
                                         &sparebuf, &sparesize);
           int retval = read_ktrace_sysret(tracefd, child, &sparekth,

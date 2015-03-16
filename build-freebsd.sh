@@ -24,12 +24,14 @@ clang $INC -std=c11 -c targets.c
 
 (cd lib && clang $INC -std=c11 -c bigbrotheralt.c)
 
+(cd lib && clang $INC -std=c11 -c posixmodel.c)
+
 (cd lib && clang $INC -std=c11 -c sha1.c)
 
 (cd lib && clang $INC -std=c11 -c hashset.c)
 
 (cd lib && clang $INC -std=c11 -c fileaccesses.c)
 
-(clang -L/usr/local/lib -lpopt -lpthread -o fac fac.o files.o targets.o clean.o new-build.o git.o environ.o lib/listset.o lib/iterablehash.o lib/bigbrotheralt.o lib/sha1.o lib/hashset.o)
+(clang -L/usr/local/lib -lpopt -lpthread -o fac fac.o files.o targets.o clean.o new-build.o git.o environ.o lib/listset.o lib/iterablehash.o lib/bigbrotheralt.o lib/sha1.o lib/hashset.o lib/posixmodel.o)
 
-(cd lib && clang -L/usr/local/lib -lpopt -lpthread -o fileaccesses fileaccesses.o listset.o iterablehash.o bigbrotheralt.o sha1.o hashset.o)
+(cd lib && clang -L/usr/local/lib -lpopt -lpthread -o fileaccesses fileaccesses.o listset.o iterablehash.o bigbrotheralt.o sha1.o hashset.o posixmodel.o)
