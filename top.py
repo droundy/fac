@@ -1,6 +1,6 @@
 #!/usr/bin/python2
 
-import string, os, sys
+import string, os, sys, platform
 
 os.system('rm -rf testing-flags')
 os.mkdir('testing-flags');
@@ -95,11 +95,17 @@ for s in sources:
         print '> %s-32.o' % s
         print
 
-for s in libsources + ['bigbrother', 'bigbrotheralt', 'fileaccesses']:
+
+extra_libs = ['bigbrotheralt', 'fileaccesses']
+if platform.system() == 'Linux':
+    extra_libs += ['bigbrother']
+
+for s in libsources + extra_libs:
     print '| cd lib && %s %s -c %s.c' % (cc, ' '.join(flags), s)
     print '> lib/%s.o' % s
     if s in ['bigbrother', 'bigbrotheralt']:
         print '< lib/linux-syscalls.h'
+        print '< lib/freebsd-syscalls.h'
     print
     if s in ['fileaccesses', 'fileaccessesalt']:
         continue
@@ -116,25 +122,26 @@ for s in libsources+['bigbrotheralt']:
 print '> fac'
 print
 
-print '| %s '%cc+' '.join(linkflags)+' -o altfac', string.join(['%s.o' % s for s in sources] + ['lib/%s.o' % s for s in libsources+['bigbrother']])
-for s in sources:
-    print '< %s.o' % s
-for s in libsources+['bigbrother']:
-    print '< lib/%s.o' % s
-print '> altfac'
-print
-
-print '| cd lib && %s '%cc+' '.join(linkflags)+' -o fileaccesses fileaccesses.o', string.join(['%s.o' % s for s in libsources+['bigbrother']])
-for s in libsources + ['fileaccesses', 'bigbrother']:
+print '| cd lib && %s '%cc+' '.join(linkflags)+' -o fileaccesses fileaccesses.o', string.join(['%s.o' % s for s in libsources+['bigbrotheralt']])
+for s in libsources + ['fileaccesses', 'bigbrotheralt']:
     print '< lib/%s.o' % s
 print '> lib/fileaccesses'
 print
 
-print '| cd lib && %s '%cc+' '.join(linkflags)+' -o fileaccessesalt fileaccesses.o', string.join(['%s.o' % s for s in libsources+['bigbrotheralt']])
-for s in libsources + ['fileaccesses', 'bigbrotheralt']:
-    print '< lib/%s.o' % s
-print '> lib/fileaccessesalt'
-print
+if platform.system() == 'Linux':
+    print '| %s '%cc+' '.join(linkflags)+' -o altfac', string.join(['%s.o' % s for s in sources] + ['lib/%s.o' % s for s in libsources+['bigbrother']])
+    for s in sources:
+        print '< %s.o' % s
+    for s in libsources+['bigbrother']:
+        print '< lib/%s.o' % s
+    print '> altfac'
+    print
+
+    print '| cd lib && %s '%cc+' '.join(linkflags)+' -o fileaccessesalt fileaccesses.o', string.join(['%s.o' % s for s in libsources+['bigbrother']])
+    for s in libsources + ['fileaccesses', 'bigbrother']:
+        print '< lib/%s.o' % s
+    print '> lib/fileaccessesalt'
+    print
 
 
 ctests = ['hashset', 'listset', 'spinner', 'iterable_hash_test', 'assertion-fails',
