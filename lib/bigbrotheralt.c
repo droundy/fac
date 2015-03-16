@@ -608,9 +608,12 @@ int read_ktrace_entry(int tracefd, struct ktr_header *kth,
 
 char *read_ktrace_namei(int tracefd, pid_t pid, struct ktr_header *kth,
                         union ktr_stuff **buf, int *size) {
-  if (read_ktrace_entry(tracefd, kth, buf, size)) {
-    printf("ERROR READING ANMEIGE\n");
-    exit(1);
+  kth->ktr_pid = -1;
+  while (kth->ktr_pid != pid) {
+    if (read_ktrace_entry(tracefd, kth, buf, size)) {
+      printf("ERROR READING ANMEIGE\n");
+      exit(1);
+    }
   }
   assert(kth->ktr_pid == pid);
   assert(kth->ktr_type == KTR_NAMEI);
@@ -619,9 +622,12 @@ char *read_ktrace_namei(int tracefd, pid_t pid, struct ktr_header *kth,
 
 int read_ktrace_sysret(int tracefd, pid_t pid, struct ktr_header *kth,
                          union ktr_stuff **buf, int *size) {
-  if (read_ktrace_entry(tracefd, kth, buf, size)) {
-    printf("ERROR READING ANMEIGE\n");
-    exit(1);
+  kth->ktr_pid = -1;
+  while (kth->ktr_pid != pid) {
+    if (read_ktrace_entry(tracefd, kth, buf, size)) {
+      printf("ERROR READING ANMEIGE\n");
+      exit(1);
+    }
   }
   assert(kth->ktr_pid == pid);
   assert(kth->ktr_type == KTR_SYSRET);
@@ -644,10 +650,12 @@ void read_ktrace(int tracefd, struct posixmodel *m) {
         pid_t child = kth.ktr_pid;
         if (!strcmp(name, "open")) {
           long flags = buf->sc.ktr_args[1];
+          off_t where_from = lseek(tracefd, 0, SEEK_CUR);
           char *arg = read_ktrace_namei(tracefd, child, &sparekth,
                                         &sparebuf, &sparesize);
           int fd = read_ktrace_sysret(tracefd, child, &sparekth,
                                           &sparebuf, &sparesize);
+          lseek(tracefd, where_from, SEEK_SET);
           if (flags & (O_WRONLY | O_RDWR)) {
             printf("%d: %s('%s', 'w') -> %d\n", child, name, arg, fd);
             if (fd >= 0) {
@@ -663,27 +671,33 @@ void read_ktrace(int tracefd, struct posixmodel *m) {
           }
           free(arg);
         } else if (!strcmp(name, "execve")) {
+          off_t where_from = lseek(tracefd, 0, SEEK_CUR);
           char *arg = read_ktrace_namei(tracefd, child, &sparekth,
                                         &sparebuf, &sparesize);
+          lseek(tracefd, where_from, SEEK_SET);
           printf("%d: %s('%s')\n", child, name, arg);
           struct inode *i = model_stat(m, model_cwd(m, child), arg);
           if (i && i->type == is_file) i->is_read = true;
           free(arg);
         } else if (!strcmp(name, "chdir")) {
+          off_t where_from = lseek(tracefd, 0, SEEK_CUR);
           char *arg = read_ktrace_namei(tracefd, child, &sparekth,
                                         &sparebuf, &sparesize);
           int retval = read_ktrace_sysret(tracefd, child, &sparekth,
                                           &sparebuf, &sparesize);
+          lseek(tracefd, where_from, SEEK_SET);
           printf("%d: %s('%s') -> %d\n", child, name, arg, retval);
           if (retval >= 0) {
             model_chdir(m, model_cwd(m, child), arg, child);
           }
           free(arg);
         } else if (!strcmp(name, "stat")) {
+          off_t where_from = lseek(tracefd, 0, SEEK_CUR);
           char *arg = read_ktrace_namei(tracefd, child, &sparekth,
                                         &sparebuf, &sparesize);
           int retval = read_ktrace_sysret(tracefd, child, &sparekth,
                                           &sparebuf, &sparesize);
+          lseek(tracefd, where_from, SEEK_SET);
           printf("%d: %s('%s') -> %d\n", child, name, arg, retval);
           if (retval >= 0) {
             struct inode *i = model_stat(m, model_cwd(m, child), arg);
@@ -691,10 +705,12 @@ void read_ktrace(int tracefd, struct posixmodel *m) {
           }
           free(arg);
         } else if (!strcmp(name, "lstat") || !strcmp(name, "readlink")) {
+          off_t where_from = lseek(tracefd, 0, SEEK_CUR);
           char *arg = read_ktrace_namei(tracefd, child, &sparekth,
                                         &sparebuf, &sparesize);
           int retval = read_ktrace_sysret(tracefd, child, &sparekth,
                                           &sparebuf, &sparesize);
+          lseek(tracefd, where_from, SEEK_SET);
           printf("%d: %s('%s') -> %d\n", child, name, arg, retval);
           if (retval >= 0) {
             struct inode *i = model_lstat(m, model_cwd(m, child), arg);
