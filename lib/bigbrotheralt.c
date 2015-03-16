@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <fcntl.h> /* for flags to open(2) */
 
 static inline void error(int retval, int errno, const char *format, ...) {
   va_list args;
@@ -24,7 +25,6 @@ static inline void error(int retval, int errno, const char *format, ...) {
 #ifdef __linux__
 
 #include <sys/stat.h>
-#include <fcntl.h>
 
 #include <sys/ptrace.h>
 #include <sys/user.h>
@@ -41,7 +41,7 @@ static const int debug_output = 0;
 static inline void debugprintf(const char *format, ...) {
   va_list args;
   va_start(args, format);
-  if (debug_output) vfprintf(stderr, format, args);
+  if (debug_output) vfprintf(stdout, format, args);
   va_end(args);
 }
 
@@ -506,10 +506,14 @@ int bigbrother_process(const char *workingdir,
 #include <sys/ktrace.h>
 #include <stdio.h>
 #include <errno.h>
+#include <assert.h>
 
 #include <sys/syscall.h>
-#include "syscalls-freebsd.h"
-int nsyscalls = sizeof(syscallnames)/sizeof(syscallnames[0]);
+#include "freebsd-syscalls.h"
+int nsyscalls = sizeof(syscalls_freebsd)/sizeof(syscalls_freebsd[0]);
+
+void read_ktrace(int ktrfd, hashset *read_from_directories,
+		 hashset *read_from_files, hashset *written_to_files);
 
 int bigbrother_process(const char *workingdir,
                        pid_t *child_ptr,
@@ -536,7 +540,7 @@ int bigbrother_process(const char *workingdir,
 
   if (firstborn == 0) {
     int retval = ktrace(namebuf, KTROP_SET,
-      KTRFAC_SYSCALL | KTRFAC_NAMEI | KTRFAC_INHERIT,
+      KTRFAC_SYSCALL | KTRFAC_NAMEI | KTRFAC_SYSRET | KTRFAC_INHERIT,
       getpid());
     if (retval) error(1, errno, "ktrace gives %d", retval);
     if (stdouterrfd > 0) {
@@ -556,40 +560,128 @@ int bigbrother_process(const char *workingdir,
   /* unlink(namebuf); */
   free(namebuf);
 
+  int status = 0;
+  waitpid(-firstborn, &status, 0);
+
+  read_ktrace(tracefd, read_from_directories, read_from_files,
+              written_to_files);
+
+  if (WIFEXITED(status)) return -WEXITSTATUS(status);
+  return 1;
+}
+
+union ktr_stuff {
+  struct ktr_syscall sc;
+  struct ktr_sysret sr;
+  char ni[4096];
+};
+
+int read_ktrace_entry(int tracefd, struct ktr_header *kth,
+                      union ktr_stuff **buf, int *size) {
+  /* We return 0 when we have successfully read an entry. */
+  if (read(tracefd, kth, sizeof(struct ktr_header)) != sizeof(struct ktr_header)) {
+    return 1;
+  }
+  if (kth->ktr_len+1 > *size) {
+    *buf = realloc(*buf, kth->ktr_len+1);
+    *size = kth->ktr_len+1;
+  }
+  if (read(tracefd, *buf, kth->ktr_len) != kth->ktr_len) {
+    printf("error reading.\n");
+    return 1;
+  }
+  if (kth->ktr_type == KTR_NAMEI) (*buf)->ni[kth->ktr_len] = 0;
+  return 0;
+}
+
+char *read_ktrace_namei(int tracefd, pid_t pid, struct ktr_header *kth,
+                        union ktr_stuff **buf, int *size) {
+  if (read_ktrace_entry(tracefd, kth, buf, size)) {
+    printf("ERROR READING ANMEIGE\n");
+    exit(1);
+  }
+  assert(kth->ktr_pid == pid);
+  assert(kth->ktr_type == KTR_NAMEI);
+  return strdup((*buf)->ni);
+}
+
+int read_ktrace_sysret(int tracefd, pid_t pid, struct ktr_header *kth,
+                         union ktr_stuff **buf, int *size) {
+  if (read_ktrace_entry(tracefd, kth, buf, size)) {
+    printf("ERROR READING ANMEIGE\n");
+    exit(1);
+  }
+  assert(kth->ktr_pid == pid);
+  assert(kth->ktr_type == KTR_SYSRET);
+  return (*buf)->sr.ktr_retval;
+}
+
+void read_ktrace(int tracefd, hashset *read_from_directories,
+		 hashset *read_from_files, hashset *written_to_files) {
   lseek(tracefd, 0, SEEK_SET);
   int size = 4096;
-  char *buf = malloc(size);
-  struct ktr_header kth;
-  while (read(tracefd, &kth, sizeof(struct ktr_header)) == sizeof(struct ktr_header)) {
-    if (kth.ktr_len+1 > size) {
-      buf = realloc(buf, kth.ktr_len+1);
-      size = kth.ktr_len+1;
-    }
-    if (read(tracefd, buf, kth.ktr_len) != kth.ktr_len) {
-      printf("error reading.\n");
-      break;
-    }
+  union ktr_stuff *buf = malloc(size);
+  int sparesize = 4096;
+  union ktr_stuff *sparebuf = malloc(sparesize);
+  struct ktr_header kth, sparekth;
+  printf("about to start reading...\n");
+  while (!read_ktrace_entry(tracefd, &kth, &buf, &size)) {
     switch (kth.ktr_type) {
     case KTR_SYSCALL:
       {
-        struct ktr_syscall *sc = (struct ktr_syscall *)buf;
-        printf("CALL %s\n", syscallnames[sc->ktr_code]);
+        const char *name = syscalls_freebsd[buf->sc.ktr_code];
+        pid_t child = kth.ktr_pid;
+        if (!strcmp(name, "open")) {
+          long flags = buf->sc.ktr_args[1];
+          char *arg = read_ktrace_namei(tracefd, child, &sparekth,
+                                        &sparebuf, &sparesize);
+          int retval = read_ktrace_sysret(tracefd, child, &sparekth,
+                                          &sparebuf, &sparesize);
+          if (flags & (O_WRONLY | O_RDWR)) {
+            printf("%d: %s('%s', 'w') -> %d\n", child, name, arg, retval);
+          } else {
+            printf("%d: %s('%s', 'r') -> %d\n", child, name, arg, retval);
+          }
+          free(arg);
+	} else if (!strcmp(name, "stat")) {
+          char *arg = read_ktrace_namei(tracefd, child, &sparekth,
+                                        &sparebuf, &sparesize);
+          int retval = read_ktrace_sysret(tracefd, child, &sparekth,
+                                          &sparebuf, &sparesize);
+          printf("%d: %s('%s') -> %d\n", child, name, arg, retval);
+          free(arg);
+	} else if (!strcmp(name, "lstat")) {
+          char *arg = read_ktrace_namei(tracefd, child, &sparekth,
+                                        &sparebuf, &sparesize);
+          int retval = read_ktrace_sysret(tracefd, child, &sparekth,
+                                          &sparebuf, &sparesize);
+          printf("%d: %s('%s') -> %d\n", child, name, arg, retval);
+          free(arg);
+	} else {
+          printf("CALL %s", name);
+          for (int i=0; i<buf->sc.ktr_narg; i++) {
+            printf(" %x", (int)buf->sc.ktr_args[i]);
+          }
+          printf("\n");
+        }
       }
       break;
     case KTR_NAMEI:
-      buf[kth.ktr_len] = 0;
-      printf("NAMI %s\n", buf);
+      buf->ni[kth.ktr_len] = 0;
+      printf("NAMI %s\n", buf->ni);
+      break;
+    case KTR_SYSRET:
+      {
+	printf("%s RETURNS: %d\n",
+	       syscalls_freebsd[buf->sr.ktr_code],
+	       (int)buf->sr.ktr_retval);
+      }
       break;
     default:
       printf("WHATEVER\n");
     }
   }
   free(buf);
-
-  int status = 0;
-  waitpid(-firstborn, &status, 0);
-  if (WIFEXITED(status)) return -WEXITSTATUS(status);
-  return 1;
 }
 
 #endif
