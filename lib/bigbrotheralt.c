@@ -284,7 +284,7 @@ static int save_syscall_access(pid_t child, struct posixmodel *m) {
         debugprintf("%d: opendirat(%d, '%s') -> %d\n", child, get_syscall_arg(regs, 0), arg, fd);
       }
       model_opendir(m, cwd, arg, child, fd);
-w    } else if (flags & (O_WRONLY | O_RDWR)) {
+    } else if (flags & (O_WRONLY | O_RDWR)) {
       debugprintf("%d: open('%s', 'w') -> %d\n", child, arg, fd);
       if (fd >= 0) {
         struct inode *i = model_stat(m, cwd, arg);
