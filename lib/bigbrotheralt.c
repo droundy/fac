@@ -284,7 +284,7 @@ static int save_syscall_access(pid_t child, struct posixmodel *m) {
         debugprintf("%d: opendirat(%d, '%s') -> %d\n", child, get_syscall_arg(regs, 0), arg, fd);
       }
       model_opendir(m, cwd, arg, child, fd);
-    } else if (flags & (O_WRONLY | O_RDWR)) {
+w    } else if (flags & (O_WRONLY | O_RDWR)) {
       debugprintf("%d: open('%s', 'w') -> %d\n", child, arg, fd);
       if (fd >= 0) {
         struct inode *i = model_stat(m, cwd, arg);
@@ -661,7 +661,10 @@ void read_ktrace(int tracefd, struct posixmodel *m) {
           int fd = read_ktrace_sysret(tracefd, child, &sparekth,
                                           &sparebuf, &sparesize);
           lseek(tracefd, where_from, SEEK_SET);
-          if (flags & (O_WRONLY | O_RDWR)) {
+          if (flags & O_DIRECTORY) {
+            debugprintf("%d: opendir('%s') -> %d\n", child, arg, fd);
+            model_opendir(m, model_cwd(m, child), arg, child, fd);
+          } else if (flags & (O_WRONLY | O_RDWR)) {
             debugprintf("%d: %s('%s', 'w') -> %d\n", child, name, arg, fd);
             if (fd >= 0) {
               struct inode *i = model_stat(m, model_cwd(m, child), arg);
@@ -675,6 +678,15 @@ void read_ktrace(int tracefd, struct posixmodel *m) {
             }
           }
           free(arg);
+        } else if (!strcmp(name, "getdents") || !strcmp(name, "getdirentries")) {
+          int fd = buf->sc.ktr_args[0];
+          off_t where_from = lseek(tracefd, 0, SEEK_CUR);
+          int retval = read_ktrace_sysret(tracefd, child, &sparekth,
+                                          &sparebuf, &sparesize);
+          lseek(tracefd, where_from, SEEK_SET);
+          debugprintf("%d: %s(%d) -> %d\n", child, name, fd, retval);
+          struct inode *i = lookup_fd(m, child, fd);
+          if (i) i->is_read = true;
         } else if (!strcmp(name, "vfork") || !strcmp(name, "fork")) {
           off_t where_from = lseek(tracefd, 0, SEEK_CUR);
           int retval = read_ktrace_sysret(tracefd, child, &sparekth,
