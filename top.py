@@ -2,6 +2,7 @@
 
 import string, os, sys
 
+os.system('rm -rf testing-flags')
 os.mkdir('testing-flags');
 with open('testing-flags/test.c', 'w') as f:
     f.write("""int main() {
@@ -107,18 +108,18 @@ for s in libsources + ['bigbrother', 'bigbrotheralt', 'fileaccesses']:
         print '> lib/%s-32.o' % s
         print
 
-print '| %s '%cc+' '.join(linkflags)+' -o fac', string.join(['%s.o' % s for s in sources] + ['lib/%s.o' % s for s in libsources+['bigbrother']])
+print '| %s '%cc+' '.join(linkflags)+' -o fac', string.join(['%s.o' % s for s in sources] + ['lib/%s.o' % s for s in libsources+['bigbrotheralt']])
 for s in sources:
     print '< %s.o' % s
-for s in libsources+['bigbrother']:
+for s in libsources+['bigbrotheralt']:
     print '< lib/%s.o' % s
 print '> fac'
 print
 
-print '| %s '%cc+' '.join(linkflags)+' -o altfac', string.join(['%s.o' % s for s in sources] + ['lib/%s.o' % s for s in libsources+['bigbrotheralt']])
+print '| %s '%cc+' '.join(linkflags)+' -o altfac', string.join(['%s.o' % s for s in sources] + ['lib/%s.o' % s for s in libsources+['bigbrother']])
 for s in sources:
     print '< %s.o' % s
-for s in libsources+['bigbrotheralt']:
+for s in libsources+['bigbrother']:
     print '< lib/%s.o' % s
 print '> altfac'
 print

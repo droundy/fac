@@ -278,7 +278,11 @@ static int save_syscall_access(pid_t child, struct posixmodel *m) {
     }
     int fd = wait_for_return_value(m, child);
     if (flags & O_DIRECTORY) {
-      debugprintf("%d: opendir('%s') -> %d\n", child, arg, fd);
+      if (!strcmp(name, "open")) {
+        debugprintf("%d: opendir('%s') -> %d\n", child, arg, fd);
+      } else {
+        debugprintf("%d: opendirat(%d, '%s') -> %d\n", child, get_syscall_arg(regs, 0), arg, fd);
+      }
       model_opendir(m, cwd, arg, child, fd);
     } else if (flags & (O_WRONLY | O_RDWR)) {
       debugprintf("%d: open('%s', 'w') -> %d\n", child, arg, fd);

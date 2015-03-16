@@ -13,7 +13,7 @@
 #include <assert.h>
 #include <stdbool.h>
 
-static const int CWD = -1;
+static const int CWD = -100; /* this must be fixed, is AT_FDCWD in fcntl.h */
 
 struct inode *lookup_fd(struct posixmodel *m, pid_t pid, int fd) {
   for (int i=0; i<m->num_fds; i++) {
