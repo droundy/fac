@@ -287,8 +287,8 @@ static int save_syscall_access(pid_t child, struct posixmodel *m) {
     } else if (flags & (O_WRONLY | O_RDWR)) {
       debugprintf("%d: open('%s', 'w') -> %d\n", child, arg, fd);
       if (fd >= 0) {
-        struct inode *i = model_stat(m, cwd, arg);
-        if (i) i->is_written = true;
+        struct inode *i = model_creat(m, cwd, arg);
+        if (i) debugprintf("%d: has written %s\n", child, model_realpath(i));
       }
     } else {
       debugprintf("%d: open('%s', 'r') -> %d\n", child, arg, fd);
@@ -296,6 +296,8 @@ static int save_syscall_access(pid_t child, struct posixmodel *m) {
       if (i && i->type == is_file) {
         debugprintf("%d: has read %s\n", child, model_realpath(i));
         i->is_read = true;
+      } else if (i && i->type == is_directory) {
+        model_opendir(m, cwd, arg, child, fd);
       }
     }
     free(arg);
@@ -478,6 +480,7 @@ int bigbrother_process(const char *workingdir,
     {
       char *cwd = getcwd(0,0);
       model_chdir(&m, 0, cwd, firstborn);
+      if (workingdir) model_chdir(&m, model_cwd(&m, firstborn), workingdir, firstborn);
       free(cwd);
     }
 
@@ -573,6 +576,7 @@ int bigbrother_process(const char *workingdir,
   {
     char *cwd = getcwd(0,0);
     model_chdir(&m, 0, cwd, firstborn);
+    if (workingdir) model_chdir(&m, model_cwd(&m, firstborn), workingdir, firstborn);
     free(cwd);
   }
 
