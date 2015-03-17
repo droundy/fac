@@ -670,10 +670,7 @@ void read_ktrace(int tracefd, struct posixmodel *m) {
             model_opendir(m, model_cwd(m, child), arg, child, fd);
           } else if (flags & (O_WRONLY | O_RDWR)) {
             debugprintf("%d: %s('%s', 'w') -> %d\n", child, name, arg, fd);
-            if (fd >= 0) {
-              struct inode *i = model_stat(m, model_cwd(m, child), arg);
-              if (i) i->is_written = true;
-            }
+            if (fd >= 0) model_creat(m, model_cwd(m, child), arg);
           } else {
             debugprintf("%d: %s('%s', 'r') -> %d\n", child, name, arg, fd);
             if (fd >= 0) {
