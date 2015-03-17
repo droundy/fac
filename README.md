@@ -34,10 +34,11 @@ http://physics.oregonstate.edu/~roundyd/fac
 To build fac (assuming you have just cloned fac, and do not have an
 older version of fac) just run
 
-    sh build.sh
+    sh build-linux.sh
 
-This should build fac on an x86-64 linux system.  You can then build
-an optimized version by running
+This should build fac on an x86-64 linux system.  You can use
+build-freebsd.sh to build on freebsd.  You can then build an optimized
+version by running
 
     ./fac
 
