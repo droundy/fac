@@ -65,6 +65,10 @@ void model_close(struct posixmodel *m, pid_t pid, int fd) {
 }
 
 struct inode *alloc_file(struct inode *parent, const char *name) {
+  if (parent) {
+    struct inode *inode = (struct inode *)lookup_in_hash(&parent->c.children, name);
+    if (inode) return inode;
+  }
   struct inode *inode = malloc(sizeof(struct inode) + strlen(name) + 1);
   strcpy(inode->name, name);
   inode->e.key = inode->name;
@@ -382,10 +386,14 @@ void model_rename(struct posixmodel *m, struct inode *cwd,
     free(dirpath);
     return;
   }
+  struct inode *previous = (struct inode *)lookup_in_hash(&dir->c.children, basepath);
+  if (previous) {
+    remove_from_hash(&dir->c.children, &previous->e);
+  }
   i->parent = dir;
   i = realloc(i, sizeof(struct inode) + strlen(basepath) + 1);
   strcpy(i->name, basepath);
-  add_to_hash(&dir->c.children, (struct hash_entry *)i);
+  add_to_hash(&dir->c.children, &i->e);
   free(dirpath);
 }
 
