@@ -15,6 +15,9 @@ struct target *create_target(struct all_targets *all, const char *path) {
     strcpy((char *)t->path, path);
     t->e.key = t->path;
     t->is_in_git = false;
+    t->is_file = false;
+    t->is_dir = false;
+    t->is_symlink = false;
     t->e.next = 0;
     t->status = unknown;
     t->rule = 0;

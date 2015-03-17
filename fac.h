@@ -101,7 +101,7 @@ struct target {
   enum target_status status;
   struct hashstat stat;
 
-  bool is_file, is_dir;
+  bool is_file, is_dir, is_symlink;
   bool is_in_git;
 
   struct rule *rule;

@@ -151,22 +151,42 @@ void rule_failed(struct all_targets *all, struct rule *r) {
 }
 
 static void find_target_sha1(struct target *t) {
-  int fd = open(t->path, O_RDONLY);
-  if (fd > 0) {
-    if (false) verbose_printf(" *** sha1sum %s\n", pretty_path(t->path));
-    const int bufferlen = 4096*1024;
-    char *buffer = malloc(bufferlen);
-    int readlen, total_size = 0;
+  if (t->is_file) {
+    int fd = open(t->path, O_RDONLY);
+    if (fd > 0) {
+      if (false) verbose_printf(" *** sha1sum %s\n", pretty_path(t->path));
+      const int bufferlen = 4096*1024;
+      char *buffer = malloc(bufferlen);
+      int readlen, total_size = 0;
+      sha1nfo sh;
+      sha1_init(&sh);
+      while ((readlen = read(fd, buffer, bufferlen)) > 0) {
+        sha1_write(&sh, buffer, readlen);
+        total_size += readlen;
+      }
+      if (readlen == 0) {
+        t->stat.hash = sha1_out(&sh);
+      }
+      close(fd);
+      free(buffer);
+    }
+  } else if (t->is_symlink) {
+    int bufferlen = 0;
+    char *buffer = 0;
+    int readlen;
+    do {
+      bufferlen += 4096;
+      buffer = realloc(buffer, bufferlen);
+      readlen = readlink(t->path, buffer, bufferlen);
+      if (readlen < 0) {
+        free(buffer);
+        return;
+      }
+    } while (readlen > bufferlen);
     sha1nfo sh;
     sha1_init(&sh);
-    while ((readlen = read(fd, buffer, bufferlen)) > 0) {
-      sha1_write(&sh, buffer, readlen);
-      total_size += readlen;
-    }
-    if (readlen == 0) {
-      t->stat.hash = sha1_out(&sh);
-    }
-    close(fd);
+    sha1_write(&sh, buffer, readlen);
+    t->stat.hash = sha1_out(&sh);
     free(buffer);
   }
 }
@@ -176,9 +196,10 @@ static struct target *create_target_with_stat(struct all_targets *all,
   struct target *t = create_target(all, path);
   if (!t->stat.time) {
     struct stat st;
-    if (stat(t->path, &st)) return 0;
+    if (lstat(t->path, &st)) return 0;
     t->is_file = S_ISREG(st.st_mode);
     t->is_dir = S_ISDIR(st.st_mode);
+    t->is_symlink = S_ISLNK(st.st_mode);
     t->stat.size = st.st_size;
     t->stat.time = st.st_mtime;
   }
@@ -565,7 +586,7 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
              possible. */
           for (int ii=0; ii<r->num_inputs; ii++) {
             struct target *t = create_target_with_stat(all, r->inputs[ii]->path);
-            if (t && t->is_file
+            if (t && (t->is_file || t->is_symlink)
                 && sha1_is_zero(t->stat.hash)
                 && t->stat.time == r->input_stats[ii].time
                 && t->stat.size == r->input_stats[ii].size) {
@@ -583,7 +604,7 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
               error(1, 0, "Unable to stat input file %s (this should be impossible)\n",
                     r->inputs[ii]->path);
             } else {
-              if (t->is_file && sha1_is_zero(t->stat.hash)) find_target_sha1(t);
+              if ((t->is_file || t->is_symlink) && sha1_is_zero(t->stat.hash)) find_target_sha1(t);
               add_input(r, t);
               delete_from_hashset(&bs[i]->read, r->inputs[ii]->path);
               delete_from_hashset(&bs[i]->written, r->inputs[ii]->path);
@@ -613,7 +634,7 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
               bs[i] = 0;
               break;
             } else {
-              if (t->is_file) find_target_sha1(t);
+              if (t->is_file || t->is_symlink) find_target_sha1(t);
               t->rule = r;
               add_output(r, t);
               delete_from_hashset(&bs[i]->read, r->outputs[ii]->path);
@@ -627,7 +648,7 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
             char *path = e->key;
             if (e->is_valid && is_interesting_path(r, path)) {
               struct target *t = create_target_with_stat(all, path);
-              if (!t || !t->is_file) {
+              if (!t || (!t->is_file && !t->is_symlink)) {
                 /* Assume that the file was deleted, and there's no
                    problem. */
                 // error(1, errno, "Unable to input stat file %s", path);
@@ -669,7 +690,7 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
                 t->stat.size = 0;
               }
               t = create_target_with_stat(all, path);
-              if (t && t->is_file) {
+              if (t && (t->is_file || t->is_symlink)) {
                 if (path == pretty_path(path)) {
                   printf("error: created file outside source directory: %s (%s)",
                          path, pretty_rule(r));
