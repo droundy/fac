@@ -1,50 +1,50 @@
 all: fac
 
-fac.o : fac.h lib/sha1.h lib/listset.h fac.c lib/iterablehash.h new-build.h
-	gcc -std=c11 -c fac.c
-
-files.o : environ.h fac.h lib/sha1.h lib/listset.h lib/iterablehash.h files.c
-	gcc -std=c11 -c files.c
-
-targets.o : fac.h targets.c lib/sha1.h lib/listset.h lib/iterablehash.h
-	gcc -std=c11 -c targets.c
-
-clean.o : fac.h lib/sha1.h lib/listset.h lib/iterablehash.h clean.c
+clean.o : clean.c fac.h lib/iterablehash.h lib/listset.h lib/sha1.h
 	gcc -std=c11 -c clean.c
-
-new-build.o : lib/sha1.h new-build.c environ.h fac.h lib/bigbrother.h lib/listset.h lib/iterablehash.h lib/hashset.h new-build.h
-	gcc -std=c11 -c new-build.c
-
-git.o : fac.h lib/sha1.h lib/listset.h lib/iterablehash.h git.c
-	gcc -std=c11 -c git.c
 
 environ.o : environ.c environ.h lib/sha1.h
 	gcc -std=c11 -c environ.c
 
-lib/listset.o : lib/listset.h lib/listset.c
-	cd lib && gcc -std=c11 -c listset.c
+fac.o : fac.c fac.h lib/iterablehash.h lib/listset.h lib/sha1.h new-build.h
+	gcc -std=c11 -c fac.c
 
-lib/iterablehash.o : lib/iterablehash.h lib/iterablehash.c
-	cd lib && gcc -std=c11 -c iterablehash.c
+files.o : environ.h fac.h files.c lib/iterablehash.h lib/listset.h lib/sha1.h
+	gcc -std=c11 -c files.c
 
-lib/sha1.o : lib/sha1.h lib/sha1.c
-	cd lib && gcc -std=c11 -c sha1.c
+git.o : fac.h git.c lib/iterablehash.h lib/listset.h lib/sha1.h
+	gcc -std=c11 -c git.c
 
-lib/hashset.o : lib/hashset.h lib/iterablehash.h lib/hashset.c
-	cd lib && gcc -std=c11 -c hashset.c
-
-lib/posixmodel.o : lib/iterablehash.h lib/hashset.h lib/posixmodel.h lib/posixmodel.c
-	cd lib && gcc -std=c11 -c posixmodel.c
-
-lib/linux-syscalls.h : lib/linux/unistd_64.h lib/linux-syscalls.py lib/linux/unistd_32.h lib/gentables.py
-	python2 lib/linux-syscalls.py > lib/linux-syscalls.h
-
-lib/freebsd-syscalls.h : lib/freebsd/syscalls.master lib/freebsd-syscalls.py lib/gentables.py lib/master.py
+lib/freebsd-syscalls.h : lib/freebsd-syscalls.py lib/freebsd/syscalls.master lib/gentables.py lib/master.py
 	python2 lib/freebsd-syscalls.py > lib/freebsd-syscalls.h
 
-lib/bigbrotheralt.o : lib/linux-syscalls.h lib/freebsd-syscalls.h lib/bigbrotheralt.c lib/iterablehash.h lib/hashset.h lib/bigbrother.h lib/posixmodel.h
+lib/linux-syscalls.h : lib/gentables.py lib/linux-syscalls.py lib/linux/unistd_32.h lib/linux/unistd_64.h
+	python2 lib/linux-syscalls.py > lib/linux-syscalls.h
+
+lib/bigbrotheralt.o : lib/bigbrother.h lib/bigbrotheralt.c lib/freebsd-syscalls.h lib/hashset.h lib/iterablehash.h lib/linux-syscalls.h lib/posixmodel.h
 	cd lib && gcc -std=c11 -c bigbrotheralt.c
 
-fac : fac.o files.o targets.o clean.o new-build.o git.o environ.o lib/listset.o lib/iterablehash.o lib/sha1.o lib/hashset.o lib/posixmodel.o lib/bigbrotheralt.o
+lib/hashset.o : lib/hashset.c lib/hashset.h lib/iterablehash.h
+	cd lib && gcc -std=c11 -c hashset.c
+
+lib/iterablehash.o : lib/iterablehash.c lib/iterablehash.h
+	cd lib && gcc -std=c11 -c iterablehash.c
+
+lib/listset.o : lib/listset.c lib/listset.h
+	cd lib && gcc -std=c11 -c listset.c
+
+lib/posixmodel.o : lib/hashset.h lib/iterablehash.h lib/posixmodel.c lib/posixmodel.h
+	cd lib && gcc -std=c11 -c posixmodel.c
+
+lib/sha1.o : lib/sha1.c lib/sha1.h
+	cd lib && gcc -std=c11 -c sha1.c
+
+new-build.o : environ.h fac.h lib/bigbrother.h lib/hashset.h lib/iterablehash.h lib/listset.h lib/sha1.h new-build.c new-build.h
+	gcc -std=c11 -c new-build.c
+
+targets.o : fac.h lib/iterablehash.h lib/listset.h lib/sha1.h targets.c
+	gcc -std=c11 -c targets.c
+
+fac : clean.o environ.o fac.o files.o git.o lib/bigbrotheralt.o lib/hashset.o lib/iterablehash.o lib/listset.o lib/posixmodel.o lib/sha1.o new-build.o targets.o
 	gcc -lpopt -lpthread -o fac fac.o files.o targets.o clean.o new-build.o git.o environ.o lib/listset.o lib/iterablehash.o lib/sha1.o lib/hashset.o lib/posixmodel.o lib/bigbrotheralt.o
 

@@ -63,6 +63,8 @@ int model_readdir(struct posixmodel *m, pid_t pid, int fd);
 void model_rename(struct posixmodel *m, struct inode *cwd,
                   const char *from, const char *to);
 
+struct inode *model_creat(struct posixmodel *m, struct inode *cwd, const char *path);
+
 void model_output(struct posixmodel *m,
                   hashset *read_from_directories,
                   hashset *read_from_files,

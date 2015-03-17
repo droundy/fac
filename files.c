@@ -353,6 +353,16 @@ void fprint_facfile(FILE *f, struct all_targets *tt, const char *bpath) {
   }
 }
 
+static int target_cmp(const void *rr1, const void *rr2) {
+  const struct target *r1 = *(struct target **)rr1;
+  const struct target *r2 = *(struct target **)rr2;
+  return strcmp(r1->path, r2->path);
+}
+
+static void sort_target_array(struct target **t, int num) {
+  qsort(t, num, sizeof(struct target *), target_cmp);
+}
+
 static void fprint_makefile_escape(FILE *f, const char *path) {
   while (*path) {
     switch (*path) {
@@ -375,18 +385,32 @@ static void fprint_makefile_rule(FILE *f, struct rule *r) {
   if (r->is_printed) return;
   r->is_printed = true;
   const int lenroot = strlen(root);
+
+  /* We sort the inputs and outputs before creating the makefile, so
+     as to generate output that is the same on every computer, and on
+     every invocation.  This is helpful because often one wants to put
+     the generated file into the git repository for the benefit of
+     users who have not installed fac. */
+  struct target **inps = malloc(r->num_inputs*sizeof(struct target *));
+  for (int i=0; i<r->num_inputs; i++) inps[i] = r->inputs[i];
+  sort_target_array(inps, r->num_inputs);
+
+  struct target **outs = malloc(r->num_outputs*sizeof(struct target *));
+  for (int i=0; i<r->num_outputs; i++) outs[i] = r->outputs[i];
+  sort_target_array(outs, r->num_outputs);
+
   for (int i=0; i<r->num_inputs; i++) {
-    if (r->inputs[i]->rule) fprint_makefile_rule(f, r->inputs[i]->rule);
+    if (inps[i]->rule) fprint_makefile_rule(f, inps[i]->rule);
   }
   for (int i=0; i<r->num_outputs; i++) {
-    fprint_makefile_escape(f, r->outputs[i]->path + lenroot+1);
+    fprint_makefile_escape(f, outs[i]->path + lenroot+1);
     fprintf(f, " ");
   }
   fprintf(f, ":");
   for (int i=0; i<r->num_inputs; i++) {
-    if (is_in_root(r->inputs[i]->path)) {
+    if (is_in_root(inps[i]->path)) {
       fprintf(f, " ");
-      fprint_makefile_escape(f, r->inputs[i]->path + lenroot+1);
+      fprint_makefile_escape(f, inps[i]->path + lenroot+1);
     }
   }
   if (is_in_root(r->working_directory)) {
@@ -396,6 +420,8 @@ static void fprint_makefile_rule(FILE *f, struct rule *r) {
   } else {
     fprintf(f, "\n\t%s\n\n", r->command);
   }
+  free(inps);
+  free(outs);
 }
 
 void fprint_makefile(FILE *f, struct all_targets *all) {
@@ -431,9 +457,20 @@ static void fprint_script_rule(FILE *f, struct rule *r) {
   if (r->is_printed) return;
   r->is_printed = true;
   const int lenroot = strlen(root);
+
+  /* We sort the inputs and outputs before creating the makefile, so
+     as to generate output that is the same on every computer, and on
+     every invocation.  This is helpful because often one wants to put
+     the generated file into the git repository for the benefit of
+     users who have not installed fac. */
+  struct target **inps = malloc(r->num_inputs*sizeof(struct target *));
+  for (int i=0; i<r->num_inputs; i++) inps[i] = r->inputs[i];
+  sort_target_array(inps, r->num_inputs);
+
   for (int i=0; i<r->num_inputs; i++) {
-    if (r->inputs[i]->rule) fprint_script_rule(f, r->inputs[i]->rule);
+    if (inps[i]->rule) fprint_script_rule(f, inps[i]->rule);
   }
+  free(inps);
   if (is_in_root(r->working_directory)) {
     fprintf(f, "(cd ");
     fprint_makefile_escape(f, r->working_directory + lenroot+1);

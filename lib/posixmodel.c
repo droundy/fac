@@ -316,6 +316,37 @@ struct inode *model_lstat(struct posixmodel *m, struct inode *cwd, const char *p
   return child;
 }
 
+struct inode *model_creat(struct posixmodel *m, struct inode *cwd, const char *path0) {
+  {
+    struct inode *i = model_lstat(m, cwd, path0);
+    if (i && i->type == is_file) {
+      i->is_written = true;
+      return i;
+    }
+  }
+  char *dirpath = strdup(path0);
+  const char *basepath = split_at_base(dirpath);
+  if (!basepath) {
+    free(dirpath);
+    dirpath = strdup(".");
+    basepath = path0;
+  }
+  struct inode *dir;
+  if (!dirpath[0]) {
+    dir = m->root;
+  } else {
+    dir = interpret_path_as_directory(m, cwd, dirpath);
+  }
+  if (!dir) {
+    free(dirpath);
+    return 0;
+  }
+  struct inode *f = alloc_file(dir, basepath);
+  if (f) f->is_written = true;
+  free(dirpath);
+  return f;
+}
+
 struct inode *model_stat(struct posixmodel *m, struct inode *cwd,
                          const char *path) {
   struct inode *i = model_lstat(m, cwd, path);
@@ -392,6 +423,7 @@ static void inode_output(struct inode *i,
   if (i->type == is_directory) {
     if (i->is_read) {
       char *iname = model_realpath(i);
+      /* printf("l: %s\n", iname); */
       insert_to_hashset(read_from_directories, iname);
       free(iname);
     }
@@ -403,10 +435,12 @@ static void inode_output(struct inode *i,
   }
   if (i->is_written) {
     char *iname = model_realpath(i);
+    /* printf("w: %s\n", iname); */
     insert_to_hashset(written_to_files, iname);
     free(iname);
   } else if (i->is_read) {
     char *iname = model_realpath(i);
+    /* printf("r: %s\n", iname); */
     insert_to_hashset(read_from_files, iname);
     free(iname);
   }
