@@ -36,7 +36,10 @@ struct posixmodel {
   struct inode_pid_fd *open_stuff;
 };
 
+void free_inode(struct inode *);
+
 void init_posixmodel(struct posixmodel *m);
+void free_posixmodel(struct posixmodel *m);
 
 struct inode *lookup_fd(struct posixmodel *m, pid_t pid, int fd);
 

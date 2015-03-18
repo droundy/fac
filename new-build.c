@@ -807,6 +807,7 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
     free(to_delete);
   }
 
+  free(slots_available);
   free(bs);
   sigaction(SIGINT, &oldact, 0);
 }

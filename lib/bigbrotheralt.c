@@ -31,6 +31,12 @@ static inline void debugprintf(const char *format, ...) {
   va_end(args);
 }
 
+static inline char *debug_realpath(struct inode *i) {
+  // WARNING: only use this function as an input to debugprintf!
+  if (debug_output) return model_realpath(i);
+  return 0;
+}
+
 #ifdef __linux__
 
 #include <sys/stat.h>
@@ -200,8 +206,8 @@ static const char *get_registers(pid_t child, void **voidregs,
     return 0;
   }
 #ifdef __x86_64__
-  struct i386_user_regs_struct *i386_regs = malloc(sizeof(struct i386_user_regs_struct));
   if (regs->cs == 0x23) {
+    struct i386_user_regs_struct *i386_regs = malloc(sizeof(struct i386_user_regs_struct));
     i386_regs->ebx = regs->rbx;
     i386_regs->ecx = regs->rcx;
     i386_regs->edx = regs->rdx;
@@ -253,7 +259,10 @@ static int save_syscall_access(pid_t child, struct posixmodel *m) {
   long (*get_syscall_arg)(void *regs, int which) = 0;
 
   const char *name = get_registers(child, &regs, &get_syscall_arg);
-  if (!name) return -1;
+  if (!name) {
+    free(regs);
+    return -1;
+  }
 
   //debugprintf("%d: %s(?)\n", child, name);
 
@@ -288,13 +297,13 @@ static int save_syscall_access(pid_t child, struct posixmodel *m) {
       debugprintf("%d: open('%s', 'w') -> %d\n", child, arg, fd);
       if (fd >= 0) {
         struct inode *i = model_creat(m, cwd, arg);
-        if (i) debugprintf("%d: has written %s\n", child, model_realpath(i));
+        if (i) debugprintf("%d: has written %s\n", child, debug_realpath(i));
       }
     } else {
       debugprintf("%d: open('%s', 'r') -> %d\n", child, arg, fd);
       struct inode *i = model_stat(m, cwd, arg);
       if (i && i->type == is_file) {
-        debugprintf("%d: has read %s\n", child, model_realpath(i));
+        debugprintf("%d: has read %s\n", child, debug_realpath(i));
         i->is_read = true;
       } else if (i && i->type == is_directory) {
         model_opendir(m, cwd, arg, child, fd);
@@ -325,7 +334,7 @@ static int save_syscall_access(pid_t child, struct posixmodel *m) {
     debugprintf("%d: %s('%s') -> %d\n", child, name, arg, retval);
     struct inode *i = model_lstat(m, cwd, arg);
     if (i && i->type != is_directory) {
-      debugprintf("%d: has read %s\n", child, model_realpath(i));
+      debugprintf("%d: has read %s\n", child, debug_realpath(i));
       i->is_read = true;
     }
     free(arg);
@@ -335,7 +344,7 @@ static int save_syscall_access(pid_t child, struct posixmodel *m) {
     debugprintf("%d: %s('%s') -> %d\n", child, name, arg, retval);
     struct inode *i = model_stat(m, model_cwd(m, child), arg);
     if (i && i->type != is_directory) {
-      debugprintf("%d: has read %s\n", child, model_realpath(i));
+      debugprintf("%d: has read %s\n", child, debug_realpath(i));
       i->is_read = true;
     }
     free(arg);
@@ -353,7 +362,7 @@ static int save_syscall_access(pid_t child, struct posixmodel *m) {
       debugprintf("%d: %s('%s')\n", child, name, arg);
       struct inode *i = model_stat(m, cwd, arg);
       if (i) {
-        debugprintf("%d: has read %s\n", child, model_realpath(i));
+        debugprintf("%d: has read %s\n", child, debug_realpath(i));
         i->is_read = true;
       }
     }
@@ -418,7 +427,7 @@ static int save_syscall_access(pid_t child, struct posixmodel *m) {
     struct inode *i = lookup_fd(m, child, fd);
     if (i && i->type == is_directory) {
       i->is_read = true;
-      debugprintf("%d: have read '%s'\n", child, model_realpath(i));
+      debugprintf("%d: have read '%s'\n", child, debug_realpath(i));
     }
   } else if (!strcmp(name, "chdir")) {
     char *arg = read_a_string(child, get_syscall_arg(regs, 0));
@@ -441,11 +450,6 @@ int bigbrother_process(const char *workingdir,
                        hashset *read_from_files,
                        hashset *written_to_files,
                        hashset *deleted_files) {
-  initialize_hashset(read_from_directories);
-  initialize_hashset(read_from_files);
-  initialize_hashset(written_to_files);
-  initialize_hashset(deleted_files);
-
   pid_t firstborn = fork();
   if (firstborn == -1) {
   }
@@ -484,6 +488,7 @@ int bigbrother_process(const char *workingdir,
       if (child <= 0) {
         debugprintf("Returning with exit value %d\n", -child);
         model_output(&m, read_from_directories, read_from_files, written_to_files);
+        free_posixmodel(&m);
         return -child;
       }
 
@@ -524,11 +529,6 @@ int bigbrother_process(const char *workingdir,
                        hashset *read_from_files,
                        hashset *written_to_files,
                        hashset *deleted_files) {
-  initialize_hashset(read_from_directories);
-  initialize_hashset(read_from_files);
-  initialize_hashset(written_to_files);
-  initialize_hashset(deleted_files);
-
   const char *templ = "/tmp/fac-XXXXXX";
   char *namebuf = malloc(strlen(templ)+1);
   strcpy(namebuf, templ);

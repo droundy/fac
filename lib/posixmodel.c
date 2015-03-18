@@ -94,6 +94,11 @@ void init_posixmodel(struct posixmodel *m) {
   m->open_stuff = 0;
 }
 
+void free_posixmodel(struct posixmodel *m) {
+  free_inode(m->root);
+  free(m->open_stuff);
+}
+
 struct inode *alloc_symlink(struct posixmodel *m, struct inode *parent, const char *name,
                             const char *contents, int size) {
   struct inode *inode = alloc_file(parent, name);
@@ -361,12 +366,25 @@ struct inode *model_stat(struct posixmodel *m, struct inode *cwd,
   return i;
 }
 
+void free_inode(struct inode *i) {
+  if (i->type == is_symlink) {
+    free(i->c.readlink);
+  } else if (i->type == is_directory) {
+    struct inode *ch=(struct inode *)i->c.children.first;
+    while (ch) {
+      struct inode *tofree = ch;
+      ch = (struct inode *)ch->e.next;
+      free_inode(tofree);
+    }
+    free_hash_table(&i->c.children);
+  }
+  free(i);
+}
+
 void model_unlink(struct posixmodel *m, struct inode *cwd, const char *path) {
   struct inode *i = model_lstat(m, cwd, path);
   remove_from_hash(&i->parent->c.children, (struct hash_entry *)i);
-  if (i->type == is_symlink) free(i->c.readlink);
-  else if (i->type == is_directory) free_hash_table(&i->c.children);
-  free(i);
+  free_inode(i);
 }
 
 void model_rename(struct posixmodel *m, struct inode *cwd,
