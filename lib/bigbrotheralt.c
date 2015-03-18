@@ -699,6 +699,14 @@ void read_ktrace(int tracefd, struct posixmodel *m) {
           struct inode *i = model_stat(m, model_cwd(m, child), arg);
           if (i && i->type == is_file) i->is_read = true;
           free(arg);
+        } else if (!strcmp(name, "creat") || !strcmp(name, "truncate")) {
+          off_t where_from = lseek(tracefd, 0, SEEK_CUR);
+          char *arg = read_ktrace_namei(tracefd, child, &sparekth,
+                                        &sparebuf, &sparesize);
+          lseek(tracefd, where_from, SEEK_SET);
+          debugprintf("%d: %s('%s')\n", child, name, arg);
+          model_creat(m, model_cwd(m, child), arg);
+          free(arg);
         } else if (!strcmp(name, "chdir")) {
           off_t where_from = lseek(tracefd, 0, SEEK_CUR);
           char *arg = read_ktrace_namei(tracefd, child, &sparekth,
