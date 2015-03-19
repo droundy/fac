@@ -160,6 +160,12 @@ struct inode *alloc_symlink(struct posixmodel *m, struct inode *parent, const ch
   return inode;
 }
 
+void model_symlink(struct posixmodel *m, struct inode *parent, const char *name,
+                   const char *contents) {
+  struct inode *i = alloc_symlink(m, parent, name, contents, 0);
+  if (i) i->is_written = true;
+}
+
 struct inode *interpret_path_as_directory(struct posixmodel *m,
                                           struct inode *cwd, const char *dir) {
   if (dir[0] != '/' && !cwd) {

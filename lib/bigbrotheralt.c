@@ -363,6 +363,25 @@ static int save_syscall_access(pid_t child, struct posixmodel *m) {
       i->is_read = true;
     }
     free(arg);
+  } else if (!strcmp(name, "symlink") || !strcmp(name, "symlinkat")) {
+    char *arg, *target;
+    struct inode *cwd;
+    int retval = wait_for_return_value(m, child);
+    if (retval == 0) {
+      if (!strcmp(name, "symlink")) {
+        arg = read_a_string(child, get_syscall_arg(regs, 0));
+        target = read_a_string(child, get_syscall_arg(regs, 1));
+        cwd = model_cwd(m, child);
+      } else {
+        arg = read_a_string(child, get_syscall_arg(regs, 1));
+        target = read_a_string(child, get_syscall_arg(regs, 2));
+        cwd = lookup_fd(m, child, get_syscall_arg(regs, 0));
+      }
+      debugprintf("%d: %s('%s', '%s')\n", child, name, arg, target);
+      model_symlink(m, cwd, arg, target);
+      free(arg);
+      free(target);
+    }
   } else if (!strcmp(name, "execve") || !strcmp(name, "execveat")) {
     char *arg;
     struct inode *cwd;

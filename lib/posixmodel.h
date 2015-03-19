@@ -62,6 +62,9 @@ int model_mkdir(struct posixmodel *m, struct inode *cwd, const char *dir);
 
 void model_unlink(struct posixmodel *m, struct inode *cwd, const char *f);
 
+void model_symlink(struct posixmodel *m, struct inode *parent, const char *name,
+                   const char *contents);
+
 int model_opendir(struct posixmodel *m, struct inode *cwd,
                   const char *dir, pid_t pid, int fd);
 void model_close(struct posixmodel *m, pid_t pid, int fd);
