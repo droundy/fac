@@ -311,15 +311,6 @@ static int save_syscall_access(pid_t child, struct posixmodel *m) {
       }
       free(arg);
     }
-  } else if (!strcmp(name, "creat") || !strcmp(name, "truncate")) {
-    int fd = wait_for_return_value(m, child);
-    if (fd >= 0) {
-      char *arg = read_a_string(child, get_syscall_arg(regs, 0));
-      debugprintf("%d: %s('%s') -> %d\n", child, name, arg, fd);
-      struct inode *i = model_stat(m, model_cwd(m, child), arg);
-      if (i) i->is_written = true;
-      free(arg);
-    }
   } else if (!strcmp(name, "unlink") || !strcmp(name, "unlinkat")) {
     char *arg;
     struct inode *cwd;
@@ -338,20 +329,21 @@ static int save_syscall_access(pid_t child, struct posixmodel *m) {
       model_unlink(m, cwd, arg);
       free(arg);
     }
-  } else if (!strcmp(name, "utime") || !strcmp(name, "utimes")) {
+  } else if (!strcmp(name, "creat") || !strcmp(name, "truncate") ||
+             !strcmp(name, "utime") || !strcmp(name, "utimes")) {
     char *arg = read_a_string(child, get_syscall_arg(regs, 0));
     int retval = wait_for_return_value(m, child);
     debugprintf("%d: %s('%s') -> %d\n", child, name, arg, retval);
-    if (retval == 0) {
+    if (retval >= 0) {
       model_creat(m, model_cwd(m, child), arg);
     }
     free(arg);
-  } else if (!strcmp(name, "futimesat") || !strcmp(name, "utimesat")) {
+  } else if (!strcmp(name, "futimesat") || !strcmp(name, "utimensat")) {
     char *arg = read_a_string(child, get_syscall_arg(regs, 1));
     int retval = wait_for_return_value(m, child);
     debugprintf("%d: %s(%d, '%s') -> %d\n", child, name,
                 (int)get_syscall_arg(regs,0), arg, retval);
-    if (retval == 0) {
+    if (retval >= 0) {
       struct inode *cwd = lookup_fd(m, child, get_syscall_arg(regs, 0));
       model_creat(m, cwd, arg);
     }
