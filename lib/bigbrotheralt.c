@@ -157,12 +157,12 @@ static pid_t wait_for_syscall(struct posixmodel *m, int firstborn) {
       unsigned long pid;
       ptrace(PTRACE_GETEVENTMSG, child, 0, &pid);
       debugprintf("%ld: forked from %d\n", pid, child);
-      model_chdir(m, model_cwd(m, child), ".", pid);
+      model_fork(m, child, pid);
     } else if (WIFSTOPPED(status) && (status>>8) == (SIGTRAP | PTRACE_EVENT_VFORK << 8)) {
       unsigned long pid;
       ptrace(PTRACE_GETEVENTMSG, child, 0, &pid);
       debugprintf("%ld: vforked from %d\n", pid, child);
-      model_chdir(m, model_cwd(m, child), ".", pid);
+      model_fork(m, child, pid);
     } else if (WIFSTOPPED(status) && (status>>8) == (SIGTRAP | PTRACE_EVENT_CLONE << 8)) {
       unsigned long pid;
       ptrace(PTRACE_GETEVENTMSG, child, 0, &pid);
@@ -264,11 +264,10 @@ static int save_syscall_access(pid_t child, struct posixmodel *m) {
     return -1;
   }
 
-  //debugprintf("%d: %s(?)\n", child, name);
+  debugprintf("%d: %s(?)\n", child, name);
 
   /*  TODO:
 
-      unlink, unlinkat symlink symlinkat
       chroot? mkdir? mkdirat? rmdir? rmdirat?
   */
 
@@ -318,6 +317,22 @@ static int save_syscall_access(pid_t child, struct posixmodel *m) {
       struct inode *i = model_stat(m, model_cwd(m, child), arg);
       if (i) i->is_written = true;
     }
+    free(arg);
+  } else if (!strcmp(name, "unlink") || !strcmp(name, "unlinkat")) {
+    char *arg;
+    struct inode *cwd;
+    int retval = wait_for_return_value(m, child);
+    if (!strcmp(name, "unlink")) {
+      arg = read_a_string(child, get_syscall_arg(regs, 0));
+      cwd = model_cwd(m, child);
+      debugprintf("%d: %s('%s') -> %d\n", child, name, arg, retval);
+    } else {
+      arg = read_a_string(child, get_syscall_arg(regs, 1));
+      cwd = lookup_fd(m, child, get_syscall_arg(regs, 0));
+      debugprintf("%d: %s(%d, '%s') -> %d\n", child, name,
+                  (int)get_syscall_arg(regs,0), arg, retval);
+    }
+    model_unlink(m, cwd, arg);
     free(arg);
   } else if (!strcmp(name, "lstat") || !strcmp(name, "lstat64") ||
              !strcmp(name, "readlink") || !strcmp(name, "readlinkat")) {
@@ -420,6 +435,14 @@ static int save_syscall_access(pid_t child, struct posixmodel *m) {
     int retval = wait_for_return_value(m, child);
     debugprintf("%d: dup(%d) -> %d\n", child, fd1, retval);
     if (retval >= 0) model_dup2(m, child, fd1, retval);
+  } else if (!strcmp(name, "fcntl")) {
+    int fd1 = get_syscall_arg(regs, 0);
+    int cmd = get_syscall_arg(regs, 1);
+    int retval = wait_for_return_value(m, child);
+    if (cmd == F_DUPFD || cmd == F_DUPFD_CLOEXEC) {
+      debugprintf("%d: fcntl(F_DUPFD, %d) -> %d\n", child, fd1, retval);
+      if (retval >= 0) model_dup2(m, child, fd1, retval);
+    }
   } else if (!strcmp(name, "getdents") || !strcmp(name, "getdents64")) {
     int fd = get_syscall_arg(regs, 0);
     int retval = wait_for_return_value(m, child);
@@ -689,7 +712,7 @@ void read_ktrace(int tracefd, struct posixmodel *m) {
                                           &sparebuf, &sparesize);
           lseek(tracefd, where_from, SEEK_SET);
           debugprintf("%d: %s() -> %d\n", child, name, retval);
-          if (retval > 0) model_chdir(m, model_cwd(m, child), ".", retval);
+          if (retval > 0) model_fork(m, child, retval);
         } else if (!strcmp(name, "execve")) {
           off_t where_from = lseek(tracefd, 0, SEEK_CUR);
           char *arg = read_ktrace_namei(tracefd, child, &sparekth,

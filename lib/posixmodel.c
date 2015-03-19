@@ -42,6 +42,23 @@ void create_fd(struct posixmodel *m, pid_t pid, int fd, struct inode *inode) {
   m->num_fds += 1;
 }
 
+void model_fork(struct posixmodel *m, pid_t parent, pid_t child) {
+  int num_fd_in_parent = 0;
+  for (int i=0; i<m->num_fds; i++) {
+    if (m->open_stuff[i].pid == parent) num_fd_in_parent++;
+  }
+  m->open_stuff = realloc(m->open_stuff, (m->num_fds+num_fd_in_parent)*sizeof(struct inode_pid_fd));
+  int j = m->num_fds;
+  for (int i=0; i<m->num_fds; i++) {
+    if (m->open_stuff[i].pid == parent) {
+      m->open_stuff[j] = m->open_stuff[i];
+      m->open_stuff[j].pid = child;
+      j++;
+    }
+  }
+  m->num_fds += num_fd_in_parent;
+}
+
 void model_dup2(struct posixmodel *m, pid_t pid, int fdorig, int fdtarget) {
   struct inode *i = lookup_fd(m, pid, fdorig);
   if (i) create_fd(m, pid, fdtarget, i);
@@ -383,8 +400,10 @@ void free_inode(struct inode *i) {
 
 void model_unlink(struct posixmodel *m, struct inode *cwd, const char *path) {
   struct inode *i = model_lstat(m, cwd, path);
-  remove_from_hash(&i->parent->c.children, (struct hash_entry *)i);
-  free_inode(i);
+  if (i && i->parent) {
+    remove_from_hash(&i->parent->c.children, (struct hash_entry *)i);
+    free_inode(i);
+  }
 }
 
 void model_rename(struct posixmodel *m, struct inode *cwd,

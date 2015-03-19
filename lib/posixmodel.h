@@ -45,6 +45,8 @@ struct inode *lookup_fd(struct posixmodel *m, pid_t pid, int fd);
 
 void model_dup2(struct posixmodel *m, pid_t pid, int fdorig, int fdtarget);
 
+void model_fork(struct posixmodel *m, pid_t parent, pid_t child);
+
 char *model_realpath(struct inode *i);
 struct inode *model_cwd(struct posixmodel *m, pid_t pid);
 struct inode *model_lstat(struct posixmodel *m, struct inode *cwd,
@@ -57,6 +59,8 @@ int model_chdir(struct posixmodel *m, struct inode *cwd,
 void model_newthread(struct posixmodel *m, pid_t parent, pid_t child);
 
 int model_mkdir(struct posixmodel *m, struct inode *cwd, const char *dir);
+
+void model_unlink(struct posixmodel *m, struct inode *cwd, const char *f);
 
 int model_opendir(struct posixmodel *m, struct inode *cwd,
                   const char *dir, pid_t pid, int fd);
