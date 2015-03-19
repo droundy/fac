@@ -160,8 +160,8 @@ struct inode *alloc_symlink(struct posixmodel *m, struct inode *parent, const ch
   return inode;
 }
 
-void model_symlink(struct posixmodel *m, struct inode *parent, const char *name,
-                   const char *contents) {
+void model_symlink(struct posixmodel *m, struct inode *parent, const char *contents,
+                   const char *name) {
   struct inode *i = alloc_symlink(m, parent, name, contents, 0);
   if (i) i->is_written = true;
 }
