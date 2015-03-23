@@ -6,6 +6,8 @@ set -ev
 
 (gcc -std=c11 -c environ.c)
 
+(python3 generate-version-header.py > version-identifier.h)
+
 (gcc -std=c11 -c fac.c)
 
 (gcc -std=c11 -c files.c)
