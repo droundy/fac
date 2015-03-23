@@ -523,10 +523,11 @@ int bigbrother_process(const char *workingdir,
 
   if (firstborn == 0) {
     if (stdouterrfd > 0) {
+      close(0); // close stdin so programs won't wait on input
       close(1);
       close(2);
-      dup(stdouterrfd);
-      dup(stdouterrfd);
+      dup2(stdouterrfd, 1);
+      dup2(stdouterrfd, 2);
     }
     if (workingdir && chdir(workingdir) != 0) return -1;
     ptrace(PTRACE_TRACEME);
