@@ -35,6 +35,10 @@ verify the signatures, more recent than I have.  So when the next
 Debian release happens, you can expect this to be updated.  Right now,
 your protection is pretty minimal.
 
+If you get a warning about permissions, you can fix this with
+
+    chmod go-rwx .gnupg
+
 ## Rationalization
 
 The concept of the pgp web of trust is broken, and also (even if it
