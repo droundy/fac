@@ -117,3 +117,5 @@ with the following options.
 * [Documentation of the code](code-guide.html)
 
 * [Comparison with SCons](fac-vs-scons.html)
+
+* [Signatures and git](signatures.html)

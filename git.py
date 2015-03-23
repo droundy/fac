@@ -1,10 +1,15 @@
 #!/usr/bin/python3
 
-""" This is a small script that enables conveniently running git with
-a modified gnupg environment.  The purpose is to enable users to
+"""
+
+This is a small script that enables conveniently running git with a
+modified gnupg environment.  The purpose is to enable users to
 conveniently verify that commits and tags have been signed by actual
-authorized developers.  For more information, read the web page that I
-have not yet created. """
+authorized developers.  For more information, read
+
+http://physics.oregonstate.edu/~roundyd/fac/signatures.html
+
+ """
 
 import sys, subprocess, os
 
