@@ -89,6 +89,8 @@ libsources = ['listset', 'iterablehash', 'sha1', 'hashset', 'posixmodel']
 for s in sources:
     print '| %s %s -c %s.c' % (cc, ' '.join(flags), s)
     print '> %s.o' % s
+    if s == 'fac':
+        print '< version-identifier.h'
     print
     if compile32:
         print '| %s %s -o %s-32.o -c %s.c' % (cc, ' '.join(flags32), s, s)

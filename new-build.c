@@ -271,7 +271,8 @@ void check_cleanliness(struct all_targets *all, struct rule *r) {
     is_dirty = true;
   }
   for (int i=0;i<r->num_inputs;i++) {
-    if (!r->inputs[i]->is_in_git && !r->inputs[i]->rule && is_in_root(r->inputs[i]->path)) {
+    if (!r->inputs[i]->is_in_git && !is_in_gitdir(r->inputs[i]->path) &&
+        !r->inputs[i]->rule && is_in_root(r->inputs[i]->path)) {
       if (i < r->num_explicit_inputs) {
         set_status(all, r, unready);
         return;
@@ -653,7 +654,7 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
                    problem. */
                 // error(1, errno, "Unable to input stat file %s", path);
               } else {
-                if (!t->rule && is_in_root(path) && !t->is_in_git) {
+                if (!t->rule && is_in_root(path) && !t->is_in_git && !is_in_gitdir(path)) {
                   printf("error: %s should be in git for %s\n",
                          pretty_path(t->path), pretty_rule(r));
                   rule_failed(all, r);
@@ -670,7 +671,7 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
             if (e->is_valid && is_interesting_path(r, path)) {
               struct target *t = create_target_with_stat(all, path);
               if (t && t->is_dir) {
-                if (!t->rule && is_in_root(path) && !t->is_in_git) {
+                if (!t->rule && is_in_root(path) && !t->is_in_git && !is_in_gitdir(path)) {
                   printf("error: directory %s should be in git for %s\n",
                          pretty_path(t->path), pretty_rule(r));
                   rule_failed(all, r);
@@ -781,7 +782,8 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
 
   for (struct rule *r = all->lists[unready]; r; r = all->lists[unready]) {
     for (int i=0;i<r->num_inputs;i++) {
-      if (!r->inputs[i]->rule && !r->inputs[i]->is_in_git && is_in_root(r->inputs[i]->path)) {
+      if (!r->inputs[i]->rule && !r->inputs[i]->is_in_git &&
+          !is_in_gitdir(r->inputs[i]->path) && is_in_root(r->inputs[i]->path)) {
         if (!access(r->inputs[i]->path, R_OK)) {
           printf("error: add %s to git, which is required for %s\n",
                  pretty_path(r->inputs[i]->path), pretty_rule(r));

@@ -25,6 +25,7 @@
 
 #include "fac.h"
 #include "new-build.h"
+#include "version-identifier.h"
 
 const char *root = 0;
 
@@ -33,6 +34,7 @@ int show_output = 0;
 int num_jobs = 0;
 
 static int clean_me = 0;
+static int show_version = 0;
 static int continually_build = 0;
 
 extern inline void verbose_printf(const char *format, ...);
@@ -64,6 +66,8 @@ int main(int argc, const char **argv) {
       "create a tupfile", "TUPFILE" },
     { "script", 0, POPT_ARG_STRING, &create_script, 0,
       "create a build script", "SCRIPTFILE" },
+    { "version", 'V', POPT_ARG_NONE, &show_version, 0,
+      "display the version", 0 },
     POPT_AUTOHELP
     { NULL, 0, 0, NULL, 0 }
   };
@@ -72,6 +76,11 @@ int main(int argc, const char **argv) {
   poptSetOtherOptionHelp(optCon, "[OPTIONS] [TARGETS]");
 
   while (poptGetNextOpt(optCon) >= 0);
+
+  if (show_version) {
+    printf("fac version %s\n", version_identifier);
+    exit(0);
+  }
 
   listset *cmd_line_args = 0;
   const char *arg;

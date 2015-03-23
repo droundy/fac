@@ -2,6 +2,7 @@ fileaccesses
 fac
 altfac
 fileaccessesalt
+version-identifier.h
 .bilge
 .fac
 *.backup

@@ -24,6 +24,17 @@ static inline bool is_in_root(const char *path) {
   if (lenpath < lenroot + 1) return false;
   return path[lenroot] == '/' && !memcmp(path, root, lenroot);
 }
+static inline bool is_in_gitdir(const char *path) {
+  int lenpath = strlen(path);
+  int lenroot = strlen(root);
+  if (lenpath < lenroot + 6) return false;
+  return path[lenroot] == '/' &&
+       path[lenroot+1] == '.' &&
+       path[lenroot+2] == 'g' &&
+       path[lenroot+3] == 'i' &&
+       path[lenroot+4] == 't' &&
+       path[lenroot+5] == '/' && !memcmp(path, root, lenroot);
+}
 static inline bool is_facfile(const char *path) {
   int len = strlen(path);
   return len >= 4 && !strcmp(path+len-4, ".fac");
