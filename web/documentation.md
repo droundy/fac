@@ -102,11 +102,7 @@ with the following options.
 2. Handle nonexistent files as dependencies, if a process tried to
    open them or stat them.
 
-3. Create posix modeling code to handle ktrace, possibly also use this
-   on linux with ptrace, since it could reduce the number of calls to
-   realpath, etc, and make things more efficient.
-
-5. On BSD and Darwin systems, use ktrace rather than ptrace.
+3. Port to darwin/macos.
 
 6. Support for ~ as home directory? :(
 
