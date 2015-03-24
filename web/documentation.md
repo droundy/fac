@@ -59,21 +59,24 @@ To run fac, you simply execute
 
 with the following options.
 
---jobs=N, -jN
+`--version`
+: Display the version number of fac.
+
+`--jobs=N, -jN`
 : Specify the number of jobs to run simultaneousy.  This defaults to
   the number of processors available on your computer.
 
---continual
+`--continual`
 : Keep rebuilding whenever the source is modified.
 
---clean, -c
+`--clean, -c`
 : Clean up build output.  This deletes every file (but not directory)
   that is output by the build.
 
---verbose, -v
+`--verbose, -v`
 : Provide extra debugging output.
 
---show-output, -V
+`--show-output, -V`
 : Show the output of every command (stdout and stderr), even if that
   command succeeds.
 
@@ -82,15 +85,15 @@ with the following options.
   separate file in the directory `LOG_DIRECTORY`, which will be created if
   it does not yet exist.
 
---makefile MAKEFILE
+`--makefile MAKEFILE`
 : After building, create a makefile with name MAKEFILE, which can be
   used to perform this build if fac is unavailable.
 
---script BUILD.SH
+`--script BUILD.SH`
 : After building, create a shell script with name BUILD.SH, which can
   be used to perform this build if fac is unavailable.
 
---tupfile TUPFILE
+`--tupfile TUPFILE`
 : After building, create a tupfile, which can be used to perform this
   build if fac is unavailable.
 

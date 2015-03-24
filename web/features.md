@@ -15,12 +15,17 @@ hash of every input file, even if its size and modification time are
 unaltered.  Also, scons has a different approach to environment
 variables, which involves shielding the build from your environment.
 This avoids the spurious rebuild issue that fac has, but can be
-confusing if you expect to use environment variables to set the path,
-for instance.
+confusing if you expect to use environment variables to set the path.
 
-**Make** and **tup** will achieve a minimal rebuild only provided the
-ordering of file modification times is sufficient to determine what
-requires rebuilding.
+**Tup** will achieve a minimal rebuild if the ordering of file
+modification times provides sufficient information in order to do so.
+e.g. tup will not give a minimal build if you make an unimportant
+change in one file that may trigger a chain of rebuilds.
+
+**Make** will achieve a minimal rebuild provided the ordering of file
+modification times is sufficient to determine what requires
+rebuilding, and that you have exhaustively and non-conservatively
+enumerated every dependency.
 
 ## Correct build
 
@@ -63,7 +68,7 @@ believe).
 **Fac** allows for a very sloppy build configuration.  It is picky
   about adding sources to git, but not about specifying all inputs.
   The worst you should suffer (unless your build rule gives wrong
-  output when fed missing input without failing) is a need to run fac
+  output without failing when missing input) is a need to run fac
   a few times.  You do not, however, lack any of the other features
   listed on this page.
 
@@ -83,7 +88,7 @@ believe).
 
 **Everything** gives you parallel builds, including **fac**.  But I
   didn't want to leave it off the list, lest you think fac does not
-  have this very important feature.
+  have this important feature.
 
 ## Progress notification
 
