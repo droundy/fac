@@ -15,6 +15,7 @@
 
 #ifdef __linux__
 #include <sys/sendfile.h>
+#include <sys/inotify.h>
 #endif
 
 #include <unistd.h>
@@ -925,6 +926,29 @@ void do_actual_build(struct cmd_args *args) {
         fclose(f);
       }
     }
+
+#ifdef __linux__
+    if (args->continual) {
+      int ifd = inotify_init1(IN_CLOEXEC);
+      for (struct target *t=(struct target *)all.t.first; t; t = (struct target *)t->e.next) {
+        t->status = unknown;
+        if (t->num_children || is_facfile(t->path)) {
+          inotify_add_watch(ifd, t->path, IN_CLOSE_WRITE | IN_DELETE_SELF);
+        }
+      }
+      for (struct rule *r = (struct rule *)all.r.first; r; r = (struct rule *)r->e.next) {
+        r->status = unknown;
+      }
+      /* Wait until we have seen a file change.  If we were careful, we
+         could check which file was changed, and trigger a minimal
+         rebuild without scanning the entire tree again.  But instead, I
+         am just rerunning the entire build process. */
+      char *buffer = malloc(sizeof(struct inotify_event) + 8192 + 1);
+      read(ifd, buffer, sizeof(struct inotify_event) + 8192 + 1);
+      free(buffer);
+      close(ifd);
+    }
+#endif
 
     /* enable following line to check for memory leaks */
     if (true) free_all_targets(&all);

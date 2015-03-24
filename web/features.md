@@ -145,3 +145,11 @@ option, and examine the log file as it is created.
 
 **Fac** will keep trying to build what it can, even after one rule
   fails...
+
+## Continual build mode
+
+**Fac** (like **tup**) has a continual build mode, in which it waits
+  for changes in the filesystem, and rebuilds when needed.  Sadly, I
+  have not implemented a careful rebuild that avoids rescanning the
+  directory tree for changes, which would enable fac to function as
+  efficiently as tup on rebuilds.
