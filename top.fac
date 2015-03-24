@@ -1,5 +1,6 @@
 | python3 generate-version-header.py > version-identifier.h
-C .git/
+C .git/objects
+C .git/refs
 
 | python2 top.py > .fac
 > .fac
