@@ -151,11 +151,17 @@ void read_fac_file(struct all_targets *all, const char *path) {
       {
         char *filepath = absolute_path(the_directory, one_line+2);
         thetarget = create_target(all, filepath);
-        if (thetarget->rule && therule != thetarget->rule)
+        if (thetarget->rule && therule != thetarget->rule) {
           error_at_line(1, 0, pretty_path(path), linenum,
-                        "two rules to create the same file: %s\n| %s\n| %s",
+                        "two rules to create the same file: %s\n| %s (in %s:%d)\n| %s (in %s:%d)\n",
                         one_line+2,
-                        therule->command, thetarget->rule->command);
+                        therule->command,
+                        pretty_path(path),
+                        therule->facfile_linenum,
+                        thetarget->rule->command,
+                        pretty_path(thetarget->rule->facfile_path),
+                        thetarget->rule->facfile_linenum);
+        }
         if (therule != thetarget->rule) {
           thetarget->rule = therule;
           add_explicit_output(therule, thetarget);
