@@ -114,6 +114,8 @@ static long get_syscall_arg_32(const struct user_regs_struct *regs, int which) {
 }
 
 static char *read_a_string(pid_t child, unsigned long addr) {
+    if (addr == 0) return 0;
+
     char *val = malloc(4096);
     int allocated = 4096;
     int read = 0;
@@ -286,7 +288,9 @@ static int save_syscall_access(pid_t child, struct posixmodel *m) {
         flags = get_syscall_arg(regs, 2);
         cwd = lookup_fd(m, child, get_syscall_arg(regs, 0));
       }
-      if (flags & O_DIRECTORY) {
+      if (!arg) {
+        debugprintf("%d: %s(NULL) -> %d\n", child, name, fd);
+      } else if (flags & O_DIRECTORY) {
         if (!strcmp(name, "open")) {
           debugprintf("%d: opendir('%s') -> %d\n", child, arg, fd);
         } else {
@@ -319,28 +323,32 @@ static int save_syscall_access(pid_t child, struct posixmodel *m) {
       if (!strcmp(name, "unlink")) {
         arg = read_a_string(child, get_syscall_arg(regs, 0));
         cwd = model_cwd(m, child);
-        debugprintf("%d: %s('%s') -> %d\n", child, name, arg, retval);
+        if (arg) debugprintf("%d: %s('%s') -> %d\n", child, name, arg, retval);
       } else {
         arg = read_a_string(child, get_syscall_arg(regs, 1));
         cwd = lookup_fd(m, child, get_syscall_arg(regs, 0));
-        debugprintf("%d: %s(%d, '%s') -> %d\n", child, name,
-                    (int)get_syscall_arg(regs,0), arg, retval);
+        if (arg) debugprintf("%d: %s(%d, '%s') -> %d\n", child, name,
+                             (int)get_syscall_arg(regs,0), arg, retval);
       }
-      model_unlink(m, cwd, arg);
-      free(arg);
+      if (arg) {
+        model_unlink(m, cwd, arg);
+        free(arg);
+      }
     }
   } else if (!strcmp(name, "creat") || !strcmp(name, "truncate") ||
              !strcmp(name, "utime") || !strcmp(name, "utimes")) {
     char *arg = read_a_string(child, get_syscall_arg(regs, 0));
     int retval = wait_for_return_value(m, child);
-    debugprintf("%d: %s('%s') -> %d\n", child, name, arg, retval);
-    if (retval >= 0) {
-      model_creat(m, model_cwd(m, child), arg);
+    if (arg) {
+      debugprintf("%d: %s('%s') -> %d\n", child, name, arg, retval);
+      if (retval >= 0) {
+        model_creat(m, model_cwd(m, child), arg);
+      }
+      free(arg);
     }
-    free(arg);
   } else if (!strcmp(name, "futimesat") || !strcmp(name, "utimensat")) {
-    if (get_syscall_arg(regs, 1)) {
-      char *arg = read_a_string(child, get_syscall_arg(regs, 1));
+    char *arg = read_a_string(child, get_syscall_arg(regs, 1));
+    if (arg) {
       int retval = wait_for_return_value(m, child);
       debugprintf("%d: %s(%d, '%s') -> %d\n", child, name,
                   (int)get_syscall_arg(regs,0), arg, retval);
@@ -367,11 +375,13 @@ static int save_syscall_access(pid_t child, struct posixmodel *m) {
         arg = read_a_string(child, get_syscall_arg(regs, 1));
         cwd = lookup_fd(m, child, get_syscall_arg(regs, 0));
       }
-      debugprintf("%d: %s('%s') -> %d\n", child, name, arg, retval);
-      struct inode *i = model_lstat(m, cwd, arg);
-      if (i && i->type != is_directory) {
-        debugprintf("%d: has read %s\n", child, debug_realpath(i));
-        i->is_read = true;
+      if (arg) {
+        debugprintf("%d: %s('%s') -> %d\n", child, name, arg, retval);
+        struct inode *i = model_lstat(m, cwd, arg);
+        if (i && i->type != is_directory) {
+          debugprintf("%d: has read %s\n", child, debug_realpath(i));
+          i->is_read = true;
+        }
       }
       free(arg);
     }
@@ -379,13 +389,15 @@ static int save_syscall_access(pid_t child, struct posixmodel *m) {
     int retval = wait_for_return_value(m, child);
     if (retval == 0) {
       char *arg = read_a_string(child, get_syscall_arg(regs, 0));
-      debugprintf("%d: %s('%s') -> %d\n", child, name, arg, retval);
-      struct inode *i = model_stat(m, model_cwd(m, child), arg);
-      if (i && i->type != is_directory) {
-        debugprintf("%d: has read %s\n", child, debug_realpath(i));
-        i->is_read = true;
+      if (arg) {
+        debugprintf("%d: %s('%s') -> %d\n", child, name, arg, retval);
+        struct inode *i = model_stat(m, model_cwd(m, child), arg);
+        if (i && i->type != is_directory) {
+          debugprintf("%d: has read %s\n", child, debug_realpath(i));
+          i->is_read = true;
+        }
+        free(arg);
       }
-      free(arg);
     }
   } else if (!strcmp(name, "symlink") || !strcmp(name, "symlinkat")) {
     char *arg, *target;
@@ -395,14 +407,16 @@ static int save_syscall_access(pid_t child, struct posixmodel *m) {
       if (!strcmp(name, "symlink")) {
         arg = read_a_string(child, get_syscall_arg(regs, 0));
         target = read_a_string(child, get_syscall_arg(regs, 1));
-        cwd = model_cwd(m, child);
+        if (arg) cwd = model_cwd(m, child);
       } else {
         arg = read_a_string(child, get_syscall_arg(regs, 1));
         target = read_a_string(child, get_syscall_arg(regs, 2));
-        cwd = lookup_fd(m, child, get_syscall_arg(regs, 0));
+        if (arg) cwd = lookup_fd(m, child, get_syscall_arg(regs, 0));
       }
-      debugprintf("%d: %s('%s', '%s')\n", child, name, arg, target);
-      model_symlink(m, cwd, arg, target);
+      if (arg && target) {
+        debugprintf("%d: %s('%s', '%s')\n", child, name, arg, target);
+        model_symlink(m, cwd, arg, target);
+      }
       free(arg);
       free(target);
     }
@@ -411,12 +425,12 @@ static int save_syscall_access(pid_t child, struct posixmodel *m) {
     struct inode *cwd;
     if (!strcmp(name, "execve")) {
       arg = read_a_string(child, get_syscall_arg(regs, 0));
-      cwd = model_cwd(m, child);
+      if (arg) cwd = model_cwd(m, child);
     } else {
       arg = read_a_string(child, get_syscall_arg(regs, 1));
-      cwd = lookup_fd(m, child, get_syscall_arg(regs, 0));
+      if (arg) cwd = lookup_fd(m, child, get_syscall_arg(regs, 0));
     }
-    if (strlen(arg)) {
+    if (arg && strlen(arg)) {
       debugprintf("%d: %s('%s')\n", child, name, arg);
       struct inode *i = model_stat(m, cwd, arg);
       if (i) {
@@ -437,10 +451,12 @@ static int save_syscall_access(pid_t child, struct posixmodel *m) {
       } else {
         from = read_a_string(child, get_syscall_arg(regs, 1));
         to = read_a_string(child, get_syscall_arg(regs, 2));
-        cwd = lookup_fd(m, child, get_syscall_arg(regs, 0));
+        if (to && from) cwd = lookup_fd(m, child, get_syscall_arg(regs, 0));
       }
-      debugprintf("%d: rename('%s', '%s') -> %d\n", child, from, to, retval);
-      model_rename(m, cwd, from, to);
+      if (to && from) {
+        debugprintf("%d: rename('%s', '%s') -> %d\n", child, from, to, retval);
+        model_rename(m, cwd, from, to);
+      }
       free(from);
       free(to);
     }
@@ -456,13 +472,15 @@ static int save_syscall_access(pid_t child, struct posixmodel *m) {
       } else {
         from = read_a_string(child, get_syscall_arg(regs, 1));
         to = read_a_string(child, get_syscall_arg(regs, 2));
-        cwd = lookup_fd(m, child, get_syscall_arg(regs, 0));
+        if (to && from) cwd = lookup_fd(m, child, get_syscall_arg(regs, 0));
       }
-      debugprintf("%d: link('%s', '%s') -> %d\n", child, from, to, retval);
-      struct inode *f = model_stat(m, cwd, from);
-      if (f) f->is_read = true;
-      struct inode *t = model_stat(m, cwd, to);
-      if (t) t->is_read = true;
+      if (to && from) {
+        debugprintf("%d: link('%s', '%s') -> %d\n", child, from, to, retval);
+        struct inode *f = model_stat(m, cwd, from);
+        if (f) f->is_read = true;
+        struct inode *t = model_stat(m, cwd, to);
+        if (t) t->is_read = true;
+      }
       free(from);
       free(to);
     }
@@ -504,9 +522,13 @@ static int save_syscall_access(pid_t child, struct posixmodel *m) {
   } else if (!strcmp(name, "chdir")) {
     char *arg = read_a_string(child, get_syscall_arg(regs, 0));
     int retval = wait_for_return_value(m, child);
-    debugprintf("%d: chdir(%s) -> %d\n", child, arg, retval);
-    if (retval == 0) model_chdir(m, model_cwd(m, child), arg, child);
-    free(arg);
+    if (arg) {
+      debugprintf("%d: chdir(%s) -> %d\n", child, arg, retval);
+      if (retval == 0) model_chdir(m, model_cwd(m, child), arg, child);
+      free(arg);
+    } else {
+      debugprintf("%d: chdir(NULL) -> %d\n", child, retval);
+    }
   }
 
   free(regs);
