@@ -339,15 +339,21 @@ static int save_syscall_access(pid_t child, struct posixmodel *m) {
     }
     free(arg);
   } else if (!strcmp(name, "futimesat") || !strcmp(name, "utimensat")) {
-    char *arg = read_a_string(child, get_syscall_arg(regs, 1));
-    int retval = wait_for_return_value(m, child);
-    debugprintf("%d: %s(%d, '%s') -> %d\n", child, name,
-                (int)get_syscall_arg(regs,0), arg, retval);
-    if (retval >= 0) {
-      struct inode *cwd = lookup_fd(m, child, get_syscall_arg(regs, 0));
-      model_creat(m, cwd, arg);
+    if (get_syscall_arg(regs, 1)) {
+      char *arg = read_a_string(child, get_syscall_arg(regs, 1));
+      int retval = wait_for_return_value(m, child);
+      debugprintf("%d: %s(%d, '%s') -> %d\n", child, name,
+                  (int)get_syscall_arg(regs,0), arg, retval);
+      if (retval >= 0) {
+        struct inode *cwd = lookup_fd(m, child, get_syscall_arg(regs, 0));
+        model_creat(m, cwd, arg);
+      }
+      free(arg);
+    } else {
+      int retval = wait_for_return_value(m, child);
+      debugprintf("%d: %s(%d, NULL) -> %d\n", child, name,
+                  (int)get_syscall_arg(regs,0), retval);
     }
-    free(arg);
   } else if (!strcmp(name, "lstat") || !strcmp(name, "lstat64") ||
              !strcmp(name, "readlink") || !strcmp(name, "readlinkat")) {
     char *arg;
