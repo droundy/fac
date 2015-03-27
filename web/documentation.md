@@ -102,10 +102,6 @@ with the following options.
 1. Make sure when we create a fd that we do so in the "primary" pid
    when threads are involved.
 
-2. Add bug case for renaming a directory, and seeing what happens if
-   there are existing rules present.  Perhaps this requires us to
-   store relative paths to files in the repository tree.
-
 1. Look into using libseccomp to optimize the ptrace usage by having
    only the system calls we want to trace generate events.
 

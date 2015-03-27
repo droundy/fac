@@ -63,7 +63,7 @@ char *done_name(const char *facfilename) {
 void read_fac_file(struct all_targets *all, const char *path) {
   FILE *f = fopen(path, "r");
   if (!f) {
-    fprintf(stderr, "error: unable to open file %s\n  %s",
+    fprintf(stderr, "error: unable to open file %s\n  %s\n",
             path, strerror(errno));
     exit(1);
   }
@@ -245,18 +245,25 @@ void read_fac_file(struct all_targets *all, const char *path) {
           char *path = absolute_path(the_directory, one_line+2);
           if (is_interesting_path(therule, path)) {
             thetarget = create_target(all, path);
-            if (!thetarget->rule || thetarget->rule == therule) {
-              thetarget->rule = therule;
-              add_output(therule, thetarget);
-              for (int i=0; i<therule->num_outputs; i++) {
-                if (thetarget == therule->outputs[i]) {
-                  stat_last_file = &therule->output_stats[i];
-                  break;
+            if (!thetarget->rule && is_facfile(path)) {
+              /* We ignore any generated facfiles that were not
+                 explicitly requested! */
+              thetarget->status = dirty; /* this says to not read this file */
+            } else {
+              if (!thetarget->rule || thetarget->rule == therule) {
+                thetarget->rule = therule;
+                add_output(therule, thetarget);
+                for (int i=0; i<therule->num_outputs; i++) {
+                  if (thetarget == therule->outputs[i]) {
+                    stat_last_file = &therule->output_stats[i];
+                    break;
+                  }
                 }
               }
             }
           } else {
-            // It is cached, so we need to ignore any stats of this file!
+            /* It is a cache file, so we need to ignore any stats of
+               this file! */
             thetarget = 0;
             stat_last_file = 0;
           }

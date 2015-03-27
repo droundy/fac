@@ -614,6 +614,10 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
           }
           /* Forget the non-explicit outputs, as we will re-add
              those inputs that were actually created in the build */
+          for (int ii=r->num_outputs;ii<r->num_explicit_outputs;ii++) {
+            r->outputs[ii]->rule = 0; // dissociate ourselves with these non-explicit outputs
+            r->outputs[ii]->status = dirty; // mark them as dirty, since we didn't create them
+          }
           r->num_outputs = r->num_explicit_outputs;
           for (int ii=0;ii<r->num_outputs;ii++) {
             struct target *t = lookup_target(all, r->outputs[ii]->path);
@@ -704,6 +708,7 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
                   rule_failed(all, r);
                 }
                 t->rule = r;
+                t->status = unknown; // if it is a facfile, we haven't yet read it
                 find_target_sha1(t);
                 add_output(r, t);
               }
