@@ -13,6 +13,9 @@ class bcolors:
     FAIL = '\033[91m'
     ENDC = '\033[0m'
 
+# this ensures that when fac calls git it already has index prepared:
+system('git status')
+
 if system('MINIMAL=1 ./fac --makefile Makefile.%s --script build-%s.sh fac'
           % (platform.system().lower(), platform.system().lower())):
     print 'Build failed!'

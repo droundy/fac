@@ -140,7 +140,10 @@ void add_cache_suffix(struct rule *r, const char *suffix) {
 
 void add_input(struct rule *r, struct target *dep) {
   for (int i=0;i<r->num_inputs;i++) {
-    if (r->inputs[i] == dep) return;
+    if (r->inputs[i] == dep) {
+      r->input_stats[i] = dep->stat;
+      return;
+    }
   }
 
   if (r->input_array_size == r->num_inputs) {
@@ -154,11 +157,7 @@ void add_input(struct rule *r, struct target *dep) {
   }
 
   r->inputs[r->num_inputs] = dep;
-  r->input_stats[r->num_inputs].time = 0;
-  r->input_stats[r->num_inputs].size = 0;
-  r->input_stats[r->num_inputs].hash.abc.a = 0;
-  r->input_stats[r->num_inputs].hash.abc.b = 0;
-  r->input_stats[r->num_inputs].hash.abc.c = 0;
+  r->input_stats[r->num_inputs] = dep->stat;
   r->num_inputs += 1;
 
   dep->num_children++;
@@ -171,17 +170,16 @@ void add_input(struct rule *r, struct target *dep) {
 
 void add_output(struct rule *r, struct target *dep) {
   for (int i=0;i<r->num_outputs;i++) {
-    if (r->outputs[i] == dep) return;
+    if (r->outputs[i] == dep) {
+      r->output_stats[i] = dep->stat;
+      return;
+    }
   }
 
   r->outputs = realloc(r->outputs, sizeof(struct target *)*(r->num_outputs+1));
   r->output_stats = realloc(r->output_stats, sizeof(struct hashstat)*(r->num_outputs+1));
   r->outputs[r->num_outputs] = dep;
-  r->output_stats[r->num_outputs].time = 0;
-  r->output_stats[r->num_outputs].size = 0;
-  r->output_stats[r->num_outputs].hash.abc.a = 0;
-  r->output_stats[r->num_outputs].hash.abc.b = 0;
-  r->output_stats[r->num_outputs].hash.abc.c = 0;
+  r->output_stats[r->num_outputs] = dep->stat;
   r->num_outputs += 1;
 }
 

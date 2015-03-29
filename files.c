@@ -337,10 +337,10 @@ void fprint_facfile(FILE *f, struct all_targets *tt, const char *bpath) {
       }
       for (int i=0; i<r->num_outputs; i++) {
         fprintf(f, "> %s\n", r->outputs[i]->path);
-        if (r->outputs[i]->stat.time) {
-          fprintf(f, "T %ld\n", (long)r->outputs[i]->stat.time);
-          fprintf(f, "S %ld\n", (long)r->outputs[i]->stat.size);
-          sha1hash h = r->outputs[i]->stat.hash;
+        if (r->output_stats[i].time) {
+          fprintf(f, "T %ld\n", (long)r->output_stats[i].time);
+          fprintf(f, "S %ld\n", (long)r->output_stats[i].size);
+          sha1hash h = r->output_stats[i].hash;
           if (h.abc.a || h.abc.b || h.abc.c) {
             fprintf(f, "H ");
             fprint_sha1(f, h);
@@ -350,10 +350,10 @@ void fprint_facfile(FILE *f, struct all_targets *tt, const char *bpath) {
       }
       for (int i=0; i<r->num_inputs; i++) {
         fprintf(f, "< %s\n", r->inputs[i]->path);
-        if (r->inputs[i]->stat.time) {
-          fprintf(f, "T %ld\n", (long)r->inputs[i]->stat.time);
-          fprintf(f, "S %ld\n", (long)r->inputs[i]->stat.size);
-          sha1hash h = r->inputs[i]->stat.hash;
+        if (r->input_stats[i].time) {
+          fprintf(f, "T %ld\n", (long)r->input_stats[i].time);
+          fprintf(f, "S %ld\n", (long)r->input_stats[i].size);
+          sha1hash h = r->input_stats[i].hash;
           if (h.abc.a || h.abc.b || h.abc.c) {
             fprintf(f, "H ");
             fprint_sha1(f, h);
