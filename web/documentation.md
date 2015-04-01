@@ -3,11 +3,14 @@
 ## Building fac
 
 Before building fac, you need to install its prerequisites.  This
-consists of a C compiler (either gcc or clang), python, and `libpopt`
-(which we use for parsing arguments).  On a Debian-based system, you
-can install all of this with
+consists of a C compiler (either gcc or clang), python2, python3, and
+`libpopt` (which we use for parsing arguments).  On a Debian-based
+system, you can install all of this with
 
-    apt-get install build-essential libpopt-dev python
+    apt-get install build-essential libpopt-dev python python3
+
+(Yes, it is a little silly using both python2 and python3 in the build
+process... I should probably switch entirely to python3.)
 
 You can obtain the fac source code using git clone:
 
@@ -18,8 +21,8 @@ older version of fac) just run
 
     sh build-linux.sh
 
-This should build fac on an x86-64 linux system.  You can use
-`build-freebsd.sh` to build on freebsd.  You can then build an
+This should build fac on an x86-64 or 32-bit x86 linux system.  You
+can use `build-freebsd.sh` to build on freebsd.  You can then build an
 optimized version of fac by running
 
     ./fac
@@ -128,6 +131,8 @@ with the following options.
 
 1. Make sure when we create a fd that we do so in the "primary" pid
    when threads are involved.
+
+1. Move build process to use only python3 and not python2.
 
 1. Look into using libseccomp to optimize the ptrace usage by having
    only the system calls we want to trace generate events.

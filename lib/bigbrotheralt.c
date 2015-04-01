@@ -505,7 +505,7 @@ static int save_syscall_access(pid_t child, struct posixmodel *m) {
     int cmd = get_syscall_arg(regs, 1);
     int retval = wait_for_return_value(m, child);
     if ((cmd == F_DUPFD || cmd == F_DUPFD_CLOEXEC) && retval >= 0) {
-      debugprintf("%d: fcntl(F_DUPFD, %d) -> %d\n", child, fd1, retval);
+      debugprintf("%d: %s(F_DUPFD, %d) -> %d\n", child, name, fd1, retval);
       if (retval >= 0) model_dup2(m, child, fd1, retval);
     }
   } else if (!strcmp(name, "getdents") || !strcmp(name, "getdents64")) {
