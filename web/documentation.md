@@ -1,5 +1,32 @@
 # Documentation
 
+## Building fac
+
+Before building fac, you need to install its prerequisites.  This
+consists of a C compiler (either gcc or clang), python, and `libpopt`
+(which we use for parsing arguments).  On a Debian-based system, you
+can install all of this with
+
+    apt-get install build-essential libpopt-dev python
+
+You can obtain the fac source code using git clone:
+
+    git clone git://github.com/droundy/fac.git
+
+To build fac (assuming you have just cloned fac, and do not have an
+older version of fac) just run
+
+    sh build-linux.sh
+
+This should build fac on an x86-64 linux system.  You can use
+`build-freebsd.sh` to build on freebsd.  You can then build an
+optimized version of fac by running
+
+    ./fac
+
+To use fac, you can copy the fac binary into some location in your
+path.
+
 ## Fac file format
 
 To configure this build system, you create one or more files ending
