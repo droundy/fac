@@ -500,7 +500,7 @@ static int save_syscall_access(pid_t child, struct posixmodel *m) {
     int retval = wait_for_return_value(m, child);
     debugprintf("%d: dup(%d) -> %d\n", child, fd1, retval);
     if (retval >= 0) model_dup2(m, child, fd1, retval);
-  } else if (!strcmp(name, "fcntl")) {
+  } else if (!strcmp(name, "fcntl") || !strcmp(name, "fcntl64")) {
     int fd1 = get_syscall_arg(regs, 0);
     int cmd = get_syscall_arg(regs, 1);
     int retval = wait_for_return_value(m, child);
