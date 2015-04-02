@@ -129,6 +129,8 @@ with the following options.
 
 ## To do list
 
+1. Add flag to git-add files that are needed.
+
 1. Make sure when we create a fd that we do so in the "primary" pid
    when threads are involved.
 
