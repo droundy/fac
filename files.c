@@ -10,6 +10,29 @@
 #include <limits.h>
 #include <stdlib.h>
 
+#ifdef _WIN32
+/* fixme: the following is a very broken version of realpath for windows! */
+char *realpath(const char *p, int i) {
+  char *r = malloc(strlen(p));
+  strcpy(r, p);
+  return r;
+}
+
+char *getline() {
+  int bufsize = 8;
+  int toread = bufsize;
+  char *buf = malloc(bufsize);
+  char *p = buf;
+  while (fgets(p, toread, stdin), strlen(p) == toread-1) {
+    toread = bufsize;
+    bufsize *= 2;
+    buf = realloc(buf, bufsize);
+    p = buf + toread - 1;
+  }
+  return buf;
+}
+#endif
+
 char *absolute_path(const char *dir, const char *rel) {
   char *myrel = strdup(rel);
   if (*rel == '/') return myrel;
@@ -44,7 +67,11 @@ char *absolute_path(const char *dir, const char *rel) {
   free(myrel);
   char *thepath = realpath(dir, 0);
   if (!thepath)
+#ifdef _WIN32
+    error_at_line(1,0, __FILE__, __LINE__, "filename trouble");
+#else
     error_at_line(1,errno, __FILE__, __LINE__, "filename trouble");
+#endif
   int rel_len = strlen(rel);
   int dirlen = strlen(thepath);
   thepath = realloc(thepath, dirlen + rel_len + 2);

@@ -29,6 +29,10 @@ cc = os.getenv('CC', 'gcc')
 flags = [os.getenv('CFLAGS', '')]
 linkflags = [os.getenv('LDFLAGS', '')]
 
+if 'mingw' in cc:
+    flags += ['-I'+os.path.join(os.getcwd(),'../win32/popt-1.16'), '-D__USE_MINGW_ANSI_STDIO=1']
+    linkflags += ['-L'+os.path.join(os.getcwd(),'../win32')]
+
 def compile_works(flags):
     return not os.system('cd testing-flags && %s %s -c test.c' % (cc, ' '.join(flags)))
 def link_works(flags):
@@ -86,6 +90,11 @@ sources = ['fac', 'files', 'targets', 'clean', 'new-build', 'git', 'environ']
 
 libsources = ['listset', 'iterablehash', 'sha1', 'hashset', 'posixmodel']
 
+if 'mingw' in cc:
+    sources.remove('new-build')
+    sources.remove('git')
+    libsources.remove('posixmodel')
+
 for s in sources:
     print '| %s %s -c %s.c' % (cc, ' '.join(flags), s)
     print '> %s.o' % s
@@ -99,8 +108,11 @@ for s in sources:
 
 
 extra_libs = ['bigbrotheralt', 'fileaccesses']
-if platform.system() == 'Linux':
+if platform.system() == 'Linux' and not 'mingw' in cc:
     extra_libs += ['bigbrother']
+
+if 'mingw' in cc:
+    extra_libs.remove('bigbrotheralt')
 
 for s in libsources + extra_libs:
     print '| cd lib && %s %s -c %s.c' % (cc, ' '.join(flags), s)
@@ -115,6 +127,10 @@ for s in libsources + extra_libs:
         print '| cd lib && %s %s -o %s-32.o -c %s.c' % (cc, ' '.join(flags32), s, s)
         print '> lib/%s-32.o' % s
         print
+
+if 'mingw' in cc:
+    print '# this is all we can do with mingw so far'
+    exit(0);
 
 print '| %s '%cc+' '.join(linkflags)+' -o fac', string.join(['%s.o' % s for s in sources] + ['lib/%s.o' % s for s in libsources+['bigbrotheralt']])
 for s in sources:
