@@ -131,6 +131,11 @@ with the following options.
 
 1. Add flag to git-add files that are needed.
 
+1. Fix error message when a file is needed to build another file that
+   is needed for a third one, where there are optional rules
+   involved.  We currently use pretty_rule, but ought to show the
+   actual file dependency that leads to the build.
+
 1. Make sure when we create a fd that we do so in the "primary" pid
    when threads are involved.
 
