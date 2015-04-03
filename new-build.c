@@ -801,11 +801,11 @@ static void build_marked(struct all_targets *all, const char *log_directory,
             git_add(r->inputs[i]->path);
           } else {
             printf("error: add %s to git, which is required for %s\n",
-                   pretty_path(r->inputs[i]->path), pretty_rule(r));
+                   pretty_path(r->inputs[i]->path), pretty_reason(r));
           }
         } else {
           printf("error: missing file %s, which is required for %s\n",
-                 pretty_path(r->inputs[i]->path), pretty_rule(r));
+                 pretty_path(r->inputs[i]->path), pretty_reason(r));
         }
       }
     }

@@ -221,4 +221,23 @@ static inline const char *pretty_rule(struct rule *r) {
   return r->command;
 }
 
+/* pretty_reason is a way of describing a rule in terms of why it
+   needs to be built.  If the rule is always built by default, it
+   gives the same output that pretty_rule does.  However, if it is a
+   non-default rule, it selects an output which is actually needed to
+   describe why it needs to be built. */
+static inline const char *pretty_reason(struct rule *r) {
+  if (r->is_default) return pretty_rule(r);
+  for (int i=0;i<r->num_outputs;i++) {
+    for (int j=0;j<r->outputs[i]->num_children;j++) {
+      if (r->outputs[i]->children[j]->status == unready ||
+          r->outputs[i]->children[j]->status == failed) {
+        // we need to build outputs[i] so it is a reason we need this!
+        return pretty_path(r->outputs[i]->path);
+      }
+    }
+  }
+  return pretty_rule(r); // ?!
+}
+
 #endif
