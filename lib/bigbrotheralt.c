@@ -31,13 +31,13 @@ static inline void debugprintf(const char *format, ...) {
   va_end(args);
 }
 
+#ifdef __linux__
+
 static inline char *debug_realpath(struct inode *i) {
   // WARNING: only use this function as an input to debugprintf!
   if (debug_output) return model_realpath(i);
   return 0;
 }
-
-#ifdef __linux__
 
 #include <sys/stat.h>
 
