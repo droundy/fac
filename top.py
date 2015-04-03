@@ -30,7 +30,7 @@ flags = [os.getenv('CFLAGS', '')]
 linkflags = [os.getenv('LDFLAGS', '')]
 
 if 'mingw' in cc:
-    flags += ['-I'+os.path.join(os.getcwd(),'../win32/popt-1.16')]
+    flags += ['-I'+os.path.join(os.getcwd(),'../win32/popt-1.16'), '-D__USE_MINGW_ANSI_STDIO=1']
     linkflags += ['-L'+os.path.join(os.getcwd(),'../win32')]
 
 def compile_works(flags):
@@ -95,7 +95,6 @@ if 'mingw' in cc:
     sources.remove('new-build')
     sources.remove('git')
     libsources.remove('posixmodel')
-    libsources.remove('sha1')
 
 for s in sources:
     print '| %s %s -c %s.c' % (cc, ' '.join(flags), s)
