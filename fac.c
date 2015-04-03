@@ -36,13 +36,13 @@ int num_jobs = 0;
 static int clean_me = 0;
 static int show_version = 0;
 static int continually_build = 0;
+static int git_add_flag = 0;
 
 extern inline void verbose_printf(const char *format, ...);
 
 static char *create_makefile = 0;
 static char *create_tupfile = 0;
 static char *create_script = 0;
-
 static char *log_directory = 0;
 
 int main(int argc, const char **argv) {
@@ -60,6 +60,8 @@ int main(int argc, const char **argv) {
       "show command output", 0 },
     { "log-output", 'l', POPT_ARG_STRING, &log_directory, 0,
       "log command output to directory", "LOG_DIRECTORY" },
+    { "git-add", 0, POPT_ARG_NONE, &git_add_flag, 0,
+      "git add needed files", 0 },
     { "makefile", 0, POPT_ARG_STRING, &create_makefile, 0,
       "create a makefile", "Makefile" },
     { "tupfile", 0, POPT_ARG_STRING, &create_tupfile, 0,
@@ -100,6 +102,7 @@ int main(int argc, const char **argv) {
   args.create_script = create_script;
   args.clean = clean_me;
   args.continual = continually_build;
+  args.git_add_files = git_add_flag;
   args.targets_requested = cmd_line_args;
   if (log_directory) log_directory = absolute_path(root, log_directory);
   args.log_directory = log_directory;

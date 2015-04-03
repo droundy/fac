@@ -202,6 +202,7 @@ void clean_all(struct all_targets *all);
 char *done_name(const char *facfile);
 
 char *go_to_git_top();
+void git_add(const char *path);
 void add_git_files(struct all_targets *all);
 
 void init_all(struct all_targets *all);

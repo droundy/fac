@@ -13,7 +13,7 @@ void summarize_build_results(struct all_targets *all);
 
 struct cmd_args {
   const char *create_makefile, *create_tupfile, *create_script, *log_directory;
-  bool clean, continual;
+  bool clean, continual, git_add_files;
   listset *targets_requested;
 };
 

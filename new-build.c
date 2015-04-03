@@ -477,7 +477,8 @@ static void find_elapsed_time() {
   }
 }
 
-static void build_marked(struct all_targets *all, const char *log_directory) {
+static void build_marked(struct all_targets *all, const char *log_directory,
+                         bool git_add_files) {
   if (!all->lists[marked] && !all->lists[dirty]) {
     if (all->num_with_status[failed]) {
       printf("Failed to build %d files.\n", all->num_with_status[failed]);
@@ -660,9 +661,14 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
                 // error(1, errno, "Unable to input stat file %s", path);
               } else {
                 if (!t->rule && is_in_root(path) && !t->is_in_git && !is_in_gitdir(path)) {
-                  printf("error: %s should be in git for %s\n",
-                         pretty_path(t->path), pretty_rule(r));
-                  rule_failed(all, r);
+                  if (git_add_files) {
+                    git_add(path);
+                    t->is_in_git = true;
+                  } else {
+                    printf("error: %s should be in git for %s\n",
+                           pretty_path(t->path), pretty_rule(r));
+                    rule_failed(all, r);
+                  }
                 }
                 if (sha1_is_zero(t->stat.hash)) find_target_sha1(t);
                 add_input(r, t);
@@ -791,8 +797,12 @@ static void build_marked(struct all_targets *all, const char *log_directory) {
       if (!r->inputs[i]->rule && !r->inputs[i]->is_in_git &&
           !is_in_gitdir(r->inputs[i]->path) && is_in_root(r->inputs[i]->path)) {
         if (!access(r->inputs[i]->path, R_OK)) {
-          printf("error: add %s to git, which is required for %s\n",
-                 pretty_path(r->inputs[i]->path), pretty_rule(r));
+          if (git_add_files) {
+            git_add(r->inputs[i]->path);
+          } else {
+            printf("error: add %s to git, which is required for %s\n",
+                   pretty_path(r->inputs[i]->path), pretty_rule(r));
+          }
         } else {
           printf("error: missing file %s, which is required for %s\n",
                  pretty_path(r->inputs[i]->path), pretty_rule(r));
@@ -855,7 +865,7 @@ void do_actual_build(struct cmd_args *args) {
           }
         }
       }
-      build_marked(&all, args->log_directory);
+      build_marked(&all, args->log_directory, args->git_add_files);
       for (struct target *t = (struct target *)all.t.first; t; t = (struct target *)t->e.next) {
         if (t->status == unknown &&
             (!t->rule ||
@@ -891,7 +901,7 @@ void do_actual_build(struct cmd_args *args) {
       mark_all(&all);
     }
 
-    build_marked(&all, args->log_directory);
+    build_marked(&all, args->log_directory, args->git_add_files);
     summarize_build_results(&all);
     chdir(root); /* not sure why this might be needed... */
 

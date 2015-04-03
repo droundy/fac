@@ -94,3 +94,28 @@ void add_git_files(struct all_targets *all) {
   }
   free(buf);
 }
+
+void git_add(const char *path) {
+  pid_t new_pid = fork();
+  if (new_pid == 0) {
+    const char **args = malloc(6*sizeof(char *));
+    close(0);
+    args[0] = "git";
+    args[1] = "add";
+    args[2] = "-f";
+    args[3] = "--";
+    args[4] = path;
+    args[5] = 0;
+    execvp("git", (char **)args);
+    exit(0);
+  }
+  int status = 0;
+  if (waitpid(new_pid, &status, 0) != new_pid) {
+    printf("Unable to exec git add -- %s\n", path);
+    return; // fixme should exit
+  }
+  if (WEXITSTATUS(status)) {
+    printf("Unable to run git add -- %s successfully %d\n",
+           path, WEXITSTATUS(status));
+  }
+}
