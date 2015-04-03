@@ -91,7 +91,6 @@ sources = ['fac', 'files', 'targets', 'clean', 'new-build', 'git', 'environ']
 libsources = ['listset', 'iterablehash', 'sha1', 'hashset', 'posixmodel']
 
 if 'mingw' in cc:
-    sources.remove('files')
     sources.remove('new-build')
     sources.remove('git')
     libsources.remove('posixmodel')
