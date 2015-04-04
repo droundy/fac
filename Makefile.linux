@@ -15,7 +15,7 @@ fac.o : errors.h fac.c fac.h lib/iterablehash.h lib/listset.h lib/sha1.h new-bui
 files.o : environ.h errors.h fac.h files.c lib/iterablehash.h lib/listset.h lib/sha1.h
 	gcc -std=c11 -c files.c
 
-git.o : fac.h git.c lib/iterablehash.h lib/listset.h lib/sha1.h
+git.o : errors.h fac.h git.c lib/iterablehash.h lib/listset.h lib/sha1.h
 	gcc -std=c11 -c git.c
 
 lib/freebsd-syscalls.h : lib/freebsd-syscalls.py lib/freebsd/syscalls.master lib/gentables.py lib/master.py
