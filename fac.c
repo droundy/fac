@@ -26,6 +26,7 @@
 #include "fac.h"
 #include "new-build.h"
 #include "version-identifier.h"
+#include "errors.h"
 
 const char *root = 0;
 

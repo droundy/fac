@@ -2,6 +2,7 @@
 
 #include "iterablehash.h"
 #include "posixmodel.h"
+#include "../errors.h"
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -12,6 +13,16 @@
 #include <stdio.h>
 #include <assert.h>
 #include <stdbool.h>
+
+#ifdef _WIN32
+#define lstat stat
+#define S_ISLNK(x) false
+
+static inline int readlink(const char *path, char *buf, int size) {
+  error(1, 0, "readlink does not work on Windows");
+  return 0;
+}
+#endif
 
 static const int CWD = -100; /* this must be fixed, is AT_FDCWD in fcntl.h */
 

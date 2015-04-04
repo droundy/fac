@@ -1,6 +1,7 @@
 #define _XOPEN_SOURCE 700
 #define __BSD_VISIBLE 1
 
+#include "errors.h"
 #include "fac.h"
 #include "new-build.h"
 #include "environ.h"

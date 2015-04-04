@@ -93,7 +93,6 @@ libsources = ['listset', 'iterablehash', 'sha1', 'hashset', 'posixmodel']
 if 'mingw' in cc:
     sources.remove('new-build')
     sources.remove('git')
-    libsources.remove('posixmodel')
 
 for s in sources:
     print '| %s %s -c %s.c' % (cc, ' '.join(flags), s)

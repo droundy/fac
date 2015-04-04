@@ -1,5 +1,6 @@
 #define _XOPEN_SOURCE 700
 
+#include "errors.h"
 #include "fac.h"
 #include "environ.h"
 

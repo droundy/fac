@@ -1,10 +1,8 @@
 #ifndef LOON_H
 #define LOON_H
 
-#include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
-#include <stdarg.h>
 #include <sys/types.h>
 #include <time.h>
 #include <string.h>
@@ -14,7 +12,6 @@
 #include "lib/iterablehash.h"
 
 extern int num_jobs; /* number of jobs to run simultaneously */
-extern int verbose; /* true if user requests verbose output */
 extern int show_output; /* true if user requests to see command output */
 
 extern const char *root;
@@ -38,34 +35,6 @@ static inline bool is_in_gitdir(const char *path) {
 static inline bool is_facfile(const char *path) {
   int len = strlen(path);
   return len >= 4 && !strcmp(path+len-4, ".fac");
-}
-
-static inline void verbose_printf(const char *format, ...) {
-  va_list args;
-  va_start(args, format);
-  if (verbose) vfprintf(stdout, format, args);
-  va_end(args);
-}
-
-static inline void error_at_line(int retval, int errno, const char *fname,
-                                 int linenum, const char *format, ...) {
-  va_list args;
-  va_start(args, format);
-  fprintf(stderr, "error: %s:%d: ", fname, linenum);
-  vfprintf(stderr, format, args);
-  if (errno) fprintf(stderr, "\n  %s", strerror(errno));
-  va_end(args);
-  exit(retval);
-}
-
-static inline void error(int retval, int errno, const char *format, ...) {
-  va_list args;
-  va_start(args, format);
-  fprintf(stderr, "error: ");
-  vfprintf(stderr, format, args);
-  if (errno) fprintf(stderr, "\n  %s", strerror(errno));
-  va_end(args);
-  exit(retval);
 }
 
 enum target_status {

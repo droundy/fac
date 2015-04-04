@@ -1,4 +1,5 @@
 #include "fac.h"
+#include "errors.h"
 
 #include <string.h>
 #include <stdio.h>
