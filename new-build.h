@@ -3,7 +3,7 @@
 
 #include "fac.h"
 
-extern struct timeval starting;
+void initialize_starting_time();
 
 void mark_facfiles(struct all_targets *all);
 void mark_all(struct all_targets *all);

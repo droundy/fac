@@ -504,6 +504,10 @@ static double starting_time;
 static double elapsed_seconds, elapsed_minutes;
 static bool am_interrupted = false;
 
+void initialize_starting_time() {
+  starting_time = double_time();
+}
+
 #ifndef _WIN32
 static void handle_interrupt(int sig) {
   am_interrupted = true;

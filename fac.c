@@ -47,7 +47,7 @@ static char *create_script = 0;
 static char *log_directory = 0;
 
 int main(int argc, const char **argv) {
-  gettimeofday(&starting, 0);
+  initialize_starting_time();
   struct poptOption optionsTable[] = {
     { "jobs", 'j', POPT_ARG_INT, &num_jobs, 0,
       "the number of jobs to run simultaneously", "JOBS" },

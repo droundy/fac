@@ -17,7 +17,7 @@ optional_flags = ['-Wall', '-Werror', '-O2', '-g']
 optional_linkflags = ['-lprofiler']
 
 possible_flags = ['-std=c11', '-std=c99']
-possible_linkflags = ['-lpopt', '-lpthread']
+possible_linkflags = ['-lpopt', '-lpthread', '-lm']
 
 if os.getenv('MINIMAL','') == '':
     print('# We are not minimal')
