@@ -556,6 +556,7 @@ int bigbrother_process(const char *workingdir,
       close(2);
       dup2(stdouterrfd, 1);
       dup2(stdouterrfd, 2);
+      open("/dev/null", O_RDONLY);
     }
     if (workingdir && chdir(workingdir) != 0) return -1;
     ptrace(PTRACE_TRACEME);
