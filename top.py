@@ -1,5 +1,6 @@
 #!/usr/bin/python2
 
+from __future__ import print_function
 import string, os, sys, platform
 
 os.system('rm -rf testing-flags')
@@ -19,23 +20,26 @@ possible_flags = ['-std=c11', '-std=c99']
 possible_linkflags = ['-lpopt', '-lpthread']
 
 if os.getenv('MINIMAL','') == '':
-    print '# We are not minimal'
+    print('# We are not minimal')
     possible_flags += optional_flags
     possible_linkflags += optional_linkflags
 else:
-    print '# We are minimal'
+    print('# We are minimal')
 
 cc = os.getenv('CC', 'gcc')
 flags = [os.getenv('CFLAGS', '')]
 linkflags = [os.getenv('LDFLAGS', '')]
 
 if 'mingw' in cc:
-    flags += ['-I'+os.path.join(os.getcwd(),'../win32/popt-1.16'), '-D__USE_MINGW_ANSI_STDIO=1']
+    flags += ['-I'+os.path.join(os.getcwd(),'../win32'), '-D__USE_MINGW_ANSI_STDIO=1']
     linkflags += ['-L'+os.path.join(os.getcwd(),'../win32')]
 
 def compile_works(flags):
     return not os.system('cd testing-flags && %s %s -c test.c' % (cc, ' '.join(flags)))
 def link_works(flags):
+    print('# trying',
+          ('cd testing-flags && %s %s -o test test.c' % (cc, ' '.join(flags))),
+          file=sys.stdout)
     return not os.system('cd testing-flags && %s %s -o test test.c' % (cc, ' '.join(flags)))
 
 if not compile_works(flags):
@@ -43,22 +47,22 @@ if not compile_works(flags):
     os.system('rm -rf testing-flags')
     exit(1)
 if not link_works(linkflags):
-    sys.stderr.write('unable to link using %s %s -o test test.c' % (cc, linkflags))
-    os.system('rm -rf testing-flags')
+    sys.stderr.write('unable to link using %s %s -o test test.c\n' % (cc, ' '.join(linkflags)))
+    #os.system('rm -rf testing-flags')
     exit(1)
 
 for flag in possible_flags:
     if compile_works(flags+[flag]):
         flags += [flag]
     else:
-        print '# %s cannot use flag:' % cc, flag
+        print('# %s cannot use flag:' % cc, flag)
 if len(flags) > 0 and flags[0] == ' ':
     flags = flags[1:]
 for flag in possible_linkflags:
     if link_works(linkflags + [flag]):
         linkflags += [flag]
     else:
-        print '# %s linking cannot use flag:' % cc, flag
+        print('# %s linking cannot use flag:' % cc, flag)
 
 if '-std=c11' in flags:
     flags = [f for f in flags if f != '-std=c99']
@@ -67,18 +71,18 @@ flags = filter(None, flags)
 
 flags32 = ['-m32', os.getenv('CFLAGS', '')]
 linkflags32 = ['-m32', os.getenv('LDFLAGS', '')]
-compile32 = compile_works(flags32) and link_works(linkflags32)
+compile32 = compile_works(flags32) and link_works(linkflags32) and "mingw" not in cc
 if compile32:
     for flag in possible_flags:
         if compile_works(flags32+[flag]):
             flags32 += [flag]
         else:
-            print '# %s 32-bit cannot use flag:' % cc, flag
+            print('# %s 32-bit cannot use flag:' % cc, flag)
     for flag in possible_linkflags:
         if link_works(linkflags32+[flag]):
             linkflags32 += [flag]
         else:
-            print '# %s 32-bit linking cannot use flag:' % cc, flag
+            print('# %s 32-bit linking cannot use flag:' % cc, flag)
 os.system('rm -rf testing-flags')
 
 if '-std=c11' in flags32:
@@ -90,19 +94,16 @@ sources = ['fac', 'files', 'targets', 'clean', 'new-build', 'git', 'environ']
 
 libsources = ['listset', 'iterablehash', 'sha1', 'hashset', 'posixmodel']
 
-if 'mingw' in cc:
-    sources.remove('new-build')
-
 for s in sources:
-    print '| %s %s -c %s.c' % (cc, ' '.join(flags), s)
-    print '> %s.o' % s
+    print('| %s %s -c %s.c' % (cc, ' '.join(flags), s))
+    print('> %s.o' % s)
     if s == 'fac':
-        print '< version-identifier.h'
-    print
+        print('< version-identifier.h')
+    print()
     if compile32:
-        print '| %s %s -o %s-32.o -c %s.c' % (cc, ' '.join(flags32), s, s)
-        print '> %s-32.o' % s
-        print
+        print('| %s %s -o %s-32.o -c %s.c' % (cc, ' '.join(flags32), s, s))
+        print('> %s-32.o' % s)
+        print()
 
 
 extra_libs = ['bigbrotheralt', 'fileaccesses']
@@ -113,77 +114,87 @@ if 'mingw' in cc:
     extra_libs.remove('bigbrotheralt')
 
 for s in libsources + extra_libs:
-    print '| cd lib && %s %s -c %s.c' % (cc, ' '.join(flags), s)
-    print '> lib/%s.o' % s
+    print('| cd lib && %s %s -c %s.c' % (cc, ' '.join(flags), s))
+    print('> lib/%s.o' % s)
     if s in ['bigbrother', 'bigbrotheralt']:
-        print '< lib/linux-syscalls.h'
-        print '< lib/freebsd-syscalls.h'
-    print
+        print('< lib/linux-syscalls.h')
+        print('< lib/freebsd-syscalls.h')
+    print()
     if s in ['fileaccesses', 'fileaccessesalt']:
         continue
     if compile32:
-        print '| cd lib && %s %s -o %s-32.o -c %s.c' % (cc, ' '.join(flags32), s, s)
-        print '> lib/%s-32.o' % s
-        print
+        print('| cd lib && %s %s -o %s-32.o -c %s.c' % (cc, ' '.join(flags32), s, s))
+        print('> lib/%s-32.o' % s)
+        print()
 
 if 'mingw' in cc:
-    print '# this is all we can do with mingw so far'
+    print('# this is all we can do with mingw so far')
     exit(0);
 
-print '| %s '%cc+' '.join(linkflags)+' -o fac', string.join(['%s.o' % s for s in sources] + ['lib/%s.o' % s for s in libsources+['bigbrotheralt']])
+print('| %s '%cc+' '.join(linkflags)+' -o fac',
+      string.join(['%s.o' % s for s in sources]
+                  + ['lib/%s.o' % s for s in libsources+['bigbrotheralt']]))
 for s in sources:
-    print '< %s.o' % s
+    print('< %s.o' % s)
 for s in libsources+['bigbrotheralt']:
-    print '< lib/%s.o' % s
-print '> fac'
-print
+    print('< lib/%s.o' % s)
+print('> fac')
+print()
 
-print '| cd lib && %s '%cc+' '.join(linkflags)+' -o fileaccesses fileaccesses.o', string.join(['%s.o' % s for s in libsources+['bigbrotheralt']])
+print('| cd lib && %s '%cc+' '.join(linkflags)+' -o fileaccesses fileaccesses.o',
+      string.join(['%s.o' % s for s in libsources+['bigbrotheralt']]))
 for s in libsources + ['fileaccesses', 'bigbrotheralt']:
-    print '< lib/%s.o' % s
-print '> lib/fileaccesses'
-print
+    print('< lib/%s.o' % s)
+print('> lib/fileaccesses')
+print()
 
 if platform.system() == 'Linux':
-    print '| %s '%cc+' '.join(linkflags)+' -o altfac', string.join(['%s.o' % s for s in sources] + ['lib/%s.o' % s for s in libsources+['bigbrother']])
+    print('| %s '%cc+' '.join(linkflags)+' -o altfac',
+          string.join(['%s.o' % s for s in sources]
+                      + ['lib/%s.o' % s for s in libsources+['bigbrother']]))
     for s in sources:
-        print '< %s.o' % s
+        print('< %s.o' % s)
     for s in libsources+['bigbrother']:
-        print '< lib/%s.o' % s
-    print '> altfac'
-    print
+        print('< lib/%s.o' % s)
+    print('> altfac')
+    print()
 
-    print '| cd lib && %s '%cc+' '.join(linkflags)+' -o fileaccessesalt fileaccesses.o', string.join(['%s.o' % s for s in libsources+['bigbrother']])
+    print('| cd lib && %s '%cc+' '.join(linkflags)+' -o fileaccessesalt fileaccesses.o',
+          string.join(['%s.o' % s for s in libsources+['bigbrother']]))
     for s in libsources + ['fileaccesses', 'bigbrother']:
-        print '< lib/%s.o' % s
-    print '> lib/fileaccessesalt'
-    print
+        print('< lib/%s.o' % s)
+    print('> lib/fileaccessesalt')
+    print()
 
 
 ctests = ['hashset', 'listset', 'spinner', 'iterable_hash_test', 'assertion-fails',
           'test-posix-model']
 
 for test in ctests:
-    print '| %s '%cc+' '.join(linkflags)+' -o tests/%s.test' % test, 'tests/%s.o' % test, string.join(['lib/%s.o' % s for s in libsources])
-    print '> tests/%s.test' % test
-    print '< tests/%s.o' % test
+    print('| %s '%cc+' '.join(linkflags)+' -o tests/%s.test' % test,
+          'tests/%s.o' % test, string.join(['lib/%s.o' % s for s in libsources]))
+    print('> tests/%s.test' % test)
+    print('< tests/%s.o' % test)
     for s in libsources:
-        print '< lib/%s.o' % s
-    print
+        print('< lib/%s.o' % s)
+    print()
 
-    print '| cd tests && %s %s -c %s.c' % (cc, ' '.join(flags), test)
-    print '> tests/%s.o' % test
-    print
+    print('| cd tests && %s %s -c %s.c' % (cc, ' '.join(flags), test))
+    print('> tests/%s.o' % test)
+    print()
 
 if compile32:
     for test in ctests:
-        print '| %s '%cc+' '.join(linkflags32)+' -o tests/%s-32.test' % test, 'tests/%s-32.o' % test, string.join(['lib/%s-32.o' % s for s in libsources])
-        print '> tests/%s-32.test' % test
-        print '< tests/%s-32.o' % test
+        print('| %s '%cc+' '.join(linkflags32)+' -o tests/%s-32.test' % test,
+              'tests/%s-32.o' % test,
+              string.join(['lib/%s-32.o' % s for s in libsources]))
+        print('> tests/%s-32.test' % test)
+        print('< tests/%s-32.o' % test)
         for s in libsources:
-            print '< lib/%s-32.o' % s
-        print
+            print('< lib/%s-32.o' % s)
+        print()
 
-        print '| cd tests && %s %s -o %s-32.o -c %s.c' % (cc, ' '.join(flags32), test, test)
-        print '> tests/%s-32.o' % test
-        print
+        print('| cd tests && %s %s -o %s-32.o -c %s.c' % (cc, ' '.join(flags32),
+                                                          test, test))
+        print('> tests/%s-32.o' % test)
+        print()

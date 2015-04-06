@@ -26,4 +26,4 @@ bench/data
 *.gcno
 *.gcda
 *.gcov
-
+*.map

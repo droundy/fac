@@ -9,6 +9,15 @@
 #include "lib/bigbrother.h"
 #include "lib/listset.h"
 
+#ifdef _WIN32
+
+#include <direct.h> // for _chdir
+#define chdir _chdir
+#include <windows.h> // for Sleep
+#define sleep Sleep
+
+#else
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
@@ -25,12 +34,25 @@
 #include <string.h>
 #include <signal.h>
 
+#endif
+
 #include <semaphore.h>
 #include <pthread.h>
+#include <math.h>
 
 static listset *facfiles_used = 0;
 
-static void dump_to_stdout(int fd);
+static  void dump_to_stdout(int fd);
+
+static inline double double_time() {
+#ifdef _WIN32
+  return GetTickCount()*1e-3;
+#else
+  struct timeval now;
+  gettimeofday(&now, 0);
+  return now.tv_sec + now.tv_usec*1e-6;
+#endif
+}
 
 bool is_interesting_path(struct rule *r, const char *path) {
   const int len = strlen(path);
@@ -154,6 +176,9 @@ void rule_failed(struct all_targets *all, struct rule *r) {
 
 static void find_target_sha1(struct target *t) {
   if (t->is_file) {
+#ifdef _WIN32
+    printf("FIXME: I could use stdio here rather than file descriptors.\n");
+#else
     int fd = open(t->path, O_RDONLY);
     if (fd > 0) {
       if (false) verbose_printf(" *** sha1sum %s\n", pretty_path(t->path));
@@ -172,7 +197,10 @@ static void find_target_sha1(struct target *t) {
       close(fd);
       free(buffer);
     }
+#endif
   } else if (t->is_symlink) {
+#ifdef _WIN32
+#else
     int bufferlen = 0;
     char *buffer = 0;
     int readlen;
@@ -190,6 +218,7 @@ static void find_target_sha1(struct target *t) {
     sha1_write(&sh, buffer, readlen);
     t->stat.hash = sha1_out(&sh);
     free(buffer);
+#endif
   }
 }
 
@@ -197,6 +226,7 @@ static struct target *create_target_with_stat(struct all_targets *all,
                                               const char *path) {
   struct target *t = create_target(all, path);
   if (!t->stat.time) {
+#ifndef _WIN32
     struct stat st;
     if (lstat(t->path, &st)) return 0;
     t->is_file = S_ISREG(st.st_mode);
@@ -204,6 +234,7 @@ static struct target *create_target_with_stat(struct all_targets *all,
     t->is_symlink = S_ISLNK(st.st_mode);
     t->stat.size = st.st_size;
     t->stat.time = st.st_mtime;
+#endif
   }
   return t;
 }
@@ -379,8 +410,7 @@ static void *run_bigbrother(void *ptr) {
   args[2] = b->rule->command;
   args[3] = 0;
 
-  struct timeval started;
-  gettimeofday(&started, 0);
+  double started = double_time();
   int ret = bigbrother_process(b->rule->working_directory,
                                &b->child_pid,
                                b->stdouterrfd,
@@ -389,9 +419,7 @@ static void *run_bigbrother(void *ptr) {
                                &b->read, &b->written, &b->deleted);
   free(args);
 
-  struct timeval stopped;
-  gettimeofday(&stopped, 0);
-  b->build_time = stopped.tv_sec - started.tv_sec + 1e-6*(stopped.tv_usec - started.tv_usec);
+  b->build_time = double_time() - started;
   // memory barrier to ensure b->all_done is not modified before we
   // finish filling everything in:
   __sync_synchronize();
@@ -402,6 +430,7 @@ static void *run_bigbrother(void *ptr) {
   }
   sem_post(b->slots_available);
   pthread_exit(0);
+  return 0;
 }
 
 static struct building *build_rule(struct all_targets *all,
@@ -419,7 +448,11 @@ static struct building *build_rule(struct all_targets *all,
 
     const char *rname = pretty_rule(r);
     char *fname = malloc(strlen(log_directory) + strlen(rname)+2);
+#ifdef _WIN32
+    _mkdir(log_directory);
+#else
     mkdir(log_directory, 0777); // ignore failure
+#endif
     strcpy(fname, log_directory);
     int start = strlen(log_directory);
     fname[start++] = '/';
@@ -437,16 +470,24 @@ static struct building *build_rule(struct all_targets *all,
       }
     }
     fname[start+rulelen] = 0;
+#ifdef _WIN32
+    printf("Do something here!\n");
+#else
     b->stdouterrfd = open(fname, O_RDWR | O_CREAT | O_TRUNC, 0666);
+#endif
     free(fname);
   }
   if (b->stdouterrfd == -1) {
+#ifdef _WIN32
+    printf("Figure out how to create a temp file! Or just plan on reading from pipe?\n");
+#else
     const char *templ = "/tmp/fac-XXXXXX";
     char *namebuf = malloc(strlen(templ)+1);
     strcpy(namebuf, templ);
     b->stdouterrfd = mkstemp(namebuf);
     unlink(namebuf);
     free(namebuf);
+#endif
   }
   b->all_done = building;
   set_status(all, r, building);
@@ -459,23 +500,20 @@ static struct building *build_rule(struct all_targets *all,
   return b;
 }
 
-struct timeval starting = {0,0};
+static double starting_time;
 static double elapsed_seconds, elapsed_minutes;
 static bool am_interrupted = false;
 
+#ifndef _WIN32
 static void handle_interrupt(int sig) {
   am_interrupted = true;
 }
+#endif
 
 static void find_elapsed_time() {
-  struct timeval now;
-  gettimeofday(&now, 0);
-  elapsed_seconds = ((now.tv_sec - starting.tv_sec) % 60) + (now.tv_usec - starting.tv_usec)*1e-6;
-  elapsed_minutes = (now.tv_sec - starting.tv_sec) / 60;
-  if (elapsed_seconds < 0) {
-    elapsed_seconds += 60;
-    elapsed_minutes -= 1;
-  }
+  double et = double_time() - starting_time;
+  elapsed_minutes = floor(et/60);
+  elapsed_seconds = et - elapsed_minutes*60;
 }
 
 static void build_marked(struct all_targets *all, const char *log_directory,
@@ -489,7 +527,11 @@ static void build_marked(struct all_targets *all, const char *log_directory,
   }
 
   if (!num_jobs) {
+#ifdef _WIN32
+    num_jobs = 1;
+#else
     num_jobs = sysconf(_SC_NPROCESSORS_ONLN);
+#endif
     verbose_printf("Using %d jobs\n", num_jobs);
   }
 
@@ -499,11 +541,13 @@ static void build_marked(struct all_targets *all, const char *log_directory,
     error(1, errno, "unable to create semaphore");
   }
   for (int i=0;i<num_jobs;i++) bs[i] = 0;
+#ifndef _WIN32
   struct sigaction act, oldact;
   act.sa_handler = handle_interrupt;
   sigemptyset(&act.sa_mask);
   act.sa_flags = 0;
   sigaction(SIGINT, &act, &oldact);
+#endif
 
   for (struct rule *r = all->lists[marked]; r; r = all->lists[marked]) {
     check_cleanliness(all, r);
@@ -572,7 +616,6 @@ static void build_marked(struct all_targets *all, const char *log_directory,
           if (bs[i]->all_done == failed) {
             rule_failed(all, bs[i]->rule);
             printf("build failed: %s\n", pretty_rule(bs[i]->rule));
-            dump_to_stdout(bs[i]->stdouterrfd);
             close(bs[i]->stdouterrfd);
             free_hashset(&bs[i]->read);
             free_hashset(&bs[i]->readdir);
@@ -632,7 +675,7 @@ static void build_marked(struct all_targets *all, const char *log_directory,
               printf("build failed to create: %s\n",
                      pretty_path(r->outputs[ii]->path));
               rule_failed(all, r);
-              dump_to_stdout(bs[i]->stdouterrfd);
+              if (!show_output) dump_to_stdout(bs[i]->stdouterrfd);
               close(bs[i]->stdouterrfd);
               free_hashset(&bs[i]->read);
               free_hashset(&bs[i]->readdir);
@@ -705,7 +748,7 @@ static void build_marked(struct all_targets *all, const char *log_directory,
               t = create_target_with_stat(all, path);
               if (t && (t->is_file || t->is_symlink)) {
                 if (path == pretty_path(path)) {
-                  printf("error: created file outside source directory: %s (%s)",
+                  printf("error: created file outside source directory: %s (%s)\n",
                          path, pretty_rule(r));
                   rule_failed(all, r);
                 }
@@ -763,13 +806,21 @@ static void build_marked(struct all_targets *all, const char *log_directory,
         if (bs[i]) {
           verbose_printf("killing %d (%s)\n", bs[i]->child_pid,
                          pretty_rule(bs[i]->rule));
+#ifdef _WIN32
+          printf("do not know how to kill %d\n", (int)-bs[i]->child_pid);
+#else
           kill(-bs[i]->child_pid, SIGTERM); /* ask child to die */
+#endif
         }
       }
       sleep(1); /* give them a second to die politely */
       for (int i=0;i<num_jobs;i++) {
         if (bs[i]) {
+#ifdef _WIN32
+          printf("do not know how to kill %d\n", (int)-bs[i]->child_pid);
+#else
           kill(-bs[i]->child_pid, SIGKILL); /* kill with extreme prejudice */
+#endif
           free(bs[i]);
           bs[i] = 0;
         }
@@ -828,7 +879,9 @@ static void build_marked(struct all_targets *all, const char *log_directory,
 
   free(slots_available);
   free(bs);
+#ifndef _WIN32
   sigaction(SIGINT, &oldact, 0);
+#endif
 }
 
 void summarize_build_results(struct all_targets *all) {
