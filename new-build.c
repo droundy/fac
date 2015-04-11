@@ -22,6 +22,7 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <sys/time.h>
+#include <dirent.h>
 
 #ifdef __linux__
 #include <sys/sendfile.h>
@@ -218,6 +219,24 @@ static void find_target_sha1(struct target *t) {
     sha1_write(&sh, buffer, readlen);
     t->stat.hash = sha1_out(&sh);
     free(buffer);
+#endif
+  } else if (t->is_dir) {
+#ifdef _WIN32
+#else
+    struct dirent **namelist;
+    int n;
+    n = scandir(t->path, &namelist, NULL, alphasort);
+    if (n >= 0) {
+      sha1nfo sh;
+      sha1_init(&sh);
+
+      for (int i=0; i<n; i++) {
+        sha1_write(&sh, namelist[i]->d_name, strlen(namelist[i]->d_name)+1); // write the null byte!
+        free(namelist[i]);
+      }
+      t->stat.hash = sha1_out(&sh);
+      free(namelist);
+    }
 #endif
   }
 }
@@ -655,7 +674,7 @@ static void build_marked(struct all_targets *all, const char *log_directory,
               error(1, 0, "Unable to stat input file %s (this should be impossible)\n",
                     r->inputs[ii]->path);
             } else {
-              if ((t->is_file || t->is_symlink) && sha1_is_zero(t->stat.hash)) find_target_sha1(t);
+              if (sha1_is_zero(t->stat.hash)) find_target_sha1(t);
               add_input(r, t);
               delete_from_hashset(&bs[i]->read, r->inputs[ii]->path);
               delete_from_hashset(&bs[i]->written, r->inputs[ii]->path);
@@ -691,7 +710,7 @@ static void build_marked(struct all_targets *all, const char *log_directory,
               bs[i] = 0;
               break;
             } else {
-              if (t->is_file || t->is_symlink) find_target_sha1(t);
+              find_target_sha1(t);
               t->rule = r;
               add_output(r, t);
               delete_from_hashset(&bs[i]->read, r->outputs[ii]->path);
@@ -720,7 +739,7 @@ static void build_marked(struct all_targets *all, const char *log_directory,
                     rule_failed(all, r);
                   }
                 }
-                if (sha1_is_zero(t->stat.hash)) find_target_sha1(t);
+                find_target_sha1(t);
                 add_input(r, t);
               }
             }
