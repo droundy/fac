@@ -1,5 +1,7 @@
 # Fac Faq
 
+$docnav
+
 ## Why is it called fac?
 
 <img src="kells-fac-hires.svg" alt="Fac"/>

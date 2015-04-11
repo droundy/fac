@@ -1,5 +1,5 @@
 
-import re, string, os
+import re, string, os, glob
 import markdown as mmdd
 
 import xml.etree.ElementTree as ET
@@ -35,7 +35,11 @@ def mkdown(mdfile):
     f.close()
 
     f = open('web/sidebar.md', 'r')
-    sidebarstr = f.read()
+    sidebar = f.read()
+    f.close()
+
+    f = open('web/docnav.md', 'r')
+    docnav = '<nav class="docnav">'+mmdd.markdown(f.read(), extensions=['def_list'])+'</nav>'
     f.close()
 
     f = open('web/template.html', 'r')
@@ -54,7 +58,12 @@ def mkdown(mdfile):
         pagetitle = title[4:]
     else:
         pagetitle = title
-    sidebar = sidebarstr
+
+    if '$docnav' in mkstr:
+        templatestr = string.replace(templatestr, '$docnav', docnav)
+        mkstr = string.replace(mkstr, '$docnav', '')
+    else:
+        templatestr = string.replace(templatestr, '$docnav', '')
 
     template = string.Template(templatestr)
 
@@ -91,11 +100,5 @@ def mkdown(mdfile):
     #f.write(myhtml)
     f.close()
 
-mkdown('web/index.md')
-mkdown('web/documentation.md')
-mkdown('web/benchmarks.md')
-mkdown('web/faq.md')
-mkdown('web/code-guide.md')
-mkdown('web/fac-vs-scons.md')
-mkdown('web/features.md')
-mkdown('web/signatures.md')
+for f in glob.glob('web/*.md'):
+    mkdown(f)

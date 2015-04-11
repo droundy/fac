@@ -1,5 +1,7 @@
 # Features
 
+$docnav
+
 This page summarizes the features of fac, and compares these features
 with make, scons, and tup, the three build systems with which I am
 most familiar.

@@ -1,5 +1,7 @@
 # Benchmarks
 
+$docnav
+
 We present here a large number of benchmarks.  Each test was done
 using multiple file systems, to see how sensitive the result is to
 file system speed.  Also note that you can click on each plot to view
