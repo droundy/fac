@@ -656,7 +656,7 @@ static void build_marked(struct all_targets *all, const char *log_directory,
              possible. */
           for (int ii=0; ii<r->num_inputs; ii++) {
             struct target *t = create_target_with_stat(all, r->inputs[ii]->path);
-            if (t && (t->is_file || t->is_symlink)
+            if (t
                 && sha1_is_zero(t->stat.hash)
                 && t->stat.time == r->input_stats[ii].time
                 && t->stat.size == r->input_stats[ii].size) {
@@ -724,7 +724,7 @@ static void build_marked(struct all_targets *all, const char *log_directory,
             char *path = e->key;
             if (e->is_valid && is_interesting_path(r, path)) {
               struct target *t = create_target_with_stat(all, path);
-              if (!t || (!t->is_file && !t->is_symlink)) {
+              if (!t) {
                 /* Assume that the file was deleted, and there's no
                    problem. */
                 // error(1, errno, "Unable to input stat file %s", path);
@@ -756,6 +756,7 @@ static void build_marked(struct all_targets *all, const char *log_directory,
                          pretty_path(t->path), pretty_rule(r));
                   rule_failed(all, r);
                 }
+                find_target_sha1(t);
                 add_input(r, t);
               }
             }
