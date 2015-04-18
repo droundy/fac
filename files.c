@@ -422,6 +422,140 @@ static void fprint_makefile_escape(FILE *f, const char *path) {
   }
 }
 
+static sha1hash dot_nodename(const struct target *t) {
+  sha1nfo s;
+  sha1_init(&s);
+  sha1_write(&s, t->path, strlen(t->path));
+  return sha1_out(&s);
+}
+
+static const int max_inputs_for_dot = 70;
+
+static void fprint_dot_rule(FILE *f, struct rule *r) {
+  if (r->is_printed) return;
+  r->is_printed = true;
+  int num_repo_inputs = 0;
+  for (int i=0;i<r->num_inputs;i++) {
+    if (is_in_root(r->inputs[i]->path)) num_repo_inputs++;
+  }
+  if (num_repo_inputs > max_inputs_for_dot) return;
+
+  /* We sort the inputs and outputs before creating the makefile, so
+     as to generate output that is the same on every computer, and on
+     every invocation.  This is helpful because often one wants to put
+     the generated file into the git repository for the benefit of
+     users who have not installed fac. */
+  struct target **inps = malloc(r->num_inputs*sizeof(struct target *));
+  for (int i=0; i<r->num_inputs; i++) inps[i] = r->inputs[i];
+  sort_target_array(inps, r->num_inputs);
+
+  for (int i=0; i<r->num_inputs; i++) {
+    if (inps[i]->rule) fprint_dot_rule(f, inps[i]->rule);
+  }
+
+  struct target **outs = malloc(r->num_outputs*sizeof(struct target *));
+  for (int i=0; i<r->num_outputs; i++) outs[i] = r->outputs[i];
+  sort_target_array(outs, r->num_outputs);
+
+  for (int i=0; i<r->num_inputs; i++) {
+    if (is_in_root(inps[i]->path)) {
+      for (int j=0; j<r->num_outputs; j++) {
+        fprintf(f, "   node");
+        fprint_sha1(f, dot_nodename(inps[i]));
+        fprintf(f, " -> node");
+        fprint_sha1(f, dot_nodename(outs[j]));
+        fprintf(f, ";\n");
+      }
+    }
+  }
+  free(inps);
+  free(outs);
+}
+
+static void fprint_dot_nodes(FILE *f, struct rule *r) {
+  if (r->is_printed) return;
+  const int lenroot = strlen(root);
+  r->is_printed = true;
+
+  /* We sort the inputs and outputs before creating the makefile, so
+     as to generate output that is the same on every computer, and on
+     every invocation.  This is helpful because often one wants to put
+     the generated file into the git repository for the benefit of
+     users who have not installed fac. */
+  struct target **inps = malloc(r->num_inputs*sizeof(struct target *));
+  for (int i=0; i<r->num_inputs; i++) inps[i] = r->inputs[i];
+  sort_target_array(inps, r->num_inputs);
+
+  for (int i=0; i<r->num_inputs; i++) {
+    if (inps[i]->rule) fprint_dot_nodes(f, inps[i]->rule);
+  }
+
+  bool is_intermediate = false;
+  for (int i=0;i<r->num_outputs;i++) {
+    if (r->outputs[i]->num_children) is_intermediate = true;
+  }
+  fprintf(f, "# %s\n", r->command);
+  const char *color = "black";
+  if (is_intermediate) color = "blue";
+  for (int i=0;i<r->num_outputs;i++) {
+    if (!r->outputs[i]->is_printed) {
+      fprintf(f, "   node");
+      fprint_sha1(f, dot_nodename(r->outputs[i]));
+      fprintf(f, "[label=\"%s\", color=\"%s\"];\n",
+              r->outputs[i]->path + lenroot+1, color);
+      r->outputs[i]->is_printed = true;
+    }
+  }
+
+  int num_repo_inputs = 0;
+  for (int i=0;i<r->num_inputs;i++) {
+    if (is_in_root(r->inputs[i]->path)) num_repo_inputs++;
+  }
+  if (num_repo_inputs > max_inputs_for_dot) return;
+
+  for (int i=0;i<r->num_inputs;i++) {
+    if (!r->inputs[i]->rule) {
+      if (!r->inputs[i]->is_printed && is_in_root(r->inputs[i]->path)) {
+        fprintf(f, "   node");
+        fprint_sha1(f, dot_nodename(r->inputs[i]));
+        if (is_in_root(r->inputs[i]->path)) {
+          fprintf(f, "[label=\"%s\", color=\"red\"];\n",
+                  r->inputs[i]->path + lenroot+1);
+        } else {
+          fprintf(f, "[label=\"%s\", color=\"green\"];\n",
+                  r->inputs[i]->path);
+        }
+        r->inputs[i]->is_printed = true;
+      }
+    }
+  }
+}
+
+void fprint_dot(FILE *f, struct all_targets *all) {
+  fprintf(f, "digraph G {\n  rankdir=LR;\n");
+
+  for (struct target *t = (struct target *)all->t.first; t; t = (struct target *)t->e.next) {
+    t->is_printed = false;
+  }
+  for (struct rule *r = (struct rule *)all->r.first; r; r = (struct rule *)r->e.next) {
+    r->is_printed = false;
+  }
+
+  for (struct rule *r = all->lists[marked]; r; r = r->status_next) {
+    fprint_dot_nodes(f, r);
+  }
+
+  fprintf(f, "\n\n");
+
+  for (struct rule *r = (struct rule *)all->r.first; r; r = (struct rule *)r->e.next) {
+    r->is_printed = false;
+  }
+  for (struct rule *r = all->lists[marked]; r; r = r->status_next) {
+    fprint_dot_rule(f, r);
+  }
+  fprintf(f, "}\n");
+}
+
 static void fprint_makefile_rule(FILE *f, struct rule *r) {
   if (r->is_printed) return;
   r->is_printed = true;

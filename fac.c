@@ -41,6 +41,7 @@ static int git_add_flag = 0;
 
 extern inline void verbose_printf(const char *format, ...);
 
+static char *create_dotfile = 0;
 static char *create_makefile = 0;
 static char *create_tupfile = 0;
 static char *create_script = 0;
@@ -63,6 +64,8 @@ int main(int argc, const char **argv) {
       "log command output to directory", "LOG_DIRECTORY" },
     { "git-add", 0, POPT_ARG_NONE, &git_add_flag, 0,
       "git add needed files", 0 },
+    { "dotfile", 0, POPT_ARG_STRING, &create_dotfile, 0,
+      "create a dotfile to visualize dependencies", "Dotfile" },
     { "makefile", 0, POPT_ARG_STRING, &create_makefile, 0,
       "create a makefile", "Makefile" },
     { "tupfile", 0, POPT_ARG_STRING, &create_tupfile, 0,
@@ -98,6 +101,7 @@ int main(int argc, const char **argv) {
   root = go_to_git_top();
 
   struct cmd_args args;
+  args.create_dotfile = create_dotfile;
   args.create_makefile = create_makefile;
   args.create_tupfile = create_tupfile;
   args.create_script = create_script;
