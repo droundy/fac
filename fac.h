@@ -82,7 +82,7 @@ struct target {
   struct hashstat stat;
 
   bool is_file, is_dir, is_symlink;
-  bool is_in_git;
+  bool is_in_git, is_printed;
 
   struct rule *rule;
   int num_children, children_size;
@@ -159,6 +159,7 @@ char *absolute_path(const char *dir, const char *rel);
 void print_fac_file(struct all_targets *all);
 void fprint_facfile(FILE *f, struct all_targets *tt, const char *facfile_path);
 
+void fprint_dot(FILE *f, struct all_targets *tt);
 void fprint_makefile(FILE *f, struct all_targets *tt);
 void fprint_tupfile(FILE *f, struct all_targets *tt);
 void fprint_script(FILE *f, struct all_targets *tt);

@@ -1004,7 +1004,8 @@ void do_actual_build(struct cmd_args *args) {
     summarize_build_results(&all);
     chdir(root); /* not sure why this might be needed... */
 
-    if (args->create_makefile || args->create_tupfile || args->create_script) {
+    if (args->create_dotfile || args->create_makefile || args->create_tupfile
+        || args->create_script) {
       for (struct rule *r = (struct rule *)all.r.first; r; r = (struct rule *)r->e.next) {
         set_status(&all, r, unknown);
       }
@@ -1021,6 +1022,12 @@ void do_actual_build(struct cmd_args *args) {
         mark_all(&all);
       }
 
+      if (args->create_dotfile) {
+        FILE *f = fopen(args->create_dotfile, "w");
+        if (!f) error(1,errno, "Unable to create dotfile: %s", args->create_dotfile);
+        fprint_dot(f, &all);
+        fclose(f);
+      }
       if (args->create_makefile) {
         FILE *f = fopen(args->create_makefile, "w");
         if (!f) error(1,errno, "Unable to create makefile: %s", args->create_makefile);
