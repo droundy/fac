@@ -22,4 +22,8 @@ wd = os.getcwd()
 env = os.environ
 env['GNUPGHOME'] = wd+'/.gnupg'
 
-exit(subprocess.call(['git'] + sys.argv[1:], env=env))
+args = sys.argv[1:]
+if args[0] == 'pull':
+    args = [args[0], '--verify-signatures'] + args[1:]
+
+exit(subprocess.call(['git'] + args, env=env))

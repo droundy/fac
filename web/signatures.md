@@ -27,13 +27,18 @@ Once you have a good clone of the repository, you can run your git
 commands with the wrapper script `git.py`
 
     ./git.py pull
-    ./git.py log --show-signature
 
 This will inform gpg to use a fac-specific keyring when it checks
-signatures.  You need a pretty recent version of git to make pull
-verify the signatures, more recent than I have.  So when the next
-Debian release happens, you can expect this to be updated.  Right now,
-your protection is pretty minimal.
+signatures, and will tell git to refuse the pull if the commit is not
+signed by someone authorized to commit to the repository.  You need a
+pretty recent version of git to make pull verify the signatures.  If
+you have an older version of git, you can use:
+
+    git pull
+    ./git.py log --show-signature
+
+and check manually that the log message indicates that the commit was
+signed.
 
 If you get a warning about permissions, you can fix this with
 
