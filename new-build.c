@@ -258,6 +258,20 @@ static struct target *create_target_with_stat(struct all_targets *all,
   return t;
 }
 
+static inline void erase_and_printf(const char *format, ...) {
+  va_list args;
+  va_start(args, format);
+  if (isatty(fileno(stdout))) {
+    char *total_format = malloc(strlen(format) + 4096);
+    sprintf(total_format, "                                                   \r%s", format);
+    vfprintf(stdout, total_format, args);
+    free(total_format);
+  } else {
+    vfprintf(stdout, format, args);
+  }
+  va_end(args);
+}
+
 static bool have_announced_rebuild_excuse = false;
 static inline void rebuild_excuse(struct rule *r, const char *format, ...) {
   va_list args;
@@ -600,14 +614,14 @@ static void build_marked(struct all_targets *all, const char *log_directory,
             all->num_with_status[building] + all->num_with_status[dirty] +
             all->num_with_status[unready];
           if (bs[i]->build_time < 10) {
-            printf("                                                                   \r%d/%d [%.2fs]: %s\n",
-                   num_built, num_total, bs[i]->build_time, bs[i]->rule->command);
+            erase_and_printf("%d/%d [%.2fs]: %s\n",
+                             num_built, num_total, bs[i]->build_time, bs[i]->rule->command);
           } else if (bs[i]->build_time < 100) {
-            printf("                                                                   \r%d/%d [%.1fs]: %s\n",
-                   num_built, num_total, bs[i]->build_time, bs[i]->rule->command);
+            erase_and_printf("%d/%d [%.1fs]: %s\n",
+                             num_built, num_total, bs[i]->build_time, bs[i]->rule->command);
           } else {
-            printf("                                                                   \r%d/%d [%.0fs]: %s\n",
-                   num_built, num_total, bs[i]->build_time, bs[i]->rule->command);
+            erase_and_printf("%d/%d [%.0fs]: %s\n",
+                             num_built, num_total, bs[i]->build_time, bs[i]->rule->command);
           }
           double estimated_time = (all->estimated_times[building] +
                                    all->estimated_times[dirty] +
@@ -622,8 +636,13 @@ static void build_marked(struct all_targets *all, const char *log_directory,
               total_minutes += 1;
               total_seconds -= 60;
             }
-            printf("Build time remaining: %d:%02.0f / %.0f:%02.0f      \r",
-                   build_minutes, build_seconds, total_minutes, total_seconds);
+            if (isatty(fileno(stdout))) {
+              erase_and_printf("Build time remaining: %d:%02.0f / %.0f:%02.0f\r",
+                               build_minutes, build_seconds, total_minutes, total_seconds);
+            } else {
+              erase_and_printf("Build time remaining: %d:%02.0f / %.0f:%02.0f\n",
+                               build_minutes, build_seconds, total_minutes, total_seconds);
+            }
             fflush(stdout);
           }
           if (bs[i]->all_done != built || show_output) {
@@ -631,15 +650,15 @@ static void build_marked(struct all_targets *all, const char *log_directory,
             close(bs[i]->stdouterrfd);
           }
           if (bs[i]->all_done != built && bs[i]->all_done != failed) {
-            printf("INTERRUPTED!  bs[i]->all_done == %s\n",
-                   pretty_status(bs[i]->all_done));
+            erase_and_printf("INTERRUPTED!  bs[i]->all_done == %s\n",
+                             pretty_status(bs[i]->all_done));
             am_interrupted = true;
             break;
           }
 
           if (bs[i]->all_done == failed) {
             rule_failed(all, bs[i]->rule);
-            printf("build failed: %s\n", pretty_rule(bs[i]->rule));
+            erase_and_printf("build failed: %s\n", pretty_rule(bs[i]->rule));
             free_hashset(&bs[i]->read);
             free_hashset(&bs[i]->readdir);
             free_hashset(&bs[i]->written);
@@ -695,8 +714,8 @@ static void build_marked(struct all_targets *all, const char *log_directory,
             }
             t = create_target_with_stat(all, r->outputs[ii]->path);
             if (!t) {
-              printf("build failed to create: %s\n",
-                     pretty_path(r->outputs[ii]->path));
+              erase_and_printf("build failed to create: %s\n",
+                               pretty_path(r->outputs[ii]->path));
               rule_failed(all, r);
               if (!show_output) {
                 dump_to_stdout(bs[i]->stdouterrfd);
@@ -734,8 +753,8 @@ static void build_marked(struct all_targets *all, const char *log_directory,
                     git_add(path);
                     t->is_in_git = true;
                   } else {
-                    printf("error: %s should be in git for %s\n",
-                           pretty_path(t->path), pretty_rule(r));
+                    erase_and_printf("error: %s should be in git for %s\n",
+                                     pretty_path(t->path), pretty_rule(r));
                     rule_failed(all, r);
                   }
                 }
@@ -752,8 +771,8 @@ static void build_marked(struct all_targets *all, const char *log_directory,
               struct target *t = create_target_with_stat(all, path);
               if (t && t->is_dir) {
                 if (!t->rule && is_in_root(path) && !t->is_in_git && !is_in_gitdir(path)) {
-                  printf("error: directory %s should be in git for %s\n",
-                         pretty_path(t->path), pretty_rule(r));
+                  erase_and_printf("error: directory %s should be in git for %s\n",
+                                   pretty_path(t->path), pretty_rule(r));
                   rule_failed(all, r);
                 }
                 find_target_sha1(t);
@@ -774,13 +793,13 @@ static void build_marked(struct all_targets *all, const char *log_directory,
               t = create_target_with_stat(all, path);
               if (t && (t->is_file || t->is_symlink)) {
                 if (path == pretty_path(path)) {
-                  printf("error: created file outside source directory: %s (%s)\n",
-                         path, pretty_rule(r));
+                  erase_and_printf("error: created file outside source directory: %s (%s)\n",
+                                   path, pretty_rule(r));
                   rule_failed(all, r);
                 }
                 if (t->rule && t->rule != r) {
-                  printf("error: two rules generate same output %s: %s and %s",
-                         pretty_path(path), r->command, t->rule->command);
+                  erase_and_printf("error: two rules generate same output %s: %s and %s",
+                                   pretty_path(path), r->command, t->rule->command);
                   rule_failed(all, r);
                 }
                 t->rule = r;
@@ -833,7 +852,7 @@ static void build_marked(struct all_targets *all, const char *log_directory,
           verbose_printf("killing %d (%s)\n", bs[i]->child_pid,
                          pretty_rule(bs[i]->rule));
 #ifdef _WIN32
-          printf("do not know how to kill %d\n", (int)-bs[i]->child_pid);
+          erase_and_printf("do not know how to kill %d\n", (int)-bs[i]->child_pid);
 #else
           kill(-bs[i]->child_pid, SIGTERM); /* ask child to die */
 #endif
@@ -843,7 +862,7 @@ static void build_marked(struct all_targets *all, const char *log_directory,
       for (int i=0;i<num_jobs;i++) {
         if (bs[i]) {
 #ifdef _WIN32
-          printf("do not know how to kill %d\n", (int)-bs[i]->child_pid);
+          erase_and_printf("do not know how to kill %d\n", (int)-bs[i]->child_pid);
 #else
           kill(-bs[i]->child_pid, SIGKILL); /* kill with extreme prejudice */
 #endif
@@ -851,7 +870,7 @@ static void build_marked(struct all_targets *all, const char *log_directory,
           bs[i] = 0;
         }
       }
-      printf("Interrupted!                         \n");
+      erase_and_printf("Interrupted!\n");
 
       while (facfiles_used) {
         char *donefile = done_name(facfiles_used->path);
@@ -878,12 +897,12 @@ static void build_marked(struct all_targets *all, const char *log_directory,
           if (git_add_files) {
             git_add(r->inputs[i]->path);
           } else {
-            printf("error: add %s to git, which is required for %s\n",
-                   pretty_path(r->inputs[i]->path), pretty_reason(r));
+            erase_and_printf("error: add %s to git, which is required for %s\n",
+                             pretty_path(r->inputs[i]->path), pretty_reason(r));
           }
         } else {
-          printf("error: missing file %s, which is required for %s\n",
-                 pretty_path(r->inputs[i]->path), pretty_reason(r));
+          erase_and_printf("error: missing file %s, which is required for %s\n",
+                           pretty_path(r->inputs[i]->path), pretty_reason(r));
         }
       }
     }
@@ -912,13 +931,13 @@ static void build_marked(struct all_targets *all, const char *log_directory,
 
 void summarize_build_results(struct all_targets *all) {
   if (all->lists[failed] || all->num_with_status[failed]) {
-    printf("Build failed %d/%d failures\n", all->num_with_status[failed],
-           all->num_with_status[failed] + all->num_with_status[built]);
+    erase_and_printf("Build failed %d/%d failures\n", all->num_with_status[failed],
+                     all->num_with_status[failed] + all->num_with_status[built]);
     exit(1);
   } else {
     find_elapsed_time();
-    printf("Build succeeded! %.0f:%05.2f            \n",
-           elapsed_minutes, elapsed_seconds);
+    erase_and_printf("Build succeeded! %.0f:%05.2f            \n",
+                     elapsed_minutes, elapsed_seconds);
   }
 }
 
@@ -961,7 +980,7 @@ void do_actual_build(struct cmd_args *args) {
       mark_facfiles(&all);
     } while (all.lists[marked] || still_reading);
     if (!all.r.first) {
-      printf("Please add a .fac file containing rules!\n");
+      erase_and_printf("Please add a .fac file containing rules!\n");
       exit(1);
     }
     if (args->clean) {
@@ -1061,7 +1080,7 @@ static void dump_to_stdout(int fd) {
   void *buf = malloc(4096);
   while ((mysize = read(fd, buf, 4096)) > 0) {
     if (write(1, buf, mysize) != mysize) {
-      printf("\nerror: trouble writing to stdout!\n");
+      erase_and_printf("\nerror: trouble writing to stdout!\n");
     }
   }
   free(buf);
