@@ -21,7 +21,7 @@ static inline void error_at_line(int retval, int my_errno, const char *fname,
   va_start(args, format);
   fprintf(stderr, "error: %s:%d: ", fname, linenum);
   vfprintf(stderr, format, args);
-  if (my_errno) fprintf(stderr, "\n  %s", strerror(my_errno));
+  if (my_errno) fprintf(stderr, "\n  %s\n", strerror(my_errno));
   va_end(args);
   exit(retval);
 }
@@ -31,7 +31,7 @@ static inline void error(int retval, int my_errno, const char *format, ...) {
   va_start(args, format);
   fprintf(stderr, "error: ");
   vfprintf(stderr, format, args);
-  if (my_errno) fprintf(stderr, "\n  %s", strerror(my_errno));
+  if (my_errno) fprintf(stderr, "\n  %s\n", strerror(my_errno));
   va_end(args);
   exit(retval);
 }
