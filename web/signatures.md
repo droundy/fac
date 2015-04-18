@@ -85,7 +85,7 @@ You can visit with me and say "hi" and see if you've got the right
 keyring.  You could try calling me on the phone, and then maybe you
 could decide if my voice sounds trustworthy.  If you are able
 determine trustworthiness over the phone, I suggest you find a job in
-which you can make use of your super power.  Or just get an alter ego
+which you can make use of this super power.  Or just get an alter ego
 and a superhero costume.
 
 You might wonder how you can tell if the keyring is compromised some
