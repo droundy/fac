@@ -1,5 +1,7 @@
 #define _XOPEN_SOURCE 700
 #define __BSD_VISIBLE 1
+/* the following enables scandir on darwin */
+#define _DARWIN_C_SOURCE
 
 #include "errors.h"
 #include "fac.h"

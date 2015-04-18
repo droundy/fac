@@ -18,19 +18,20 @@ char *realpath(const char *p, int i) {
   strcpy(r, p);
   return r;
 }
+#endif
 
-char *getline() {
-  int bufsize = 8;
-  int toread = bufsize;
-  char *buf = malloc(bufsize);
-  char *p = buf;
-  while (fgets(p, toread, stdin), strlen(p) == toread-1) {
-    toread = bufsize;
-    bufsize *= 2;
-    buf = realloc(buf, bufsize);
-    p = buf + toread - 1;
+
+#if defined(_WIN32) || defined(__APPLE__)
+char *getline(char **lineptr, size_t *n, FILE *stream) {
+  int toread = *n;
+  char *p = *lineptr;
+  while (fgets(p, toread, stream), strlen(p) == toread-1) {
+    toread = *n;
+    *n *= 2;
+    *lineptr = realloc(*lineptr, *n);
+    p = *lineptr + toread - 1;
   }
-  return buf;
+  return *lineptr;
 }
 #endif
 

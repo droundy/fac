@@ -33,6 +33,9 @@ linkflags = [os.getenv('LDFLAGS', '')]
 if 'mingw' in cc:
     flags += ['-I'+os.path.join(os.getcwd(),'../win32'), '-D__USE_MINGW_ANSI_STDIO=1']
     linkflags += ['-L'+os.path.join(os.getcwd(),'../win32')]
+if 'darwin' in cc:
+    flags += ['-I'+os.path.join(os.getcwd(),'../darwin')]
+    linkflags += ['-L'+os.path.join(os.getcwd(),'../darwin')]
 
 def compile_works(flags):
     return not os.system('cd testing-flags && %s %s -c test.c' % (cc, ' '.join(flags)))
@@ -71,7 +74,7 @@ flags = filter(None, flags)
 
 flags32 = ['-m32', os.getenv('CFLAGS', '')]
 linkflags32 = ['-m32', os.getenv('LDFLAGS', '')]
-compile32 = compile_works(flags32) and link_works(linkflags32) and "mingw" not in cc
+compile32 = compile_works(flags32) and link_works(linkflags32) and "mingw" not in cc and 'darwin' not in cc
 if compile32:
     for flag in possible_flags:
         if compile_works(flags32+[flag]):
@@ -107,10 +110,10 @@ for s in sources:
 
 
 extra_libs = ['bigbrotheralt', 'fileaccesses']
-if platform.system() == 'Linux' and not 'mingw' in cc:
+if platform.system() == 'Linux' and not 'mingw' in cc and not 'darwin' in cc:
     extra_libs += ['bigbrother']
 
-if 'mingw' in cc:
+if 'mingw' or 'darwin' in cc:
     extra_libs.remove('bigbrotheralt')
 
 for s in libsources + extra_libs:
@@ -127,7 +130,7 @@ for s in libsources + extra_libs:
         print('> lib/%s-32.o' % s)
         print()
 
-if 'mingw' in cc:
+if 'mingw' or 'darwin' in cc:
     print('# this is all we can do with mingw so far')
     exit(0);
 
