@@ -36,7 +36,7 @@ for sh in sorted(glob.glob('tests/*.sh')):
         print bcolors.OKGREEN+'PASS:', bcolors.ENDC+sh
         numpassed += 1
 for sh in sorted(glob.glob('tests/*.test')):
-    if sh in ['tests/assertion-fails.test', 'tests/assertion-fails-32.test']:
+    if 'assertion-fails' in sh:
         continue
     if system('%s > %s.log 2>&1' % (sh, sh)):
         print bcolors.FAIL+'FAIL:', bcolors.ENDC+sh
