@@ -25,7 +25,6 @@
 #include <dirent.h>
 
 #ifdef __linux__
-#include <sys/sendfile.h>
 #include <sys/inotify.h>
 #endif
 
@@ -1077,11 +1076,6 @@ void do_actual_build(struct cmd_args *args) {
 }
 
 static void dump_to_stdout(int fd) {
-#ifdef __linux__
-  off_t stdoutlen = lseek(fd, 0, SEEK_END);
-  off_t myoffset = 0;
-  sendfile(1, fd, &myoffset, stdoutlen);
-#else
   lseek(fd, 0, SEEK_SET);
   size_t mysize = 0;
   void *buf = malloc(4096);
@@ -1091,5 +1085,4 @@ static void dump_to_stdout(int fd) {
     }
   }
   free(buf);
-#endif
 }
