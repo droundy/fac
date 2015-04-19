@@ -36,16 +36,17 @@ else:
         print('# We are not minimal')
         possible_flags += optional_flags
         possible_linkflags += optional_linkflags
+        variants = {'': {'cc': os.getenv('CC', 'gcc'),
+                         'flags': [os.getenv('CFLAGS', '')],
+                         'linkflags': [os.getenv('LDFLAGS', '')]}}
     else:
         print('# We are minimal')
         possible_flags.remove('-std=c11')
+        cc = os.getenv('CC', 'oopsies')
+        variants = {'': {'cc': os.getenv('CC', '${CC-gcc}'),
+                         'flags': [os.getenv('CFLAGS', '${CFLAGS-}')],
+                         'linkflags': [os.getenv('LDFLAGS', '${LDFLAGS-}')]}}
 
-    cc = os.getenv('CC', 'gcc')
-    flags = [os.getenv('CFLAGS', '')]
-    linkflags = [os.getenv('LDFLAGS', '')]
-    variants = {'': {'cc': os.getenv('CC', 'gcc'),
-                     'flags': [os.getenv('CFLAGS', '')],
-                     'linkflags': [os.getenv('LDFLAGS', '')]}}
     print('# compiling with just the variant:', variants)
 
 def compile_works(flags):
