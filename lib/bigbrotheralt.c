@@ -227,7 +227,7 @@ static const char *get_registers(pid_t child, void **voidregs,
     *voidregs = regs;
 #endif
     *get_syscall_arg = (long (*)(void *regs, int which))get_syscall_arg_32;
-    if (regs->orig_eax < 0) {
+    if ((uint32_t)regs->orig_eax >= sizeof(syscalls_32)/sizeof(syscalls_32[0])) {
       free(regs);
       return 0;
     }
@@ -236,7 +236,7 @@ static const char *get_registers(pid_t child, void **voidregs,
   } else {
     *voidregs = regs;
     *get_syscall_arg = (long (*)(void *regs, int which))get_syscall_arg_64;
-    if (regs->orig_rax < 0) {
+    if ((uint64_t)regs->orig_rax >= sizeof(syscalls_64)/sizeof(syscalls_64[0])) {
       free(regs);
       return 0;
     }
