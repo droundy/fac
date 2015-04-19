@@ -126,9 +126,11 @@ for variant in variants.keys():
         print('# this is all we can do with %s so far' % variant)
         continue
 
-    print('| %s '%cc+' '.join(linkflags)+' -o fac%s' % variant_name,
-          string.join(['%s%s.o' % (s, variant_name) for s in sources]
-                      + ['lib/%s%s.o' % (s, variant_name) for s in libsources+['bigbrotheralt']]))
+    print('| %s -o fac%s %s' %
+          (cc, variant_name,
+           ' '.join(['%s%s.o' % (s, variant_name) for s in sources]
+                    + ['lib/%s%s.o' % (s, variant_name) for s in libsources+['bigbrotheralt']]
+                    + linkflags)))
     for s in sources:
         print('< %s%s.o' % (s, variant_name))
     for s in libsources+['bigbrotheralt']:
@@ -136,18 +138,21 @@ for variant in variants.keys():
     print('> fac%s' % variant_name)
     print()
 
-    print('| cd lib && %s '%cc+' '.join(linkflags)+' -o fileaccesses%s fileaccesses%s.o'
-          % (variant_name, variant_name),
-          string.join(['%s%s.o' % (s, variant_name) for s in libsources+['bigbrotheralt']]))
+    print('| %s -o lib/fileaccesses%s lib/fileaccesses%s.o %s' %
+          (cc, variant_name, variant_name,
+           ' '.join(['lib/%s%s.o' % (s, variant_name) for s in libsources+['bigbrotheralt']]
+                    + linkflags)))
     for s in libsources + ['fileaccesses', 'bigbrotheralt']:
         print('< lib/%s%s.o' % (s, variant_name))
     print('> lib/fileaccesses%s' % variant_name)
     print()
 
     if platform.system() == 'Linux':
-        print('| %s '%cc+' '.join(linkflags)+' -o altfac%s' % variant_name,
-              string.join(['%s%s.o' % (s, variant_name) for s in sources]
-                          + ['lib/%s%s.o' % (s, variant_name) for s in libsources+['bigbrother']]))
+        print('| %s -o altfac%s %s' %
+              (cc, variant_name,
+               ' '.join(['%s%s.o' % (s, variant_name) for s in sources]
+                        + ['lib/%s%s.o' % (s, variant_name) for s in libsources+['bigbrother']]
+                        + linkflags)))
         for s in sources:
             print('< %s%s.o' % (s, variant_name))
         for s in libsources+['bigbrother']:
@@ -155,9 +160,10 @@ for variant in variants.keys():
         print('> altfac%s' % variant_name)
         print()
 
-        print('| cd lib && %s '%cc+' '.join(linkflags)+' -o fileaccessesalt%s fileaccesses%s.o'
-              % (variant_name, variant_name),
-              string.join(['%s%s.o' % (s, variant_name) for s in libsources+['bigbrother']]))
+        print('| %s -o lib/fileaccessesalt%s lib/fileaccesses%s.o %s' %
+              (cc, variant_name, variant_name,
+               ' '.join(['lib/%s%s.o' % (s, variant_name) for s in libsources+['bigbrother']]
+                        + linkflags)))
         for s in libsources + ['fileaccesses', 'bigbrother']:
             print('< lib/%s%s.o' % (s, variant_name))
         print('> lib/fileaccessesalt%s' % variant_name)

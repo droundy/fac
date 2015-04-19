@@ -34,5 +34,5 @@ set -ev
 
 (${CC-gcc} ${CFLAGS-} -std=c99 -o targets.o -c targets.c)
 
-(${CC-gcc} ${LDFLAGS-} -lpopt -lpthread -lm -o fac fac.o files.o targets.o clean.o new-build.o git.o environ.o lib/listset.o lib/iterablehash.o lib/sha1.o lib/hashset.o lib/posixmodel.o lib/bigbrotheralt.o)
+(${CC-gcc} -o fac fac.o files.o targets.o clean.o new-build.o git.o environ.o lib/listset.o lib/iterablehash.o lib/sha1.o lib/hashset.o lib/posixmodel.o lib/bigbrotheralt.o ${LDFLAGS-} -lpopt -lpthread -lm)
 
