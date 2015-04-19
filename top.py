@@ -38,6 +38,7 @@ else:
         possible_linkflags += optional_linkflags
     else:
         print('# We are minimal')
+        possible_flags.remove('-std=c11')
 
     cc = os.getenv('CC', 'gcc')
     flags = [os.getenv('CFLAGS', '')]
