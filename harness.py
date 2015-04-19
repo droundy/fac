@@ -82,3 +82,6 @@ if expectedfailures:
 
 if unexpectedpasses:
     print bcolors.FAIL+pluralize(unexpectedpasses, 'unexpected pass')+bcolors.ENDC
+
+if numfailed:
+    exit(1)
