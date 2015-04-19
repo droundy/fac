@@ -105,42 +105,42 @@ for variant in variants.keys():
             print('< version-identifier.h')
         print()
 
-    extra_libs = ['bigbrotheralt', 'fileaccesses']
+    extra_libs = ['bigbrother', 'fileaccesses']
 
     if variant in ['w64', 'darwin']:
-        extra_libs.remove('bigbrotheralt')
+        extra_libs.remove('bigbrother')
 
     for s in libsources + extra_libs:
         print('| cd lib && %s %s -o %s%s.o -c %s.c' % (cc, ' '.join(flags), s, variant_name, s))
         print('> lib/%s%s.o' % (s, variant_name))
-        if s in ['bigbrotheralt']:
+        if s in ['bigbrother']:
             print('< lib/linux-syscalls.h')
             print('< lib/freebsd-syscalls.h')
         print()
         if s in ['fileaccesses', 'fileaccessesalt']:
             continue
 
-    if '-lpopt' not in linkflags or 'bigbrotheralt' not in extra_libs:
+    if '-lpopt' not in linkflags or 'bigbrother' not in extra_libs:
         print('# this is all we can do with %s so far' % variant)
         continue
 
     print('| %s -o fac%s %s' %
           (cc, variant_name,
            ' '.join(['%s%s.o' % (s, variant_name) for s in sources]
-                    + ['lib/%s%s.o' % (s, variant_name) for s in libsources+['bigbrotheralt']]
+                    + ['lib/%s%s.o' % (s, variant_name) for s in libsources+['bigbrother']]
                     + linkflags)))
     for s in sources:
         print('< %s%s.o' % (s, variant_name))
-    for s in libsources+['bigbrotheralt']:
+    for s in libsources+['bigbrother']:
         print('< lib/%s%s.o' % (s, variant_name))
     print('> fac%s' % variant_name)
     print()
 
     print('| %s -o lib/fileaccesses%s lib/fileaccesses%s.o %s' %
           (cc, variant_name, variant_name,
-           ' '.join(['lib/%s%s.o' % (s, variant_name) for s in libsources+['bigbrotheralt']]
+           ' '.join(['lib/%s%s.o' % (s, variant_name) for s in libsources+['bigbrother']]
                     + linkflags)))
-    for s in libsources + ['fileaccesses', 'bigbrotheralt']:
+    for s in libsources + ['fileaccesses', 'bigbrother']:
         print('< lib/%s%s.o' % (s, variant_name))
     print('> lib/fileaccesses%s' % variant_name)
     print()

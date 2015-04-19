@@ -18,7 +18,7 @@ set -ev
 
 (python2 lib/linux-syscalls.py > lib/linux-syscalls.h)
 
-(cd lib && ${CC-gcc} ${CFLAGS-} -std=c99 -o bigbrotheralt.o -c bigbrotheralt.c)
+(cd lib && ${CC-gcc} ${CFLAGS-} -std=c99 -o bigbrother.o -c bigbrother.c)
 
 (cd lib && ${CC-gcc} ${CFLAGS-} -std=c99 -o hashset.o -c hashset.c)
 
@@ -34,5 +34,5 @@ set -ev
 
 (${CC-gcc} ${CFLAGS-} -std=c99 -o targets.o -c targets.c)
 
-(${CC-gcc} -o fac fac.o files.o targets.o clean.o new-build.o git.o environ.o lib/listset.o lib/iterablehash.o lib/sha1.o lib/hashset.o lib/posixmodel.o lib/bigbrotheralt.o ${LDFLAGS-} -lpopt -lpthread -lm)
+(${CC-gcc} -o fac fac.o files.o targets.o clean.o new-build.o git.o environ.o lib/listset.o lib/iterablehash.o lib/sha1.o lib/hashset.o lib/posixmodel.o lib/bigbrother.o ${LDFLAGS-} -lpopt -lpthread -lm)
 
