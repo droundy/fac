@@ -106,8 +106,6 @@ for variant in variants.keys():
         print()
 
     extra_libs = ['bigbrotheralt', 'fileaccesses']
-    if platform.system() == 'Linux' and variant not in ['w64', 'darwin']:
-        extra_libs += ['bigbrother']
 
     if variant in ['w64', 'darwin']:
         extra_libs.remove('bigbrotheralt')
@@ -115,7 +113,7 @@ for variant in variants.keys():
     for s in libsources + extra_libs:
         print('| cd lib && %s %s -o %s%s.o -c %s.c' % (cc, ' '.join(flags), s, variant_name, s))
         print('> lib/%s%s.o' % (s, variant_name))
-        if s in ['bigbrother', 'bigbrotheralt']:
+        if s in ['bigbrotheralt']:
             print('< lib/linux-syscalls.h')
             print('< lib/freebsd-syscalls.h')
         print()
@@ -146,29 +144,6 @@ for variant in variants.keys():
         print('< lib/%s%s.o' % (s, variant_name))
     print('> lib/fileaccesses%s' % variant_name)
     print()
-
-    if platform.system() == 'Linux':
-        print('| %s -o altfac%s %s' %
-              (cc, variant_name,
-               ' '.join(['%s%s.o' % (s, variant_name) for s in sources]
-                        + ['lib/%s%s.o' % (s, variant_name) for s in libsources+['bigbrother']]
-                        + linkflags)))
-        for s in sources:
-            print('< %s%s.o' % (s, variant_name))
-        for s in libsources+['bigbrother']:
-            print('< lib/%s%s.o' % (s, variant_name))
-        print('> altfac%s' % variant_name)
-        print()
-
-        print('| %s -o lib/fileaccessesalt%s lib/fileaccesses%s.o %s' %
-              (cc, variant_name, variant_name,
-               ' '.join(['lib/%s%s.o' % (s, variant_name) for s in libsources+['bigbrother']]
-                        + linkflags)))
-        for s in libsources + ['fileaccesses', 'bigbrother']:
-            print('< lib/%s%s.o' % (s, variant_name))
-        print('> lib/fileaccessesalt%s' % variant_name)
-        print()
-
 
     ctests = ['hashset', 'listset', 'spinner', 'iterable_hash_test', 'assertion-fails',
               'test-posix-model']
