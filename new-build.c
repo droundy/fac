@@ -1003,7 +1003,6 @@ void do_actual_build(struct cmd_args *args) {
 
     build_marked(&all, args->log_directory, args->git_add_files);
     summarize_build_results(&all);
-    chdir(root); /* not sure why this might be needed... */
 
     if (args->create_dotfile || args->create_makefile || args->create_tupfile
         || args->create_script) {
@@ -1066,7 +1065,9 @@ void do_actual_build(struct cmd_args *args) {
          rebuild without scanning the entire tree again.  But instead, I
          am just rerunning the entire build process. */
       char *buffer = malloc(sizeof(struct inotify_event) + 8192 + 1);
-      read(ifd, buffer, sizeof(struct inotify_event) + 8192 + 1);
+      if (read(ifd, buffer, sizeof(struct inotify_event) + 8192 + 1) <= 0) {
+        error(1, errno, "trouble waiting for a file to change.");
+      }
       free(buffer);
       close(ifd);
     }

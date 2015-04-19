@@ -152,7 +152,8 @@ void add_git_files(struct all_targets *all) {
   pid_t new_pid = fork();
   if (new_pid == 0) {
     char **args = malloc(3*sizeof(char *));
-    close(1); dup(out);
+    close(1);
+    if (dup(out) != 1) error(1, errno, "trouble duping stdout for git ls-files");
     close(2);
     open("/dev/null", O_WRONLY);
     args[0] = "git";
