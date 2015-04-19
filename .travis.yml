@@ -7,5 +7,5 @@ script: $CC --version && ./build-linux.sh && ./fac && python harness.py
 before_install:
   - sudo apt-get update -qq
   - sudo apt-get install -y libpopt-dev
-  - sudo apt-get install -y python3
+  - sudo apt-get install -y python3 python-markdown
   - sudo apt-get install -y ruby-sass graphviz
