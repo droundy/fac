@@ -185,6 +185,7 @@ static inline const char *pretty_path(const char *path) {
   return path;
 }
 static inline const char *pretty_rule(struct rule *r) {
+  if (!r) return "<nil rule>";
   if (r->num_outputs && strlen(pretty_path(r->outputs[0]->path)) <= strlen(r->command)) {
     return pretty_path(r->outputs[0]->path);
   }

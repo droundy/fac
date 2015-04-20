@@ -136,14 +136,18 @@ void read_fac_file(struct all_targets *all, const char *path) {
     switch (one_line[0]) {
     case '?':
     case '|':
-      if (lookup_rule(all, one_line+2, the_directory))
-        error_at_line(1, 0, pretty_path(path), linenum,
-                      "duplicate rule:  %s", one_line+2);
-      therule = create_rule(all, path, one_line+2, the_directory);
-      therule->facfile_linenum = linenum;
-      thetarget = 0;
-      stat_last_file = 0;
-      if (one_line[0] == '?') therule->is_default = false;
+      {
+        struct rule *existing = lookup_rule(all, one_line+2, the_directory);
+        if (existing)
+          error_at_line(1, 0, pretty_path(path), linenum,
+                        "duplicate rule:  %s\nalso defined in %s:%d\n",
+                        one_line+2, existing->facfile_path, existing->facfile_linenum);
+        therule = create_rule(all, path, one_line+2, the_directory);
+        therule->facfile_linenum = linenum;
+        thetarget = 0;
+        stat_last_file = 0;
+        if (one_line[0] == '?') therule->is_default = false;
+      }
       break;
     case 'C':
       if (!therule)
