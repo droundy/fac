@@ -20,6 +20,10 @@
 # endif
 #endif
 
+#ifdef _WIN32
+#define __USE_MINGW_ANSI_STDIO 1
+#endif
+
 #include "sha1.h"
 
 /* code */

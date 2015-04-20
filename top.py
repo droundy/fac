@@ -19,6 +19,11 @@ optional_linkflags = ['-lprofiler']
 possible_flags = ['-std=c11', '-std=c99']
 possible_linkflags = ['-lpopt', '-lpthread', '-lm']
 
+if os.getenv('MINIMAL') == None:
+    print('# We are not minimal')
+    possible_flags += optional_flags
+    possible_linkflags += optional_linkflags
+
 if os.getenv('MINIMAL') == None and os.getenv('CC') == None and os.getenv('CFLAGS') == None and os.getenv('LDFLAGS') == None:
     # No special configuration was specified, so let us try to see how
     # many variants we can build.
@@ -34,8 +39,6 @@ if os.getenv('MINIMAL') == None and os.getenv('CC') == None and os.getenv('CFLAG
 else:
     if os.getenv('MINIMAL') == None:
         print('# We are not minimal')
-        possible_flags += optional_flags
-        possible_linkflags += optional_linkflags
         variants = {'': {'cc': os.getenv('CC', 'gcc'),
                          'flags': [os.getenv('CFLAGS', '')],
                          'linkflags': [os.getenv('LDFLAGS', '')]}}
