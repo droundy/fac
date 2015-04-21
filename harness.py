@@ -37,16 +37,19 @@ def write_script_name(n):
 
 for sh in sorted(glob.glob('tests/*.sh')):
     write_script_name(sh)
-    if system('bash %s > %s.log 2>&1' % (sh, sh)):
+    cmdline = 'bash %s > %s.log 2>&1' % (sh, sh)
+    if sh == 'tests/run-ghc.sh':
+        cmdline = 'bash %s' % sh
+    if system(cmdline):
         print bcolors.FAIL+'FAIL', bcolors.ENDC
         numfailed += 1
     else:
         print bcolors.OKGREEN+'PASS', bcolors.ENDC
         numpassed += 1
 for sh in sorted(glob.glob('tests/*.test')):
-    write_script_name(sh)
     if 'assertion-fails' in sh:
         continue
+    write_script_name(sh)
     if system('%s > %s.log 2>&1' % (sh, sh)):
         print bcolors.FAIL+'FAIL', bcolors.ENDC
         numfailed += 1
