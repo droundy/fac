@@ -1,4 +1,5 @@
 | python3 generate-version-header.py > version-identifier.h
+> version-identifier.h
 C .git/objects
 C .git/refs
 
