@@ -1,6 +1,6 @@
 #!/usr/bin/python2
 
-import glob, os, subprocess, platform
+import glob, os, subprocess, platform, sys
 
 def system(cmd):
     return subprocess.call(cmd, shell=True)
@@ -28,39 +28,50 @@ if system('./fac'):
 numpassed = 0
 numfailed = 0
 
+biggestname = max([len(f) for f in glob.glob('tests/*.sh') + glob.glob('tests/*.test')])
+
+def write_script_name(n):
+    sys.stdout.write(n+':')
+    sys.stdout.flush()
+    sys.stdout.write(' '*(biggestname+3-len(n)))
+
 for sh in sorted(glob.glob('tests/*.sh')):
+    write_script_name(sh)
     if system('bash %s > %s.log 2>&1' % (sh, sh)):
-        print bcolors.FAIL+'FAIL:', bcolors.ENDC+sh
+        print bcolors.FAIL+'FAIL', bcolors.ENDC
         numfailed += 1
     else:
-        print bcolors.OKGREEN+'PASS:', bcolors.ENDC+sh
+        print bcolors.OKGREEN+'PASS', bcolors.ENDC
         numpassed += 1
 for sh in sorted(glob.glob('tests/*.test')):
+    write_script_name(sh)
     if 'assertion-fails' in sh:
         continue
     if system('%s > %s.log 2>&1' % (sh, sh)):
-        print bcolors.FAIL+'FAIL:', bcolors.ENDC+sh
+        print bcolors.FAIL+'FAIL', bcolors.ENDC
         numfailed += 1
     else:
-        print bcolors.OKGREEN+'PASS:', bcolors.ENDC+sh
+        print bcolors.OKGREEN+'PASS', bcolors.ENDC
         numpassed += 1
 
 expectedfailures = 0
 unexpectedpasses = 0
 
 for sh in sorted(glob.glob('bugs/*.sh')):
+    write_script_name(sh)
     if system('bash %s > %s.log 2>&1' % (sh, sh)):
-        print bcolors.OKGREEN+'fail:', bcolors.ENDC+sh
+        print bcolors.OKGREEN+'fail', bcolors.ENDC
         expectedfailures += 1
     else:
-        print bcolors.FAIL+'pass:', bcolors.ENDC, sh
+        print bcolors.FAIL+'pass', bcolors.ENDC, sh
         unexpectedpasses += 1
 for sh in sorted(glob.glob('bugs/*.test')):
+    write_script_name(sh)
     if system('bash %s > %s.log 2>&1' % (sh, sh)):
-        print bcolors.OKGREEN+'fail:', bcolors.ENDC+sh
+        print bcolors.OKGREEN+'fail', bcolors.ENDC
         expectedfailures += 1
     else:
-        print bcolors.FAIL+'pass:', bcolors.ENDC, sh
+        print bcolors.FAIL+'pass', bcolors.ENDC, sh
         unexpectedpasses += 1
 
 def pluralize(num, noun):
