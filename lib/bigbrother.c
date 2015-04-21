@@ -22,7 +22,7 @@ static inline void error(int retval, int errno, const char *format, ...) {
   exit(retval);
 }
 
-static const int debug_output = 0;
+static const int debug_output = 1;
 
 static inline void debugprintf(const char *format, ...) {
   va_list args;
