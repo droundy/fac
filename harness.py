@@ -38,8 +38,6 @@ def write_script_name(n):
 for sh in sorted(glob.glob('tests/*.sh')):
     write_script_name(sh)
     cmdline = 'bash %s > %s.log 2>&1' % (sh, sh)
-    if sh == 'tests/run-ghc.sh':
-        cmdline = 'bash %s' % sh
     if system(cmdline):
         print bcolors.FAIL+'FAIL', bcolors.ENDC
         numfailed += 1
