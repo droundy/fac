@@ -27,47 +27,24 @@ static inline int readlink(const char *path, char *buf, int size) {
 static const int CWD = -100; /* this must be fixed, is AT_FDCWD in fcntl.h */
 
 struct inode *lookup_fd(struct posixmodel *m, pid_t pid, int fd) {
-  for (int i=0; i<m->num_fds; i++) {
-    if (m->open_stuff[i].pid == pid && m->open_stuff[i].fd == fd) {
-      return m->open_stuff[i].inode;
-    }
-    if (m->open_stuff[i].pid == pid && !m->open_stuff[i].inode) {
-      // This indicates we are a separate thread, and the fd field
-      // holds the "real" pid!
-      return lookup_fd(m, m->open_stuff[i].fd, fd);
-    }
-  }
-  return 0;
+  struct intmap *fdmap = (struct intmap *)lookup_intmap(&m->processes, pid);
+  if (!fdmap) return 0;
+  return (struct inode *)lookup_intmap(fdmap, fd);
 }
 
 void create_fd(struct posixmodel *m, pid_t pid, int fd, struct inode *inode) {
-  for (int i=0; i<m->num_fds; i++) {
-    if (m->open_stuff[i].pid == pid && m->open_stuff[i].fd == fd) {
-      m->open_stuff[i].inode = inode;
-    }
+  struct intmap *fdmap = (struct intmap *)lookup_intmap(&m->processes, pid);
+  if (!fdmap) {
+    fdmap = malloc(sizeof(struct intmap));
+    init_intmap(fdmap);
+    add_to_intmap(&m->processes, pid, fdmap);
   }
-  m->open_stuff = realloc(m->open_stuff, (m->num_fds+1)*sizeof(struct inode_pid_fd));
-  m->open_stuff[m->num_fds].inode = inode;
-  m->open_stuff[m->num_fds].fd = fd;
-  m->open_stuff[m->num_fds].pid = pid;
-  m->num_fds += 1;
+  add_to_intmap(fdmap, fd, inode);
 }
 
 void model_fork(struct posixmodel *m, pid_t parent, pid_t child) {
-  int num_fd_in_parent = 0;
-  for (int i=0; i<m->num_fds; i++) {
-    if (m->open_stuff[i].pid == parent) num_fd_in_parent++;
-  }
-  m->open_stuff = realloc(m->open_stuff, (m->num_fds+num_fd_in_parent)*sizeof(struct inode_pid_fd));
-  int j = m->num_fds;
-  for (int i=0; i<m->num_fds; i++) {
-    if (m->open_stuff[i].pid == parent) {
-      m->open_stuff[j] = m->open_stuff[i];
-      m->open_stuff[j].pid = child;
-      j++;
-    }
-  }
-  m->num_fds += num_fd_in_parent;
+  struct intmap *fdmap = (struct intmap *)lookup_intmap(&m->processes, parent);
+  if (fdmap) add_to_intmap(&m->processes, child, dup_intmap(fdmap));
 }
 
 void model_dup2(struct posixmodel *m, pid_t pid, int fdorig, int fdtarget) {
@@ -77,18 +54,9 @@ void model_dup2(struct posixmodel *m, pid_t pid, int fdorig, int fdtarget) {
 
 void model_close(struct posixmodel *m, pid_t pid, int fd) {
   /* printf("closing [%d]: %d\n", pid, fd); */
-  /* for (int i=0; i<m->num_fds; i++) { */
-  /*   printf("[%d]: %d = %s\n", m->open_stuff[i].pid, */
-  /*          m->open_stuff[i].fd, model_realpath(m->open_stuff[i].inode)); */
-  /* } */
-  for (int i=0; i<m->num_fds; i++) {
-    if (m->open_stuff[i].pid == pid && m->open_stuff[i].fd == fd) {
-      for (int j=i+1;j<m->num_fds;j++) {
-        m->open_stuff[j-1] = m->open_stuff[j];
-      }
-      m->num_fds -= 1;
-      return;
-    }
+  struct intmap *fdmap = (struct intmap *)lookup_intmap(&m->processes, pid);
+  if (fdmap) {
+    remove_intmapping(fdmap, fd, 0);
   }
 }
 
@@ -119,12 +87,17 @@ struct inode *alloc_directory(struct inode *parent, const char *name) {
 void init_posixmodel(struct posixmodel *m) {
   m->root = alloc_directory(0, "/");
   m->num_fds = 0;
-  m->open_stuff = 0;
+  init_intmap(&m->processes);
+}
+
+static void free_only_intmap(void *p) {
+  free_intmap((struct intmap *)p, 0);
+  free(p);
 }
 
 void free_posixmodel(struct posixmodel *m) {
   free_inode(m->root);
-  free(m->open_stuff);
+  free_intmap(&m->processes, free_only_intmap);
 }
 
 struct inode *alloc_symlink(struct posixmodel *m, struct inode *parent, const char *name,
@@ -181,8 +154,8 @@ struct inode *interpret_path_as_directory(struct posixmodel *m,
                                           struct inode *cwd, const char *dir) {
   if (dir[0] != '/' && !cwd) {
     fprintf(stderr, "uh oh trouble with %s\n", dir);
+    exit(1);
   }
-  assert(dir[0] == '/' || cwd);
   if (dir[0] == '/') {
     /* absolute paths can be interpreted as relative paths to root */
     cwd = m->root;
@@ -450,6 +423,7 @@ void model_rename(struct posixmodel *m, struct inode *cwd,
   add_to_hash(&dir->c.children, &i->e);
   free(dirpath);
 }
+
 
 int model_mkdir(struct posixmodel *m, struct inode *cwd, const char *dir) {
   struct inode *in = model_lstat(m, cwd, dir);

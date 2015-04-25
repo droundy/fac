@@ -22,6 +22,8 @@ set -ev
 
 (cd lib && ${CC-gcc} ${CFLAGS-} -std=c99 -o hashset.o -c hashset.c)
 
+(cd lib && ${CC-gcc} ${CFLAGS-} -std=c99 -o intmap.o -c intmap.c)
+
 (cd lib && ${CC-gcc} ${CFLAGS-} -std=c99 -o iterablehash.o -c iterablehash.c)
 
 (cd lib && ${CC-gcc} ${CFLAGS-} -std=c99 -o listset.o -c listset.c)
@@ -34,5 +36,5 @@ set -ev
 
 (${CC-gcc} ${CFLAGS-} -std=c99 -o targets.o -c targets.c)
 
-(${CC-gcc} -o fac fac.o files.o targets.o clean.o new-build.o git.o environ.o lib/listset.o lib/iterablehash.o lib/sha1.o lib/hashset.o lib/posixmodel.o lib/bigbrother.o ${LDFLAGS-} -lpopt -lpthread -lm)
+(${CC-gcc} -o fac fac.o files.o targets.o clean.o new-build.o git.o environ.o lib/listset.o lib/iterablehash.o lib/intmap.o lib/sha1.o lib/hashset.o lib/posixmodel.o lib/bigbrother.o ${LDFLAGS-} -lpopt -lpthread -lm)
 

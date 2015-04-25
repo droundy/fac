@@ -15,6 +15,10 @@ static struct posixmodel m;
 
 int verify_cwd(const char *dir_expected, pid_t pid) {
   struct inode *cwd = model_cwd(&m, pid);
+  if (!cwd) {
+    printf("\nFAIL: %5d: has no cwd!\n", pid);
+    return 1;
+  }
   char *dname = model_realpath(cwd);
   printf("%5d: cwd -> %s\n", pid, dname);
   if (strcmp(dir_expected, dname)) {
@@ -41,6 +45,12 @@ int test_chdir(const char *dir, pid_t pid) {
   printf("%5d: chdir %s\n", pid, dir);
   if (model_chdir(&m, model_cwd(&m, pid), dir, pid)) return 1;
   if (dir[0] == '/') return verify_cwd(dir, pid);
+  return 0;
+}
+
+int test_fork(pid_t parent, pid_t child) {
+  printf("%5d: fork -> %d\n", parent, child);
+  model_fork(&m, parent, child);
   return 0;
 }
 
@@ -158,6 +168,13 @@ int main(int argc, char **argv) {
 
   attempt(test_opendir("abs_symlink_directory/subdir/subsubdir", pid, 7));
   attempt(test_opendir("/usr/local/bin", pid, 7));
+
+  pid_t child = 37;
+  attempt(test_fork(pid, child));
+  attempt(verify_cwd(cwd, child));
+
+  attempt(test_chdir("abs_symlink_directory/../actual_directory/subdir", child));
+  attempt(verify_cwd(cmd, child));
 
   free(cwd);
   free(cmd);

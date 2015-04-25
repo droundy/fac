@@ -2,6 +2,7 @@
 #define POSIXMODEL_H
 
 #include "hashset.h"
+#include "intmap.h"
 
 #include <sys/types.h>
 
@@ -24,16 +25,10 @@ struct inode {
   char name[];
 };
 
-struct inode_pid_fd {
-  struct inode *inode;
-  pid_t pid;
-  int fd;
-};
-
 struct posixmodel {
   struct inode *root;
   int num_fds;
-  struct inode_pid_fd *open_stuff;
+  struct intmap processes; // holds mappings from threads to processes
 };
 
 void free_inode(struct inode *);
