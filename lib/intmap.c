@@ -27,7 +27,12 @@ struct intmap *dup_intmap(struct intmap *m) {
 void free_intmap(struct intmap *m, void (*free_datum)(void *)) {
   if (free_datum) {
     for (int i=0;i<m->data_size;i++) {
-      if (m->data[i]) free_datum(m->data[i]);
+      if (m->data[i]) {
+        for (int j=i+1;j<m->data_size;j++) {
+          if (m->data[j] == m->data[i]) m->data[j] = 0;
+        }
+        free_datum(m->data[i]);
+      }
     }
   }
   free(m->table);

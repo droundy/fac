@@ -258,8 +258,8 @@ int model_chdir(struct posixmodel *m, struct inode *cwd, const char *dir, pid_t 
 }
 
 void model_newthread(struct posixmodel *m, pid_t parent, pid_t child) {
-  // this sets the two threads to have the same set of fds
-  create_fd(m, child, parent, 0);
+  // this sets the two threads to refer to the same process
+  add_to_intmap(&m->processes, child, lookup_intmap(&m->processes, parent));
 }
 
 char *split_at_base(char *path) {

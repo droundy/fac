@@ -138,6 +138,12 @@ static char *read_a_string(pid_t child, unsigned long addr) {
     return val;
 }
 
+static inline struct inode *assert_cwd(struct posixmodel *m, pid_t pid, const char *msg) {
+  struct inode *cwd = model_cwd(m, pid);
+  if (!cwd) error(1, 0, "cwd does not exist for pid %d: %s\n", pid, msg);
+  return cwd;
+}
+
 static pid_t wait_for_syscall(struct posixmodel *m, int firstborn) {
   pid_t child = 0;
   int status = 0;
@@ -174,7 +180,7 @@ static pid_t wait_for_syscall(struct posixmodel *m, int firstborn) {
       unsigned long pid;
       ptrace(PTRACE_GETEVENTMSG, child, 0, &pid);
       debugprintf("%ld: execed from %d\n", pid, child);
-      model_chdir(m, model_cwd(m, child), ".", pid);
+      model_chdir(m, assert_cwd(m, child, "on exec"), ".", pid);
     } else if (WIFSTOPPED(status)) {
       // ensure that the signal we interrupted is actually delivered.
       switch (WSTOPSIG(status)) {
@@ -282,7 +288,7 @@ static int save_syscall_access(pid_t child, struct posixmodel *m) {
       if (!strcmp(name, "open")) {
         arg = read_a_string(child, get_syscall_arg(regs, 0));
         flags = get_syscall_arg(regs, 1);
-        cwd = model_cwd(m, child);
+        cwd = assert_cwd(m, child, "calling open");
       } else {
         arg = read_a_string(child, get_syscall_arg(regs, 1));
         flags = get_syscall_arg(regs, 2);
@@ -322,7 +328,7 @@ static int save_syscall_access(pid_t child, struct posixmodel *m) {
     if (retval == 0) {
       if (!strcmp(name, "unlink")) {
         arg = read_a_string(child, get_syscall_arg(regs, 0));
-        cwd = model_cwd(m, child);
+        cwd = assert_cwd(m, child, "calling unlink");
         if (arg) debugprintf("%d: %s('%s') -> %d\n", child, name, arg, retval);
       } else {
         arg = read_a_string(child, get_syscall_arg(regs, 1));
@@ -342,7 +348,7 @@ static int save_syscall_access(pid_t child, struct posixmodel *m) {
     if (arg) {
       debugprintf("%d: %s('%s') -> %d\n", child, name, arg, retval);
       if (retval >= 0) {
-        model_creat(m, model_cwd(m, child), arg);
+        model_creat(m, assert_cwd(m, child, "calling creat or similar"), arg);
       }
       free(arg);
     }
@@ -370,7 +376,7 @@ static int save_syscall_access(pid_t child, struct posixmodel *m) {
     if (retval >= 0) {
       if (strcmp(name, "readlinkat")) {
         arg = read_a_string(child, get_syscall_arg(regs, 0));
-        cwd = model_cwd(m, child);
+        cwd = assert_cwd(m, child, "calling lstat or readlink");
       } else {
         arg = read_a_string(child, get_syscall_arg(regs, 1));
         cwd = lookup_fd(m, child, get_syscall_arg(regs, 0));
@@ -391,7 +397,7 @@ static int save_syscall_access(pid_t child, struct posixmodel *m) {
       char *arg = read_a_string(child, get_syscall_arg(regs, 0));
       if (arg) {
         debugprintf("%d: %s('%s') -> %d\n", child, name, arg, retval);
-        struct inode *i = model_stat(m, model_cwd(m, child), arg);
+        struct inode *i = model_stat(m, assert_cwd(m, child, "calling stat"), arg);
         if (i && i->type != is_directory) {
           debugprintf("%d: has read %s\n", child, debug_realpath(i));
           i->is_read = true;
@@ -407,7 +413,7 @@ static int save_syscall_access(pid_t child, struct posixmodel *m) {
       if (!strcmp(name, "symlink")) {
         arg = read_a_string(child, get_syscall_arg(regs, 0));
         target = read_a_string(child, get_syscall_arg(regs, 1));
-        if (arg) cwd = model_cwd(m, child);
+        if (arg) cwd = assert_cwd(m, child, "calling symlink");
       } else {
         arg = read_a_string(child, get_syscall_arg(regs, 1));
         target = read_a_string(child, get_syscall_arg(regs, 2));
@@ -425,7 +431,7 @@ static int save_syscall_access(pid_t child, struct posixmodel *m) {
     struct inode *cwd;
     if (!strcmp(name, "execve")) {
       arg = read_a_string(child, get_syscall_arg(regs, 0));
-      if (arg) cwd = model_cwd(m, child);
+      if (arg) cwd = assert_cwd(m, child, "calling execve");
     } else {
       arg = read_a_string(child, get_syscall_arg(regs, 1));
       if (arg) cwd = lookup_fd(m, child, get_syscall_arg(regs, 0));
@@ -447,7 +453,7 @@ static int save_syscall_access(pid_t child, struct posixmodel *m) {
       if (!strcmp(name, "rename")) {
         from = read_a_string(child, get_syscall_arg(regs, 0));
         to = read_a_string(child, get_syscall_arg(regs, 1));
-        cwd = model_cwd(m, child);
+        cwd = assert_cwd(m, child, "calling rename");
       } else {
         from = read_a_string(child, get_syscall_arg(regs, 1));
         to = read_a_string(child, get_syscall_arg(regs, 2));
@@ -468,7 +474,7 @@ static int save_syscall_access(pid_t child, struct posixmodel *m) {
       if (!strcmp(name, "link")) {
         from = read_a_string(child, get_syscall_arg(regs, 0));
         to = read_a_string(child, get_syscall_arg(regs, 1));
-        cwd = model_cwd(m, child);
+        cwd = assert_cwd(m, child, "calling link");
       } else {
         from = read_a_string(child, get_syscall_arg(regs, 1));
         to = read_a_string(child, get_syscall_arg(regs, 2));
