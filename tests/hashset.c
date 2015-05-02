@@ -20,9 +20,11 @@ void hasnot(const char *string, int line) {
 }
 
 void testiter(int line) {
-  for (struct set_entry *e = (struct set_entry *)a->first; e; e = (struct set_entry *)e->e.next) {
-    if (e->is_valid) has(e->key, line);
+  char **array = hashset_to_array(a);
+  for (int i=0; array[i]; i++) {
+    has(array[i], line);
   }
+  free(array);
 }
 
 int main(int argc, char **argv) {

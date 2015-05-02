@@ -45,7 +45,7 @@ lib/posixmodel.o : errors.h lib/hashset.h lib/intmap.h lib/iterablehash.h lib/po
 lib/sha1.o : lib/sha1.c lib/sha1.h
 	cd lib && ${CC-gcc} ${CFLAGS-} -std=c99 -o sha1.o -c sha1.c
 
-new-build.o : environ.h errors.h fac.h lib/bigbrother.h lib/hashset.h lib/iterablehash.h lib/listset.h lib/sha1.h new-build.c new-build.h
+new-build.o : environ.h errors.h fac.h lib/bigbrother.h lib/iterablehash.h lib/listset.h lib/sha1.h new-build.c new-build.h
 	${CC-gcc} ${CFLAGS-} -std=c99 -o new-build.o -c new-build.c
 
 targets.o : fac.h lib/iterablehash.h lib/listset.h lib/sha1.h targets.c

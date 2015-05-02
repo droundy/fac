@@ -4,6 +4,12 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+struct set_entry {
+  struct hash_entry e;
+  bool is_valid;
+  char key[];
+};
+
 void initialize_hashset(hashset *hash) {
   init_hash_table(hash, 100);
 }
@@ -41,4 +47,33 @@ bool is_in_hashset(hashset *hash, const char *path) {
   struct set_entry *e = (struct set_entry *)lookup_in_hash(hash, path);
   if (!e) return false;
   return e->is_valid;
+}
+
+char **hashset_to_array(hashset *hs) {
+  int numentries = 0;
+  long total_size = 0;
+  for (struct set_entry *e = (struct set_entry *)hs->first;
+       e; e = (struct set_entry *)e->e.next) {
+    if (e->is_valid) {
+      numentries++;
+      total_size += strlen(e->e.key) + 1;
+    }
+  }
+  char **array = malloc((numentries + 1)*sizeof(char *) + total_size);
+  char *strings = (char *)(array + numentries + 1);
+  int i = 0;
+  for (struct set_entry *e = (struct set_entry *)hs->first;
+       e; e = (struct set_entry *)e->e.next) {
+    if (e->is_valid) {
+      array[i] = strings;
+      const char *from = e->e.key;
+      while (*from) {
+        *strings++ = *from++; // copy the key and advance the string;
+      }
+      *strings++ = 0; // add the null termination
+      i++;
+    }
+  }
+  array[numentries] = 0; // terminate with a null pointer.
+  return array;
 }

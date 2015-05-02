@@ -546,10 +546,9 @@ int bigbrother_process(const char *workingdir,
                        pid_t *child_ptr,
                        int stdouterrfd,
                        char **args,
-                       hashset *read_from_directories,
-                       hashset *read_from_files,
-                       hashset *written_to_files,
-                       hashset *deleted_files) {
+                       char ***read_from_directories_out,
+                       char ***read_from_files_out,
+                       char ***written_to_files_out) {
   pid_t firstborn = fork();
   if (firstborn == -1) {
   }
@@ -585,12 +584,22 @@ int bigbrother_process(const char *workingdir,
       free(cwd);
     }
 
+    hashset read_from_files, read_from_directories, written_to_files;
+    initialize_hashset(&read_from_files);
+    initialize_hashset(&read_from_directories);
+    initialize_hashset(&written_to_files);
     while (1) {
       pid_t child = wait_for_syscall(&m, firstborn);
       if (child <= 0) {
         debugprintf("Returning with exit value %d\n", -child);
-        model_output(&m, read_from_directories, read_from_files, written_to_files);
+        model_output(&m, &read_from_directories, &read_from_files, &written_to_files);
         free_posixmodel(&m);
+        *read_from_files_out = hashset_to_array(&read_from_files);
+        *read_from_directories_out = hashset_to_array(&read_from_directories);
+        *written_to_files_out = hashset_to_array(&written_to_files);
+        free_hashset(&read_from_directories);
+        free_hashset(&read_from_files);
+        free_hashset(&written_to_files);
         return -child;
       }
 
@@ -629,8 +638,7 @@ int bigbrother_process(const char *workingdir,
                        char **args,
                        hashset *read_from_directories,
                        hashset *read_from_files,
-                       hashset *written_to_files,
-                       hashset *deleted_files) {
+                       hashset *written_to_files) {
   const char *templ = "/tmp/fac-XXXXXX";
   char *namebuf = malloc(strlen(templ)+1);
   strcpy(namebuf, templ);

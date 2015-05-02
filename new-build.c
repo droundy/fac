@@ -427,17 +427,16 @@ struct building {
   int stdouterrfd;
   double build_time;
   struct rule *rule;
-  hashset readdir, read, written, deleted;
+  char **readdir, **read, **written;
 };
 
 static void *run_bigbrother(void *ptr) {
   struct building *b = ptr;
 
   const char **args = malloc(4*sizeof(char *));
-  initialize_hashset(&b->readdir);
-  initialize_hashset(&b->read);
-  initialize_hashset(&b->written);
-  initialize_hashset(&b->deleted);
+  b->readdir = 0;
+  b->read = 0;
+  b->written = 0;
 
   args[0] = "/bin/sh";
   args[1] = "-c";
@@ -449,8 +448,7 @@ static void *run_bigbrother(void *ptr) {
                                &b->child_pid,
                                b->stdouterrfd,
                                (char **)args,
-                               &b->readdir,
-                               &b->read, &b->written, &b->deleted);
+                               &b->readdir, &b->read, &b->written);
   free(args);
 
   b->build_time = double_time() - started;
@@ -552,6 +550,14 @@ static void find_elapsed_time() {
   double et = double_time() - starting_time;
   elapsed_minutes = floor(et/60);
   elapsed_seconds = et - elapsed_minutes*60;
+}
+
+static void delete_from_array(char **array, const char *str) {
+  for (int i=0; array[i]; i++) {
+    if (!strcmp(array[i], str)) {
+      array[i] = "/dev/null"; // hokey hokey way to delete an entry
+    }
+  }
 }
 
 static void build_marked(struct all_targets *all, const char *log_directory,
@@ -660,10 +666,9 @@ static void build_marked(struct all_targets *all, const char *log_directory,
           if (bs[i]->all_done == failed) {
             rule_failed(all, bs[i]->rule);
             erase_and_printf("build failed: %s\n", pretty_rule(bs[i]->rule));
-            free_hashset(&bs[i]->read);
-            free_hashset(&bs[i]->readdir);
-            free_hashset(&bs[i]->written);
-            free_hashset(&bs[i]->deleted);
+            free(bs[i]->read);
+            free(bs[i]->readdir);
+            free(bs[i]->written);
             free(bs[i]);
             bs[i] = 0;
             break;
@@ -696,8 +701,8 @@ static void build_marked(struct all_targets *all, const char *log_directory,
             } else {
               if (sha1_is_zero(t->stat.hash)) find_target_sha1(t);
               add_input(r, t);
-              delete_from_hashset(&bs[i]->read, r->inputs[ii]->path);
-              delete_from_hashset(&bs[i]->written, r->inputs[ii]->path);
+              delete_from_array(bs[i]->read, r->inputs[ii]->path);
+              delete_from_array(bs[i]->written, r->inputs[ii]->path);
             }
           }
           /* Forget the non-explicit outputs, as we will re-add
@@ -722,10 +727,9 @@ static void build_marked(struct all_targets *all, const char *log_directory,
                 dump_to_stdout(bs[i]->stdouterrfd);
                 close(bs[i]->stdouterrfd);
               }
-              free_hashset(&bs[i]->read);
-              free_hashset(&bs[i]->readdir);
-              free_hashset(&bs[i]->written);
-              free_hashset(&bs[i]->deleted);
+              free(bs[i]->read);
+              free(bs[i]->readdir);
+              free(bs[i]->written);
               free(bs[i]);
               bs[i] = 0;
               break;
@@ -733,16 +737,15 @@ static void build_marked(struct all_targets *all, const char *log_directory,
               find_target_sha1(t);
               t->rule = r;
               add_output(r, t);
-              delete_from_hashset(&bs[i]->read, r->outputs[ii]->path);
-              delete_from_hashset(&bs[i]->written, r->outputs[ii]->path);
+              delete_from_array(bs[i]->read, r->outputs[ii]->path);
+              delete_from_array(bs[i]->written, r->outputs[ii]->path);
             }
           }
           if (!bs[i]) break; // happens if we failed to create an output
 
-          for (struct set_entry *e = (struct set_entry *)bs[i]->read.first;
-               e; e = (struct set_entry *)e->e.next) {
-            char *path = e->key;
-            if (e->is_valid && is_interesting_path(r, path)) {
+          for (int nn=0; bs[i]->read[nn]; nn++) {
+            char *path = bs[i]->read[nn];
+            if (is_interesting_path(r, path)) {
               struct target *t = create_target_with_stat(all, path);
               if (!t) {
                 /* Assume that the file was deleted, and there's no
@@ -765,10 +768,9 @@ static void build_marked(struct all_targets *all, const char *log_directory,
             }
           }
 
-          for (struct set_entry *e = (struct set_entry *)bs[i]->readdir.first;
-               e; e = (struct set_entry *)e->e.next) {
-            char *path = e->key;
-            if (e->is_valid && is_interesting_path(r, path)) {
+          for (int nn=0; bs[i]->readdir[nn]; nn++) {
+            char *path = bs[i]->readdir[nn];
+            if (is_interesting_path(r, path)) {
               struct target *t = create_target_with_stat(all, path);
               if (t && t->is_dir) {
                 if (!t->rule && is_in_root(path) && !t->is_in_git && !is_in_gitdir(path)) {
@@ -782,10 +784,9 @@ static void build_marked(struct all_targets *all, const char *log_directory,
             }
           }
 
-          for (struct set_entry *e = (struct set_entry *)bs[i]->written.first;
-               e; e = (struct set_entry *)e->e.next) {
-            char *path = e->key;
-            if (e->is_valid && is_interesting_path(r, path)) {
+          for (int nn=0; bs[i]->written[nn]; nn++) {
+            char *path = bs[i]->written[nn];
+            if (is_interesting_path(r, path)) {
               struct target *t = lookup_target(all, path);
               if (t) {
                 t->stat.time = 0;
@@ -817,10 +818,9 @@ static void build_marked(struct all_targets *all, const char *log_directory,
           insert_to_listset(&facfiles_used, r->facfile_path);
 
           if (!show_output) close(bs[i]->stdouterrfd);
-          free_hashset(&bs[i]->read);
-          free_hashset(&bs[i]->readdir);
-          free_hashset(&bs[i]->written);
-          free_hashset(&bs[i]->deleted);
+          free(bs[i]->read);
+          free(bs[i]->readdir);
+          free(bs[i]->written);
           free(bs[i]);
           bs[i] = 0;
         }
