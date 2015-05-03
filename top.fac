@@ -3,7 +3,7 @@
 C .git/objects
 C .git/refs
 
-| python2 top.py > .fac
+| python3 top.py > .fac
 > .fac
 
 | python2 lib/linux-syscalls.py > lib/linux-syscalls.h

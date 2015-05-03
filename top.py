@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/usr/bin/python3
 
 from __future__ import print_function
 import string, os, sys, platform
@@ -27,28 +27,58 @@ if os.getenv('MINIMAL') == None:
 if os.getenv('MINIMAL') == None and os.getenv('CC') == None and os.getenv('CFLAGS') == None and os.getenv('LDFLAGS') == None:
     # No special configuration was specified, so let us try to see how
     # many variants we can build.
-    variants = {'': {'cc': 'gcc', 'flags': [], 'linkflags': []},
-                '32': {'cc': 'gcc', 'flags': ['-m32'], 'linkflags': ['-m32']},
-                'clang': {'cc': 'clang', 'flags': [], 'linkflags': []},
+    variants = {'': {'cc': 'gcc',
+                     'ar': 'ar',
+                     'ranlib': 'ranlib',
+                     'flags': [],
+                     'linkflags': [],
+                     'os': platform.system().lower(),
+                     'arch': platform.machine()},
+                '32': {'cc': 'gcc',
+                       'ar': 'ar',
+                       'ranlib': 'ranlib',
+                       'flags': ['-m32'],
+                       'linkflags': ['-m32'],
+                       'os': platform.system().lower(),
+                       'arch': 'i386'},
+                'clang': {'cc': 'clang',
+                          'ar': 'ar',
+                          'ranlib': 'ranlib',
+                          'flags': [],
+                          'linkflags': [],
+                          'os': platform.system().lower(),
+                          'arch': platform.machine()},
                 'darwin': {'cc': 'x86_64-apple-darwin10-clang',
+                           'ar': 'x86_64-apple-darwin10-ar',
+                           'ranlib': 'x86_64-apple-darwin10-ranlib',
                            'flags': ['-I'+os.path.join(os.getcwd(),'../darwin')],
-                           'linkflags': ['-L'+os.path.join(os.getcwd(),'../darwin')]},
+                           'linkflags': ['-L'+os.path.join(os.getcwd(),'../darwin')],
+                           'os': 'darwin',
+                           'arch': 'x86_64'},
                 'w64': {'cc': 'x86_64-w64-mingw32-gcc',
+                        'ar': 'x86_64-w64-mingw32-ar',
+                        'ranlib': 'x86_64-w64-mingw32-ranlib',
                         'flags': ['-I'+os.path.join(os.getcwd(),'../win32')],
-                        'linkflags': ['-I'+os.path.join(os.getcwd(),'../win32')]}}
+                        'linkflags': ['-I'+os.path.join(os.getcwd(),'../win32')],
+                        'os': 'windows',
+                        'arch': 'x86_64'}}
 else:
     if os.getenv('MINIMAL') == None:
         print('# We are not minimal')
         variants = {'': {'cc': os.getenv('CC', 'gcc'),
                          'flags': [os.getenv('CFLAGS', '')],
-                         'linkflags': [os.getenv('LDFLAGS', '')]}}
+                         'linkflags': [os.getenv('LDFLAGS', '')],
+                         'os': platform.system().lower(),
+                         'arch': platform.machine()}}
     else:
         print('# We are minimal')
         possible_flags.remove('-std=c11')
         cc = os.getenv('CC', 'oopsies')
         variants = {'': {'cc': os.getenv('CC', '${CC-gcc}'),
                          'flags': [os.getenv('CFLAGS', '${CFLAGS-}')],
-                         'linkflags': [os.getenv('LDFLAGS', '${LDFLAGS-}')]}}
+                         'linkflags': [os.getenv('LDFLAGS', '${LDFLAGS-}')],
+                         'os': platform.system().lower(),
+                         'arch': platform.machine()}}
 
     print('# compiling with just the variant:', variants)
 
@@ -68,6 +98,12 @@ for variant in variants.keys():
     variant_name = '-'+variant
     if variant == '':
         variant_name = ''
+    else:
+        os.makedirs('build/'+variant, exist_ok=True)
+        print("""
+# | cd build/%s && rm -rf bigbro && git clone git://github.com/droundy/bigbro
+# > build/%s/bigbro/bigbro-linux.c
+        """ % (variant, variant))
 
     if not compile_works(flags):
         print('# unable to compile using %s %s -c test.c' % (cc, flags))
@@ -91,8 +127,8 @@ for variant in variants.keys():
 
     if '-std=c11' in flags:
         flags = [f for f in flags if f != '-std=c99']
-    linkflags = filter(None, linkflags)
-    flags = filter(None, flags)
+    linkflags = list(filter(None, linkflags))
+    flags = list(filter(None, flags))
 
     variants[variant]['flags'] = flags
     variants[variant]['linkflags'] = linkflags
@@ -154,7 +190,7 @@ for variant in variants.keys():
     for test in ctests:
         print('| %s '%cc+' '.join(linkflags)+' -o tests/%s%s.test' % (test, variant_name),
               'tests/%s%s.o' % (test, variant_name),
-              string.join(['lib/%s%s.o' % (s, variant_name) for s in libsources]))
+              ' '.join(['lib/%s%s.o' % (s, variant_name) for s in libsources]))
         print('> tests/%s%s.test' % (test, variant_name))
         print('< tests/%s%s.o' % (test, variant_name))
         for s in libsources:
