@@ -9,9 +9,11 @@ C .git/refs
 | cd bigbro && sh build-linux.sh
 < bigbro/build-linux.sh
 > bigbro/libbigbro.a
+c .pyc
 
 | python3 top.py > .fac
 > .fac
+< bigbro/libbigbro.a
 
 | python2 lib/linux-syscalls.py > lib/linux-syscalls.h
 > lib/linux-syscalls.h
