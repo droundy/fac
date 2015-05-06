@@ -343,7 +343,7 @@ void check_cleanliness(struct all_targets *all, struct rule *r) {
       if (i < r->num_explicit_inputs) {
         set_status(all, r, unready);
         return;
-      } else {
+      } else if (r->inputs[i]->is_file) {
         rebuild_excuse(r, "input %s does not exist", pretty_path(r->inputs[i]->path));
         rule_is_ready(all, r);
         return;
