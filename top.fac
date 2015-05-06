@@ -3,6 +3,13 @@
 C .git/objects
 C .git/refs
 
+| rm -rf bigbro && git clone git://github.com/droundy/bigbro
+> bigbro/build-linux.sh
+
+| cd bigbro && sh build-linux.sh
+< bigbro/build-linux.sh
+> bigbro/libbigbro.a
+
 | python3 top.py > .fac
 > .fac
 

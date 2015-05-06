@@ -8,7 +8,7 @@
 #include "new-build.h"
 #include "environ.h"
 
-#include "lib/bigbrother.h"
+#include "bigbro.h"
 #include "lib/listset.h"
 
 #ifdef _WIN32
@@ -444,11 +444,11 @@ static void *run_bigbrother(void *ptr) {
   args[3] = 0;
 
   double started = double_time();
-  int ret = bigbrother_process(b->rule->working_directory,
-                               &b->child_pid,
-                               b->stdouterrfd,
-                               (char **)args,
-                               &b->readdir, &b->read, &b->written);
+  int ret = bigbro(b->rule->working_directory,
+                   &b->child_pid,
+                   b->stdouterrfd,
+                   (char **)args,
+                   &b->readdir, &b->read, &b->written);
   free(args);
 
   b->build_time = double_time() - started;
