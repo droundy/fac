@@ -773,11 +773,6 @@ static void build_marked(struct all_targets *all, const char *log_directory,
             if (is_interesting_path(r, path)) {
               struct target *t = create_target_with_stat(all, path);
               if (t && t->is_dir) {
-                if (!t->rule && is_in_root(path) && !t->is_in_git && !is_in_gitdir(path)) {
-                  erase_and_printf("error: directory %s should be in git for %s\n",
-                                   pretty_path(t->path), pretty_rule(r));
-                  rule_failed(all, r);
-                }
                 find_target_sha1(t);
                 add_input(r, t);
               }
