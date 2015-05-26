@@ -706,7 +706,7 @@ static void build_marked(struct all_targets *all, const char *log_directory,
             }
           }
           /* Forget the non-explicit outputs, as we will re-add
-             those inputs that were actually created in the build */
+             those outputs that were actually created in the build */
           for (int ii=r->num_outputs;ii<r->num_explicit_outputs;ii++) {
             r->outputs[ii]->rule = 0; // dissociate ourselves with these non-explicit outputs
             r->outputs[ii]->status = dirty; // mark them as dirty, since we didn't create them
@@ -795,7 +795,7 @@ static void build_marked(struct all_targets *all, const char *log_directory,
                   rule_failed(all, r);
                 }
                 if (t->rule && t->rule != r) {
-                  erase_and_printf("error: two rules generate same output %s: %s and %s",
+                  erase_and_printf("error: two rules generate same output %s:\n\t%s\nand\n\t%s\n",
                                    pretty_path(path), r->command, t->rule->command);
                   rule_failed(all, r);
                 }
@@ -932,7 +932,7 @@ void summarize_build_results(struct all_targets *all) {
     exit(1);
   } else {
     find_elapsed_time();
-    erase_and_printf("Build succeeded! %.0f:%05.2f            \n",
+    erase_and_printf("Build succeeded! %.0f:%05.2f\n",
                      elapsed_minutes, elapsed_seconds);
   }
 }
