@@ -10,22 +10,16 @@ cat > top.fac <<EOF
 | ls subdir > contents
 EOF
 
-mkdir subdir
-
 git init
 git add top.fac
 
-if ../../fac; then
-  echo we should fail due to subdir not being in git
-  exit 1
-fi
-
+mkdir subdir
 touch subdir/hello
 git add subdir/hello
 
-cat top.fac.tum
-
 ../../fac
+
+cat top.fac.tum
 
 grep hello contents
 
