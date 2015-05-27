@@ -2,9 +2,17 @@
 
 set -ev
 
-(rm -rf bigbro && git clone git://github.com/droundy/bigbro)
+(if cd bigbro; then git pull; else git clone git://github.com/droundy/bigbro; fi)
 
-(cd bigbro && sh build-linux.sh)
+(cd bigbro && python3 syscalls/darwin.py > syscalls/darwin.h)
+
+(cd bigbro && python3 syscalls/freebsd.py > syscalls/freebsd.h)
+
+(cd bigbro && python3 syscalls/linux.py > syscalls/linux.h)
+
+(cd bigbro && ${CC-gcc} -Wall -Werror -O2 -std=c99 -g -mtune=native -c bigbro-linux.c)
+
+(cd bigbro && rm -f libbigbro.a && ${AR-ar} rc libbigbro.a bigbro-linux.o && ${RANLIB-ranlib} libbigbro.a)
 
 (${CC-gcc} ${CFLAGS-} -std=c99 -Ibigbro -o clean.o -c clean.c)
 
@@ -30,5 +38,5 @@ set -ev
 
 (${CC-gcc} ${CFLAGS-} -std=c99 -Ibigbro -o targets.o -c targets.c)
 
-(${CC-gcc} -o fac fac.o files.o targets.o clean.o new-build.o git.o environ.o lib/listset.o lib/iterablehash.o lib/intmap.o lib/sha1.o ${LDFLAGS-} -lpopt -lpthread -lm -L/home/droundy/src/fac/bigbro -lbigbro)
+(${CC-gcc} -o fac fac.o files.o targets.o clean.o new-build.o git.o environ.o lib/listset.o lib/iterablehash.o lib/intmap.o lib/sha1.o ${LDFLAGS-} -lpopt -lpthread -lm -L/srv/home/droundy/src/fac/bigbro -lbigbro)
 

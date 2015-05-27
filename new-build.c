@@ -92,9 +92,12 @@ void mark_rule(struct all_targets *all, struct rule *r) {
 
 void mark_facfiles(struct all_targets *all) {
   for (struct rule *r = (struct rule *)all->r.first; r; r = (struct rule *)r->e.next) {
-    if (r->status == unknown) {
+    if (r->status == unknown || r->status == unready) {
       for (int i=0;i<r->num_outputs;i++) {
-        if (is_facfile(r->outputs[i]->path)) mark_rule(all, r);
+        if (is_facfile(r->outputs[i]->path)) {
+          set_status(all, r, unknown);
+          mark_rule(all, r);
+        }
       }
     }
   }
@@ -561,7 +564,9 @@ static void delete_from_array(char **array, const char *str) {
 }
 
 static void build_marked(struct all_targets *all, const char *log_directory,
-                         bool git_add_files) {
+                         bool git_add_files, bool happy_building_at_least_one,
+                         bool ignore_missing_files) {
+  int num_built_when_we_started = all->num_with_status[built];
   if (!all->lists[marked] && !all->lists[dirty]) {
     if (all->num_with_status[failed]) {
       printf("Failed to build %d files.\n", all->num_with_status[failed]);
@@ -705,13 +710,16 @@ static void build_marked(struct all_targets *all, const char *log_directory,
               delete_from_array(bs[i]->written, r->inputs[ii]->path);
             }
           }
-          /* Forget the non-explicit outputs, as we will re-add
-             those outputs that were actually created in the build */
-          for (int ii=r->num_outputs;ii<r->num_explicit_outputs;ii++) {
-            r->outputs[ii]->rule = 0; // dissociate ourselves with these non-explicit outputs
-            r->outputs[ii]->status = dirty; // mark them as dirty, since we didn't create them
-          }
-          r->num_outputs = r->num_explicit_outputs;
+          /* FIXME I need to *not* forget non-explicit outputs, so as
+             to enable commands that only generate files that need to
+             be modified. */
+          /* /\* Forget the non-explicit outputs, as we will re-add those */
+          /*    outputs that were actually created in the build *\/ */
+          /* for (int ii=r->num_outputs;ii<r->num_explicit_outputs;ii++) { */
+          /*   r->outputs[ii]->rule = 0; // dissociate ourselves with these non-explicit outputs */
+          /*   r->outputs[ii]->status = dirty; // mark them as dirty, since we didn't create them */
+          /* } */
+          /* r->num_outputs = r->num_explicit_outputs; */
           for (int ii=0;ii<r->num_outputs;ii++) {
             struct target *t = lookup_target(all, r->outputs[ii]->path);
             if (t) {
@@ -719,7 +727,7 @@ static void build_marked(struct all_targets *all, const char *log_directory,
               t->stat.size = 0;
             }
             t = create_target_with_stat(all, r->outputs[ii]->path);
-            if (!t) {
+            if (!t && ii < r->num_explicit_outputs) {
               erase_and_printf("build failed to create: %s\n",
                                pretty_path(r->outputs[ii]->path));
               rule_failed(all, r);
@@ -733,6 +741,19 @@ static void build_marked(struct all_targets *all, const char *log_directory,
               free(bs[i]);
               bs[i] = 0;
               break;
+            } else if (!t) {
+              /* This file was previously created, but is no longer
+                 there, so we should remove it from the list of
+                 outputs. */
+              r->outputs[ii]->rule = 0; // dissociate ourselves with this output
+              r->outputs[ii]->status = dirty; // mark it as dirty, since we didn't create it
+
+              r->num_outputs -= 1;
+              for (int j=0;j<r->num_outputs;j++) {
+                r->outputs[j] = r->outputs[j+1];
+              }
+              ii -= 1; /* we need to do "ii" one more time, since we
+                          shifted everything else back */
             } else {
               find_target_sha1(t);
               t->rule = r;
@@ -885,24 +906,30 @@ static void build_marked(struct all_targets *all, const char *log_directory,
     }
   } while (all->lists[dirty] || all->lists[building]);
 
+  int num_finally_built = all->num_with_status[built];
   for (struct rule *r = all->lists[unready]; r; r = all->lists[unready]) {
-    for (int i=0;i<r->num_inputs;i++) {
-      if (!r->inputs[i]->rule && !r->inputs[i]->is_in_git &&
-          !is_in_gitdir(r->inputs[i]->path) && is_in_root(r->inputs[i]->path)) {
-        if (!access(r->inputs[i]->path, R_OK)) {
-          if (git_add_files) {
-            git_add(r->inputs[i]->path);
+    if ((happy_building_at_least_one && num_built_when_we_started != num_finally_built)
+        || ignore_missing_files) {
+      set_status(all, r, unknown);
+    } else {
+      for (int i=0;i<r->num_inputs;i++) {
+        if (!r->inputs[i]->rule && !r->inputs[i]->is_in_git &&
+            !is_in_gitdir(r->inputs[i]->path) && is_in_root(r->inputs[i]->path)) {
+          if (!access(r->inputs[i]->path, R_OK)) {
+            if (git_add_files) {
+              git_add(r->inputs[i]->path);
+            } else {
+              erase_and_printf("error: add %s to git, which is required for %s\n",
+                               pretty_path(r->inputs[i]->path), pretty_reason(r));
+            }
           } else {
-            erase_and_printf("error: add %s to git, which is required for %s\n",
+            erase_and_printf("error: missing file %s, which is required for %s\n",
                              pretty_path(r->inputs[i]->path), pretty_reason(r));
           }
-        } else {
-          erase_and_printf("error: missing file %s, which is required for %s\n",
-                           pretty_path(r->inputs[i]->path), pretty_reason(r));
         }
       }
+      rule_failed(all, r);
     }
-    rule_failed(all, r);
   }
 
   while (facfiles_used) {
@@ -960,21 +987,17 @@ void do_actual_build(struct cmd_args *args) {
           }
         }
       }
-      build_marked(&all, args->log_directory, args->git_add_files);
+      mark_facfiles(&all);
+      build_marked(&all, args->log_directory, args->git_add_files, true, still_reading);
       for (struct target *t = (struct target *)all.t.first; t; t = (struct target *)t->e.next) {
         if (t->status == unknown &&
             (!t->rule ||
              t->rule->status == clean ||
              t->rule->status == built)) {
-          t->status = built;
-          if (is_facfile(t->path)) {
-            still_reading = true;
-            read_fac_file(&all, t->path);
-          }
+          if (is_facfile(t->path)) still_reading = true;
         }
       }
-      mark_facfiles(&all);
-    } while (all.lists[marked] || still_reading);
+    } while (still_reading);
     if (!all.r.first) {
       erase_and_printf("Please add a .fac file containing rules!\n");
       exit(1);
@@ -989,14 +1012,14 @@ void do_actual_build(struct cmd_args *args) {
         if (t && t->rule) {
           mark_rule(&all, t->rule);
         } else {
-          error(1, 0, "No rule to build %s", pretty_path(a->path));
+          error(1, 0, "No rule to build %s\n", pretty_path(a->path));
         }
       }
     } else {
       mark_all(&all);
     }
 
-    build_marked(&all, args->log_directory, args->git_add_files);
+    build_marked(&all, args->log_directory, args->git_add_files, false, false);
     summarize_build_results(&all);
 
     if (args->create_dotfile || args->create_makefile || args->create_tupfile

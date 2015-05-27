@@ -4,13 +4,9 @@ C .git/objects
 C .git/refs
 C .git/index
 
-| rm -rf bigbro && git clone git://github.com/droundy/bigbro
-> bigbro/build-linux.sh
-
-| cd bigbro && sh build-linux.sh
-< bigbro/build-linux.sh
-> bigbro/libbigbro.a
-c .pyc
+| if cd bigbro; then git pull; else git clone git://github.com/droundy/bigbro; fi
+> bigbro/configure.fac
+C bigbro/.git/ref/
 
 | python3 top.py > .fac
 > .fac
