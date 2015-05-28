@@ -13,17 +13,24 @@ cat > top.fac <<EOF
 | cat foo > baz
 > baz
 < foo
+
+| cat input > output
+< input
+> output
 EOF
 
+echo goodness > input
+
 git init
-git add top.fac
+git add top.fac input
 
 ../../fac
 
 grep foo baz
 grep foo foo
+grep goodness output
 
-../../fac --clean
+../../fac --clean -v
 
 if test -e foo; then
   echo file foo should have been deleted
@@ -32,6 +39,13 @@ fi
 
 if test -e baz; then
   echo file foo should have been deleted
+  exit 1
+fi
+
+grep goodness input
+
+if test -e output; then
+  echo file output should have been deleted
   exit 1
 fi
 

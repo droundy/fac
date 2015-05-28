@@ -11,7 +11,7 @@ void clean_all(struct all_targets *all) {
     t->status = unknown;
     if (is_facfile(t->path)) {
       char *donef = done_name(t->path);
-      verbose_printf("rm %s\n", donef);
+      verbose_printf("rm %s\n", pretty_path(donef));
       unlink(donef);
       free(donef);
     }
@@ -20,6 +20,7 @@ void clean_all(struct all_targets *all) {
     for (int i=0;i<r->num_outputs;i++) {
       if (r->outputs[i]->status == unknown) {
         verbose_printf("rm %s\n", pretty_path(r->outputs[i]->path));
+        verbose_printf("    %s\n", r->command);
         unlink(r->outputs[i]->path);
       }
     }
