@@ -16,8 +16,8 @@ with open('testing-flags/test.c', 'w') as f:
 optional_flags = ['-Wall', '-Werror', '-O2', '-g']
 optional_linkflags = ['-lprofiler']
 
-possible_flags = ['-std=c11', '-std=c99', '-Ibigbro']
-possible_linkflags = ['-lpopt', '-lpthread', '-lm', '-L%s/bigbro -lbigbro' % os.getcwd()]
+possible_flags = ['-std=c11', '-std=c99']
+possible_linkflags = ['-lpopt', '-lpthread', '-lm', '-lbigbro']
 
 if os.getenv('MINIMAL') == None:
     print('# We are not minimal')
@@ -27,8 +27,8 @@ if os.getenv('MINIMAL') == None:
 if os.getenv('MINIMAL') == None:
     print('# We are not minimal')
     variants = {'': {'cc': os.getenv('CC', 'gcc'),
-                     'flags': [os.getenv('CFLAGS', '')],
-                     'linkflags': [os.getenv('LDFLAGS', '')],
+                     'flags': [os.getenv('CFLAGS', '') + ' -Ibigbro'],
+                     'linkflags': [os.getenv('LDFLAGS', '') + ' -Lbigbro'],
                      'os': platform.system().lower(),
                      'arch': platform.machine()}}
 else:
@@ -36,20 +36,19 @@ else:
     possible_flags.remove('-std=c11')
     cc = os.getenv('CC', 'oopsies')
     variants = {'': {'cc': os.getenv('CC', '${CC-gcc}'),
-                     'flags': [os.getenv('CFLAGS', '${CFLAGS-}')],
-                     'linkflags': [os.getenv('LDFLAGS', '${LDFLAGS-}')],
+                     'flags': [os.getenv('CFLAGS', '${CFLAGS-} -Ibigbro')],
+                     'linkflags': [os.getenv('LDFLAGS', '${LDFLAGS-} -Lbigbro')],
                      'os': platform.system().lower(),
                      'arch': platform.machine()}}
 
     print('# compiling with just the variant:', variants)
 
 def compile_works(flags):
-    return not os.system('cd testing-flags && %s %s -c test.c' % (cc, ' '.join(flags)))
+    return not os.system('%s %s -c -o testing-flags/test.o testing-flags/test.c' % (cc, ' '.join(flags)))
 def link_works(flags):
-    print('# trying',
-          ('cd testing-flags && %s %s -o test test.c' % (cc, ' '.join(flags))),
-          file=sys.stdout)
-    return not os.system('cd testing-flags && %s %s -o test test.c' % (cc, ' '.join(flags)))
+    cmd = '%s -o testing-flags/test testing-flags/test.c %s' % (cc, ' '.join(flags))
+    print('# trying', cmd, file=sys.stdout)
+    return not os.system(cmd)
 
 variant = ''
 print('# Considering variant: "%s"' % variant)
