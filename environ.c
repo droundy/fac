@@ -44,6 +44,7 @@ static const char *ignore_these[] = {
   "WINDOWPATH=",
   "XAUTHORITY=",
   "XDG_DATA_DIRS=",
+  "XDG_SESSION_ID=",
   "XDG_SESSION_COOKIE=",
   "_=",
   0
