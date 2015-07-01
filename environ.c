@@ -17,6 +17,7 @@ static const char *ignore_these[] = {
   "DESKTOP_STARTUP_ID=",
   "DISPLAY=",
   "GCONF_GLOBAL_LOCKS=",
+  "GDM_LANG=",
   "GDMSESSION=",
   "GIO_LAUNCHED_DESKTOP_FILE_PID=",
   "GIO_LAUNCHED_DESKTOP_FILE=",
@@ -40,12 +41,18 @@ static const char *ignore_these[] = {
   "SSH_TTY=",
   "TERM=",
   "USERNAME=", // not sure why, but this is sporadically defined
+  "VTE_VERSION=",
   "WINDOWID=",
   "WINDOWPATH=",
   "XAUTHORITY=",
+  "XDG_CURRENT_DESKTOP=",
   "XDG_DATA_DIRS=",
-  "XDG_SESSION_ID=",
+  "XDG_MENU_PREFIX=",
+  "XDG_SEAT=",
   "XDG_SESSION_COOKIE=",
+  "XDG_SESSION_DESKTOP=",
+  "XDG_SESSION_ID=",
+  "XDG_VTNR=",
   "_=",
   0
 };
