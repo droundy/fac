@@ -21,6 +21,12 @@ if system('MINIMAL=1 ./fac --makefile Makefile.%s --script build-%s.sh fac'
     print 'Build failed!'
     exit(1)
 
+scriptf = open('build-%s.sh' % platform.system().lower(), 'a')
+scriptf.write('''
+rm -rf bigbro
+''')
+scriptf.close()
+
 if system('./fac'):
     print 'Build failed!'
     exit(1)

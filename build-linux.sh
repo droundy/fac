@@ -40,3 +40,5 @@ set -ev
 
 (${CC-gcc} -o fac fac.o files.o targets.o clean.o new-build.o git.o environ.o lib/listset.o lib/iterablehash.o lib/intmap.o lib/sha1.o ${LDFLAGS-} -Lbigbro -lpopt -lpthread -lm -lbigbro)
 
+
+rm -rf bigbro
