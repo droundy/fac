@@ -179,14 +179,14 @@ void rule_failed(struct all_targets *all, struct rule *r) {
   }
 }
 
-static void find_target_sha1(struct target *t) {
+static void find_target_sha1(struct target *t, const char *why) {
   if (t->is_file) {
 #ifdef _WIN32
     printf("FIXME: I could use stdio here rather than file descriptors.\n");
 #else
     int fd = open(t->path, O_RDONLY);
     if (fd > 0) {
-      if (false) verbose_printf(" *** sha1sum %s\n", pretty_path(t->path));
+      if (false) verbose_printf(" *** sha1sum %s (%s)\n", pretty_path(t->path), why);
       const int bufferlen = 4096*1024;
       char *buffer = malloc(bufferlen);
       int readlen, total_size = 0;
@@ -354,7 +354,7 @@ void check_cleanliness(struct all_targets *all, struct rule *r) {
     }
     if (is_dirty) continue; // no need to do the rest now
     if (r->inputs[i]->rule && r->inputs[i]->rule->status == built) {
-      if (sha1_is_zero(r->inputs[i]->stat.hash)) find_target_sha1(r->inputs[i]);
+      if (sha1_is_zero(r->inputs[i]->stat.hash)) find_target_sha1(r->inputs[i], "just built");
       if (sha1_same(r->input_stats[i].hash, r->inputs[i]->stat.hash)) {
         if (false) verbose_printf(" *** hashing saved us work on %s due to rebuild of %s\n",
                                   pretty_rule(r), pretty_path(r->inputs[i]->path));
@@ -371,7 +371,8 @@ void check_cleanliness(struct all_targets *all, struct rule *r) {
           r->input_stats[i].time != r->inputs[i]->stat.time ||
           r->input_stats[i].size != r->inputs[i]->stat.size) {
         if (!sha1_is_zero(r->input_stats[i].hash) && r->input_stats[i].size == r->inputs[i]->stat.size) {
-          if (sha1_is_zero(r->inputs[i]->stat.hash)) find_target_sha1(r->inputs[i]);
+          if (sha1_is_zero(r->inputs[i]->stat.hash)) find_target_sha1(r->inputs[i],
+                                                                      "same size input, but zero input_stats");
           if (sha1_same(r->input_stats[i].hash, r->inputs[i]->stat.hash)) {
             if (false) verbose_printf(" *** hashing saved us work on %s due to %s\n",
                                       pretty_rule(r), pretty_path(r->inputs[i]->path));
@@ -704,7 +705,7 @@ static void build_marked(struct all_targets *all, const char *log_directory,
               error(1, 0, "Unable to stat input file %s (this should be impossible)\n",
                     r->inputs[ii]->path);
             } else {
-              if (sha1_is_zero(t->stat.hash)) find_target_sha1(t);
+              if (sha1_is_zero(t->stat.hash)) find_target_sha1(t, "we have no hash");
               add_input(r, t);
               delete_from_array(bs[i]->read, r->inputs[ii]->path);
               delete_from_array(bs[i]->written, r->inputs[ii]->path);
@@ -755,7 +756,7 @@ static void build_marked(struct all_targets *all, const char *log_directory,
               ii -= 1; /* we need to do "ii" one more time, since we
                           shifted everything else back */
             } else {
-              find_target_sha1(t);
+              find_target_sha1(t, "t");
               t->rule = r;
               add_output(r, t);
               delete_from_array(bs[i]->read, r->outputs[ii]->path);
@@ -783,7 +784,7 @@ static void build_marked(struct all_targets *all, const char *log_directory,
                     rule_failed(all, r);
                   }
                 }
-                find_target_sha1(t);
+                if (sha1_is_zero(t->stat.hash)) find_target_sha1(t, "fixed case");
                 add_input(r, t);
               }
             }
@@ -794,7 +795,7 @@ static void build_marked(struct all_targets *all, const char *log_directory,
             if (is_interesting_path(r, path)) {
               struct target *t = create_target_with_stat(all, path);
               if (t && t->is_dir) {
-                find_target_sha1(t);
+                find_target_sha1(t, "created new");
                 add_input(r, t);
               }
             }
@@ -822,7 +823,7 @@ static void build_marked(struct all_targets *all, const char *log_directory,
                 }
                 t->rule = r;
                 t->status = unknown; // if it is a facfile, we haven't yet read it
-                find_target_sha1(t);
+                find_target_sha1(t, "new output");
                 add_output(r, t);
               }
             }
