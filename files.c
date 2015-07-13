@@ -385,7 +385,7 @@ void fprint_facfile(FILE *f, struct all_targets *tt, const char *bpath) {
       }
       for (int i=0; i<r->num_inputs; i++) {
         fprintf(f, "< %s\n", r->inputs[i]->path);
-        if (r->input_stats[i].time && r->status != failed) {
+        if (r->input_stats[i].time) {
           fprintf(f, "T %ld\n", (long)r->input_stats[i].time);
           fprintf(f, "S %ld\n", (long)r->input_stats[i].size);
           sha1hash h = r->input_stats[i].hash;
