@@ -169,7 +169,8 @@ void built_rule(struct all_targets *all, struct rule *r) {
 void rule_failed(struct all_targets *all, struct rule *r) {
   if (r->status == failed) return; /* just in case! */
   r->num_inputs = r->num_explicit_inputs;
-  r->num_outputs = r->num_explicit_outputs;
+  /* We do not want to throw away old non-explicit outputs, since
+     these outputs may still exist in the repository. */
 
   set_status(all, r, failed);
   for (int i=0;i<r->num_outputs;i++) {

@@ -356,21 +356,23 @@ void read_fac_file(struct all_targets *all, const char *path) {
 
 void fprint_facfile(FILE *f, struct all_targets *tt, const char *bpath) {
   for (struct rule *r = (struct rule *)tt->r.first; r; r = (struct rule *)r->e.next) {
-    if (!strcmp(r->facfile_path, bpath) && r->status != failed) {
+    if (!strcmp(r->facfile_path, bpath)) {
       fprintf(f, "| %s\n", r->command);
-      if (r->build_time) {
-        fprintf(f, "B %g\n", r->build_time);
-      }
-      if (r->env.abc.a || r->env.abc.b || r->env.abc.c) {
-        fprintf(f, "E ");
-        for (int i=0;i<20;i++) {
-          fprintf(f, "%02x", r->env.u8[i]);
+      if (r->status != failed) {
+        if (r->build_time) {
+          fprintf(f, "B %g\n", r->build_time);
         }
-        fprintf(f, "\n");
+        if (r->env.abc.a || r->env.abc.b || r->env.abc.c) {
+          fprintf(f, "E ");
+          for (int i=0;i<20;i++) {
+            fprintf(f, "%02x", r->env.u8[i]);
+          }
+          fprintf(f, "\n");
+        }
       }
       for (int i=0; i<r->num_outputs; i++) {
         fprintf(f, "> %s\n", r->outputs[i]->path);
-        if (r->output_stats[i].time) {
+        if (r->output_stats[i].time && r->status != failed) {
           fprintf(f, "T %ld\n", (long)r->output_stats[i].time);
           fprintf(f, "S %ld\n", (long)r->output_stats[i].size);
           sha1hash h = r->output_stats[i].hash;
@@ -383,7 +385,7 @@ void fprint_facfile(FILE *f, struct all_targets *tt, const char *bpath) {
       }
       for (int i=0; i<r->num_inputs; i++) {
         fprintf(f, "< %s\n", r->inputs[i]->path);
-        if (r->input_stats[i].time) {
+        if (r->input_stats[i].time && r->status != failed) {
           fprintf(f, "T %ld\n", (long)r->input_stats[i].time);
           fprintf(f, "S %ld\n", (long)r->input_stats[i].size);
           sha1hash h = r->input_stats[i].hash;
