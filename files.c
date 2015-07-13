@@ -154,9 +154,21 @@ void read_fac_file(struct all_targets *all, const char *path) {
         error_at_line(1, 0, pretty_path(path), linenum,
                       "\"C\" cache lines must follow a \"|\" command line");
       {
-        char *path = absolute_path(the_directory, one_line+2);
-        add_cache_prefix(therule, path);
-        free(path);
+        const char *prefix = one_line+2;
+        if (strlen(prefix) > 2 && prefix[0] == '~' && prefix[1] == '/') {
+          /* It is in the home directory... */
+          const char *home = getenv("HOME");
+          const int len = strlen(home) + strlen(prefix) + 1;
+          char *absolute_prefix = malloc(len);
+          strncpy(absolute_prefix, home, len);
+          strncat(absolute_prefix, prefix+1, len);
+          add_cache_prefix(therule, absolute_prefix);
+          free(absolute_prefix);
+        } else {
+          char *path = absolute_path(the_directory, one_line+2);
+          add_cache_prefix(therule, path);
+          free(path);
+        }
       }
       break;
     case 'c':

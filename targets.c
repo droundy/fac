@@ -123,17 +123,7 @@ struct rule *lookup_rule(struct all_targets *all, const char *command,
 
 void add_cache_prefix(struct rule *r, const char *prefix) {
   r->cache_prefixes = realloc(r->cache_prefixes, sizeof(char *)*(r->num_cache_prefixes+1));
-  if (strlen(prefix) > 2 && prefix[0] == '~' && prefix[1] == '/') {
-    /* It is in the home directory... */
-    const char *home = getenv("HOME");
-    const int len = strlen(home) + strlen(prefix) + 1;
-    char *absolute_prefix = malloc(len);
-    strncpy(absolute_prefix, home, len);
-    strncat(absolute_prefix, prefix+1, len);
-    r->cache_prefixes[r->num_cache_prefixes] = absolute_prefix;
-  } else {
-    r->cache_prefixes[r->num_cache_prefixes] = strdup(prefix);
-  }
+  r->cache_prefixes[r->num_cache_prefixes] = strdup(prefix);
   r->num_cache_prefixes++;
 }
 
