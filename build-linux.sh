@@ -2,7 +2,7 @@
 
 set -ev
 
-(if cd bigbro; then git pull; else git clone git://github.com/droundy/bigbro; fi)
+(if cd bigbro; then git pull; else git clone https://github.com/droundy/bigbro; fi)
 
 (cd bigbro && python3 syscalls/darwin.py > syscalls/darwin.h)
 

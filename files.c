@@ -18,6 +18,8 @@ char *realpath(const char *p, int i) {
   strcpy(r, p);
   return r;
 }
+#else
+#include <unistd.h>
 #endif
 
 
@@ -224,6 +226,9 @@ void read_fac_file(struct all_targets *all, const char *path) {
   fclose(f);
 
   char *donename = done_name(path);
+  /* am_deleting_output indicates if a rule has been removed, and we
+     need to clean up the output of said rule. */
+  bool am_deleting_output = false;
   f = fopen(donename, "r");
   if (f) {
     linenum = 0;
@@ -242,7 +247,9 @@ void read_fac_file(struct all_targets *all, const char *path) {
 
       switch (one_line[0]) {
       case '|':
+        am_deleting_output = false;
         therule = lookup_rule(all, one_line+2, the_directory);
+        if (!therule) am_deleting_output = true;
         //printf(":: %s\n", therule->command);
         thetarget = 0;
         stat_last_file = 0;
@@ -312,6 +319,10 @@ void read_fac_file(struct all_targets *all, const char *path) {
             thetarget = 0;
             stat_last_file = 0;
           }
+          free(path);
+        } else if (am_deleting_output) {
+          char *path = absolute_path(the_directory, one_line+2);
+          unlink(path);
           free(path);
         }
         break;
