@@ -25,10 +25,15 @@ This should build fac on an x86-64 or 32-bit x86 linux system.  You
 can use `build-freebsd.sh` to build on freebsd.  You can then build an
 optimized version of fac by running
 
-    ./fac
+    ./fac fac
 
 To use fac, you can copy the fac binary into some location in your
 path.
+
+You may also wish to build the documentation (by running `./fac`), but
+this will require a few more packages: sass, graphviz, and
+python-markdown.
+
 
 ## Cross-compiling fac for windows
 
