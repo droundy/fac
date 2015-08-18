@@ -5,28 +5,6 @@ import markdown as mmdd
 import xml.etree.ElementTree as ET
 
 
-toupload = set()
-def Upload(env, source):
-    source = str(source)
-    global toupload
-    toupload.add('.layout/style.css')
-    toupload.add('papers/pair-correlation/figs/pretty-4.svg') # background
-    toupload.add(source)
-    Depends('upload', source)
-
-def doupload(target, source, env):
-    host = 'science.oregonstate.edu'
-    path = 'public_html/deft'
-    os.system('ssh %s rm -rf %s' % (host, path))
-    madedir = set()
-    for f in toupload:
-        dirname = os.path.join(path, os.path.dirname(f))
-        if not dirname in madedir:
-            print 'creating directory', dirname
-            os.system('ssh %s mkdir -p %s' % (host, dirname))
-            madedir.add(dirname)
-        os.system('scp %s %s:%s/' % (f, host, os.path.join(path, os.path.dirname(f))))
-
 def mkdown(mdfile):
     htfile = mdfile[:-2]+'html'
 
