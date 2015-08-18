@@ -27,7 +27,7 @@ c .pyc
 | python2 web/mkdown.py
 > web/index.html
 
-| sass web/style.scss web/style.css
+| sass -I. web/style.scss web/style.css
 > web/style.css
 C .sass-cache
 
