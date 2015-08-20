@@ -675,6 +675,11 @@ static void build_marked(struct all_targets *all, const char *log_directory,
             erase_and_printf("build failed: %s\n", pretty_rule(bs[i]->rule));
             free(bs[i]->read);
             free(bs[i]->readdir);
+            for (int nn=0; bs[i]->written[nn]; nn++) {
+              // Delete any files that were created, so that they will
+              // be properly re-created next time this command is run.
+              unlink(bs[i]->written[nn]);
+            }
             free(bs[i]->written);
             free(bs[i]);
             bs[i] = 0;
