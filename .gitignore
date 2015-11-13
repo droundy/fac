@@ -30,4 +30,4 @@ bench/data
 bigbro
 .nfs*
 testing-flags
-
+.vagrant

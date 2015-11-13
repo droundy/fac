@@ -6,7 +6,7 @@ C .git/index
 
 | if cd bigbro; then git pull; else git clone https://github.com/droundy/bigbro; fi
 > bigbro/configure.fac
-C bigbro/.git/ref/
+C bigbro/.git/
 
 | python3 top.py > .fac
 > .fac

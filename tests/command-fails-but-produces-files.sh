@@ -41,7 +41,7 @@ if test ! -e hello; then echo hello > hello; fi
 exit 0
 EOF
 
-fac
+../../fac
 
 grep hello hello
 

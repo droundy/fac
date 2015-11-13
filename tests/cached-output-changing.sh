@@ -27,7 +27,7 @@ git add top.fac generate-stuff.sh
 
 echo hello > foo
 
-if fac; then
+if ../../fac; then
     echo This should fail because foo exists
 fi
 
@@ -36,7 +36,7 @@ grep bar bar
 
 rm foo bar
 
-fac
+../../fac
 
 grep foo foo
 grep bar bar
@@ -55,7 +55,7 @@ echo badness > baz
 
 cat top.fac.tum
 
-if fac; then
+if ../../fac; then
     echo This should fail because baz exists
 fi
 
@@ -63,7 +63,7 @@ cat top.fac.tum
 
 rm baz
 
-fac
+../../fac
 
 grep foo foo
 grep bar bar
