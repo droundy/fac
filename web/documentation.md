@@ -13,103 +13,9 @@ overview of what you will learn from each page.
 [building fac](building.html)
 : This page will lead you through downloading and installing fac.
 
-## Fac file format
-
-To configure this build system, you create one or more files ending
-with `.fac`.  These files specify the rules to build your project,
-and must be added to your git repository.  For most moderately complex
-projects, you will have just one `.fac` file in git, which will
-itself specify specify rules needed to create one or more additional
-`.fac` files, which will contain the rules for doing the actual
-build.  Each `.fac` file consists of:
-
-1. Comments beginning with `"# "` (a pound sign followed by a space).
-
-2. Rules beginning with `"| "` (a pipe character followed by a
-   space).  The remainder of the line is the actual command to perform
-   the build.  Following this line (possibly separated by blank lines
-   and comments) are one or more of the following directives.  The
-   order of these directives has no effect, so long as the follow the
-   `"| "` line to which they apply.
-
-2. Optional rules beginning with `"? "` are identical to rules
-   beginning with a pipe, with the sole difference being that optional
-   rules are only built if they are needed to build another target, or
-   if they are explicitly requested.  Optional rules enable you to
-   specify a large number of rules and only have what is needed built.
-
-3. Output specifications beginning with `"> "` followed by the name of
-   the file that is output.  There is no escaping performed, and only
-   newlines and null characters are disallowed in the file name.
-   There is little need to specify the output for rules, since fac
-   can determine this automatically.  The only reason to specify
-   output is so that on the very first build a user can request that
-   we build only the specified rule.
-
-4. Input specifications beginning with `"< "` followed by the name of
-   the file that is required.  You only need specify inputs when they
-   are generated files.  Even then, you need only specify the inputs
-   if you wish to have the build succeed on the first attempt.
-
-5. There are two ways to specify "cache" files.  A cache file is a
-   file that may be either read or written by a given command, but
-   doesn't affect the output and not itself an output.  One nice
-   example is the ".pyc" files sometimes generated when you run a
-   python program.  One python command may produce a .pyc file, and
-   another may read it (if they both use the same module), but that
-   does not mean that there is a dependency between those two
-   commands.  You can specify a cache suffix (such as `.pyc`) using a
-   `"c "` line, or you can specify a cache prefix (such as
-   `/home/droundy/.ccache` or even better `~/.ccache`) using a
-   capitalized `"C "` line.  The latter can be helpful if you get
-   error messages stating that your rule is creating output outside
-   your source tree.
-
-## Running fac
-
-To run fac, you simply execute
-
-    fac [options] [filenames]
-
-with the following options.
-
-`--version`
-: Display the version number of fac.
-
-`--jobs=N, -jN`
-: Specify the number of jobs to run simultaneousy.  This defaults to
-  the number of processors available on your computer.
-
-`--continual`
-: Keep rebuilding whenever the source is modified.
-
-`--clean, -c`
-: Clean up build output.  This deletes every file (but not directory)
-  that is output by the build.
-
-`--verbose, -v`
-: Provide extra debugging output.
-
-`--show-output, -V`
-: Show the output of every command (stdout and stderr), even if that
-  command succeeds.
-
-`--log-output LOG_DIRECTORY`
-: Save the output of every command (both stdout and stderr) to a
-  separate file in the directory `LOG_DIRECTORY`, which will be created if
-  it does not yet exist.
-
-`--makefile MAKEFILE`
-: After building, create a makefile with name MAKEFILE, which can be
-  used to perform this build if fac is unavailable.
-
-`--script BUILD.SH`
-: After building, create a shell script with name BUILD.SH, which can
-  be used to perform this build if fac is unavailable.
-
-`--tupfile TUPFILE`
-: After building, create a tupfile, which can be used to perform this
-  build if fac is unavailable.
+[feature comparison](features.html)
+: This page compares fac with three other build systems in a
+feature-by-feature way.
 
 ## To do list
 
@@ -140,9 +46,9 @@ with the following options.
 
 3. Port to darwin/macos.
 
-## See also (incomplete)
+3. Port to windows.
 
-* [Summary of features](features.html)
+## See also (incomplete)
 
 * [Documentation of the code](code-guide.html)
 
