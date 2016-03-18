@@ -32,6 +32,9 @@ with open(sys.argv[1]) as f:
                         print('unexpected output from:', isshell[0])
                         print('output is', outline)
                         exit(1)
+                    if expectedline == '...':
+                        print('I expected random output.')
+                        break
                     expected = verbre.findall(expectedline)[0]
                     expected = expected.replace('.', r'\.')
                     expected = expected.replace(r'\.\.\.', '.*')

@@ -52,21 +52,99 @@ command when you next run it.
 ## Adding a dependency
 
 Now let us try to add some interest to our latex file.  We will make
-it list the files in our repository! Here is a small change to our
-latex file to include the file `files.tex`.
+it include the SHA1 hash of its contents. Here is a small change to
+our latex file to include the file `hash.tex`.
 
 ##### paper.tex
     \documentclass{article}
     \begin{document}
-    We have \input{files}
+    We have \input{hash}
     \end{document}
 
-Now we just need to create a rule that will generate our `files.tex`.
+Now we just need to create a rule that will generate our `hash.tex`.
 
 ##### build.fac
     | pdflatex paper.tex
     
-    | sha1sum paper.tex > files.tex
+    | sha1sum paper.tex > hash.tex
+
+At this point we have not told fac about any dependency between these
+two commands.  This means that fac may fail the first time it is run,
+since it could try running `pdflatex` on the paper before `hash.tex`
+has been generated.
+
+    $ fac
+    1/2 [...s]: sha1sum ...
+    2/2 [...s]: pdflatex ...
+    Build succeeded! 0:0...
+
+Once you have run fac once (even if it fails), then the build will
+succeed the second time, and from then on will know that it must
+update the `hash.tex` before running pdflatex.
+
+If we wanted to explicitly mark this dependency so that we can
+guarantee that fac will succeed on the first run, we can do so by
+adding a `<` line specifying the required input.
+
+##### build.fac
+    | pdflatex paper.tex
+    < hash.tex
+    
+    | sha1sum paper.tex > hash.tex
+
+which we can run with:
+
+    $ fac
+    Build succeeded! 0:...
+
+Note that there is no need to specify the output of `sha1sum`.  Fac
+will run any commands that it is able to run, and will only run
+`pdflatex` after `hash.tex` has been generated.  If you were to
+introduce a typo in the dependency...
+
+
+##### build.fac
+    | pdflatex paper.tex
+    < typo.tex
+    
+    | sha1sum paper.tex > hash.tex
+
+... fac will now refuse to run `pdflatex` with a polite error message.
+
+    $ ! fac
+    error: missing file typo.tex, which is required for paper.pdf
+    Build failed 1/1 failures
+
+Now we can change paper.tex to actually depend on `typo.tex`, and
+create such a file.
+
+##### paper.tex
+    \documentclass{article}
+    \begin{document}
+    We have \input{hash}.  And need typo file \input{typo.tex}
+    \end{document}
+
+##### typo.tex
+    ``typo.tex''
+
+At this point you might feel like things should work.  Our `build.fac`
+file reflects an actual dependency, and all is good.  Not so, we
+forgot a very important step!
+
+    $ ! fac
+    1/2 [...s]: sha1sum paper.tex > hash.tex
+    error: add typo.tex to git, which is required for paper.pdf
+    Build failed 1/2 failures
+
+It is important for you to add your input files to git, or other users
+will find that they are unable to build your project.  Fac checks
+this, and ensures that you won't accidentally forget an important
+file.
+
+    $ git add typo.tex
+    $ fac
+    1/1 [...s]: pdflatex paper.tex
+    Build succeeded! ...
 
 [run]: # (foo)
 
