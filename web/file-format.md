@@ -24,6 +24,8 @@ build.  Each `.fac` file consists of:
    rules are only built if they are needed to build another target, or
    if they are explicitly requested.  Optional rules enable you to
    specify a large number of rules and only have what is needed built.
+   Optional rules should always specify at least one output file, or
+   they will never be built.
 
 3. Output specifications beginning with `"> "` followed by the name of
    the file that is output.  There is no escaping performed, and only

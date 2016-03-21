@@ -71,7 +71,9 @@ Now we just need to create a rule that will generate our `hash.tex`.
 At this point we have not told fac about any dependency between these
 two commands.  This means that fac may fail the first time it is run,
 since it could try running `pdflatex` on the paper before `hash.tex`
-has been generated.
+has been generated.  After the very first run (or the first run after
+a new dependency is introduced between commands) the build should
+always be correct with a single run of fac.
 
     $ fac
     1/2 [...s]: sha1sum ...
@@ -146,5 +148,145 @@ file.
     1/1 [...s]: pdflatex paper.tex
     Build succeeded! ...
 
+
+
 [run]: # (foo)
 
+## Programming the build
+
+Fac does not have any programming language features in its file
+format.  No variables, no macros, no functions, no lambda expressions.
+Just data.  So what do you do when you have a complicated build? You
+get to pick your favorite programming language with which to configure
+fac, but generating a file ending in `.fac`.  In this example, I will
+use python.  Let's say we want to build one program for each word
+starting with the letter "h" in `/usr/share/dict/words`.  We clearly
+don't want to enumerate each of these files (for me, over three
+thousand rules)!
+
+First, let's write a little program to generate the source code for
+the example.  I am going to keep this script distinct from the code to
+configure fac, since usually you probably write your source code by
+hand.
+
+##### build-source.py
+    import re
+    badchars = re.compile(r"[\"' \t]")
+    with open('/usr/share/dict/words') as words:
+        for word in words:
+            word = word.strip()
+            if len(badchars.findall(word)) == 0 and word[0] == 'h':
+                with open('hello-%s.c' % word, 'w') as f:
+                    f.write(r"""
+    #include <stdio.h>
+    void main() {
+        printf("Hello %s!\n");
+    }
+                    """ % word)
+
+Now let's edit our `build.fac` file to run this script.
+
+##### build.fac
+    | pdflatex paper.tex
+    < typo.tex
+    
+    | sha1sum paper.tex > hash.tex
+    
+    | python2 build-source.py
+
+We could run fac now to generate all this code, but let's wait a
+moment until after we've configured it, so you can see how fac will
+respond when given a somewhat trickier task.  We can now write the
+program to tell fac how to compile all these files.  It is just a
+python script that looks at all the `*.c` files in the current
+directory and writes to stdout.
+
+##### configure.py
+    import glob
+    for f in glob.glob('*.c'):
+        print '| gcc -o %s %s\n' % (f[:-2], f)
+
+Naturally, we could add more trickiness, like checking whether the
+`$CC` environment variable is defined, `$CFLAGS`, etc.  But I'm
+keeping this simple for now.  Now let's tell fac to run this script
+also.
+
+##### build.fac
+    | pdflatex paper.tex
+    < typo.tex
+    
+    | sha1sum paper.tex > hash.tex
+    
+    | python2 build-source.py
+    
+    | python2 configure.py > cfiles.fac
+    > cfiles.fac
+
+Note that it is very important that we informed fac that this command
+will create a `.fac` file (`cfiles.fac`, in this case) by using a `>`
+directive.  This tells fac that it should run this command as soon as
+possible, *and* that it should read the generated `.fac` file as
+further input.  Also note that we used a shell redirection.  Each
+command in fac is run through the shell, so you can use any "shell"
+trickery you care for.
+
+We could run fac now to generate all this code, but let's wait a
+moment until after we've configured it, so you can see how fac will
+respond when given a somewhat trickier task.  We can now write the
+program to tell fac how to compile all these files.  It is just a
+python script that looks at all the `*.c` files in the current
+directory and writes to stdout.
+
+Now we just need to add these new sources to git and run fac.  (And
+wait patiently as we build an incredible number of extremely pointless
+C programs.)
+
+    $ git add *.py
+    $ fac
+    ...: python2 configure.py > cfiles.fac
+    ...: python2 build-source.py
+    ...
+
+At this point, fac will have created all the `.c` files, and may have
+compiled some of them, depending on how many were generated before
+`configure.py` was run.  If we wanted the build to be reliable the
+first time, we would just have to specify that `build-source.py`
+generates `hello-hello.c`, and that `configure.py` requires this (or
+you could pick any other of the generated files).  Since fac probably
+missed some (or all) of these the first time, let's run it again.
+
+    $ fac
+    1/1 [...s]: python2 configure.py > cfiles.fac
+    2/... [...s]: gcc -o ...
+    ...
+
+You can see that fac immediately reruns the configuration script, even
+though it already ran it! This is because fac recognizes that because
+new files have been created in this directory the configuration script
+might give different output.  Fac cannot tell that only files endingin
+`.c` will matter, but plays it safe since you have created new files.
+Note that because fac runs the configuration as well as the build, you
+cannot forget to run `./configure`.  Also, the configure step will
+*only* be rerun when it might give different output (based on what fac
+can tell), and will *always* be rerun if it *will* create different
+output.
+
+You have probably also noticed that fac tries to estimate the build
+time remaining.  It likely did a poor job this time, but if you make a
+minor change to `build-source.py` and rerun fac, you should see
+reasonable estimates, since the time estimate for each command is
+based on how long it took the last time it was run.  You may also have
+noticed that by default fac runs builds in parallel, with the number
+of parallel jobs equal to the number of cores (or possibly
+hyperthreads).
+
+I will point out here that if we had made `configure.py` generate the
+C files as well as do the fac configuration, things would have built
+right the first time, and  `configure.py` would have to be rerun much
+more seldom (only when `/usr/share/dict/words` changes, or the python
+ecosystem, or the script itself).
+
+There are a few more subtleties to using fac (specifically dealing
+with cache files, which are actually neither output nor input, but
+could look to fac like either or both), but at this point you should
+know enough to get started using fac.

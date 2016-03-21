@@ -42,7 +42,13 @@ feature-by-feature way.
    only the system calls we want to trace generate events.
 
 2. Handle nonexistent files as dependencies, if a process tried to
-   open them or stat them.
+   open them or stat them.  This would allow us to rerun the command
+   if those files are later created.  It is sort of a corner case, but
+   is one of the few remaining loopholes by which incorrect builds
+   could occur.  The catch is that this will be costly, since many
+   typical builds involve looking for *lots* of files that do not
+   exist (e.g. searching the paths for libraries, include files, or
+   executables).
 
 3. Port to darwin/macos.
 
