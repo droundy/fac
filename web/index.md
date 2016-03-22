@@ -27,9 +27,10 @@ This build system has several advantages.
 
 - Fac has an extremely simple declarative
   [file format](documentation.html).  There are no variables, no
-  functions, no macros.  Just data.  This could be a problem if you
-  were forced to write these files by hand.  But in most cases you
-  will write a script to generate these files.
+  functions, no macros.  Just data.  This could be a problem for
+  larger projects if you were forced to write these files by hand.
+  But in most large projects you will just write a script to generate
+  these files.
 
 - You write your "build" script as a program (in the language of your
   choice) that creates a `.fac` file.  This script is run (and
