@@ -56,6 +56,4 @@ feature-by-feature way.
 
 ## See also (incomplete)
 
-* [Documentation of the code](code-guide.html)
-
 * [Signatures and git](signatures.html)

@@ -31,7 +31,7 @@ This build system has several advantages.
   were forced to write these files by hand.  But in most cases you
   will write a script to generate these files.
 
-- You write you "build" script as a program (in the language of your
+- You write your "build" script as a program (in the language of your
   choice) that creates a `.fac` file.  This script is run (and
   re-run) using the same dependency-tracking mechanism that is used to
   for an ordinary build.  Thus, you can get away with writing a simple
