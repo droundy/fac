@@ -49,4 +49,6 @@ if test -e output; then
   exit 1
 fi
 
+git diff
+
 exit 0
