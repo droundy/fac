@@ -19,7 +19,13 @@ cat > top.fac <<EOF
 
 | sleep 2 && git log > thelog
 
-| sleep 2 && git log --stat > thelogstat
+# The git gc below edits the contents of the .git/ directory, and can
+# cause fac to believe that these are "output" files.  This screws
+# everything up when we run fac -c and fac deletes some of git's
+# internal database.  A solution (maybe not the best) is to have fac
+# blacklist out files in .git/ (except maybe the hooks).
+
+| sleep 2 && git gc && git log --stat > thelogstat
 
 | git status > thestatus
 EOF
@@ -82,8 +88,6 @@ grep thestatus thestatus
 ../../fac -c
 
 git diff
-
-git status
 
 if test -e thelog; then
   echo file thelog should have been deleted

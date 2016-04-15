@@ -56,6 +56,30 @@ static inline double double_time() {
 #endif
 }
 
+// This code determines if a file might be in the git repository.  We
+// whitelist the hooks directory, since it is reasonable (or
+// semireasonable) for rules to create files in there.
+bool is_git_path(const char *path) {
+  static char *gitpath = 0, *githookspath = 0;
+  static int gitlen = 0, githookslen = 0;
+  if (!gitpath) {
+    gitpath = absolute_path(root, ".git/");
+    gitlen = strlen(gitpath);
+  }
+  if (!githookspath) {
+    githookspath = absolute_path(root, ".git/hooks/");
+    githookslen = strlen(githookspath);
+  }
+  int len = strlen(path);
+  if (len > gitlen && memcmp(path, gitpath, gitlen) == 0) {
+    if (len > githookslen && memcmp(path, githookspath, githookslen) == 0) {
+      return false;
+    }
+    return true;
+  }
+  return false;
+}
+
 bool is_interesting_path(struct rule *r, const char *path) {
   const int len = strlen(path);
   for (int i=0;i<r->num_cache_prefixes;i++) {
@@ -809,7 +833,12 @@ static void build_marked(struct all_targets *all, const char *log_directory,
 
           for (int nn=0; bs[i]->written[nn]; nn++) {
             char *path = bs[i]->written[nn];
-            if (is_interesting_path(r, path)) {
+            // The following ignores writes to files in the .git/
+            // directory, in order to avoid situations where running
+            // fac -c cleans up such files, causing repository
+            // corruption.  It also ignores paths that have been
+            // marked as "cache" paths by the user.
+            if (!is_git_path(path) && is_interesting_path(r, path)) {
               struct target *t = lookup_target(all, path);
               if (t) {
                 t->stat.time = 0;
