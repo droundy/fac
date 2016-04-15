@@ -23,7 +23,7 @@ git add top.fac
 
 cat top.fac.tum
 
-grep '>' top.fac.tum | grep dir/bar
+grep '>' top.fac.tum | grep bar
 
 grep foo bar
 

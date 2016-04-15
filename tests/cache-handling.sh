@@ -35,15 +35,15 @@ git add top.fac
 
 cat top.fac.tum
 
-if grep "$0.dir/.cache-me" top.fac.tum; then
+if egrep '^. \.cache-me' top.fac.tum; then
   echo this file should be ignored
   exit 1
 fi
-if grep "$0.dir/.cache-read" top.fac.tum; then
+if egrep '^. \.cache-read' top.fac.tum; then
   echo this file should be ignored
   exit 1
 fi
-grep "$0.dir/foobar" top.fac.tum
+grep "foobar" top.fac.tum
 
 
 cat > top.fac <<EOF
@@ -69,7 +69,10 @@ rm foo
 ../../fac
 cat top.fac.tum
 
-if grep "$0.dir/foobar" top.fac.tum; then
+
+egrep '^. baz' top.fac.tum
+
+if egrep '^. foobar' top.fac.tum; then
   echo this file should be ignored
   exit 1
 fi

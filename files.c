@@ -84,6 +84,15 @@ char *absolute_path(const char *dir, const char *rel) {
   return thepath;
 }
 
+const char *relative_path(const char *myroot, const char *path) {
+  int len = strlen(myroot);
+  if (path[len] == '/' && !memcmp(path, myroot, len)) {
+    return path + len + 1;
+  }
+  return path;
+}
+
+
 char *done_name(const char *facfilename) {
   int bflen = strlen(facfilename);
   char *str = malloc(bflen+5);
@@ -394,7 +403,7 @@ void fprint_facfile(FILE *f, struct all_targets *tt, const char *bpath) {
         }
       }
       for (int i=0; i<r->num_outputs; i++) {
-        fprintf(f, "> %s\n", r->outputs[i]->path);
+        fprintf(f, "> %s\n", relative_path(r->working_directory, r->outputs[i]->path));
         if (r->output_stats[i].time && r->status != failed) {
           fprintf(f, "T %ld\n", (long)r->output_stats[i].time);
           fprintf(f, "S %ld\n", (long)r->output_stats[i].size);
@@ -407,7 +416,7 @@ void fprint_facfile(FILE *f, struct all_targets *tt, const char *bpath) {
         }
       }
       for (int i=0; i<r->num_inputs; i++) {
-        fprintf(f, "< %s\n", r->inputs[i]->path);
+        fprintf(f, "< %s\n", relative_path(r->working_directory, r->inputs[i]->path));
         if (r->input_stats[i].time) {
           fprintf(f, "T %ld\n", (long)r->input_stats[i].time);
           fprintf(f, "S %ld\n", (long)r->input_stats[i].size);
