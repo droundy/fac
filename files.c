@@ -167,8 +167,10 @@ void read_fac_file(struct all_targets *all, const char *path) {
       {
         const char *prefix = one_line+2;
         if (strlen(prefix) > 2 && prefix[0] == '~' && prefix[1] == '/') {
-          /* It is in the home directory... */
-          const char *home = getenv("HOME");
+          /* It is in the home directory.  We use realpath to handle
+             the case where the home directory defined in $HOME
+             actually is a symlink to the real home directory. */
+          const char *home = realpath(getenv("HOME"), 0);
           const int len = strlen(home) + strlen(prefix) + 1;
           char *absolute_prefix = malloc(len);
           strncpy(absolute_prefix, home, len);
