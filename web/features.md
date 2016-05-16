@@ -31,14 +31,24 @@ enumerated every dependency.
 
 ## Correct build
 
-**Fac** should always give you a correct build (if it is successful),
-meaning that every file that needs to be rebuilt will be rebuilt.  Fac
-can achieve this even if you provide no dependency information, or
-wrong dependency information, although you may need to run fac many
-times in such a case.  You could also end up with an incorrect build
-if you modify a file in a way that does not change its modification
-time or its file size.  And finally, if you edit a file while it is
-being used in a build, fac can fail to rerun the build.
+**Fac** should almost (always) give you a correct build (if it is
+successful), meaning that every file that needs to be rebuilt will be
+rebuilt.  Fac can achieve this even if you provide no dependency
+information, or wrong dependency information, although you may need to
+run fac several times (the first time you build) in such a case.  You
+could end up with an incorrect build if you modify a file in a way
+that does not change its modification time or its file size.  You
+could also end up with an incorrect build if your build depends on
+either the non-existence of files that are later created, or the size
+or modification time of files (but not their content) which were not
+created by fac, and which were never read during a previous build.
+And finally, there is a race condition where if you edit a file while
+it is being used in a build, fac may fail to rerun the build after it
+finishes.
+
+Note that if you *do* manually (or through a script) specify
+dependencies, then the above caveats (except for the race condition)
+do not apply.
 
 **Tup** will almost always give you a correct build, with the
 exceptions being if an out-of-tree file was modified (e.g. you
