@@ -48,3 +48,6 @@ systems, but on those systems it is incredibly easy to use!
   language of your choice) that creates a `.fac` file.  Or perhaps
   it provides input to the script that actually creates the `.fac`
   file.
+
+For a lengthier introduction and motivation for fac, see
+[Introducing fac](introducing-fac.html).
