@@ -27,7 +27,6 @@ bench/data
 *.gcda
 *.gcov
 *.map
-bigbro
 .nfs*
 testing-flags
 .vagrant

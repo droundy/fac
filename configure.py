@@ -3,6 +3,11 @@
 from __future__ import print_function
 import string, os, sys, platform
 
+myplatform = sys.platform
+if myplatform == 'linux2':
+    myplatform = 'linux'
+
+
 os.system('rm -rf testing-flags')
 os.mkdir('testing-flags');
 with open('testing-flags/test.c', 'w') as f:
@@ -17,7 +22,7 @@ optional_flags = ['-Wall', '-Werror', '-O2', '-g']
 optional_linkflags = ['-lprofiler']
 
 possible_flags = ['-std=c11', '-std=c99']
-possible_linkflags = ['-lpopt', '-lpthread', '-lm', '-lbigbro']
+possible_linkflags = ['-lpopt', '-lpthread', '-lm']
 
 if os.getenv('MINIMAL') == None:
     print('# We are not minimal')
@@ -28,7 +33,7 @@ if os.getenv('MINIMAL') == None:
     print('# We are not minimal')
     variants = {'': {'cc': os.getenv('CC', 'gcc'),
                      'flags': [os.getenv('CFLAGS', '') + ' -Ibigbro'],
-                     'linkflags': [os.getenv('LDFLAGS', '') + ' -Lbigbro'],
+                     'linkflags': [os.getenv('LDFLAGS', '')],
                      'os': platform.system().lower(),
                      'arch': platform.machine()}}
 else:
@@ -37,7 +42,7 @@ else:
     cc = os.getenv('CC', 'oopsies')
     variants = {'': {'cc': os.getenv('CC', '${CC-gcc}'),
                      'flags': [os.getenv('CFLAGS', '${CFLAGS-} -Ibigbro')],
-                     'linkflags': [os.getenv('LDFLAGS', '${LDFLAGS-} -Lbigbro')],
+                     'linkflags': [os.getenv('LDFLAGS', '${LDFLAGS-}')],
                      'os': platform.system().lower(),
                      'arch': platform.machine()}}
 
@@ -89,6 +94,14 @@ sources = ['fac', 'files', 'targets', 'clean', 'new-build', 'git', 'environ']
 
 libsources = ['listset', 'iterablehash', 'intmap', 'sha1']
 
+print('''
+| %s %s -o bigbro/bigbro-%s.o -c bigbro/bigbro-%s.c
+< bigbro/syscalls/linux.h
+< bigbro/syscalls/freebsd.h
+< bigbro/syscalls/darwin.h
+> bigbro/bigbro-%s.o
+''' % (cc, ' '.join(flags), myplatform, myplatform, myplatform))
+
 for s in sources:
     print('| %s %s -o %s%s.o -c %s.c' % (cc, ' '.join(flags), s, variant_name, s))
     print('> %s%s.o' % (s, variant_name))
@@ -108,8 +121,10 @@ if '-lpopt' not in linkflags:
 print('| %s -o fac%s %s' %
       (cc, variant_name,
        ' '.join(['%s%s.o' % (s, variant_name) for s in sources]
+                + ['bigbro/bigbro-%s.o' % myplatform]
                 + ['lib/%s%s.o' % (s, variant_name) for s in libsources]
                 + linkflags)))
+print('< bigbro/bigbro-%s.o' % myplatform)
 for s in sources:
     print('< %s%s.o' % (s, variant_name))
 for s in libsources:
