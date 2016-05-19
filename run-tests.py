@@ -41,6 +41,14 @@ def write_script_name(n):
     sys.stdout.flush()
     sys.stdout.write(' '*(biggestname+3-len(n)))
 
+write_script_name('running all bigbro tests')
+if system('cd bigbro && python3 run-tests.py > /dev/null'):
+    print bcolors.FAIL+'FAIL', bcolors.ENDC
+    numfailed += 1
+else:
+    print bcolors.OKGREEN+'PASS', bcolors.ENDC
+    numpassed += 1
+
 for sh in sorted(glob.glob('tests/*.sh')):
     write_script_name(sh)
     cmdline = 'bash %s > %s.log 2>&1' % (sh, sh)

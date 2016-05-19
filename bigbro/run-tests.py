@@ -37,8 +37,8 @@ def create_clean_tree(prepsh='this file does not exist'):
             print("prep command failed:", cmd)
             exit(1)
 
-print('running C tests:')
-print('================')
+print('running C tests on bigbro:')
+print('==========================')
 for testc in glob.glob('tests/*.c'):
     base = testc[:-2]
     test = base+'.test'
@@ -88,8 +88,8 @@ for testc in glob.glob('tests/*.c'):
 
 test = None # to avoid bugs below where we refer to test
 print()
-print('running sh tests:')
-print('=================')
+print('running sh tests on bigbro:')
+print('===========================')
 for testsh in glob.glob('tests/*.sh'):
     base = testsh[:-3]
     create_clean_tree(testsh+'.prep')
