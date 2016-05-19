@@ -57,3 +57,8 @@ target) requires `sass` and `python-markdown`.
 For more detail on building fac, see the
 [web page on building fac](http://physics.oregonstate.edu/~roundyd/fac/building.html),
 which is also in the fac repository as `web/building.md`.
+
+## License
+
+Fac is free software, and is licensed under the GNU General Public
+License, version 2 or later.
