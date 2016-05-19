@@ -10,7 +10,7 @@ git init
 
 cat > git-cloning.fac <<EOF
 | if cd fac-testing; then git pull; else git clone ../.. fac-testing; fi
-> fac-testing/top.fac
+> fac-testing/configure.fac
 C fac-testing/.git/ref/
 EOF
 git add git-cloning.fac
