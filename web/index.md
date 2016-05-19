@@ -1,6 +1,9 @@
 # Fac build system
 
-This build system has several advantages.
+Fac is a general-purpose build system
+(i.e. make/automake/cmake/scons/etc. replacement) that tracks
+dependencies automatically.  Currently, fac only runs on linux
+systems, but on those systems it is incredibly easy to use!
 
 <img src="kells-fac.svg" alt="Fac"/>
 
