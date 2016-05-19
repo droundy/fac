@@ -100,7 +100,10 @@ print('''
 < bigbro/syscalls/freebsd.h
 < bigbro/syscalls/darwin.h
 > bigbro/bigbro-%s.o
-''' % (cc, ' '.join(flags), myplatform, myplatform, myplatform))
+
+| %s %s -o bigbro/bigbro bigbro/bigbro-%s.c bigbro/fileaccesses.c
+''' % (cc, ' '.join(flags), myplatform, myplatform, myplatform,
+       cc, ' '.join(flags), myplatform))
 
 for s in sources:
     print('| %s %s -o %s%s.o -c %s.c' % (cc, ' '.join(flags), s, variant_name, s))
