@@ -37,11 +37,23 @@ older version of fac) just run
 
     sh build-linux.sh
 
-This should build fac on an x86-64 linux system.  You can use
-build-freebsd.sh to build on freebsd.  You can then build an optimized
-version by running
+This should build fac on an x86-64 linux system.  You may be able to
+use build-freebsd.sh to build on freebsd (but it is likely
+bit-rotted).  You can then build an optimized version by running
 
-    ./fac
+    ./fac fac
 
 To use fac, you can copy the fac binary into some location in your
 path.
+
+### Build dependencies and details
+
+The most rare build dependency for fac is libpopt, which is included
+in the `libpopt-dev` package in Debian-based distributions.  In
+addition, fac requires both `python2` and `python3` (something to
+fix), and building the fac documentation (which is the default build
+target) requires `sass` and `python-markdown`.
+
+For more detail on building fac, see the
+[web page on building fac](http://physics.oregonstate.edu/~roundyd/fac/building.html),
+which is also in the fac repository as `web/building.md`.
