@@ -1,20 +1,21 @@
 # Fac build system
 
-Fac is a general-purpose build system inspired by make (and scons, and
-tup) that utilizes ptrace to ensure that all dependences are
-enumerated and that all source files are added to a (git) repo.  An
-important feature of fac is that it automatically fixes (rather than
-simply complaining about) some of these problems.  Currently, fac only
-runs on linux systems, but on those systems it is incredibly easy to
-use!
+Fac is a general-purpose build system inspired by make that utilizes
+ptrace to ensure that all dependences are enumerated and that all
+source files are added to a (git) repo.  An important feature of fac
+is that it automatically handles dependencies, rather than either
+complaining about them or giving an incorrect build.  Currently, fac
+only runs on linux systems, but on those systems it is incredibly easy
+to use!
 
 <img src="kells-fac.svg" alt="Fac"/>
 
 * Automatically tracks build dependencies in a way that is independent
   of programming language.  You are only required to specify the
-  minimum of dependencies for each rule, and fac works out the rest
-  for you.  If you fail to specify dependencies, fac should still
-  build successfully if you use it repeatedly.
+  minimum of dependencies for each rule (which is often an empty set),
+  and fac works out the rest for you.  If you fail to specify
+  dependencies, fac should still build successfully if you use it
+  repeatedly.
 
 * Parallel building.
 
