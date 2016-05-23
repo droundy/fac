@@ -1,9 +1,11 @@
 # Fac
 
-Fac is a general-purpose build system
-(i.e. make/automake/cmake/scons/etc. replacement) that tracks
-dependencies automatically.  Currently, fac only runs on linux
-systems, but on those systems it is incredibly easy to use!
+Fac is a general-purpose build system inspired by make that utilizes
+ptrace to ensure that all dependences are enumerated and that all
+source files are added to a (git) repo.  An important feature of fac
+is that it automatically fixes (rather than simply complaining about)
+some of these problems.  Currently, fac only runs on linux systems,
+but on those systems it is incredibly easy to use!
 
 * Fac automatically tracks build dependencies in a way that is
   independent of programming language.  You are only required to
