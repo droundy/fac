@@ -168,7 +168,10 @@ char *go_to_git_top() {
       buf[i] = 0;
     }
   }
-  chdir(buf);
+  if (chdir(buf) != 0) {
+    printf("Error changing to git toplevel directory!\n");
+    exit(1);
+  }
   return buf;
 }
 
