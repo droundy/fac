@@ -13,9 +13,12 @@ rm -rf $0.dir
 mkdir $0.dir
 cd $0.dir
 
-git clone --depth 1 ../.. new-fac
-
+# travis gets a shallow clone, which I can't clone, so I will clone
+# the old-fashioned way...
+mkdir new-fac
 cd new-fac
+cp -r ../../../.git .
+git checkout .
 
 sh build-linux.sh
 
