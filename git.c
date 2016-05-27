@@ -13,7 +13,7 @@
 #define getcwd _getcwd
 #include <process.h> // for spawnvp
 
-int ReadChildProcess(char **output) {
+int ReadChildProcess(char *cmdline, char **output) {
   HANDLE g_hChildStd_OUT_Rd = NULL;
   HANDLE g_hChildStd_OUT_Wr = NULL;
 
@@ -52,7 +52,7 @@ int ReadChildProcess(char **output) {
 
   // Create the child process.
   bSuccess = CreateProcess(NULL,
-                           "git ls-files",// command line
+                           cmdline,       // command line
                            NULL,          // process security attributes
                            NULL,          // primary thread security attributes
                            TRUE,          // handles are inherited
@@ -112,37 +112,77 @@ int ReadChildProcess(char **output) {
 
 #endif
 
+
 char *go_to_git_top() {
-  while (1) {
-    char *dirname = getcwd(0,0);
-
-    if (strcmp(dirname, "/") == 0) {
-      fprintf(stderr, "error: could not locate .git!\n  %s", strerror(errno));
-      exit(1);
-    }
-    if (!access(".git", R_OK | X_OK)) {
-      return dirname;
-    }
-
-    if (chdir("..")) {
-      fprintf(stderr, "error: unable to chdir(..) from %s\n  %s", dirname, strerror(errno));
-      exit(1);
-    }
-    free(dirname);
-  }
-}
-
-void add_git_files(struct all_targets *all) {
 #ifdef _WIN32
   char *buf = 0;
-  int retval = ReadChildProcess(&buf);
+  int retval = ReadChildProcess(&buf, "git rev-parse --show-toplevel");
   if (retval) {
     free(buf);
     return;
   }
   int stdoutlen = strlen(buf);
 #else
-  const char *templ = "/tmp/bilge-XXXXXX";
+  const char *templ = "/tmp/fac-XXXXXX";
+  char *namebuf = malloc(strlen(templ)+1);
+  strcpy(namebuf, templ);
+  int out = mkstemp(namebuf);
+  unlink(namebuf);
+  free(namebuf);
+
+  pid_t new_pid = fork();
+  if (new_pid == 0) {
+    char **args = malloc(4*sizeof(char *));
+    close(1);
+    if (dup(out) != 1) error(1, errno, "trouble duping stdout for ");
+    close(2);
+    open("/dev/null", O_WRONLY);
+    args[0] = "git";
+    args[1] = "rev-parse";
+    args[2] = "--show-toplevel";
+    args[3] = 0;
+    execvp("git", args);
+    exit(0);
+  }
+  int status = 0;
+  if (waitpid(new_pid, &status, 0) != new_pid) {
+    printf("Unable to exec git ls-files\n");
+    return 0; // fixme should exit
+  }
+  if (WEXITSTATUS(status)) {
+    printf("Unable to run git rev-parse successfully %d\n", WEXITSTATUS(status));
+    //    return 0;
+  }
+  off_t stdoutlen = lseek(out, 0, SEEK_END);
+  lseek(out, 0, SEEK_SET);
+  char *buf = malloc(stdoutlen);
+  if (read(out, buf, stdoutlen) != stdoutlen) {
+    printf("Error reading output of git rev-parse --show-toplevel\n");
+    free(buf);
+    return 0; // fixme should exit
+  }
+#endif
+
+  for (int i=0;i<stdoutlen;i++) {
+    if (buf[i] == '\n') {
+      buf[i] = 0;
+    }
+  }
+  chdir(buf);
+  return buf;
+}
+
+void add_git_files(struct all_targets *all) {
+#ifdef _WIN32
+  char *buf = 0;
+  int retval = ReadChildProcess(&buf, "git ls-files");
+  if (retval) {
+    free(buf);
+    return;
+  }
+  int stdoutlen = strlen(buf);
+#else
+  const char *templ = "/tmp/fac-XXXXXX";
   char *namebuf = malloc(strlen(templ)+1);
   strcpy(namebuf, templ);
   int out = mkstemp(namebuf);

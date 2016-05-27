@@ -20,6 +20,6 @@ before_install:
   - sudo apt-get install -y libpopt-dev
   - sudo apt-get install -y python3 python-markdown
   - sudo apt-get install -y ruby-sass graphviz ghc
-  - sudo apt-get install -y texlive-base # for tests
+  - sudo apt-get install -y texlive # for tests
   - git config --global user.email "testing-on-travis@example.com"
   - git config --global user.name "Travis Builder"
