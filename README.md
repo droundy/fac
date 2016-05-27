@@ -1,5 +1,8 @@
 # Fac
 
+
+[![Build Status](https://travis-ci.org/droundy/fac.svg?branch=master)](https://travis-ci.org/droundy/fac)
+
 Fac is a general-purpose build system inspired by make that utilizes
 ptrace to ensure that all dependences are enumerated and that all
 source files are added to a (git) repo.  An important feature of fac
