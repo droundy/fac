@@ -7,7 +7,7 @@ consists of a C compiler (either gcc or clang), python2, python3, and
 `libpopt` (which we use for parsing arguments).  On a Debian-based
 system, you can install all of this with
 
-    apt-get install build-essential libpopt-dev python python3
+    apt-get install build-essential git libpopt-dev python python3
 
 (Yes, it is a little silly using both python2 and python3 in the build
 process... I should probably switch entirely to python3.)

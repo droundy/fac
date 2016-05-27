@@ -4,13 +4,8 @@ C .git/objects
 C .git/refs
 C .git/index
 
-| if cd bigbro; then git pull; else git clone https://github.com/droundy/bigbro; fi
-> bigbro/configure.fac
-C bigbro/.git/
-
-| python3 top.py > .fac
+| python3 configure.py > .fac
 > .fac
-< bigbro/libbigbro.a
 
 | python2 lib/linux-syscalls.py > lib/linux-syscalls.h
 > lib/linux-syscalls.h

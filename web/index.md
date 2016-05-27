@@ -1,14 +1,21 @@
 # Fac build system
 
-This build system has several advantages.
+Fac is a general-purpose build system inspired by make that utilizes
+ptrace to ensure that all dependences are enumerated and that all
+source files are added to a (git) repo.  An important feature of fac
+is that it automatically handles dependencies, rather than either
+complaining about them or giving an incorrect build.  Currently, fac
+only runs on linux systems, but on those systems it is incredibly easy
+to use!
 
 <img src="kells-fac.svg" alt="Fac"/>
 
 * Automatically tracks build dependencies in a way that is independent
   of programming language.  You are only required to specify the
-  minimum of dependencies for each rule, and fac works out the rest
-  for you.  If you fail to specify dependencies, fac should still
-  build successfully if you use it repeatedly.
+  minimum of dependencies for each rule (which is often an empty set),
+  and fac works out the rest for you.  If you fail to specify
+  dependencies, fac should still build successfully if you use it
+  repeatedly.
 
 * Parallel building.
 
@@ -45,3 +52,6 @@ This build system has several advantages.
   language of your choice) that creates a `.fac` file.  Or perhaps
   it provides input to the script that actually creates the `.fac`
   file.
+
+For a lengthier introduction and motivation for fac, see
+[Introducing fac](introducing-fac.html).

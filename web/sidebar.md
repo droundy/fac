@@ -4,4 +4,5 @@
 * [documentation](documentation.html)
 * [benchmarks](benchmarks.html)
 * [faq](faq.html)
+* [forum](https://groups.google.com/forum/#!forum/fac-users)
 

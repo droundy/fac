@@ -21,12 +21,6 @@ if system('MINIMAL=1 ./fac --makefile Makefile.%s --script build-%s.sh fac'
     print 'Build failed!'
     exit(1)
 
-scriptf = open('build-%s.sh' % platform.system().lower(), 'a')
-scriptf.write('''
-rm -rf bigbro
-''')
-scriptf.close()
-
 if system('./fac'):
     print 'Build failed!'
     exit(1)
@@ -41,11 +35,22 @@ def write_script_name(n):
     sys.stdout.flush()
     sys.stdout.write(' '*(biggestname+3-len(n)))
 
+if system('cd bigbro && python3 run-tests.py'):
+    write_script_name('running all bigbro tests')
+    print bcolors.FAIL+'FAIL', bcolors.ENDC
+    numfailed += 1
+else:
+    write_script_name('running all bigbro tests')
+    print bcolors.OKGREEN+'PASS', bcolors.ENDC
+    numpassed += 1
+
 for sh in sorted(glob.glob('tests/*.sh')):
     write_script_name(sh)
     cmdline = 'bash %s > %s.log 2>&1' % (sh, sh)
     if system(cmdline):
         print bcolors.FAIL+'FAIL', bcolors.ENDC
+        if '-v' in sys.argv:
+            os.system('cat %s.log' % sh)
         numfailed += 1
     else:
         print bcolors.OKGREEN+'PASS', bcolors.ENDC
@@ -56,6 +61,8 @@ for sh in sorted(glob.glob('tests/*.test')):
     write_script_name(sh)
     if system('%s > %s.log 2>&1' % (sh, sh)):
         print bcolors.FAIL+'FAIL', bcolors.ENDC
+        if '-v' in sys.argv:
+            os.system('cat %s.log' % sh)
         numfailed += 1
     else:
         print bcolors.OKGREEN+'PASS', bcolors.ENDC
@@ -71,6 +78,8 @@ for sh in sorted(glob.glob('bugs/*.sh')):
         expectedfailures += 1
     else:
         print bcolors.FAIL+'pass', bcolors.ENDC, sh
+        if '-v' in sys.argv:
+            os.system('cat %s.log' % sh)
         unexpectedpasses += 1
 for sh in sorted(glob.glob('bugs/*.test')):
     write_script_name(sh)
@@ -79,6 +88,8 @@ for sh in sorted(glob.glob('bugs/*.test')):
         expectedfailures += 1
     else:
         print bcolors.FAIL+'pass', bcolors.ENDC, sh
+        if '-v' in sys.argv:
+            os.system('cat %s.log' % sh)
         unexpectedpasses += 1
 
 def pluralize(num, noun):

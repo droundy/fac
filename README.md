@@ -1,8 +1,12 @@
 # Fac
 
-Fac is a build system
-(i.e. make/automake/cmake/scons/etc. replacement) that tracks
-dependencies automatically.
+Fac is a general-purpose build system inspired by make that utilizes
+ptrace to ensure that all dependences are enumerated and that all
+source files are added to a (git) repo.  An important feature of fac
+is that it automatically handles dependencies, rather than either
+complaining about them or giving an incorrect build.  Currently, fac
+only runs on linux systems, but on those systems it is incredibly easy
+to use!
 
 * Fac automatically tracks build dependencies in a way that is
   independent of programming language.  You are only required to
@@ -36,11 +40,28 @@ older version of fac) just run
 
     sh build-linux.sh
 
-This should build fac on an x86-64 linux system.  You can use
-build-freebsd.sh to build on freebsd.  You can then build an optimized
-version by running
+This should build fac on an x86-64 linux system.  You may be able to
+use build-freebsd.sh to build on freebsd (but it is likely
+bit-rotted).  You can then build an optimized version by running
 
-    ./fac
+    ./fac fac
 
 To use fac, you can copy the fac binary into some location in your
 path.
+
+### Build dependencies and details
+
+The most rare build dependency for fac is libpopt, which is included
+in the `libpopt-dev` package in Debian-based distributions.  In
+addition, fac requires both `python2` and `python3` (something to
+fix), and building the fac documentation (which is the default build
+target) requires `sass` and `python-markdown`.
+
+For more detail on building fac, see the
+[web page on building fac](http://physics.oregonstate.edu/~roundyd/fac/building.html),
+which is also in the fac repository as `web/building.md`.
+
+## License
+
+Fac is free software, and is licensed under the GNU General Public
+License, version 2 or later.
