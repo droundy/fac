@@ -13,7 +13,7 @@ rm -rf $0.dir
 mkdir $0.dir
 cd $0.dir
 
-git clone ../.. new-fac
+git clone --depth 1 ../.. new-fac
 
 cd new-fac
 

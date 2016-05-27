@@ -9,7 +9,7 @@ cd $0.dir
 git init
 
 cat > git-cloning.fac <<EOF
-| if cd fac-testing; then git pull; else git clone ../.. fac-testing; fi
+| if cd fac-testing; then git pull; else git clone --depth 1 ../.. fac-testing; fi
 > fac-testing/configure.fac
 > fac-testing/bigbro/syscalls.fac
 C fac-testing/.git/ref/

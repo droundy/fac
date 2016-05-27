@@ -36,11 +36,11 @@ def write_script_name(n):
     sys.stdout.write(' '*(biggestname+3-len(n)))
 
 if system('cd bigbro && python3 run-tests.py'):
-    write_script_name('running all bigbro tests')
+    write_script_name('ran all bigbro tests')
     print bcolors.FAIL+'FAIL', bcolors.ENDC
     numfailed += 1
 else:
-    write_script_name('running all bigbro tests')
+    write_script_name('ran all bigbro tests')
     print bcolors.OKGREEN+'PASS', bcolors.ENDC
     numpassed += 1
 

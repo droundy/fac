@@ -10,7 +10,11 @@ compiler:
 
 # && python run-tests.py -v
 
-script: $CC --version && ./build-linux.sh && ./fac
+script:
+  - $CC --version
+  - ./build-linux.sh
+  - ./fac
+  - python2 run-tests.py -v
 before_install:
   - sudo apt-get update -qq
   - sudo apt-get install -y libpopt-dev
