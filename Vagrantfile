@@ -35,6 +35,17 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     jessie64.vm.provision :shell, path: "vagrant/provision-debian.sh"
   end
 
+  # config.vm.define "windows10" do |windows10|
+  #   windows10.vm.box = "Microsoft/EdgeOnWindows10"
+
+
+  #   windows10.vm.provider "virtualbox" do |v|
+  #     v.memory = 16*1024
+  #     v.cpus = 2
+  #   end
+  #   # windows10.vm.provision :shell, path: "vagrant/provision-debian.sh"
+  # end
+
   # config.vm.define "trusty32" do |trusty32|
   #   trusty32.vm.box = "ubuntu/trusty32"
   #   #trusty32.vm.autostart = false

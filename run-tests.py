@@ -2,6 +2,14 @@
 
 import glob, os, subprocess, platform, sys
 
+# the following is needed for some tests to run under vagrant, since
+# git complains about the default email setting.
+if 'GIT_AUTHOR_EMAIL' not in os.environ:
+    os.putenv("GIT_AUTHOR_EMAIL", 'Tester <test@example.com>')
+    os.putenv("GIT_AUTHOR_NAME", 'Tester')
+    os.putenv("GIT_COMMITTER_EMAIL", 'Tester <test@example.com>')
+    os.putenv("GIT_COMMITTER_NAME", 'Tester')
+
 def system(cmd):
     return subprocess.call(cmd, shell=True)
 
