@@ -741,16 +741,6 @@ static void build_marked(struct all_targets *all, const char *log_directory,
               delete_from_array(bs[i]->written, r->inputs[ii]->path);
             }
           }
-          /* FIXME I need to *not* forget non-explicit outputs, so as
-             to enable commands that only generate files that need to
-             be modified. */
-          /* /\* Forget the non-explicit outputs, as we will re-add those */
-          /*    outputs that were actually created in the build *\/ */
-          /* for (int ii=r->num_outputs;ii<r->num_explicit_outputs;ii++) { */
-          /*   r->outputs[ii]->rule = 0; // dissociate ourselves with these non-explicit outputs */
-          /*   r->outputs[ii]->status = dirty; // mark them as dirty, since we didn't create them */
-          /* } */
-          /* r->num_outputs = r->num_explicit_outputs; */
           for (int ii=0;ii<r->num_outputs;ii++) {
             struct target *t = lookup_target(all, r->outputs[ii]->path);
             if (t) {
@@ -780,7 +770,7 @@ static void build_marked(struct all_targets *all, const char *log_directory,
               r->outputs[ii]->status = dirty; // mark it as dirty, since we didn't create it
 
               r->num_outputs -= 1;
-              for (int j=0;j<r->num_outputs;j++) {
+              for (int j=ii;j<r->num_outputs;j++) {
                 r->outputs[j] = r->outputs[j+1];
               }
               ii -= 1; /* we need to do "ii" one more time, since we
