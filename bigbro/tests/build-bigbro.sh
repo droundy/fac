@@ -3,4 +3,4 @@
 set -ev
 
 cd tmp
-sh build-linux.sh
+sh build/linux.sh
