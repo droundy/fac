@@ -1104,6 +1104,9 @@ void do_actual_build(struct cmd_args *args) {
           error(1,errno, "Unable to create tar directory: %s", dirname);
         }
         cp_inputs(dirname, &all);
+        if (args->create_script) cp_to_dir(args->create_script, dirname);
+        if (args->create_makefile) cp_to_dir(args->create_makefile, dirname);
+        if (args->create_tupfile) cp_to_dir(args->create_tupfile, dirname);
         // fixme: avoid using system in favor of fork+exec!
         char *cmdline = malloc(4096);
         snprintf(cmdline, 4096, "tar cf '%s' '%s'", args->create_tarball, dirname);

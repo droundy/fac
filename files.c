@@ -755,16 +755,7 @@ static void cp_rule(const char *dir, struct rule *r) {
       if (r->inputs[i]->is_file) {
         // this is a source file, so we should copy it!
         // printf("cp %s %s/\n", r->inputs[i]->path + lenroot + 1, dir);
-        FILE *in = fopen(r->inputs[i]->path, "r");
-        if (!in) error(1,errno, "Unable to read file: %s", r->inputs[i]->path);
-        int outlen = strlen(r->inputs[i]->path + lenroot + 1) + 1 + strlen(dir) + 1;
-        char *outname = malloc(outlen);
-        snprintf(outname, outlen, "%s/%s", dir, r->inputs[i]->path + lenroot + 1);
-        create_parent_directories(outname);
-        FILE *out = fopen(outname, "w");
-        if (!out) error(1,errno, "Unable to create file: %s", outname);
-        fclose(in);
-        fclose(out);
+        cp_to_dir(r->inputs[i]->path + lenroot + 1, dir);
       }
     }
   }

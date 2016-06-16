@@ -30,3 +30,4 @@ bench/data
 .nfs*
 testing-flags
 .vagrant
+*.tar

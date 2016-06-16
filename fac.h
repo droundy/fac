@@ -219,4 +219,6 @@ void create_directories(const char *dir);
 
 int rm_recursive(const char *dir);
 
+void cp_to_dir(const char *fname, const char *dir);
+
 #endif
