@@ -30,9 +30,11 @@ set -ev
 
 (cd lib && ${CC-gcc} ${CFLAGS-} -Ibigbro -std=c99 -o sha1.o -c sha1.c)
 
+(${CC-gcc} ${CFLAGS-} -Ibigbro -std=c99 -o mkdir.o -c mkdir.c)
+
 (${CC-gcc} ${CFLAGS-} -Ibigbro -std=c99 -o new-build.o -c new-build.c)
 
 (${CC-gcc} ${CFLAGS-} -Ibigbro -std=c99 -o targets.o -c targets.c)
 
-(${CC-gcc} -o fac fac.o files.o targets.o clean.o new-build.o git.o environ.o bigbro/bigbro-linux.o lib/listset.o lib/iterablehash.o lib/intmap.o lib/sha1.o ${LDFLAGS-} -lpopt -lpthread -lm)
+(${CC-gcc} -o fac fac.o files.o targets.o clean.o new-build.o git.o environ.o mkdir.o bigbro/bigbro-linux.o lib/listset.o lib/iterablehash.o lib/intmap.o lib/sha1.o ${LDFLAGS-} -lpopt -lpthread -lm)
 
