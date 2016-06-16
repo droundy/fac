@@ -164,6 +164,8 @@ void fprint_makefile(FILE *f, struct all_targets *tt);
 void fprint_tupfile(FILE *f, struct all_targets *tt);
 void fprint_script(FILE *f, struct all_targets *tt);
 
+void cp_inputs(const char *dir, struct all_targets *tt);
+
 struct rule *run_rule(struct all_targets *all, struct rule *r);
 void parallel_build_all(struct all_targets *all,
                         listset *cmd_line_args, bool facfiles_only);
@@ -210,5 +212,11 @@ static inline const char *pretty_reason(struct rule *r) {
   }
   return pretty_rule(r); // ?!
 }
+
+void create_parent_directories(const char *fname);
+
+void create_directories(const char *dir);
+
+int rm_recursive(const char *dir);
 
 #endif

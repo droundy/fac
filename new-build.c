@@ -1049,7 +1049,7 @@ void do_actual_build(struct cmd_args *args) {
     summarize_build_results(&all);
 
     if (args->create_dotfile || args->create_makefile || args->create_tupfile
-        || args->create_script) {
+        || args->create_script || args->create_tarball) {
       for (struct rule *r = (struct rule *)all.r.first; r; r = (struct rule *)r->e.next) {
         set_status(&all, r, unknown);
       }
@@ -1089,6 +1089,28 @@ void do_actual_build(struct cmd_args *args) {
         if (!f) error(1,errno, "Unable to create script: %s", args->create_script);
         fprint_script(f, &all);
         fclose(f);
+      }
+      if (args->create_tarball) {
+        char *dirname = malloc(strlen(args->create_tarball)+1);
+        int dirlen = strlen(args->create_tarball)-4;
+        if (dirlen < 1) {
+          fprintf(stderr, "invalid tar filename: %s", args->create_tarball);
+          exit(1);
+        }
+        strncpy(dirname, args->create_tarball, dirlen);
+        dirname[dirlen] = 0;
+        rm_recursive(dirname); // ignore errors, which are probably does-not-exist
+        if (mkdir(dirname, 0777)) {
+          error(1,errno, "Unable to create tar directory: %s", dirname);
+        }
+        cp_inputs(dirname, &all);
+        // fixme: avoid using system in favor of fork+exec!
+        char *cmdline = malloc(4096);
+        snprintf(cmdline, 4096, "tar cf '%s' '%s'", args->create_tarball, dirname);
+        system(cmdline);
+        rm_recursive(dirname);
+        free(dirname);
+        free(cmdline);
       }
     }
 

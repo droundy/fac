@@ -10,6 +10,7 @@
 #include <string.h>
 #include <limits.h>
 #include <stdlib.h>
+#include <sys/stat.h>
 
 #ifdef _WIN32
 /* fixme: the following is a very broken version of realpath for windows! */
@@ -742,3 +743,39 @@ void fprint_tupfile(FILE *f, struct all_targets *all) {
     fprint_tupfile_rule(f, r);
   }
 }
+
+static void cp_rule(const char *dir, struct rule *r) {
+  if (r->is_printed) return;
+  r->is_printed = true;
+  const int lenroot = strlen(root);
+  for (int i=0; i<r->num_inputs; i++) {
+    if (r->inputs[i]->rule) {
+      cp_rule(dir, r->inputs[i]->rule);
+    } else if (is_in_root(r->inputs[i]->path)) {
+      if (r->inputs[i]->is_file) {
+        // this is a source file, so we should copy it!
+        // printf("cp %s %s/\n", r->inputs[i]->path + lenroot + 1, dir);
+        FILE *in = fopen(r->inputs[i]->path, "r");
+        if (!in) error(1,errno, "Unable to read file: %s", r->inputs[i]->path);
+        int outlen = strlen(r->inputs[i]->path + lenroot + 1) + 1 + strlen(dir) + 1;
+        char *outname = malloc(outlen);
+        snprintf(outname, outlen, "%s/%s", dir, r->inputs[i]->path + lenroot + 1);
+        create_parent_directories(outname);
+        FILE *out = fopen(outname, "w");
+        if (!out) error(1,errno, "Unable to create file: %s", outname);
+        fclose(in);
+        fclose(out);
+      }
+    }
+  }
+}
+
+void cp_inputs(const char *dir, struct all_targets *all) {
+  for (struct rule *r = (struct rule *)all->r.first; r; r = (struct rule *)r->e.next) {
+    r->is_printed = false;
+  }
+  for (struct rule *r = all->lists[marked]; r; r = r->status_next) {
+    cp_rule(dir, r);
+  }
+}
+

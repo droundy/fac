@@ -90,7 +90,7 @@ flags = list(filter(None, flags))
 variants[variant]['flags'] = flags
 variants[variant]['linkflags'] = linkflags
 
-sources = ['fac', 'files', 'targets', 'clean', 'new-build', 'git', 'environ']
+sources = ['fac', 'files', 'targets', 'clean', 'new-build', 'git', 'environ', 'mkdir']
 
 libsources = ['listset', 'iterablehash', 'intmap', 'sha1']
 

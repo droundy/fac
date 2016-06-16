@@ -45,6 +45,7 @@ static char *create_dotfile = 0;
 static char *create_makefile = 0;
 static char *create_tupfile = 0;
 static char *create_script = 0;
+static char *create_tarball = 0;
 static char *log_directory = 0;
 
 int main(int argc, const char **argv) {
@@ -72,6 +73,8 @@ int main(int argc, const char **argv) {
       "create a tupfile", "TUPFILE" },
     { "script", 0, POPT_ARG_STRING, &create_script, 0,
       "create a build script", "SCRIPTFILE" },
+    { "tar", 0, POPT_ARG_STRING, &create_tarball, 0,
+      "create a tar archive", "TARNAME.tar" },
     { "version", 'V', POPT_ARG_NONE, &show_version, 0,
       "display the version", 0 },
     POPT_AUTOHELP
@@ -105,6 +108,7 @@ int main(int argc, const char **argv) {
   args.create_makefile = create_makefile;
   args.create_tupfile = create_tupfile;
   args.create_script = create_script;
+  args.create_tarball = create_tarball;
   args.clean = clean_me;
   args.continual = continually_build;
   args.git_add_files = git_add_flag;

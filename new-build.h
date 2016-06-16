@@ -12,7 +12,8 @@ void mark_rule(struct all_targets *all, struct rule *r);
 void summarize_build_results(struct all_targets *all);
 
 struct cmd_args {
-  const char *create_dotfile, *create_makefile, *create_tupfile, *create_script, *log_directory;
+  const char *create_dotfile, *create_makefile, *create_tupfile,
+    *create_script, *create_tarball, *log_directory;
   bool clean, continual, git_add_files;
   listset *targets_requested;
 };
