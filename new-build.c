@@ -1110,7 +1110,9 @@ void do_actual_build(struct cmd_args *args) {
         // fixme: avoid using system in favor of fork+exec!
         char *cmdline = malloc(4096);
         snprintf(cmdline, 4096, "tar cf '%s' '%s'", args->create_tarball, dirname);
-        system(cmdline);
+        if (system(cmdline)) {
+          printf("Error running tar!\n");
+        }
         rm_recursive(dirname);
         free(dirname);
         free(cmdline);
