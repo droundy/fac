@@ -1092,10 +1092,20 @@ void do_actual_build(struct cmd_args *args) {
       }
       if (args->create_tarball) {
         char *dirname = malloc(strlen(args->create_tarball)+1);
+        const char *flags  = "cf";
         int dirlen = strlen(args->create_tarball)-4;
         if (dirlen < 1) {
           fprintf(stderr, "invalid tar filename: %s", args->create_tarball);
           exit(1);
+        }
+        if (dirlen > 3 && strcmp(args->create_tarball+dirlen-3, ".tar.gz") == 0) {
+          flags = "czf";
+          dirlen -= 3;
+        } else if (dirlen > 0 && strcmp(args->create_tarball+dirlen, ".tgz") == 0) {
+          flags = "czf";
+        } else if (dirlen > 4 && strcmp(args->create_tarball+dirlen-4, ".tar.bz2") == 0) {
+          flags = "cjf";
+          dirlen -= 4;
         }
         strncpy(dirname, args->create_tarball, dirlen);
         dirname[dirlen] = 0;
@@ -1109,7 +1119,7 @@ void do_actual_build(struct cmd_args *args) {
         if (args->create_tupfile) cp_to_dir(args->create_tupfile, dirname);
         // fixme: avoid using system in favor of fork+exec!
         char *cmdline = malloc(4096);
-        snprintf(cmdline, 4096, "tar cf '%s' '%s'", args->create_tarball, dirname);
+        snprintf(cmdline, 4096, "tar %s '%s' '%s'", flags, args->create_tarball, dirname);
         if (system(cmdline)) {
           printf("Error running tar!\n");
         }
