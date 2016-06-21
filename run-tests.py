@@ -24,6 +24,18 @@ class bcolors:
 # this ensures that when fac calls git it already has index prepared:
 system('git status')
 
+try:
+    version = subprocess.check_output(['git', 'describe', '--dirty'])
+except:
+    version = subprocess.check_output(['git', 'rev-parse', 'HEAD'])
+version = version[:-1]
+tarname = 'fac-%s.tar.gz' % version
+
+if system('MINIMAL=1 ./fac --makefile Makefile.%s --script build-%s.sh -i version-identifier.h -i README.md --tar %s fac'
+          % (platform.system().lower(), platform.system().lower(), tarname)):
+    print 'Build failed!'
+    exit(1)
+
 if system('MINIMAL=1 ./fac --makefile Makefile.%s --script build-%s.sh fac'
           % (platform.system().lower(), platform.system().lower())):
     print 'Build failed!'

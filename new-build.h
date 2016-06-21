@@ -14,6 +14,7 @@ void summarize_build_results(struct all_targets *all);
 struct cmd_args {
   const char *create_dotfile, *create_makefile, *create_tupfile,
     *create_script, *create_tarball, *log_directory;
+  const char **include_in_tar;
   bool clean, continual, git_add_files;
   listset *targets_requested;
 };

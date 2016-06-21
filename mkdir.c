@@ -39,6 +39,14 @@ void cp_to_dir(const char *fname, const char *dir) {
   create_parent_directories(outname);
   FILE *out = fopen(outname, "w");
   if (!out) error(1,errno, "Unable to create file: %s", outname);
+  static const int bufsize = 4096;
+  char *buffer = malloc(bufsize);
+  int size_to_write = 1;
+  do {
+    size_to_write = fread(buffer, 1, bufsize, in);
+    fwrite(buffer, 1, size_to_write, out);
+  } while (size_to_write);
+  free(buffer);
   fclose(in);
   fclose(out);
 }

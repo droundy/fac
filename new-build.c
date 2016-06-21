@@ -1072,6 +1072,19 @@ void do_actual_build(struct cmd_args *args) {
         fprint_dot(f, &all);
         fclose(f);
       }
+      if (args->create_tarball) {
+        // If we're creating a tarball, we want to generate build
+        // files that do not try to rebuild things that we are
+        // including in the tarball.  Note that this is a horrible,
+        // ugly, hack.
+        for (int i=0; args->include_in_tar[i]; i++) {
+          struct target *t = lookup_target(&all, absolute_path(root, args->include_in_tar[i]));
+          if (t) {
+            t->rule = 0;
+            t->is_in_git = true;
+          }
+        }
+      }
       if (args->create_makefile) {
         FILE *f = fopen(args->create_makefile, "w");
         if (!f) error(1,errno, "Unable to create makefile: %s", args->create_makefile);
@@ -1112,6 +1125,9 @@ void do_actual_build(struct cmd_args *args) {
         rm_recursive(dirname); // ignore errors, which are probably does-not-exist
         if (mkdir(dirname, 0777)) {
           error(1,errno, "Unable to create tar directory: %s", dirname);
+        }
+        for (int i=0; args->include_in_tar[i]; i++) {
+          cp_to_dir(args->include_in_tar[i], dirname);
         }
         cp_inputs(dirname, &all);
         if (args->create_script) cp_to_dir(args->create_script, dirname);

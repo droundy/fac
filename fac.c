@@ -48,6 +48,8 @@ static char *create_script = 0;
 static char *create_tarball = 0;
 static char *log_directory = 0;
 
+static const char **include_in_tar = 0;
+
 int main(int argc, const char **argv) {
   initialize_starting_time();
   struct poptOption optionsTable[] = {
@@ -75,6 +77,8 @@ int main(int argc, const char **argv) {
       "create a build script", "SCRIPTFILE" },
     { "tar", 0, POPT_ARG_STRING, &create_tarball, 0,
       "create a tar archive", "TARNAME.tar" },
+    { "include-in-tar", 'i', POPT_ARG_ARGV, &include_in_tar, 0,
+      "include file in tarball", "FILENAME" },
     { "version", 'V', POPT_ARG_NONE, &show_version, 0,
       "display the version", 0 },
     POPT_AUTOHELP
@@ -104,6 +108,7 @@ int main(int argc, const char **argv) {
   root = go_to_git_top();
 
   struct cmd_args args;
+  args.include_in_tar = include_in_tar;
   args.create_dotfile = create_dotfile;
   args.create_makefile = create_makefile;
   args.create_tupfile = create_tupfile;
