@@ -33,3 +33,10 @@ You may also wish to build the documentation (by running `./fac`), but
 this will require a few more packages: sass, graphviz,
 python-markdown, and help2man.
 
+## Installing on debian
+
+If you simply want to install fac on a Debian machine, you can
+download a deb and install it with the following commands:
+
+    # wget https://physics.oregonstate.edu/~droundy/fac/fac-latest.deb
+    # dpkg -i fac-latest.deb

@@ -8,8 +8,8 @@ if myplatform == 'linux2':
     myplatform = 'linux'
 
 have_sass = os.system('sass -h > /dev/null') == 0
-have_help2man = os.system('help2man -h > /dev/null') == 0
-have_checkinstall = os.system('checkinstall -h > /dev/null') == 0
+have_help2man = os.system('help2man --help > /dev/null') == 0
+have_checkinstall = os.system('checkinstall --version > /dev/null') == 0
 
 os.system('rm -rf testing-flags')
 os.mkdir('testing-flags');
@@ -166,7 +166,8 @@ if variant_name == '':
     linkflags = linkflags[1:]
     if have_checkinstall and have_help2man:
         print('''
-| checkinstall -D --fstrans=yes --pkglicense=gplv2+ --pkgname fac -y --strip=yes --deldoc=yes --deldesc=yes --delspec=yes --install=no --pakdir=web --pkgversion=`git describe --dirty` sh build/install.sh
+| sh build/deb.sh
+> web/fac-latest.deb
 < fac-static
 < fac.1
 ''')

@@ -26,5 +26,5 @@ c .pyc
 # | python2 bench/generate-plots.py
 # > web/hierarchy-building.pdf
 
-# & rsync -v web/* science.oregonstate.edu:public_html/fac
+# & rsync -Lv web/* science.oregonstate.edu:public_html/fac
 # > upload
