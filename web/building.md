@@ -41,3 +41,6 @@ following commands:
 
     # wget https://physics.oregonstate.edu/~roundyd/fac/fac-latest.deb
     # dpkg -i fac-latest.deb
+
+Or alternatively, you could download [a statically linked executable by
+clicking this link](fac).

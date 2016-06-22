@@ -21,7 +21,7 @@ with open('testing-flags/test.c', 'w') as f:
 
 # add , '-fprofile-arcs', '-ftest-coverage' to both of the following
 # lines in order to enable gcov coverage testing
-optional_flags = ['-Wall', '-Werror', '-O2', '-g']
+optional_flags = ['-Wall', '-Werror', '-O2']
 optional_linkflags = ['-lprofiler']
 
 possible_flags = ['-std=c11', '-std=c99']
@@ -35,10 +35,15 @@ if os.getenv('MINIMAL') == None:
 if os.getenv('MINIMAL') == None:
     print('# We are not minimal')
     variants = {'': {'cc': os.getenv('CC', 'gcc'),
-                     'flags': [os.getenv('CFLAGS', '') + ' -Ibigbro'],
+                     'flags': [os.getenv('CFLAGS', '') + ' -Ibigbro', '-g'],
                      'linkflags': [os.getenv('LDFLAGS', '')],
                      'os': platform.system().lower(),
-                     'arch': platform.machine()}}
+                     'arch': platform.machine()},
+                '-static': {'cc': os.getenv('CC', 'gcc'),
+                            'flags': [os.getenv('CFLAGS', '') + ' -Ibigbro'],
+                            'linkflags': [os.getenv('LDFLAGS', '')],
+                            'os': platform.system().lower(),
+                            'arch': platform.machine()}}
 else:
     print('# We are minimal')
     possible_flags.remove('-std=c11')
@@ -58,121 +63,120 @@ def link_works(flags):
     print('# trying', cmd, file=sys.stdout)
     return not os.system(cmd)
 
-variant = ''
-print('# Considering variant: "%s"' % variant)
-cc = variants[variant]['cc']
-flags = variants[variant]['flags']
-linkflags = variants[variant]['linkflags']
-variant_name = ''
+for variant in variants.keys():
+    print('# Considering variant: "%s"' % variant)
+    cc = variants[variant]['cc']
+    flags = variants[variant]['flags']
+    linkflags = variants[variant]['linkflags']
 
-if not compile_works(flags):
-    print('# unable to compile using %s %s -c test.c' % (cc, flags))
-    exit(0)
-if not link_works(linkflags):
-    print('# unable to link using %s %s -o test test.c\n' % (cc, ' '.join(linkflags)))
-    exit(0)
+    if not compile_works(flags):
+        print('# unable to compile using %s %s -c test.c' % (cc, ' '.join(flags)))
+        exit(0)
+    if not link_works(linkflags):
+        print('# unable to link using %s %s -o test test.c\n' % (cc, ' '.join(linkflags)))
+        exit(0)
 
-for flag in possible_flags:
-    if compile_works(flags+[flag]):
-        flags += [flag]
-    else:
-        print('# %s%s cannot use flag:' % (cc, variant_name), flag)
-if len(flags) > 0 and flags[0] == ' ':
-    flags = flags[1:]
-for flag in possible_linkflags:
-    if link_works(linkflags + [flag]):
-        linkflags += [flag]
-    else:
-        print('# %s%s linking cannot use flag:' % (cc, variant_name), flag)
+    for flag in possible_flags:
+        if compile_works(flags+[flag]):
+            flags += [flag]
+        else:
+            print('# %s%s cannot use flag:' % (cc, variant), flag)
+    if len(flags) > 0 and flags[0] == ' ':
+        flags = flags[1:]
+    for flag in possible_linkflags:
+        if link_works(linkflags + [flag]):
+            linkflags += [flag]
+        else:
+            print('# %s%s linking cannot use flag:' % (cc, variant), flag)
 
-if '-std=c11' in flags:
-    flags = [f for f in flags if f != '-std=c99']
-linkflags = list(filter(None, linkflags))
-flags = list(filter(None, flags))
+    if '-std=c11' in flags:
+        flags = [f for f in flags if f != '-std=c99']
+    linkflags = list(filter(None, linkflags))
+    flags = list(filter(None, flags))
 
-variants[variant]['flags'] = flags
-variants[variant]['linkflags'] = linkflags
+    variants[variant]['flags'] = flags
+    variants[variant]['linkflags'] = linkflags
 
-sources = ['fac', 'files', 'targets', 'clean-all', 'build', 'git', 'environ', 'mkdir']
+    sources = ['fac', 'files', 'targets', 'clean-all', 'build', 'git', 'environ', 'mkdir']
 
-libsources = ['listset', 'iterablehash', 'intmap', 'sha1']
+    libsources = ['listset', 'iterablehash', 'intmap', 'sha1']
 
-print('''
-| %s %s -o bigbro/bigbro-%s.o -c bigbro/bigbro-%s.c
+    print('''
+| %s %s -o bigbro/bigbro-%s%s.o -c bigbro/bigbro-%s.c
 < bigbro/syscalls/linux.h
 < bigbro/syscalls/freebsd.h
 < bigbro/syscalls/darwin.h
-> bigbro/bigbro-%s.o
+> bigbro/bigbro-%s%s.o
 
-| %s %s -o bigbro/bigbro bigbro/bigbro-%s.c bigbro/fileaccesses.c
-''' % (cc, ' '.join(flags), myplatform, myplatform, myplatform,
-       cc, ' '.join(flags), myplatform))
+| %s %s -o bigbro/bigbro%s bigbro/bigbro-%s.c bigbro/fileaccesses.c
+''' % (cc, ' '.join(flags), myplatform, variant, myplatform, myplatform, variant,
+           cc, ' '.join(flags), variant, myplatform))
 
-for s in sources:
-    print('| %s %s -o %s%s.o -c %s.c' % (cc, ' '.join(flags), s, variant_name, s))
-    print('> %s%s.o' % (s, variant_name))
-    if s == 'fac':
-        print('< version-identifier.h')
-    print()
+    for s in sources:
+        print('| %s %s -o %s%s.o -c %s.c' % (cc, ' '.join(flags), s, variant, s))
+        print('> %s%s.o' % (s, variant))
+        if s == 'fac':
+            print('< version-identifier.h')
+        print()
 
-for s in libsources:
-    print('| cd lib && %s %s -o %s%s.o -c %s.c' % (cc, ' '.join(flags), s, variant_name, s))
-    print('> lib/%s%s.o' % (s, variant_name))
-    print()
-
-if '-lpopt' not in linkflags:
-    print('# this is all we can do with %s so far' % variant)
-    exit(0)
-
-ctests = ['listset', 'spinner', 'iterable_hash_test', 'assertion-fails']
-
-for test in ctests:
-    print('| %s '%cc+' '.join(linkflags)+' -o tests/%s%s.test' % (test, variant_name),
-          'tests/%s%s.o' % (test, variant_name),
-          ' '.join(['lib/%s%s.o' % (s, variant_name) for s in libsources]))
-    print('> tests/%s%s.test' % (test, variant_name))
-    print('< tests/%s%s.o' % (test, variant_name))
     for s in libsources:
-        print('< lib/%s%s.o' % (s, variant_name))
-    print()
+        print('| cd lib && %s %s -o %s%s.o -c %s.c' % (cc, ' '.join(flags), s, variant, s))
+        print('> lib/%s%s.o' % (s, variant))
+        print()
 
-    print('| cd tests && %s %s -o %s%s.o -c %s.c'
-          % (cc, ' '.join(flags), test, variant_name, test))
-    print('> tests/%s%s.o' % (test, variant_name))
-    print()
+    if '-lpopt' not in linkflags:
+        print('# this is all we can do with %s so far' % variant)
+        exit(0)
+
+    ctests = ['listset', 'spinner', 'iterable_hash_test', 'assertion-fails']
+
+    for test in ctests:
+        print('| %s '%cc+' '.join(linkflags)+' -o tests/%s%s.test' % (test, variant),
+              'tests/%s%s.o' % (test, variant),
+              ' '.join(['lib/%s%s.o' % (s, variant) for s in libsources]))
+        print('> tests/%s%s.test' % (test, variant))
+        print('< tests/%s%s.o' % (test, variant))
+        for s in libsources:
+            print('< lib/%s%s.o' % (s, variant))
+        print()
+
+        print('| cd tests && %s %s -o %s%s.o -c %s.c'
+              % (cc, ' '.join(flags), test, variant, test))
+        print('> tests/%s%s.o' % (test, variant))
+        print()
+
+    def build_fac(postfix=''):
+        print('| %s -o fac%s%s %s' %
+              (cc, variant, postfix,
+               ' '.join(['%s%s.o' % (s, variant) for s in sources]
+                        + ['bigbro/bigbro-%s.o' % myplatform]
+                        + ['lib/%s%s.o' % (s, variant) for s in libsources]
+                        + linkflags)))
+        print('< bigbro/bigbro-%s.o' % myplatform)
+        for s in sources:
+            print('< %s%s.o' % (s, variant))
+        for s in libsources:
+            print('< lib/%s%s.o' % (s, variant))
+        print('> fac%s%s' % (variant, postfix))
+        print()
+
+    build_fac()
+    # if variant == '':
+    #     linkflags = ['-static']+linkflags
+    #     build_fac('-static')
+    #     linkflags = linkflags[1:]
 
 os.system('rm -rf testing-flags')
 
-
-def build_fac(postfix=''):
-    print('| %s -o fac%s%s %s' %
-          (cc, variant_name, postfix,
-           ' '.join(['%s%s.o' % (s, variant_name) for s in sources]
-                    + ['bigbro/bigbro-%s.o' % myplatform]
-                    + ['lib/%s%s.o' % (s, variant_name) for s in libsources]
-                    + linkflags)))
-    print('< bigbro/bigbro-%s.o' % myplatform)
-    for s in sources:
-        print('< %s%s.o' % (s, variant_name))
-    for s in libsources:
-        print('< lib/%s%s.o' % (s, variant_name))
-    print('> fac%s%s' % (variant_name, postfix))
-    print()
-
-build_fac()
-if variant_name == '':
-    linkflags = ['-static']+linkflags
-    build_fac('-static')
-    linkflags = linkflags[1:]
-    if have_checkinstall and have_help2man:
-        print('''
+if have_checkinstall and have_help2man:
+    print('''
 | sh build/deb.sh
 > web/fac-latest.deb
 < fac-static
 < fac.1
 ''')
-    else:
-        print("# no checkinstall+help2man, so we won't build a debian package")
+else:
+    print("# no checkinstall+help2man, so we won't build a debian package")
 
 if have_help2man:
     print('''

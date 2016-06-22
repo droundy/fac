@@ -34,3 +34,4 @@ testing-flags
 *.tar.gz
 *.deb
 fac.1
+bigbro-static
