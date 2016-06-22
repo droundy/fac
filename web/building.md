@@ -19,11 +19,10 @@ You can obtain the fac source code using git clone:
 To build fac (assuming you have just cloned fac, and do not have an
 older version of fac) just run
 
-    sh build-linux.sh
+    sh build/linux.sh
 
 This should build fac on an x86-64 or 32-bit x86 linux system.  You
-can use `build-freebsd.sh` to build on freebsd.  You can then build an
-optimized version of fac by running
+can then build an optimized version of fac by running
 
     ./fac fac
 
@@ -31,16 +30,6 @@ To use fac, you can copy the fac binary into some location in your
 path.
 
 You may also wish to build the documentation (by running `./fac`), but
-this will require a few more packages: sass, graphviz, and
-python-markdown.
-
-
-## Cross-compiling fac for windows
-
-To attempt to cross-compile fac for windows, issue:
-
-    CC=/usr/bin/x86_64-w64-mingw32-gcc fac
-
-This requires that the libpopt.a and popt.h both reside in ../win32.
-It also doesn't yet work, but will compile some of fac's source files.
+this will require a few more packages: sass, graphviz,
+python-markdown, and help2man.
 

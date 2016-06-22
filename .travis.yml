@@ -12,7 +12,9 @@ compiler:
 
 script:
   - $CC --version
-  - ./build-linux.sh
+  - sh build/linux.sh
+  - make -f Makefile.linux clean
+  - make -f Makefile.linux
   - ./fac
   - python2 run-tests.py -v
 before_install:

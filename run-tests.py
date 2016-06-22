@@ -32,7 +32,7 @@ version = version[:-1]
 tarname = 'fac-%s.tar.gz' % version
 debtarname = 'fac_%s.orig.tar.gz' % version
 
-if system('MINIMAL=1 ./fac --makefile Makefile --script build-%s.sh -i version-identifier.h -i README.md -i COPYING --tar %s fac'
+if system('MINIMAL=1 ./fac --makefile Makefile --script build/%s.sh -i version-identifier.h -i README.md -i COPYING --tar %s fac'
           % (platform.system().lower(), tarname)):
     print 'Build failed!'
     exit(1)
