@@ -31,3 +31,6 @@ bench/data
 testing-flags
 .vagrant
 *.tar
+*.tar.gz
+*.deb
+fac.1

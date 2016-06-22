@@ -26,6 +26,9 @@ c .pyc
 > web/style.css
 C .sass-cache
 
+| help2man --no-info fac > fac.1
+< fac
+
 # | python2 bench/generate-plots.py
 # > web/hierarchy-building.pdf
 
