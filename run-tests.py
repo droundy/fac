@@ -30,21 +30,19 @@ except:
     version = subprocess.check_output(['git', 'rev-parse', 'HEAD'])
 version = version[:-1]
 tarname = 'fac-%s.tar.gz' % version
-debtarname = 'fac_%s.orig.tar.gz' % version
 
 if system('MINIMAL=1 ./fac --makefile Makefile --script build/%s.sh -i version-identifier.h -i README.md -i COPYING --tar %s fac'
           % (platform.system().lower(), tarname)):
     print 'Build failed!'
     exit(1)
 
-system('cp %s %s' % (tarname, debtarname))
 system('rm -f Makefile')
 
-if system('MINIMAL=1 ./fac --makefile Makefile.%s --script build-%s.sh fac'
+if system('MINIMAL=1 ./fac --makefile Makefile.%s --script build/%s.sh fac'
           % (platform.system().lower(), platform.system().lower())):
     print 'Build failed!'
     exit(1)
-system('chmod +x build-%s.sh' % platform.system().lower())
+system('chmod +x build/%s.sh' % platform.system().lower())
 
 if system('./fac'):
     print 'Build failed!'

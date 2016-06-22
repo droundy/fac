@@ -692,6 +692,10 @@ void fprint_makefile(FILE *f, struct all_targets *all) {
          not specified in the .fac file, and we have not yet built)
          that is a user error. */
       fprintf(f, " %s", r->outputs[0]->path + lenroot+1);
+    } else if (r->status == marked) {
+      /* A target was intermediate, but it was explicitly requested,
+         so we should list it as part of "all" */
+      fprintf(f, " %s", r->outputs[0]->path + lenroot+1);
     }
   }
   fprintf(f, "\n\n");
