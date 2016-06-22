@@ -38,5 +38,5 @@ python-markdown, and help2man.
 If you simply want to install fac on a Debian machine, you can
 download a deb and install it with the following commands:
 
-    # wget https://physics.oregonstate.edu/~droundy/fac/fac-latest.deb
+    # wget https://physics.oregonstate.edu/~roundyd/fac/fac-latest.deb
     # dpkg -i fac-latest.deb
