@@ -24,7 +24,7 @@
 #include <sys/time.h>
 
 #include "fac.h"
-#include "new-build.h"
+#include "build.h"
 #include "version-identifier.h"
 #include "errors.h"
 

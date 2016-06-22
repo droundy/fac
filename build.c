@@ -5,7 +5,7 @@
 
 #include "errors.h"
 #include "fac.h"
-#include "new-build.h"
+#include "build.h"
 #include "environ.h"
 
 #include "bigbro.h"
