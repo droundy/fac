@@ -1,5 +1,8 @@
 all: fac
 
+clean:
+	rm -f bigbro/syscalls/darwin.h bigbro/syscalls/freebsd.h bigbro/syscalls/linux.h bigbro/bigbro-linux.o build.o clean-all.o environ.o version-identifier.h fac.o files.o git.o lib/intmap.o lib/iterablehash.o lib/listset.o lib/sha1.o mkdir.o targets.o fac
+
 bigbro/syscalls/darwin.h : bigbro/syscalls bigbro/syscalls/darwin.py bigbro/syscalls/darwin/syscalls.master bigbro/syscalls/gentables.py bigbro/syscalls/master.py
 	cd bigbro && python3 syscalls/darwin.py > syscalls/darwin.h
 

@@ -641,6 +641,36 @@ static void fprint_makefile_rule(FILE *f, struct rule *r) {
   free(outs);
 }
 
+static void fprint_makeclean_rule(FILE *f, struct rule *r) {
+  if (r->is_printed) return;
+  r->is_printed = true;
+  const int lenroot = strlen(root);
+
+  /* We sort the outputs before creating the rule, so as to generate
+     output that is the same on every computer, and on every
+     invocation.  This is helpful because often one wants to put the
+     generated file into the git repository for the benefit of users
+     who have not installed fac. */
+  struct target **inps = malloc(r->num_inputs*sizeof(struct target *));
+  for (int i=0; i<r->num_inputs; i++) inps[i] = r->inputs[i];
+  sort_target_array(inps, r->num_inputs);
+
+  struct target **outs = malloc(r->num_outputs*sizeof(struct target *));
+  for (int i=0; i<r->num_outputs; i++) outs[i] = r->outputs[i];
+  sort_target_array(outs, r->num_outputs);
+
+  for (int i=0; i<r->num_inputs; i++) {
+    if (inps[i]->rule) fprint_makeclean_rule(f, inps[i]->rule);
+  }
+
+  for (int i=0; i<r->num_outputs; i++) {
+    fprintf(f, " ");
+    fprint_makefile_escape(f, outs[i]->path + lenroot+1);
+  }
+  free(inps);
+  free(outs);
+}
+
 void fprint_makefile(FILE *f, struct all_targets *all) {
   for (struct rule *r = (struct rule *)all->r.first; r; r = (struct rule *)r->e.next) {
     r->is_printed = false;
@@ -665,6 +695,17 @@ void fprint_makefile(FILE *f, struct all_targets *all) {
     }
   }
   fprintf(f, "\n\n");
+
+  /* Now we create the "clean" rule */
+  fprintf(f, "clean:\n\trm -f");
+  for (struct rule *r = all->lists[marked]; r; r = r->status_next) {
+    fprint_makeclean_rule(f, r);
+  }
+  fprintf(f, "\n\n");
+
+  for (struct rule *r = (struct rule *)all->r.first; r; r = (struct rule *)r->e.next) {
+    r->is_printed = false;
+  }
   for (struct rule *r = all->lists[marked]; r; r = r->status_next) {
     fprint_makefile_rule(f, r);
   }
@@ -675,7 +716,7 @@ static void fprint_script_rule(FILE *f, struct rule *r) {
   r->is_printed = true;
   const int lenroot = strlen(root);
 
-  /* We sort the inputs and outputs before creating the makefile, so
+  /* We sort the inputs and outputs before creating the script, so
      as to generate output that is the same on every computer, and on
      every invocation.  This is helpful because often one wants to put
      the generated file into the git repository for the benefit of
