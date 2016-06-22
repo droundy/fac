@@ -10,47 +10,47 @@ bigbro/syscalls/linux.h : bigbro/syscalls bigbro/syscalls/gentables.py bigbro/sy
 	cd bigbro && python3 syscalls/linux.py > syscalls/linux.h
 
 bigbro/bigbro-linux.o : bigbro/bigbro-linux.c bigbro/bigbro.h bigbro/hashset.h bigbro/iterablehash.c bigbro/iterablehash.h bigbro/linux-proc.h bigbro/realpath.h bigbro/syscalls/darwin.h bigbro/syscalls/freebsd.h bigbro/syscalls/linux.h
-	${CC-gcc} ${CFLAGS-} -Ibigbro -std=c99 -o bigbro/bigbro-linux.o -c bigbro/bigbro-linux.c
+	gcc ${CFLAGS-} -Ibigbro -std=c99 -o bigbro/bigbro-linux.o -c bigbro/bigbro-linux.c
 
 clean.o : clean.c errors.h fac.h lib/iterablehash.h lib/listset.h lib/sha1.h
-	${CC-gcc} ${CFLAGS-} -Ibigbro -std=c99 -o clean.o -c clean.c
+	gcc ${CFLAGS-} -Ibigbro -std=c99 -o clean.o -c clean.c
 
 environ.o : environ.c environ.h lib/sha1.h
-	${CC-gcc} ${CFLAGS-} -Ibigbro -std=c99 -o environ.o -c environ.c
+	gcc ${CFLAGS-} -Ibigbro -std=c99 -o environ.o -c environ.c
 
 version-identifier.h : .git/HEAD .git/config .git/packed-refs .gitignore .gnupg/pubring.gpg .gnupg/secring.gpg .gnupg/trustdb.gpg .travis.yml COPYING Makefile.linux README.md Vagrantfile bench/bench.py bench/cats.py bench/dependentchains.py bench/generate-plots.py bench/hierarchy.py bench/sleepy.py bigbro/.gitignore bigbro/bench/du-home.sh bigbro/bench/du-user.sh bigbro/bench/untar.sh bigbro/bench/untar.sh.prep bigbro/bigbro-freebsd.c bigbro/bigbro-linux.c bigbro/bigbro.h bigbro/errors.h bigbro/fileaccesses.c bigbro/hashset.h bigbro/intmap.c bigbro/intmap.h bigbro/iterablehash.c bigbro/iterablehash.h bigbro/linux-proc.h bigbro/posixmodel.c bigbro/posixmodel.h bigbro/realpath.h bigbro/run-tests.py bigbro/syscalls.fac bigbro/syscalls/categorize_bsd_syscalls.py bigbro/syscalls/categorized_bsd_syscalls.py bigbro/syscalls/darwin.py bigbro/syscalls/darwin/syscalls.master bigbro/syscalls/freebsd.py bigbro/syscalls/freebsd/syscalls.master bigbro/syscalls/gentables.py bigbro/syscalls/linux.py bigbro/syscalls/linux/unistd_32.h bigbro/syscalls/linux/unistd_64.h bigbro/syscalls/master.py bigbro/tests/__init__.py bigbro/tests/broken-symlink.c bigbro/tests/broken-symlink.py bigbro/tests/build-bigbro.py bigbro/tests/build-bigbro.sh bigbro/tests/build-bigbro.sh.prep bigbro/tests/forks.c bigbro/tests/forks.py bigbro/tests/git-clone.py bigbro/tests/git-clone.sh bigbro/tests/helper.py bigbro/tests/ln-s.py bigbro/tests/ln-s.sh bigbro/tests/null-static.c bigbro/tests/null-static.py bigbro/tests/null.c bigbro/tests/null.py bigbro/tests/openat.c bigbro/tests/openat.py bigbro/tests/stat.c bigbro/tests/stat.py bigbro/tests/symlinkat.c bigbro/tests/symlinkat.py bigbro/tests/symlinks.py bigbro/tests/symlinks.sh bigbro/tests/vforks.c bigbro/tests/vforks.py bugs/parallel-build.sh build-freebsd.sh build-linux.sh clean.c configure.fac configure.py environ.c environ.h errors.h fac.c fac.h files.c generate-version-header.py git.c git.py lib/.gitignore lib/bsdtest.c lib/categorize_bsd_syscalls.py lib/categorized_bsd_syscalls.py lib/darwin-syscalls.py lib/darwin/syscalls.master lib/freebsd-syscalls.py lib/freebsd/syscalls.master lib/gentables.py lib/intmap.c lib/intmap.h lib/iterablehash.c lib/iterablehash.h lib/linux-syscalls.py lib/linux/unistd_32.h lib/linux/unistd_64.h lib/listset.c lib/listset.h lib/master.py lib/posixmodel.c lib/posixmodel.h lib/sha1.c lib/sha1.h mkdir.c new-build.c new-build.h run-tests.py targets.c tests/adding-missing-rule.sh tests/assertion-fails.c tests/assertion-fails.sh tests/bad-fac-file.sh tests/broken-latex.sh tests/build-tarball.sh tests/building-fac-from-git.sh tests/cache-handling.sh tests/cache-in-home-as-symlink.sh tests/cached-output-changing.sh tests/can-be-built-things-first.sh tests/changed-input.sh tests/changing-set-of-fac-rules.sh tests/clean-with-git-rules.sh tests/clean.sh tests/command-fails-but-produces-files.sh tests/count-build-steps.sh tests/dependency-chain.sh tests/dependency-cycle.sh tests/dependency.sh tests/duplicate-implicit-outputs.sh tests/duplicate-rule.sh tests/edited-cache.sh tests/enviorment-variables.sh tests/estimate-time.sh tests/explicit-build-arguments.sh tests/facfile-from-failed-command.sh tests/fail-on-two-rules-one-output.sh tests/failing-build-fails.sh tests/failing-build-of-dependency.sh tests/former-dependency-removed.sh tests/generating-facfiles.sh tests/getting-started.py tests/getting-started.sh tests/git-add-missing.sh tests/git-clone-rule.sh tests/git-dir.sh tests/git-implicit-missing.sh tests/help.sh tests/implicit-dependency-removed-and-not-needed.sh tests/implicit-output-in-subdirectory.sh tests/implicit-output-with-existing-files.sh tests/iterable_hash_test.c tests/listset.c tests/log-output.sh tests/lost-dependencies.sh tests/missing-input.sh tests/missing-output-file.sh tests/newly-missing-output.sh tests/nice-error-message-on-missing-file.sh tests/no-fac-file.sh tests/no-pointless-rebuild.sh tests/no-rule-for-explicit-build.sh tests/non-default-depending-on-default.sh tests/non-default-rules.sh tests/one-rule-wait-for-others.sh tests/output-outside-directory.sh tests/persist-after-failure.sh tests/quiet-on-success.sh tests/readdir-handling.sh tests/readdir-subdir.sh tests/readdir.sh tests/rebuild-when-needed.sh tests/rename-repository.sh tests/run-ghc.sh tests/script-generates-two-facfiles.sh tests/separate-git-dir.sh tests/spinner.c tests/stdout-handled.sh tests/stdout-with-error-and-log.sh tests/subtle-rule-generates-varying-stuff.sh tests/symlink-creation.sh tests/symlink-handling.sh vagrant/provision-debian.sh web/.gitignore web/benchmarks.md web/building.md web/docnav.md web/documentation.md web/fac-vs-scons.md web/faq.md web/features.md web/file-format.md web/flags.md web/getting-started.md web/index.md web/introducing-fac.md web/kells-fac-hires.svg web/kells-fac.svg web/mkdown.py web/normalize.scss web/sidebar.md web/signatures.md web/style.scss web/template.html web/todo.md
 	python3 generate-version-header.py > version-identifier.h
 
 fac.o : errors.h fac.c fac.h lib/iterablehash.h lib/listset.h lib/sha1.h new-build.h version-identifier.h
-	${CC-gcc} ${CFLAGS-} -Ibigbro -std=c99 -o fac.o -c fac.c
+	gcc ${CFLAGS-} -Ibigbro -std=c99 -o fac.o -c fac.c
 
 files.o : environ.h errors.h fac.h files.c lib/iterablehash.h lib/listset.h lib/sha1.h
-	${CC-gcc} ${CFLAGS-} -Ibigbro -std=c99 -o files.o -c files.c
+	gcc ${CFLAGS-} -Ibigbro -std=c99 -o files.o -c files.c
 
 git.o : errors.h fac.h git.c lib/iterablehash.h lib/listset.h lib/sha1.h
-	${CC-gcc} ${CFLAGS-} -Ibigbro -std=c99 -o git.o -c git.c
+	gcc ${CFLAGS-} -Ibigbro -std=c99 -o git.o -c git.c
 
 lib/intmap.o : lib/intmap.c lib/intmap.h
-	cd lib && ${CC-gcc} ${CFLAGS-} -Ibigbro -std=c99 -o intmap.o -c intmap.c
+	cd lib && gcc ${CFLAGS-} -Ibigbro -std=c99 -o intmap.o -c intmap.c
 
 lib/iterablehash.o : lib/iterablehash.c lib/iterablehash.h
-	cd lib && ${CC-gcc} ${CFLAGS-} -Ibigbro -std=c99 -o iterablehash.o -c iterablehash.c
+	cd lib && gcc ${CFLAGS-} -Ibigbro -std=c99 -o iterablehash.o -c iterablehash.c
 
 lib/listset.o : lib/listset.c lib/listset.h
-	cd lib && ${CC-gcc} ${CFLAGS-} -Ibigbro -std=c99 -o listset.o -c listset.c
+	cd lib && gcc ${CFLAGS-} -Ibigbro -std=c99 -o listset.o -c listset.c
 
 lib/sha1.o : lib/sha1.c lib/sha1.h
-	cd lib && ${CC-gcc} ${CFLAGS-} -Ibigbro -std=c99 -o sha1.o -c sha1.c
+	cd lib && gcc ${CFLAGS-} -Ibigbro -std=c99 -o sha1.o -c sha1.c
 
 mkdir.o : errors.h fac.h lib/iterablehash.h lib/listset.h lib/sha1.h mkdir.c
-	${CC-gcc} ${CFLAGS-} -Ibigbro -std=c99 -o mkdir.o -c mkdir.c
+	gcc ${CFLAGS-} -Ibigbro -std=c99 -o mkdir.o -c mkdir.c
 
 new-build.o : bigbro/bigbro.h environ.h errors.h fac.h lib/iterablehash.h lib/listset.h lib/sha1.h new-build.c new-build.h
-	${CC-gcc} ${CFLAGS-} -Ibigbro -std=c99 -o new-build.o -c new-build.c
+	gcc ${CFLAGS-} -Ibigbro -std=c99 -o new-build.o -c new-build.c
 
 targets.o : fac.h lib/iterablehash.h lib/listset.h lib/sha1.h targets.c
-	${CC-gcc} ${CFLAGS-} -Ibigbro -std=c99 -o targets.o -c targets.c
+	gcc ${CFLAGS-} -Ibigbro -std=c99 -o targets.o -c targets.c
 
 fac : bigbro/bigbro-linux.o clean.o environ.o fac.o files.o git.o lib/intmap.o lib/iterablehash.o lib/listset.o lib/sha1.o mkdir.o new-build.o targets.o
-	${CC-gcc} -o fac fac.o files.o targets.o clean.o new-build.o git.o environ.o mkdir.o bigbro/bigbro-linux.o lib/listset.o lib/iterablehash.o lib/intmap.o lib/sha1.o ${LDFLAGS-} -lpopt -lpthread -lm
+	gcc -o fac fac.o files.o targets.o clean.o new-build.o git.o environ.o mkdir.o bigbro/bigbro-linux.o lib/listset.o lib/iterablehash.o lib/intmap.o lib/sha1.o ${LDFLAGS-} -lpopt -lpthread -lm
 

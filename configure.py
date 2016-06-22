@@ -40,8 +40,8 @@ else:
     print('# We are minimal')
     possible_flags.remove('-std=c11')
     cc = os.getenv('CC', 'oopsies')
-    variants = {'': {'cc': os.getenv('CC', '${CC-gcc}'),
-                     'flags': [os.getenv('CFLAGS', '${CFLAGS-} -Ibigbro')],
+    variants = {'': {'cc': os.getenv('CC', 'gcc'),
+                     'flags': [os.getenv('CFLAGS', '${CFLAGS} -Ibigbro')],
                      'linkflags': [os.getenv('LDFLAGS', '${LDFLAGS-}')],
                      'os': platform.system().lower(),
                      'arch': platform.machine()}}
