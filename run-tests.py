@@ -40,6 +40,7 @@ if system('MINIMAL=1 ./fac --makefile Makefile.%s --script build-%s.sh fac'
           % (platform.system().lower(), platform.system().lower())):
     print 'Build failed!'
     exit(1)
+system('chmod +x build-%s.sh' % platform.system().lower())
 
 if system('./fac'):
     print 'Build failed!'
