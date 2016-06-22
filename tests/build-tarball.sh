@@ -24,8 +24,8 @@ tar xvzf $tarname
 cd fac-*
 
 ls -lh
-cat build-linux.sh
-sh build-linux.sh
+cat build/linux.sh
+sh build/linux.sh
 
 cat README.md
 

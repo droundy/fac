@@ -7,6 +7,9 @@ myplatform = sys.platform
 if myplatform == 'linux2':
     myplatform = 'linux'
 
+have_sass = os.system('sass -h > /dev/null') == 0
+have_help2man = os.system('help2man -h > /dev/null') == 0
+have_checkinstall = os.system('checkinstall -h > /dev/null') == 0
 
 os.system('rm -rf testing-flags')
 os.mkdir('testing-flags');
@@ -121,20 +124,6 @@ if '-lpopt' not in linkflags:
     print('# this is all we can do with %s so far' % variant)
     exit(0)
 
-print('| %s -o fac%s %s' %
-      (cc, variant_name,
-       ' '.join(['%s%s.o' % (s, variant_name) for s in sources]
-                + ['bigbro/bigbro-%s.o' % myplatform]
-                + ['lib/%s%s.o' % (s, variant_name) for s in libsources]
-                + linkflags)))
-print('< bigbro/bigbro-%s.o' % myplatform)
-for s in sources:
-    print('< %s%s.o' % (s, variant_name))
-for s in libsources:
-    print('< lib/%s%s.o' % (s, variant_name))
-print('> fac%s' % variant_name)
-print()
-
 ctests = ['listset', 'spinner', 'iterable_hash_test', 'assertion-fails']
 
 for test in ctests:
@@ -153,3 +142,49 @@ for test in ctests:
     print()
 
 os.system('rm -rf testing-flags')
+
+
+def build_fac(postfix=''):
+    print('| %s -o fac%s%s %s' %
+          (cc, variant_name, postfix,
+           ' '.join(['%s%s.o' % (s, variant_name) for s in sources]
+                    + ['bigbro/bigbro-%s.o' % myplatform]
+                    + ['lib/%s%s.o' % (s, variant_name) for s in libsources]
+                    + linkflags)))
+    print('< bigbro/bigbro-%s.o' % myplatform)
+    for s in sources:
+        print('< %s%s.o' % (s, variant_name))
+    for s in libsources:
+        print('< lib/%s%s.o' % (s, variant_name))
+    print('> fac%s%s' % (variant_name, postfix))
+    print()
+
+build_fac()
+if variant_name == '':
+    linkflags = ['-static']+linkflags
+    build_fac('-static')
+    linkflags = linkflags[1:]
+    if have_checkinstall and have_help2man:
+        print('''
+| checkinstall -D --fstrans=yes --pkglicense=gplv2+ --pkgname fac -y --strip=yes --deldoc=yes --deldesc=yes --delspec=yes --install=no --pakdir=web --pkgversion=`git describe --dirty` sh build/install.sh
+< fac-static
+< fac.1
+''')
+    else:
+        print("# no checkinstall+help2man, so we won't build a debian package")
+
+if have_help2man:
+    print('''
+| help2man --no-info fac > fac.1
+< fac''')
+else:
+    print("# no help2man, so we won't build the web page")
+
+if have_sass:
+    print('''
+| sass -I. web/style.scss web/style.css
+> web/style.css
+C .sass-cache
+''')
+else:
+    print("# no sass, so we won't build style.css")

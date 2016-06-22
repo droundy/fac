@@ -20,7 +20,7 @@ cd new-fac
 cp -r ../../../.git .
 git checkout .
 
-sh build-linux.sh
+sh build/linux.sh
 
 ./fac
 
