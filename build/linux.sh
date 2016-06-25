@@ -36,3 +36,4 @@ set -ev
 
 (gcc -o fac fac.o files.o targets.o clean-all.o build.o git.o environ.o mkdir.o bigbro/bigbro-linux.o lib/listset.o lib/iterablehash.o lib/intmap.o lib/sha1.o ${LDFLAGS-} -lpopt -lpthread -lm)
 
+rm -rf bigbro
