@@ -37,7 +37,7 @@ if system('MINIMAL=1 ./fac --script build/%s.sh -i version-identifier.h -i READM
     exit(1)
 
 if system('MINIMAL=1 ./fac --script build/%s.sh fac'
-          % (platform.system().lower(), platform.system().lower())):
+          % (platform.system().lower())):
     print 'Build failed!'
     exit(1)
 system('echo rm -rf bigbro >> build/%s.sh' % platform.system().lower())
