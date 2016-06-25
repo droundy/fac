@@ -11,7 +11,6 @@ git init
 cat > git-cloning.fac <<EOF
 | if cd fac-testing; then git pull; else git clone --depth 3 git://github.com/droundy/fac.git fac-testing; fi
 > fac-testing/configure.fac
-> fac-testing/bigbro/syscalls.fac
 C fac-testing/.git/ref/
 EOF
 git add git-cloning.fac
