@@ -1,6 +1,0 @@
-#!/bin/sh
-
-set -ev
-
-cd tmp
-tar cf test.tar /usr/share/texmf

@@ -462,23 +462,16 @@ struct building {
 static void *run_bigbrother(void *ptr) {
   struct building *b = ptr;
 
-  const char **args = malloc(4*sizeof(char *));
   b->readdir = 0;
   b->read = 0;
   b->written = 0;
 
-  args[0] = "/bin/sh";
-  args[1] = "-c";
-  args[2] = b->rule->command;
-  args[3] = 0;
-
   double started = double_time();
   int ret = bigbro(b->rule->working_directory,
                    &b->child_pid,
-                   b->stdouterrfd,
-                   (char **)args,
+                   b->stdouterrfd, b->stdouterrfd, 0,
+                   b->rule->command,
                    &b->readdir, &b->read, &b->written);
-  free(args);
 
   b->build_time = double_time() - started;
   // memory barrier to ensure b->all_done is not modified before we

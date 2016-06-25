@@ -101,17 +101,6 @@ for variant in variants.keys():
 
     libsources = ['listset', 'iterablehash', 'intmap', 'sha1']
 
-    print('''
-| %s %s -o bigbro/bigbro-%s%s.o -c bigbro/bigbro-%s.c
-< bigbro/syscalls/linux.h
-< bigbro/syscalls/freebsd.h
-< bigbro/syscalls/darwin.h
-> bigbro/bigbro-%s%s.o
-
-| %s %s -o bigbro/bigbro%s bigbro/bigbro-%s.c bigbro/fileaccesses.c
-''' % (cc, ' '.join(flags), myplatform, variant, myplatform, myplatform, variant,
-           cc, ' '.join(flags), variant, myplatform))
-
     for s in sources:
         print('| %s %s -o %s%s.o -c %s.c' % (cc, ' '.join(flags), s, variant, s))
         print('> %s%s.o' % (s, variant))

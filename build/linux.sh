@@ -2,13 +2,11 @@
 
 set -ev
 
-(cd bigbro && python3 syscalls/darwin.py > syscalls/darwin.h)
-
-(cd bigbro && python3 syscalls/freebsd.py > syscalls/freebsd.h)
+(if cd bigbro; then git pull; else git clone https://github.com/droundy/bigbro; fi)
 
 (cd bigbro && python3 syscalls/linux.py > syscalls/linux.h)
 
-(gcc ${CFLAGS} -Ibigbro -std=c99 -o bigbro/bigbro-linux.o -c bigbro/bigbro-linux.c)
+(cd bigbro && ${CC-gcc} ${CFLAGS--O2} -Wall -Werror -std=c99 -g -mtune=native -c bigbro-linux.c)
 
 (gcc ${CFLAGS} -Ibigbro -std=c99 -o build.o -c build.c)
 

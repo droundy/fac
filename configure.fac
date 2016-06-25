@@ -4,20 +4,12 @@ C .git/objects
 C .git/refs
 C .git/index
 
+| if cd bigbro; then git pull; else git clone https://github.com/droundy/bigbro; fi
+> bigbro/configure.fac
+C bigbro/.git/
+
 | python3 configure.py > .fac
 > .fac
-
-| python2 lib/linux-syscalls.py > lib/linux-syscalls.h
-> lib/linux-syscalls.h
-c .pyc
-
-| python2 lib/freebsd-syscalls.py > lib/freebsd-syscalls.h
-> lib/freebsd-syscalls.h
-c .pyc
-
-| python2 lib/darwin-syscalls.py > lib/darwin-syscalls.h
-> lib/darwin-syscalls.h
-c .pyc
 
 | python2 web/mkdown.py
 > web/index.html
