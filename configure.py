@@ -19,14 +19,6 @@ int main() {
   return 0;
 }
 """)
-with open('testing-flags/have-popt.c', 'w') as f:
-    f.write("""
-#include <popt.h>
-
-int main() {
-  return 0;
-}
-""")
 
 # add , '-fprofile-arcs', '-ftest-coverage' to both of the following
 # lines in order to enable gcov coverage testing
@@ -34,7 +26,7 @@ optional_flags = ['-Wall', '-Werror', '-O2']
 optional_linkflags = ['-lprofiler']
 
 possible_flags = ['-std=c11', '-std=c99']
-possible_linkflags = ['-lpopt', '-lpthread', '-lm']
+possible_linkflags = ['-lpthread', '-lm']
 
 if os.getenv('MINIMAL') == None:
     print('# We are not minimal')
@@ -72,8 +64,6 @@ else:
 
 def compile_works(flags):
     return not os.system('%s %s -c -o testing-flags/test.o testing-flags/test.c' % (cc, ' '.join(flags)))
-def have_popt(flags):
-    return not os.system('%s %s -c -o testing-flags/test.o testing-flags/have-popt.c' % (cc, ' '.join(flags)))
 def link_works(flags):
     cmd = '%s -o testing-flags/test testing-flags/test.c %s' % (cc, ' '.join(flags))
     print('# trying', cmd, file=sys.stdout)
@@ -113,15 +103,12 @@ for variant in variants.keys():
     variants[variant]['flags'] = flags
     variants[variant]['linkflags'] = linkflags
 
-    sources = ['fac', 'files', 'targets', 'clean-all', 'build', 'git', 'environ', 'mkdir']
+    sources = ['fac', 'files', 'targets', 'clean-all', 'build', 'git', 'environ',
+               'mkdir', 'arguments']
 
     libsources = ['listset', 'iterablehash', 'intmap', 'sha1']
 
     for s in sources:
-        if s == 'fac' and not have_popt(flags):
-            print('# unable to use popt with %s, therefore skipping fac' %cc)
-            continue
-
         print('| %s %s -o %s%s.o -c %s.c' % (cc, ' '.join(flags), s, variant, s))
         print('> %s%s.o' % (s, variant))
         if s == 'fac':
@@ -133,26 +120,23 @@ for variant in variants.keys():
         print('> lib/%s%s.o' % (s, variant))
         print()
 
-    if '-lpopt' not in linkflags:
-        print('# this is all we can do with %s so far' % variant)
-        exit(0)
-
     ctests = ['listset', 'spinner', 'iterable_hash_test', 'assertion-fails']
 
-    for test in ctests:
-        print('| %s '%cc+' '.join(linkflags)+' -o tests/%s%s.test' % (test, variant),
-              'tests/%s%s.o' % (test, variant),
-              ' '.join(['lib/%s%s.o' % (s, variant) for s in libsources]))
-        print('> tests/%s%s.test' % (test, variant))
-        print('< tests/%s%s.o' % (test, variant))
-        for s in libsources:
-            print('< lib/%s%s.o' % (s, variant))
-        print()
+    if variant != '-win':
+        for test in ctests:
+            print('| %s '%cc+' '.join(linkflags)+' -o tests/%s%s.test' % (test, variant),
+                  'tests/%s%s.o' % (test, variant),
+                  ' '.join(['lib/%s%s.o' % (s, variant) for s in libsources]))
+            print('> tests/%s%s.test' % (test, variant))
+            print('< tests/%s%s.o' % (test, variant))
+            for s in libsources:
+                print('< lib/%s%s.o' % (s, variant))
+            print()
 
-        print('| cd tests && %s %s -o %s%s.o -c %s.c'
-              % (cc, ' '.join(flags), test, variant, test))
-        print('> tests/%s%s.o' % (test, variant))
-        print()
+            print('| cd tests && %s %s -o %s%s.o -c %s.c'
+                  % (cc, ' '.join(flags), test, variant, test))
+            print('> tests/%s%s.o' % (test, variant))
+            print()
 
     def build_fac(postfix=''):
         print('| %s -o fac%s%s %s' %
@@ -169,11 +153,22 @@ for variant in variants.keys():
         print('> fac%s%s' % (variant, postfix))
         print()
 
-    build_fac()
-    # if variant == '':
-    #     linkflags = ['-static']+linkflags
-    #     build_fac('-static')
-    #     linkflags = linkflags[1:]
+    if variant != '-win':
+        build_fac()
+    else:
+        print('| %s -o fac.exe %s' %
+              (cc,
+               ' '.join(['%s%s.o' % (s, variant) for s in sources]
+                        + ['bigbro/libbigbro-windows.a']
+                        + ['lib/%s%s.o' % (s, variant) for s in libsources]
+                        + linkflags)))
+        print('< bigbro/libbigbro-windows.a')
+        for s in sources:
+            print('< %s%s.o' % (s, variant))
+        for s in libsources:
+            print('< lib/%s%s.o' % (s, variant))
+        print('> fac.exe')
+        print()
 
 os.system('rm -rf testing-flags')
 

@@ -2,6 +2,8 @@
 
 set -ev
 
+(gcc ${CFLAGS} -Ibigbro -std=c99 -o arguments.o -c arguments.c)
+
 (if cd bigbro; then git pull; else git clone https://github.com/droundy/bigbro; fi)
 
 (cd bigbro && python3 syscalls/linux.py > syscalls/linux.h)
@@ -34,6 +36,6 @@ set -ev
 
 (gcc ${CFLAGS} -Ibigbro -std=c99 -o targets.o -c targets.c)
 
-(gcc -o fac fac.o files.o targets.o clean-all.o build.o git.o environ.o mkdir.o bigbro/bigbro-linux.o lib/listset.o lib/iterablehash.o lib/intmap.o lib/sha1.o ${LDFLAGS-} -lpopt -lpthread -lm)
+(gcc -o fac fac.o files.o targets.o clean-all.o build.o git.o environ.o mkdir.o arguments.o bigbro/bigbro-linux.o lib/listset.o lib/iterablehash.o lib/intmap.o lib/sha1.o ${LDFLAGS-} -lpthread -lm)
 
 rm -rf bigbro

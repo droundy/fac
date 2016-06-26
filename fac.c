@@ -20,8 +20,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <popt.h>
 #include <sys/time.h>
+
+#include "arguments.h"
 
 #include "fac.h"
 #include "build.h"
@@ -52,58 +53,53 @@ static const char **include_in_tar = 0;
 
 int main(int argc, const char **argv) {
   initialize_starting_time();
-  struct poptOption optionsTable[] = {
-    { "jobs", 'j', POPT_ARG_INT, &num_jobs, 0,
-      "the number of jobs to run simultaneously", "JOBS" },
-    { "clean", 'c', POPT_ARG_NONE, &clean_me, 0,
-      "clean the build outputs", 0 },
-    { "continual", 0, POPT_ARG_NONE, &continually_build, 0,
-      "keep rebuilding", 0 },
-    { "verbose", 'v', POPT_ARG_NONE, &verbose, 0,
-      "give verbose output", 0 },
-    { "show-output", 'V', POPT_ARG_NONE, &show_output, 0,
-      "show command output", 0 },
-    { "log-output", 'l', POPT_ARG_STRING, &log_directory, 0,
-      "log command output to directory", "LOG_DIRECTORY" },
-    { "git-add", 0, POPT_ARG_NONE, &git_add_flag, 0,
-      "git add needed files", 0 },
-    { "dotfile", 0, POPT_ARG_STRING, &create_dotfile, 0,
-      "create a dotfile to visualize dependencies", "Dotfile" },
-    { "makefile", 0, POPT_ARG_STRING, &create_makefile, 0,
-      "create a makefile", "Makefile" },
-    { "tupfile", 0, POPT_ARG_STRING, &create_tupfile, 0,
-      "create a tupfile", "TUPFILE" },
-    { "script", 0, POPT_ARG_STRING, &create_script, 0,
-      "create a build script", "SCRIPTFILE" },
-    { "tar", 0, POPT_ARG_STRING, &create_tarball, 0,
-      "create a tar archive", "TARNAME.tar" },
-    { "include-in-tar", 'i', POPT_ARG_ARGV, &include_in_tar, 0,
-      "include file in tarball", "FILENAME" },
-    { "version", 'V', POPT_ARG_NONE, &show_version, 0,
-      "display the version", 0 },
-    POPT_AUTOHELP
-    { NULL, 0, 0, NULL, 0 }
-  };
 
-  poptContext optCon = poptGetContext(NULL, argc, argv, optionsTable, 0);
-  poptSetOtherOptionHelp(optCon, "[OPTIONS] [TARGETS]");
+  int_argument("jobs", 'j', &num_jobs,
+               "the number of jobs to run simultaneously", "JOBS");
+  no_argument("clean", 'c', (bool *)&clean_me,
+              "clean the build outputs");
+  no_argument("continual", 0, (bool *)&continually_build,
+              "keep rebuilding");
+  no_argument("verbose", 'v', (bool *)&verbose,
+              "show verbose output");
+  string_argument("log-output", 'l', &log_directory,
+                  "log command output to directory", "LOG_DIRECTORY");
+  no_argument("show-output", 'V', (bool *)&show_output,
+              "show command output");
+  no_argument("git-add", 0, (bool *)&git_add_flag,
+              "git add needed files");
+  string_argument("dotfile", 0, &create_dotfile,
+                  "create a dotfile to visualize dependencies", "DOTFILE");
+  string_argument("makefile", 0, &create_makefile,
+                  "create a makefile", "MAKEFILE");
+  string_argument("tupfile", 0, &create_tupfile,
+                  "create a tupfile", "TUPFILE");
+  string_argument("script", 0, &create_script,
+                  "create a build script", "SCRIPTFILE");
+  string_argument("tar", 0, &create_tarball,
+                  "create a tar archive", "TARNAME.tar[.gz]");
+  string_argument_list("include-in-tar", 'i', &include_in_tar,
+                       "include in tarball", "FILENAME");
+  no_argument("version", 'V', (bool *)&show_version,
+              "display the version");
 
-  while (poptGetNextOpt(optCon) >= 0);
+  listset *cmd_line_args = 0;
+  {
+    const char **extra_args = parse_arguments_return_extras(argv);
+    if (extra_args) {
+      char *cwd = getcwd(0,0);
+      for (const char **arg = extra_args; *arg; arg++) {
+        char *abspath = absolute_path(cwd, *arg);
+        insert_to_listset(&cmd_line_args, abspath);
+      }
+      free(cwd);
+    }
+  }
 
   if (show_version) {
     printf("fac version %s\n", version_identifier);
     exit(0);
   }
-
-  listset *cmd_line_args = 0;
-  const char *arg;
-  char *cwd = getcwd(0,0);
-  while ((arg = poptGetArg(optCon))) {
-    char *abspath = absolute_path(cwd, arg);
-    insert_to_listset(&cmd_line_args, abspath);
-  }
-  free(cwd);
-  poptFreeContext(optCon);
 
   root = go_to_git_top();
 
