@@ -13,7 +13,7 @@
 #define getcwd _getcwd
 #include <process.h> // for spawnvp
 
-int ReadChildProcess(char *cmdline, char **output) {
+int ReadChildProcess(char **output, char *cmdline) {
   HANDLE g_hChildStd_OUT_Rd = NULL;
   HANDLE g_hChildStd_OUT_Wr = NULL;
 
@@ -119,7 +119,7 @@ char *go_to_git_top() {
   int retval = ReadChildProcess(&buf, "git rev-parse --show-toplevel");
   if (retval) {
     free(buf);
-    return;
+    return 0;
   }
   int stdoutlen = strlen(buf);
 #else

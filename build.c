@@ -1116,7 +1116,13 @@ void do_actual_build(struct cmd_args *args) {
         strncpy(dirname, args->create_tarball, dirlen);
         dirname[dirlen] = 0;
         rm_recursive(dirname); // ignore errors, which are probably does-not-exist
-        if (mkdir(dirname, 0777)) {
+#ifdef _WIN32
+        int mkdir_error = _mkdir(dirname);
+#else
+        int mkdir_error = mkdir(dirname, 0777); // ignore failure
+#endif
+
+        if (mkdir_error) {
           error(1,errno, "Unable to create tar directory: %s", dirname);
         }
         for (int i=0; args->include_in_tar[i]; i++) {

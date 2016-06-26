@@ -1,6 +1,8 @@
 #define _XOPEN_SOURCE 500
 #include <stdio.h>
 #include <ftw.h>
+
+
 #include <unistd.h>
 #include <sys/stat.h>
 
@@ -9,7 +11,11 @@
 
 void create_directories(const char *dir) {
   create_parent_directories(dir);
+#ifdef _WIN32
+  mkdir(dir);
+#else
   mkdir(dir, 0777);
+#endif
 }
 
 void create_parent_directories(const char *fname) {

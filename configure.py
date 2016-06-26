@@ -14,7 +14,16 @@ have_checkinstall = os.system('checkinstall --version > /dev/null') == 0
 os.system('rm -rf testing-flags')
 os.mkdir('testing-flags');
 with open('testing-flags/test.c', 'w') as f:
-    f.write("""int main() {
+    f.write("""
+int main() {
+  return 0;
+}
+""")
+with open('testing-flags/have-popt.c', 'w') as f:
+    f.write("""
+#include <popt.h>
+
+int main() {
   return 0;
 }
 """)
@@ -43,7 +52,12 @@ if os.getenv('MINIMAL') == None:
                             'flags': [os.getenv('CFLAGS', '') + ' -Ibigbro'],
                             'linkflags': [os.getenv('LDFLAGS', '')],
                             'os': platform.system().lower(),
-                            'arch': platform.machine()}}
+                            'arch': platform.machine()},
+                '-win': {'cc': 'x86_64-w64-mingw32-gcc',
+                         'flags': ['-Ibigbro'],
+                         'linkflags': [''],
+                         'os': 'win32',
+                         'arch': 'amd64'}}
 else:
     print('# We are minimal')
     possible_flags.remove('-std=c11')
@@ -58,6 +72,8 @@ else:
 
 def compile_works(flags):
     return not os.system('%s %s -c -o testing-flags/test.o testing-flags/test.c' % (cc, ' '.join(flags)))
+def have_popt(flags):
+    return not os.system('%s %s -c -o testing-flags/test.o testing-flags/have-popt.c' % (cc, ' '.join(flags)))
 def link_works(flags):
     cmd = '%s -o testing-flags/test testing-flags/test.c %s' % (cc, ' '.join(flags))
     print('# trying', cmd, file=sys.stdout)
@@ -71,10 +87,10 @@ for variant in variants.keys():
 
     if not compile_works(flags):
         print('# unable to compile using %s %s -c test.c' % (cc, ' '.join(flags)))
-        exit(0)
+        continue
     if not link_works(linkflags):
         print('# unable to link using %s %s -o test test.c\n' % (cc, ' '.join(linkflags)))
-        exit(0)
+        continue
 
     for flag in possible_flags:
         if compile_works(flags+[flag]):
@@ -102,6 +118,10 @@ for variant in variants.keys():
     libsources = ['listset', 'iterablehash', 'intmap', 'sha1']
 
     for s in sources:
+        if s == 'fac' and not have_popt(flags):
+            print('# unable to use popt with %s, therefore skipping fac' %cc)
+            continue
+
         print('| %s %s -o %s%s.o -c %s.c' % (cc, ' '.join(flags), s, variant, s))
         print('> %s%s.o' % (s, variant))
         if s == 'fac':
