@@ -173,12 +173,17 @@ void read_fac_file(struct all_targets *all, const char *path) {
              the case where the home directory defined in $HOME
              actually is a symlink to the real home directory. */
           const char *home = realpath(getenv("HOME"), 0);
-          const int len = strlen(home) + strlen(prefix) + 1;
-          char *absolute_prefix = malloc(len);
-          strncpy(absolute_prefix, home, len);
-          strncat(absolute_prefix, prefix+1, len);
-          add_cache_prefix(therule, absolute_prefix);
-          free(absolute_prefix);
+          if (!home) {
+            fprintf(stderr, "ignoring %s directive since $HOME does not exist...\n",
+                    one_line);
+          } else {
+            const int len = strlen(home) + strlen(prefix) + 1;
+            char *absolute_prefix = malloc(len);
+            strncpy(absolute_prefix, home, len);
+            strncat(absolute_prefix, prefix+1, len);
+            add_cache_prefix(therule, absolute_prefix);
+            free(absolute_prefix);
+          }
         } else {
           char *path = absolute_path(the_directory, one_line+2);
           add_cache_prefix(therule, path);
