@@ -184,7 +184,7 @@ else:
 
 if have_help2man:
     print('''
-| help2man --no-info fac > fac.1
+| help2man --no-info ./fac > fac.1
 < fac''')
 else:
     print("# no help2man, so we won't build the web page")
