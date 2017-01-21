@@ -70,7 +70,9 @@ fi
 
 git diff
 
-git status | grep 'working directory clean'
+git status
+
+git status | egrep 'working (tree|directory) clean'
 
 sleep 1
 cat > junk <<EOF
