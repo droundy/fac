@@ -87,7 +87,8 @@ char *absolute_path(const char *dir, const char *rel) {
 
 const char *relative_path(const char *myroot, const char *path) {
   int len = strlen(myroot);
-  if (path[len] == '/' && !memcmp(path, myroot, len)) {
+  int pathlen = strlen(path);
+  if (pathlen > len && path[len] == '/' && !memcmp(path, myroot, len)) {
     return path + len + 1;
   }
   return path;
