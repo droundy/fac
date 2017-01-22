@@ -16,13 +16,33 @@ void clean_all(struct all_targets *all) {
       free(donef);
     }
   }
+  int max_depth = 0;
   for (struct rule *r = (struct rule *)all->r.first; r; r = (struct rule *)r->e.next) {
     for (int i=0;i<r->num_outputs;i++) {
       if (r->outputs[i]->status == unknown) {
+        if (path_depth(r->outputs[i]->path) > max_depth) {
+          max_depth = path_depth(r->outputs[i]->path);
+        }
         verbose_printf("rm %s\n", pretty_path(r->outputs[i]->path));
         verbose_printf("    %s\n", r->command);
         unlink(r->outputs[i]->path);
       }
     }
+  }
+  // The following bit is a hokey and inefficient bit of code to
+  // ensure that we will rmdir subdirectories prior to their
+  // superdirectories.  I don't bother checking if anything is a
+  // directory or not, and I recompute depths many times.
+  while (max_depth >= 0) {
+    for (struct rule *r = (struct rule *)all->r.first; r; r = (struct rule *)r->e.next) {
+      for (int i=0;i<r->num_outputs;i++) {
+        if (r->outputs[i]->status == unknown) {
+          if (path_depth(r->outputs[i]->path) == max_depth) {
+            rmdir(r->outputs[i]->path);
+          }
+        }
+      }
+    }
+    max_depth--;
   }
 }

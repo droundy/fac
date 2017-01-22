@@ -179,6 +179,19 @@ void add_git_files(struct all_targets *all);
 
 void init_all(struct all_targets *all);
 
+static inline int path_depth(const char *path) {
+  int len = strlen(root);
+  if (path[len] == '/' && !memcmp(path, root, len)) {
+    const char *sub = path + len + 1;
+    int total = 0;
+    for (int i=0; sub[i]; i++) {
+      if (sub[i] == '/') total++;
+    }
+    return total;
+  }
+  return -1;
+}
+
 static inline const char *pretty_path(const char *path) {
   int len = strlen(root);
   if (path[len] == '/' && !memcmp(path, root, len)) {

@@ -13,6 +13,18 @@ cat > top.fac <<EOF
 
 | echo welcome > foo/bar
 < foo
+
+| mkdir foo/subdir
+< foo
+
+| mkdir foo/subdir/subsub
+< foo/subdir
+
+| echo awesome > foo/subdir/subsub/great
+< foo/subdir/subsub
+
+| mkdir foo/subdir2
+< foo
 EOF
 
 git init
@@ -21,6 +33,7 @@ git add top.fac
 ../../fac
 
 grep welcome foo/bar
+grep awesome foo/subdir/subsub/great
 
 test -d foo
 

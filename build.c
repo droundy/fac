@@ -699,6 +699,11 @@ static void build_marked(struct all_targets *all, const char *log_directory,
               unlink(bs[i]->written[nn]);
             }
             free(bs[i]->written);
+            for (int nn=0; bs[i]->mkdir[nn]; nn++) {
+              // Delete any files that were created, so that they will
+              // be properly re-created next time this command is run.
+              rmdir(bs[i]->mkdir[nn]);
+            }
             free(bs[i]->mkdir);
             free(bs[i]);
             bs[i] = 0;
@@ -777,6 +782,7 @@ static void build_marked(struct all_targets *all, const char *log_directory,
               add_output(r, t);
               delete_from_array(bs[i]->read, r->outputs[ii]->path);
               delete_from_array(bs[i]->written, r->outputs[ii]->path);
+              delete_from_array(bs[i]->mkdir, r->outputs[ii]->path);
             }
           }
           if (!bs[i]) break; // happens if we failed to create an output
@@ -845,6 +851,38 @@ static void build_marked(struct all_targets *all, const char *log_directory,
                 t->rule = r;
                 t->status = unknown; // if it is a facfile, we haven't yet read it
                 find_target_sha1(t, "new output");
+                add_output(r, t);
+              }
+            }
+          }
+          for (int nn=0; bs[i]->mkdir[nn]; nn++) {
+            char *path = bs[i]->mkdir[nn];
+            // The following ignores creation of directories in the
+            // .git/ directory, in order to avoid situations where
+            // running fac -c cleans up such directories, causing
+            // repository corruption.  It also ignores paths that have
+            // been marked as "cache" paths by the user.
+            if (!is_git_path(path) && is_interesting_path(r, path)) {
+              struct target *t = lookup_target(all, path);
+              if (t) {
+                t->stat.time = 0;
+                t->stat.size = 0;
+              }
+              t = create_target_with_stat(all, path);
+              if (t && (t->is_dir)) {
+                if (path == pretty_path(path)) {
+                  erase_and_printf("error: created directory outside source directory: %s (%s)\n",
+                                   path, pretty_rule(r));
+                  rule_failed(all, r);
+                }
+                if (t->rule && t->rule != r) {
+                  erase_and_printf("error: two rules generate same output %s:\n\t%s\nand\n\t%s\n",
+                                   pretty_path(path), r->command, t->rule->command);
+                  rule_failed(all, r);
+                }
+                t->rule = r;
+                t->status = unknown; // if it is a facfile, we haven't yet read it
+                find_target_sha1(t, "mkdir output");
                 add_output(r, t);
               }
             }
