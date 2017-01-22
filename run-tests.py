@@ -49,6 +49,7 @@ if system('./fac'):
 
 numpassed = 0
 numfailed = 0
+numskipped = 0
 
 biggestname = max([len(f) for f in glob.glob('tests/*.sh') + glob.glob('tests/*.test')])
 
@@ -69,7 +70,11 @@ else:
 for sh in sorted(glob.glob('tests/*.sh')):
     write_script_name(sh)
     cmdline = 'bash %s > %s.log 2>&1' % (sh, sh)
-    if system(cmdline):
+    exitval = system(cmdline)
+    if exitval == 137:
+        print bcolors.OKBLUE+'SKIP', bcolors.ENDC
+        numskipped += 1
+    elif exitval:
         print bcolors.FAIL+'FAIL', bcolors.ENDC
         if '-v' in sys.argv:
             os.system('cat %s.log' % sh)
@@ -130,6 +135,8 @@ else:
 
 if expectedfailures:
     print pluralize(expectedfailures, 'expected failure')
+if numskipped:
+    print pluralize(numskipped, 'test'), 'skipped'
 
 if unexpectedpasses:
     print bcolors.FAIL+pluralize(unexpectedpasses, 'unexpected pass')+bcolors.ENDC
