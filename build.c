@@ -456,22 +456,23 @@ struct building {
   int stdouterrfd;
   double build_time;
   struct rule *rule;
-  char **readdir, **read, **written;
+  char **readdir, **mkdir, **read, **written;
 };
 
 static void *run_bigbrother(void *ptr) {
   struct building *b = ptr;
 
   b->readdir = 0;
+  b->mkdir = 0;
   b->read = 0;
   b->written = 0;
 
   double started = double_time();
-  int ret = bigbro(b->rule->working_directory,
-                   &b->child_pid,
-                   b->stdouterrfd, b->stdouterrfd, 0,
-                   b->rule->command,
-                   &b->readdir, &b->read, &b->written);
+  int ret = bigbro_with_mkdir(b->rule->working_directory,
+                              &b->child_pid,
+                              b->stdouterrfd, b->stdouterrfd, 0,
+                              b->rule->command,
+                              &b->readdir, &b->mkdir, &b->read, &b->written);
 
   b->build_time = double_time() - started;
   // memory barrier to ensure b->all_done is not modified before we
@@ -698,6 +699,7 @@ static void build_marked(struct all_targets *all, const char *log_directory,
               unlink(bs[i]->written[nn]);
             }
             free(bs[i]->written);
+            free(bs[i]->mkdir);
             free(bs[i]);
             bs[i] = 0;
             break;
@@ -752,6 +754,7 @@ static void build_marked(struct all_targets *all, const char *log_directory,
               free(bs[i]->read);
               free(bs[i]->readdir);
               free(bs[i]->written);
+              free(bs[i]->mkdir);
               free(bs[i]);
               bs[i] = 0;
               break;
@@ -856,6 +859,7 @@ static void build_marked(struct all_targets *all, const char *log_directory,
           free(bs[i]->read);
           free(bs[i]->readdir);
           free(bs[i]->written);
+          free(bs[i]->mkdir);
           free(bs[i]);
           bs[i] = 0;
         }
