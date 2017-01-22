@@ -2,6 +2,7 @@
 
 
 [![Build Status](https://travis-ci.org/droundy/fac.svg?branch=master)](https://travis-ci.org/droundy/fac)
+[![Build Status](https://semaphoreci.com/api/v1/droundy/fac/branches/master/shields_badge.svg)](https://semaphoreci.com/droundy/fac)
 
 Fac is a general-purpose build system inspired by make that utilizes
 ptrace to ensure that all dependences are enumerated and that all
