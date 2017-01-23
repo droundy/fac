@@ -56,6 +56,12 @@ static inline double double_time() {
 #endif
 }
 
+// The following is used for tracking paths to watch.
+struct a_path {
+  struct hash_entry e;
+  const char path[];
+};
+
 // This code determines if a file might be in the git repository.  We
 // whitelist the hooks directory, since it is reasonable (or
 // semireasonable) for rules to create files in there.
@@ -585,7 +591,7 @@ static void delete_from_array(char **array, const char *str) {
 
 static void build_marked(struct all_targets *all, const char *log_directory,
                          bool git_add_files, bool happy_building_at_least_one,
-                         bool ignore_missing_files) {
+                         bool ignore_missing_files, struct hash_table *files_to_watch) {
   int num_built_when_we_started = all->num_with_status[built];
   if (!all->lists[marked] && !all->lists[dirty]) {
     if (all->num_with_status[failed]) {
@@ -686,6 +692,26 @@ static void build_marked(struct all_targets *all, const char *log_directory,
                              pretty_status(bs[i]->all_done));
             am_interrupted = true;
             break;
+          }
+          if (files_to_watch) {
+            for (int nn=0; bs[i]->read[nn]; nn++) {
+              if (!lookup_in_hash(files_to_watch, bs[i]->read[nn])) {
+                struct a_path *foo = malloc(sizeof(struct a_path) + strlen(bs[i]->read[nn])+1);
+                foo->e.key = foo->path;
+                strcpy((char *)foo->path, bs[i]->read[nn]);
+                foo->e.next = 0;
+                add_to_hash(files_to_watch, &foo->e);
+              }
+            }
+            for (int nn=0; bs[i]->readdir[nn]; nn++) {
+              if (!lookup_in_hash(files_to_watch, bs[i]->readdir[nn])) {
+                struct a_path *foo = malloc(sizeof(struct a_path) + strlen(bs[i]->readdir[nn])+1);
+                foo->e.key = foo->path;
+                strcpy((char *)foo->path, bs[i]->readdir[nn]);
+                foo->e.next = 0;
+                add_to_hash(files_to_watch, &foo->e);
+              }
+            }
           }
 
           if (bs[i]->all_done == failed) {
@@ -1013,11 +1039,15 @@ static void build_marked(struct all_targets *all, const char *log_directory,
 #endif
 }
 
-void summarize_build_results(struct all_targets *all) {
+void summarize_build_results(struct all_targets *all, bool am_continual) {
   if (all->lists[failed] || all->num_with_status[failed]) {
     erase_and_printf("Build failed %d/%d failures\n", all->num_with_status[failed],
                      all->num_with_status[failed] + all->num_with_status[built]);
-    exit(1);
+    if (am_continual) {
+      printf("Waiting for change to try again...\n");
+    } else {
+      exit(1);
+    }
   } else {
     find_elapsed_time();
     erase_and_printf("Build succeeded! %.0f:%05.2f\n",
@@ -1032,6 +1062,12 @@ void do_actual_build(struct cmd_args *args) {
   do {
     struct all_targets all;
     init_all(&all);
+
+    struct hash_table *files_to_watch = 0;
+    if (args->continual) {
+      files_to_watch = (struct hash_table *)malloc(sizeof(struct hash_table));
+      init_hash_table(files_to_watch, 2048);
+    }
 
     bool still_reading;
     do {
@@ -1049,7 +1085,8 @@ void do_actual_build(struct cmd_args *args) {
         }
       }
       mark_facfiles(&all);
-      build_marked(&all, args->log_directory, args->git_add_files, true, still_reading);
+      build_marked(&all, args->log_directory, args->git_add_files, true, still_reading,
+                   files_to_watch);
       for (struct target *t = (struct target *)all.t.first; t; t = (struct target *)t->e.next) {
         if (t->status == unknown &&
             (!t->rule ||
@@ -1080,8 +1117,9 @@ void do_actual_build(struct cmd_args *args) {
       mark_all(&all);
     }
 
-    build_marked(&all, args->log_directory, args->git_add_files, false, false);
-    summarize_build_results(&all);
+    build_marked(&all, args->log_directory, args->git_add_files, false, false,
+                 files_to_watch);
+    summarize_build_results(&all, args->continual);
 
     if (args->create_dotfile || args->create_makefile || args->create_tupfile
         || args->create_script || args->create_tarball) {
@@ -1195,6 +1233,12 @@ void do_actual_build(struct cmd_args *args) {
           inotify_add_watch(ifd, t->path, IN_CLOSE_WRITE | IN_DELETE_SELF);
         }
       }
+      for (int i=0; i<files_to_watch->size; i++) {
+        if (files_to_watch->table[i]) {
+          inotify_add_watch(ifd, files_to_watch->table[i]->key,
+                            IN_CLOSE_WRITE | IN_DELETE_SELF);
+        }
+      }
       for (struct rule *r = (struct rule *)all.r.first; r; r = (struct rule *)r->e.next) {
         r->status = unknown;
       }
@@ -1211,8 +1255,16 @@ void do_actual_build(struct cmd_args *args) {
     }
 #endif
 
-    /* enable following line to check for memory leaks */
-    if (true) free_all_targets(&all);
+    free_all_targets(&all);
+    if (files_to_watch) {
+      // the following is a hokey and sloppy way to free all the
+      // entries, but freeing a linked list is a little tedious.
+      for (int i=0; i<files_to_watch->size; i++) {
+        if (files_to_watch->table[i]) free(files_to_watch->table[i]);
+      }
+      free_hash_table(files_to_watch);
+      free(files_to_watch);
+    }
   } while (!am_interrupted && args->continual);
 }
 

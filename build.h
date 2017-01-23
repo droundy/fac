@@ -9,8 +9,6 @@ void mark_facfiles(struct all_targets *all);
 void mark_all(struct all_targets *all);
 void mark_rule(struct all_targets *all, struct rule *r);
 
-void summarize_build_results(struct all_targets *all);
-
 struct cmd_args {
   const char *create_dotfile, *create_makefile, *create_tupfile,
     *create_script, *create_tarball, *log_directory;
