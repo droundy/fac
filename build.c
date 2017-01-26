@@ -1043,6 +1043,7 @@ void summarize_build_results(struct all_targets *all, bool am_continual) {
   if (all->lists[failed] || all->num_with_status[failed]) {
     erase_and_printf("Build failed %d/%d failures\n", all->num_with_status[failed],
                      all->num_with_status[failed] + all->num_with_status[built]);
+    fflush(stdout);
     if (am_continual) {
       printf("Waiting for change to try again...\n");
     } else {
@@ -1052,6 +1053,7 @@ void summarize_build_results(struct all_targets *all, bool am_continual) {
     find_elapsed_time();
     erase_and_printf("Build succeeded! %.0f:%05.2f\n",
                      elapsed_minutes, elapsed_seconds);
+    fflush(stdout);
   }
 }
 
