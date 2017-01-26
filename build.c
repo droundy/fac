@@ -1266,6 +1266,8 @@ void do_actual_build(struct cmd_args *args) {
       free(files_to_watch);
     }
   } while (!am_interrupted && args->continual);
+
+  free_listset(args->targets_requested); // avoid harmless memory leak
 }
 
 static void dump_to_stdout(int fd) {

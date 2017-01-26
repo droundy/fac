@@ -91,8 +91,10 @@ int main(int argc, const char **argv) {
       for (const char **arg = extra_args; *arg; arg++) {
         char *abspath = absolute_path(cwd, *arg);
         insert_to_listset(&cmd_line_args, abspath);
+        free(abspath); // insert_to_listset makes a copy
       }
       free(cwd);
+      free(extra_args);
     }
   }
 
