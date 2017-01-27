@@ -8,7 +8,7 @@ set -ev
 
 (cd bigbro && python3 syscalls/linux.py > syscalls/linux.h)
 
-(cd bigbro && gcc $CFLAGS -O2 -Wall -Werror -std=c99 -g -mtune=native -c bigbro-linux.c)
+(cd bigbro && gcc $CFLAGS -O2 -Wall -Werror -std=c99 -g -mtune=native -fpic -c bigbro-linux.c)
 
 (gcc ${CFLAGS} -Ibigbro -std=c99 -o build.o -c build.c)
 
