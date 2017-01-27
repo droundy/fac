@@ -589,6 +589,72 @@ static void delete_from_array(char **array, const char *str) {
   }
 }
 
+/**
+ * Extract parent path from given filename.
+ */
+static char* extract_parent_dirname(const char *fname) {
+  char *dirname = malloc(strlen(fname)+1);
+  strcpy(dirname, fname);
+  if (strrchr(dirname, '/')) {
+    *strrchr(dirname, '/') = 0; // remove last segment of dirname
+    return dirname;
+  }
+  free(dirname);
+  return NULL;
+}
+
+/**
+ * Find all input/output targets for all rules and update their timestamps
+ * to given target if they match.
+ */
+static void update_stats_for_target(struct all_targets *all, struct target *t) {
+  for (struct rule *r = (struct rule *)all->r.first; r; r = (struct rule *)r->e.next) {
+    for (int i=0;i<r->num_outputs;i++) {
+      if (r->outputs[i] == t) {
+        if (r->output_stats[i].time != t->stat.time) {
+          r->output_stats[i].time = t->stat.time;
+        }
+        break;
+      }
+    }
+    for (int i=0;i<r->num_inputs;i++) {
+      if (r->inputs[i] == t) {
+        if (r->input_stats[i].time != t->stat.time) {
+          r->input_stats[i].time = t->stat.time;
+        }
+        break;
+      }
+    }
+  }
+}
+
+/**
+ * Adding/removing children of a directory causes the parent directory timestamp to 
+ * be updated, causing inconsistencies later when reading cached stats from the .tum
+ * files since they'll be older than the on-disk timestamp. This can cause unnecessary
+ * rebuilds even when nothing really has changed. The following update_parent_dir()
+ * function should be called by build_marked() whenever a target is modified so that we
+ * can update the timestamps of its parent directory (if any).
+ *
+ * Update parent directory target (if any) timestamp to be the same as the given
+ * target, and then update the timestamps in associated stats as well.
+ */
+static void update_parent_dir(struct all_targets *all, const char *path, struct target *t) {
+  char* parent_path = extract_parent_dirname(path);
+  if (parent_path) {
+    struct target* parent_target = create_target_with_stat(all, parent_path);
+    /* Only proceed if parent is really a directory target. */
+    if (parent_target && parent_target->is_dir) {
+      if (parent_target->stat.time != t->stat.time) {
+        parent_target->stat.time = t->stat.time;
+      }
+      /* Update associated stats for this parent target. */
+      update_stats_for_target(all, parent_target);
+    }
+    free(parent_path);
+  }
+}
+
 static void build_marked(struct all_targets *all, const char *log_directory,
                          bool git_add_files, bool happy_building_at_least_one,
                          bool ignore_missing_files, struct hash_table *files_to_watch) {
@@ -863,21 +929,24 @@ static void build_marked(struct all_targets *all, const char *log_directory,
                 t->stat.size = 0;
               }
               t = create_target_with_stat(all, path);
-              if (t && (t->is_file || t->is_symlink)) {
-                if (path == pretty_path(path)) {
-                  erase_and_printf("error: created file outside source directory: %s (%s)\n",
-                                   path, pretty_rule(r));
-                  rule_failed(all, r);
+              if (t) {
+                update_parent_dir(all, path, t);
+                if (t->is_file || t->is_symlink) {
+                  if (path == pretty_path(path)) {
+                    erase_and_printf("error: created file outside source directory: %s (%s)\n",
+                                     path, pretty_rule(r));
+                    rule_failed(all, r);
+                  }
+                  if (t->rule && t->rule != r) {
+                    erase_and_printf("error: two rules generate same output %s:\n\t%s\nand\n\t%s\n",
+                                     pretty_path(path), r->command, t->rule->command);
+                    rule_failed(all, r);
+                  }
+                  t->rule = r;
+                  t->status = unknown; // if it is a facfile, we haven't yet read it
+                  find_target_sha1(t, "new output");
+                  add_output(r, t);
                 }
-                if (t->rule && t->rule != r) {
-                  erase_and_printf("error: two rules generate same output %s:\n\t%s\nand\n\t%s\n",
-                                   pretty_path(path), r->command, t->rule->command);
-                  rule_failed(all, r);
-                }
-                t->rule = r;
-                t->status = unknown; // if it is a facfile, we haven't yet read it
-                find_target_sha1(t, "new output");
-                add_output(r, t);
               }
             }
           }
@@ -895,21 +964,24 @@ static void build_marked(struct all_targets *all, const char *log_directory,
                 t->stat.size = 0;
               }
               t = create_target_with_stat(all, path);
-              if (t && (t->is_dir)) {
-                if (path == pretty_path(path)) {
-                  erase_and_printf("error: created directory outside source directory: %s (%s)\n",
-                                   path, pretty_rule(r));
-                  rule_failed(all, r);
+              if (t) {
+                update_parent_dir(all, path, t);
+                if (t->is_dir) {
+                  if (path == pretty_path(path)) {
+                    erase_and_printf("error: created directory outside source directory: %s (%s)\n",
+                                     path, pretty_rule(r));
+                    rule_failed(all, r);
+                  }
+                  if (t->rule && t->rule != r) {
+                    erase_and_printf("error: two rules generate same output %s:\n\t%s\nand\n\t%s\n",
+                                     pretty_path(path), r->command, t->rule->command);
+                    rule_failed(all, r);
+                  }
+                  t->rule = r;
+                  t->status = unknown; // if it is a facfile, we haven't yet read it
+                  find_target_sha1(t, "mkdir output");
+                  add_output(r, t);
                 }
-                if (t->rule && t->rule != r) {
-                  erase_and_printf("error: two rules generate same output %s:\n\t%s\nand\n\t%s\n",
-                                   pretty_path(path), r->command, t->rule->command);
-                  rule_failed(all, r);
-                }
-                t->rule = r;
-                t->status = unknown; // if it is a facfile, we haven't yet read it
-                find_target_sha1(t, "mkdir output");
-                add_output(r, t);
               }
             }
           }
