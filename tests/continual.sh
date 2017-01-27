@@ -39,7 +39,7 @@ git checkout bigbro.h
 # Sadly I don't see another solution to this than to guess at how long
 # the build will take.  Trouble is we waste time if we guess too long,
 # but the test may fail if we guess too short.
-sleep 30
+sleep 40
 
 cat continual-output
 
