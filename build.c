@@ -1228,6 +1228,7 @@ void do_actual_build(struct cmd_args *args) {
 
 #ifdef __linux__
     if (args->continual) {
+      initialize_starting_time();
       int ifd = inotify_init1(IN_CLOEXEC);
       for (struct target *t=(struct target *)all.t.first; t; t = (struct target *)t->e.next) {
         t->status = unknown;
