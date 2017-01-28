@@ -1083,7 +1083,7 @@ void free_lock() {
 
 bool fac_is_already_running() {
   find_lockfilename();
-  int lockfd = open(lockfilename, O_CREAT | O_EXCL);
+  int lockfd = open(lockfilename, O_CREAT | O_EXCL, 0666);
   if (lockfd >= 0) {
     close(lockfd);
     have_lock = true;
