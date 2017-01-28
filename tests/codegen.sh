@@ -71,19 +71,20 @@ print('''| gcc -o main %s ../lib.out/lib.a
 EOF
 
 mkdir inc
-cat > inc/foo.h <<EOF
+cat > inc/lib.h <<EOF
 extern int foo;
 EOF
 
 mkdir lib
 cat > lib/foo.c <<EOF
-#include <foo.h>
+#include <lib.h>
 int foo = 1;
 EOF
 
 mkdir main
 cat > main/main.c <<EOF
 #include <stdio.h>
+#include <lib.h>
 int main() {
   printf("success\n");
   return 0;
@@ -94,5 +95,21 @@ git init
 git add .
 
 fac
+fac
+
+cat >> inc/lib.h <<EOF
+extern int bar;
+EOF
+
+cat > lib/bar.c <<EOF
+#include <lib.h>
+int bar = 2;
+EOF
+git add lib/bar.c
+
+fac
+fac
+
+main.out/main
 
 exit 0
