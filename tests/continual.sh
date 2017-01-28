@@ -8,11 +8,6 @@ rm -rf $0.dir
 mkdir $0.dir
 cd $0.dir
 
-if ! which valgrind; then
-    echo there is no valgrind
-    exit 137
-fi
-
 git clone ../../bigbro
 
 cd bigbro
@@ -28,6 +23,7 @@ done
 sleep 1
 
 cat continual-output
+ls -lh continual-output
 
 grep 'Build failed' continual-output
 
@@ -44,6 +40,7 @@ while test -e .git/fac-lock; do
 done
 
 cat continual-output
+ls -lh continual-output
 
 grep 'Build succeeded' continual-output
 
