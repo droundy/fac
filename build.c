@@ -31,7 +31,6 @@
 #endif
 
 #include <unistd.h>
-#include <fcntl.h>
 #include <errno.h>
 #include <string.h>
 #include <signal.h>
@@ -41,6 +40,8 @@
 #include <semaphore.h>
 #include <pthread.h>
 #include <math.h>
+#include <stdlib.h>
+#include <fcntl.h>
 
 static listset *facfiles_used = 0;
 
@@ -1059,9 +1060,58 @@ void summarize_build_results(struct all_targets *all, bool am_continual) {
 
 sha1hash env;
 
+static bool have_lock = false;
+static char *lockfilename = 0;
+
+void find_lockfilename() {
+  if (!lockfilename) {
+    char *gitdir = git_revparse("--git-dir");
+    int len = 50 + strlen(gitdir);
+    lockfilename = malloc(len);
+    snprintf(lockfilename, len, "%s/fac-lock", gitdir);
+    free(gitdir);
+  }
+}
+
+void free_lock() {
+  if (have_lock) {
+    find_lockfilename();
+    unlink(lockfilename);
+    have_lock = false;
+  }
+}
+
+bool fac_is_already_running() {
+  find_lockfilename();
+  int lockfd = open(lockfilename, O_CREAT | O_EXCL);
+  if (lockfd >= 0) {
+    close(lockfd);
+    have_lock = true;
+    return false;
+  }
+  return true;
+}
+
 void do_actual_build(struct cmd_args *args) {
+  atexit(free_lock);
   env = hash_environment();
   do {
+    {
+      int seconds_waited = 0;
+      while (fac_is_already_running()) {
+        if (seconds_waited > 15) {
+          printf("Giving up after %d seconds... remove %s?\n",
+                 seconds_waited, lockfilename);
+          exit(1);
+        }
+        printf("fac is already running... sleeping a bit.\n");
+        sleep(1);
+        if (am_interrupted) {
+          exit(1);
+        }
+        seconds_waited++;
+      }
+    }
     struct all_targets all;
     init_all(&all);
 
@@ -1226,6 +1276,8 @@ void do_actual_build(struct cmd_args *args) {
       }
     }
 
+    free_lock();
+
 #ifdef __linux__
     if (args->continual) {
       initialize_starting_time();
@@ -1270,7 +1322,9 @@ void do_actual_build(struct cmd_args *args) {
     }
   } while (!am_interrupted && args->continual);
 
-  free_listset(args->targets_requested); // avoid harmless memory leak
+  free_listset(args->targets_requested); // avoid harmless memory leaks
+  if (lockfilename) free(lockfilename);
+  lockfilename = 0;
 }
 
 static void dump_to_stdout(int fd) {

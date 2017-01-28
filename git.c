@@ -114,9 +114,25 @@ int ReadChildProcess(char **output, char *cmdline) {
 
 
 char *go_to_git_top() {
+  char *buf = git_revparse("--show-toplevel");
+
+  if (chdir(buf) != 0) {
+    printf("Error changing to git toplevel directory!\n");
+    exit(1);
+  }
+  return buf;
+}
+
+char *git_revparse(const char *flag) {
 #ifdef _WIN32
   char *buf = 0;
-  int retval = ReadChildProcess(&buf, "git rev-parse --show-toplevel");
+  char *cmdline = malloc(500);
+  if (snprintf(cmdline, 500, "git rev-parse %s", flag) >= 500) {
+    printf("bug: long argument to git_revparse: %s\n", flag);
+    return 0;
+  }
+  int retval = ReadChildProcess(&buf, cmdline);
+  free(cmdline);
   if (retval) {
     free(buf);
     return 0;
@@ -139,7 +155,7 @@ char *go_to_git_top() {
     open("/dev/null", O_WRONLY);
     args[0] = "git";
     args[1] = "rev-parse";
-    args[2] = "--show-toplevel";
+    args[2] = (char *)flag;
     args[3] = 0;
     execvp("git", args);
     exit(0);
@@ -151,26 +167,21 @@ char *go_to_git_top() {
   }
   if (WEXITSTATUS(status)) {
     printf("Unable to run git rev-parse successfully %d\n", WEXITSTATUS(status));
-    //    return 0;
+    return 0;
   }
   off_t stdoutlen = lseek(out, 0, SEEK_END);
   lseek(out, 0, SEEK_SET);
   char *buf = malloc(stdoutlen);
   if (read(out, buf, stdoutlen) != stdoutlen) {
-    printf("Error reading output of git rev-parse --show-toplevel\n");
+    printf("Error reading output of git rev-parse %s\n", flag);
     free(buf);
-    return 0; // fixme should exit
+    return 0;
   }
 #endif
-
   for (int i=0;i<stdoutlen;i++) {
     if (buf[i] == '\n') {
       buf[i] = 0;
     }
-  }
-  if (chdir(buf) != 0) {
-    printf("Error changing to git toplevel directory!\n");
-    exit(1);
   }
   return buf;
 }

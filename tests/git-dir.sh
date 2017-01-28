@@ -20,6 +20,9 @@ EOF
 git init
 git add top.fac
 
+git rev-parse --show-toplevel
+git rev-parse --git-dir
+
 ../../../fac
 
 grep 'good stuff' foo
