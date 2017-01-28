@@ -34,7 +34,7 @@ fi
 
 git checkout bigbro.h
 
-sleep 12 # sleep a bit to give time to start building
+sleep 2 # sleep a bit to give fac time to start building
 while test -e .git/fac-lock; do
     sleep 1
 done
