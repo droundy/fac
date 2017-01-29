@@ -10,6 +10,11 @@ overview of what you will learn from each page.
 : This page will lead you through creating your first fac file and
   using fac.
 
+[fac with git hooks](fac-with-git-hooks.html)
+: This is a secondary tutorial which gives an example of how you can
+  use fac with `--continual` and git hooks to rebuild your code in
+  response to changes of various sorts.
+
 [building fac](building.html)
 : This page will lead you through downloading and installing fac.
 

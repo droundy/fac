@@ -3,7 +3,7 @@
 import sys, os, re, subprocess
 
 runre = re.compile(r'\[run\]: # \((.+)\)')
-shellre = re.compile(r'    \$ (.+)')
+shellre = re.compile(r'^    \$ (.+)')
 filere = re.compile(r'##### (.+)')
 verbre = re.compile(r'^    (.*)')
 
@@ -22,8 +22,15 @@ with open(sys.argv[1]) as f:
                     print(isfile[0], ':', isverb[0])
         elif len(isshell) > 0:
             print('shell :', isshell[0])
-            output = subprocess.check_output(isshell, shell=True,
-                                             stderr=subprocess.STDOUT)
+            tocheck = True
+            if isshell[0][-len('# fails'):] == '# fails':
+                tocheck = False
+                print('SHOULD FAIL!')
+                isshell[0] = isshell[0][:-len('# fails')]
+            output = subprocess.run(isshell, shell=True,
+                                    stderr=subprocess.STDOUT,
+                                    check=tocheck,
+                                    stdout=subprocess.PIPE).stdout
             for outline in output.decode('utf-8').split('\n'):
                 if len(outline)>0:
                     print('output:', outline)
@@ -37,9 +44,12 @@ with open(sys.argv[1]) as f:
                         break
                     expected = verbre.findall(expectedline)[0]
                     expected = expected.replace('.', r'\.')
+                    expected = expected.replace('*', r'\*')
                     expected = expected.replace(r'\.\.\.', '.*')
                     expected = expected.replace('[', r'\[')
                     expected = expected.replace(']', r'\]')
+                    expected = expected.replace('(', r'\(')
+                    expected = expected.replace(')', r'\)')
                     if not re.compile(expected).match(outline):
                         print('I expected:', expected)
                         print('but instead I got:', outline)
