@@ -15,10 +15,7 @@ infrastructure towards making it more complicated.
     #include <stdio.h>
     
     main() {
-      int d;
-      printf(
-      "Hello world!\n"
-         );
+      printf("Hello world!\n");
     }
 
 ##### .clang-tidy
@@ -46,38 +43,42 @@ flags are appropriate for said compilers, but let's keep this simple.
     clang_database.write('[\n')
     facfile = open('.fac', 'w')
     objects = []
+    sparses = []
     for c in glob.glob('*.c'):
-        cmd = 'clang-3.9 -c %s' % c
+        cmd = 'gcc -c %s' % c
         objects.append(c[:-1]+'o')
+        sparses.append(c[:-1]+'sparse')
         clang_database.write('''{"directory": "%s",
                                  "command": "%s",
                                  "file": "%s"}
                              ''' % (os.getcwd(), cmd, c))
         facfile.write('| %s\n> %s\n' % (cmd, objects[-1]))
+        facfile.write('? sparse -Wsparse-error %s > %s\n> %s\n' % (c, sparses[-1], sparses[-1]))
     clang_database.write(']\n')
-    facfile.write('| clang-3.9 -o hello ' + ' '.join(objects) + '\n> hello\n')
+    facfile.write('| gcc -o hello ' + ' '.join(objects) + '\n> hello\n')
     for o in objects:
         facfile.write('< %s\n' % o)
+    facfile.write('? cat %s > sparse.log\n> sparse.log\n' % ' '.join(sparses))
+    for o in sparses:
+        facfile.write('< %s\n' % o)
 
-This program also generates a clang compile database, which is helpful
-for the clang tooling.  In our example, we will be using clang-tidy to
-lint our code.
+This program also generates a clang compile database, which would be
+helpful if we were using the clang tooling (which we aren't due to our
+CI infrastructure not supporting clang-3.9).  In our example, we will
+instead use a git version of sparse (which supports `-Wsparse-error`
+to check our code.
 
 ##### configure.fac
     | python3 configure.py
     > .fac
-    
-    ? clang-tidy-3.9 -warnings-as-errors=* *.c > lint-output || (cat lint-output && false)
-    > lint-output
 
-You might wonder, why all the trickiness with the `clang-tidy` rule?
-The optional aspect `?` is because I don't expect everyone compiling
-the program to have `clang-tidy`, but want them to not have to type
-`fac hello` to get a successful build.  The redirection of output and
-shell trickery to write it also to `stdout` accomplishes two things.
-First, it ensures that this rule creates a file, which enables fac to
-avoid rerunning the lint when nothing has changed.  Secondly, it
-ensures that when the command fails we can see the output (on stdout).
+You might wonder, why all the trickiness with the `sparse` rules?  The
+optional aspect `?` is because I don't expect everyone compiling the
+program to have the git version of `sparse`, but want them to not have
+to type `fac hello` to get a successful build.  The `cat` of many (in
+our case one) `*.sparse` files into `sparse.log` is so we can have a
+single fac target that runs sparse on any source files that need it
+rerun (but no more).
 
 Now we can just build the executable without running the by calling
 `fac` with no arguments.
@@ -87,20 +88,20 @@ Now we can just build the executable without running the by calling
     ...
     $ fac
     1/1 [...s]: python3 configure.py
-    2/3 [...s]: clang-3.9 -c hello.c
-    3/3 [...s]: clang-3.9 -o hello hello.o
+    2/3 [...s]: gcc -c hello.c
+    3/3 [...s]: gcc -o hello hello.o
     ...
     Build succeeded! ...
 
-Or we can just run the lint (clang-tidy) by
+Or we can just run the lint (sparse) by
 
-    $ fac lint-output # fails
-    1 warning generated.
-    1 warning treated as error
-    ... error: type specifier missing, ...
-    main() {
-    ^
+    $ fac
     ...
+    $ fac sparse.log # fails
+    hello.c:3:6: error: non-ANSI function declaration of function 'main'
+    1/2 [...s]: sparse -Wsparse-error hello.c > hello.sparse
+    build failed: hello.sparse
+    Build failed 2/2 failures
 
 This fails and shows us that we ought to have specified a return type
 for `main`.  It also possibly reruns `python3 configure.py`.  This is
@@ -113,23 +114,20 @@ that the output of configuring would have changed.
 Suppose we really like linting while we are editing.  In this case, we
 might want to execute in a convenient terminal:
 
-     $ fac --continual lint-output
+     $ fac --continual sparse.log
 
-This will wait for any changes to be made, and then re-run
-clang-tidy.  Thus you can edit away and see if you are introducing new
-problems, or have fixed existing warnings.  So let's make an edit:
+This will wait for any changes to be made, and then re-run sparse.
+Thus you can edit away and see if you are introducing new problems, or
+have fixed existing warnings.  So let's make an edit:
 
 ##### hello.c
     #include <stdio.h>
     
     int main() {
-      int d;
-      printf(
-      "Hello world!\n"
-         );
+      printf("Hello world!\n");
     }
 
-You should now see in your shell that clang-tidy passes.  Yay!
+You should now see in your shell that sparse passes.  Yay!
 
 ## Using git hooks
 
@@ -148,11 +146,11 @@ this is a bit sloppy: the build may not be what is staged for commit.
 That would take more work.)
 
     $ chmod +x .git/hooks/pre-commit
-    $ git commit -am 'fix lint problem in main'
+    $ git commit -am 'fix sparse problem in main'
     fac
     1/1 [...s]: python3 configure.py
-    2/3 [...s]: clang-3.9 -c hello.c
-    3/3 [...s]: clang-3.9 -o hello hello.o
+    2/3 [...s]: gcc -c hello.c
+    3/3 [...s]: gcc -o hello hello.o
     Build succeeded! 0:0...
     ...
 
@@ -160,3 +158,7 @@ The tricky bit here is that you are now running two instances of fac
 in the same directory at the same time.  This is okay, since fac takes
 a lock in the repository before doing any building, so the two should
 not interfere with each other.
+
+That concludes this little tutorial.  Hopefully this will help you to
+see one way that you can use fac with both `--continual` and git
+hooks, as well as optional rules, to customize your build.
