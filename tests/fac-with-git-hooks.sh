@@ -18,6 +18,11 @@ if ! which sparse; then
     exit 137
 fi
 
+PYTHON=python3
+if which python3.6; then
+    PYTHON=python3.6
+fi
+
 # Setting the PATH in the following ensures that we call our
 # newly-built fac, rather than one that is already installed.
-PATH=`pwd`:$PATH python3 ../getting-started.py ../../web/fac-with-git-hooks.md
+PATH=`pwd`:$PATH $PYTHON ../getting-started.py ../../web/fac-with-git-hooks.md
