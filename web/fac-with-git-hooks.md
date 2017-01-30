@@ -27,6 +27,8 @@ We will create a git repository and add this file to it.
 
     $ git init
     Initialized empty Git repository in ...
+    $ git config user.email "testing@example.com"
+    $ git config user.name "Tester"
     $ git add hello.c .clang-tidy
 
 Now let's get started with figuring out how to build this.  Although
