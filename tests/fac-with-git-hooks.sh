@@ -13,8 +13,8 @@ cd $0.dir
 
 cp ../../fac .
 
-if ! which clang-tidy; then
-    echo there is no clang-tidy
+if ! which sparse; then
+    echo there is no sparse
     exit 137
 fi
 
