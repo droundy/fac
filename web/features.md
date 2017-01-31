@@ -50,7 +50,7 @@ where you modify a file while fac is using it) do not apply.
 
 **Tup** will almost always give you a correct build, with the
 exceptions being if an out-of-tree file was modified (e.g. you
-upgraded a library).  Tup can track out-of-tree files, but only if you
+upgraded a library).  Tup *can* track out-of-tree files, but only if you
 install it as suid-root (see security issues below).
 
 **Make** will give you a correct build only if you annotate all the
