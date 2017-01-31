@@ -57,7 +57,6 @@ build.  Each `.fac` file consists of:
    does not mean that there is a dependency between those two
    commands.  You can specify a cache suffix (such as `.pyc`) using a
    `"c "` line, or you can specify a cache prefix (such as
-   `/home/droundy/.ccache` or even better `~/.ccache`) using a
-   capitalized `"C "` line.  The latter can be helpful if you get
-   error messages stating that your rule is creating output outside
-   your source tree.
+   `~/.ccache`) using a capitalized `"C "` line.  The latter can be
+   helpful if you find that your software is being rebuilt needlessly
+   due to some cache file being modified.

@@ -865,20 +865,34 @@ static void build_marked(struct all_targets *all, const char *log_directory,
               }
               t = create_target_with_stat(all, path);
               if (t && (t->is_file || t->is_symlink)) {
-                if (path == pretty_path(path)) {
-                  erase_and_printf("error: created file outside source directory: %s (%s)\n",
-                                   path, pretty_rule(r));
-                  rule_failed(all, r);
-                }
                 if (t->rule && t->rule != r) {
                   erase_and_printf("error: two rules generate same output %s:\n\t%s\nand\n\t%s\n",
                                    pretty_path(path), r->command, t->rule->command);
                   rule_failed(all, r);
                 }
-                t->rule = r;
-                t->status = unknown; // if it is a facfile, we haven't yet read it
-                find_target_sha1(t, "new output");
-                add_output(r, t);
+                if (path == pretty_path(path)) {
+                  // Changed behavior in February 2017: We will just
+                  // ignore files created outside the repository,
+                  // rather than treating this as an error.  I have
+                  // not yet found a real bug through this checking,
+                  // and it ends up being a nuisance because of
+                  // software (such as matplotlib or inkscape) that
+                  // either uses caches or log files in the home
+                  // directory.
+
+                  // Bugs that this would have caught would be:
+                  // a) temp files that aren't cleaned up
+                  // b) installing files using fac
+
+                  /* erase_and_printf("error: created file outside source directory: %s (%s)\n", */
+                  /*                  path, pretty_rule(r)); */
+                  /* rule_failed(all, r); */
+                } else {
+                  t->rule = r;
+                  t->status = unknown; // if it is a facfile, we haven't yet read it
+                  find_target_sha1(t, "new output");
+                  add_output(r, t);
+                }
               }
             }
           }
