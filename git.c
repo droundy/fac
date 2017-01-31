@@ -263,13 +263,12 @@ void add_git_files(struct all_targets *all) {
 
 
 void git_add(const char *path) {
-  const char **args = malloc(6*sizeof(char *));
+  const char **args = malloc(5*sizeof(char *));
   args[0] = "git";
   args[1] = "add";
-  args[2] = "-f";
-  args[3] = "--";
-  args[4] = path;
-  args[5] = 0;
+  args[2] = "--";
+  args[3] = path;
+  args[4] = 0;
 
 #ifdef _WIN32
   int retval = spawnvp(P_WAIT, "git", (char **)args);

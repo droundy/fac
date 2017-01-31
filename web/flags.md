@@ -22,6 +22,12 @@ with the following options.
 : Clean up build output.  This deletes every file (but not directory)
   that is output by the build.
 
+`--git-add`
+: Run `git add -- PATH` on any files that fac determines are needed
+  for the build.  This is naturally a somewhat risky maneauver, but
+  can be convenient if you know you have created a bunch of new input
+  files.
+
 `--verbose, -v`
 : Provide extra debugging output.
 
