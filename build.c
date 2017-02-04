@@ -632,441 +632,442 @@ static void build_marked(struct all_targets *all, const char *log_directory,
   sigaction(SIGINT, &act, &oldact);
 #endif
 
- bool need_to_try_again = false;
- do {
-   need_to_try_again = false;
-
-  for (struct rule *r = all->lists[marked]; r; r = all->lists[marked]) {
-    check_cleanliness(all, r);
-  }
-
+  bool need_to_try_again = false;
   do {
-    int threads_in_use = 0;
-    for (int i=0;i<num_jobs;i++) {
-      if (bs[i]) threads_in_use++;
+    need_to_try_again = false;
+
+    for (struct rule *r = all->lists[marked]; r; r = all->lists[marked]) {
+      check_cleanliness(all, r);
     }
 
-    if (threads_in_use) {
-      sem_wait(slots_available); // wait for *someone* to finish
-      sem_post(slots_available); // to get the counting right.
+    do {
+      int threads_in_use = 0;
       for (int i=0;i<num_jobs;i++) {
-        if (bs[i] && bs[i]->all_done != building) {
-          sem_wait(slots_available);
-          threads_in_use--;
+        if (bs[i]) threads_in_use++;
+      }
 
-          all->estimated_times[bs[i]->rule->status] -= bs[i]->rule->build_time;
-          bs[i]->rule->old_build_time = bs[i]->rule->build_time;
-          bs[i]->rule->build_time = bs[i]->build_time;
-          all->estimated_times[bs[i]->rule->status] += bs[i]->rule->build_time;
-          /* the blank spaces below clear out the progress message */
-          const int num_built = 1 + all->num_with_status[failed] + all->num_with_status[built];
-          const int num_total = all->num_with_status[failed] + all->num_with_status[built] +
-            all->num_with_status[building] + all->num_with_status[dirty] +
-            all->num_with_status[unready];
-          if (bs[i]->build_time < 10) {
-            erase_and_printf("%d/%d [%.2fs]: %s\n",
-                             num_built, num_total, bs[i]->build_time, bs[i]->rule->command);
-          } else if (bs[i]->build_time < 100) {
-            erase_and_printf("%d/%d [%.1fs]: %s\n",
-                             num_built, num_total, bs[i]->build_time, bs[i]->rule->command);
-          } else {
-            erase_and_printf("%d/%d [%.0fs]: %s\n",
-                             num_built, num_total, bs[i]->build_time, bs[i]->rule->command);
-          }
-          double estimated_time = (all->estimated_times[building] +
-                                   all->estimated_times[dirty] +
-                                   all->estimated_times[unready])/num_jobs;
-          if (estimated_time > 1.0) {
-            int build_minutes = (int)(estimated_time/60);
-            double build_seconds = estimated_time - 60*build_minutes;
-            find_elapsed_time();
-            double total_seconds = elapsed_seconds + build_seconds;
-            double total_minutes = elapsed_minutes + build_minutes;
-            if (total_seconds > 60) {
-              total_minutes += 1;
-              total_seconds -= 60;
-            }
-            if (isatty(fileno(stdout))) {
-              erase_and_printf("Build time remaining: %d:%02.0f / %.0f:%02.0f\r",
-                               build_minutes, build_seconds, total_minutes, total_seconds);
+      if (threads_in_use) {
+        sem_wait(slots_available); // wait for *someone* to finish
+        sem_post(slots_available); // to get the counting right.
+        for (int i=0;i<num_jobs;i++) {
+          if (bs[i] && bs[i]->all_done != building) {
+            sem_wait(slots_available);
+            threads_in_use--;
+
+            all->estimated_times[bs[i]->rule->status] -= bs[i]->rule->build_time;
+            bs[i]->rule->old_build_time = bs[i]->rule->build_time;
+            bs[i]->rule->build_time = bs[i]->build_time;
+            all->estimated_times[bs[i]->rule->status] += bs[i]->rule->build_time;
+            /* the blank spaces below clear out the progress message */
+            const int num_built = 1 + all->num_with_status[failed] + all->num_with_status[built];
+            const int num_total = all->num_with_status[failed] + all->num_with_status[built] +
+              all->num_with_status[building] + all->num_with_status[dirty] +
+              all->num_with_status[unready];
+            if (bs[i]->build_time < 10) {
+              erase_and_printf("%d/%d [%.2fs]: %s\n",
+                               num_built, num_total, bs[i]->build_time, bs[i]->rule->command);
+            } else if (bs[i]->build_time < 100) {
+              erase_and_printf("%d/%d [%.1fs]: %s\n",
+                               num_built, num_total, bs[i]->build_time, bs[i]->rule->command);
             } else {
-              erase_and_printf("Build time remaining: %d:%02.0f / %.0f:%02.0f\n",
-                               build_minutes, build_seconds, total_minutes, total_seconds);
+              erase_and_printf("%d/%d [%.0fs]: %s\n",
+                               num_built, num_total, bs[i]->build_time, bs[i]->rule->command);
             }
-            fflush(stdout);
-          }
-          if (bs[i]->all_done != built || show_output) {
-            dump_to_stdout(bs[i]->stdouterrfd);
-            close(bs[i]->stdouterrfd);
-          }
-          if (bs[i]->all_done != built && bs[i]->all_done != failed) {
-            erase_and_printf("INTERRUPTED!  bs[i]->all_done == %s\n",
-                             pretty_status(bs[i]->all_done));
-            am_interrupted = true;
-            break;
-          }
-          if (files_to_watch) {
-            for (int nn=0; bs[i]->read[nn]; nn++) {
-              if (!lookup_in_hash(files_to_watch, bs[i]->read[nn])) {
-                struct a_path *foo = malloc(sizeof(struct a_path) + strlen(bs[i]->read[nn])+1);
-                foo->e.key = foo->path;
-                strcpy((char *)foo->path, bs[i]->read[nn]);
-                foo->e.next = 0;
-                add_to_hash(files_to_watch, &foo->e);
+            double estimated_time = (all->estimated_times[building] +
+                                     all->estimated_times[dirty] +
+                                     all->estimated_times[unready])/num_jobs;
+            if (estimated_time > 1.0) {
+              int build_minutes = (int)(estimated_time/60);
+              double build_seconds = estimated_time - 60*build_minutes;
+              find_elapsed_time();
+              double total_seconds = elapsed_seconds + build_seconds;
+              double total_minutes = elapsed_minutes + build_minutes;
+              if (total_seconds > 60) {
+                total_minutes += 1;
+                total_seconds -= 60;
+              }
+              if (isatty(fileno(stdout))) {
+                erase_and_printf("Build time remaining: %d:%02.0f / %.0f:%02.0f\r",
+                                 build_minutes, build_seconds, total_minutes, total_seconds);
+              } else {
+                erase_and_printf("Build time remaining: %d:%02.0f / %.0f:%02.0f\n",
+                                 build_minutes, build_seconds, total_minutes, total_seconds);
+              }
+              fflush(stdout);
+            }
+            if (bs[i]->all_done != built || show_output) {
+              dump_to_stdout(bs[i]->stdouterrfd);
+              close(bs[i]->stdouterrfd);
+            }
+            if (bs[i]->all_done != built && bs[i]->all_done != failed) {
+              erase_and_printf("INTERRUPTED!  bs[i]->all_done == %s\n",
+                               pretty_status(bs[i]->all_done));
+              am_interrupted = true;
+              break;
+            }
+            if (files_to_watch) {
+              for (int nn=0; bs[i]->read[nn]; nn++) {
+                if (!lookup_in_hash(files_to_watch, bs[i]->read[nn])) {
+                  struct a_path *foo = malloc(sizeof(struct a_path) + strlen(bs[i]->read[nn])+1);
+                  foo->e.key = foo->path;
+                  strcpy((char *)foo->path, bs[i]->read[nn]);
+                  foo->e.next = 0;
+                  add_to_hash(files_to_watch, &foo->e);
+                }
+              }
+              for (int nn=0; bs[i]->readdir[nn]; nn++) {
+                if (!lookup_in_hash(files_to_watch, bs[i]->readdir[nn])) {
+                  struct a_path *foo = malloc(sizeof(struct a_path) + strlen(bs[i]->readdir[nn])+1);
+                  foo->e.key = foo->path;
+                  strcpy((char *)foo->path, bs[i]->readdir[nn]);
+                  foo->e.next = 0;
+                  add_to_hash(files_to_watch, &foo->e);
+                }
               }
             }
-            for (int nn=0; bs[i]->readdir[nn]; nn++) {
-              if (!lookup_in_hash(files_to_watch, bs[i]->readdir[nn])) {
-                struct a_path *foo = malloc(sizeof(struct a_path) + strlen(bs[i]->readdir[nn])+1);
-                foo->e.key = foo->path;
-                strcpy((char *)foo->path, bs[i]->readdir[nn]);
-                foo->e.next = 0;
-                add_to_hash(files_to_watch, &foo->e);
-              }
-            }
-          }
 
-          if (bs[i]->all_done == failed) {
-            rule_failed(all, bs[i]->rule);
-            erase_and_printf("build failed: %s\n", pretty_rule(bs[i]->rule));
-            free(bs[i]->read);
-            free(bs[i]->readdir);
-            for (int nn=0; bs[i]->written[nn]; nn++) {
-              // Delete any files that were created, so that they will
-              // be properly re-created next time this command is run.
-              unlink(bs[i]->written[nn]);
-            }
-            free(bs[i]->written);
-            for (int nn=0; bs[i]->mkdir[nn]; nn++) {
-              // Delete any files that were created, so that they will
-              // be properly re-created next time this command is run.
-              rmdir(bs[i]->mkdir[nn]);
-            }
-            free(bs[i]->mkdir);
-            free(bs[i]);
-            bs[i] = 0;
-            break;
-          }
-
-          struct rule *r = bs[i]->rule;
-          insert_to_listset(&facfiles_used, r->facfile_path);
-
-          /* First, we want to save as many of the old inputs as
-             possible. */
-          for (int ii=0; ii<r->num_inputs; ii++) {
-            struct target *t = create_target_with_stat(all, r->inputs[ii]->path);
-            if (t
-                && sha1_is_zero(t->stat.hash)
-                && t->stat.time == r->input_stats[ii].time
-                && t->stat.size == r->input_stats[ii].size) {
-              /* Assume with same modification time and size that the
-                 file contents are not changed. */
-              t->stat.hash = r->input_stats[ii].hash;
-            }
-          }
-          /* Forget the non-explicit imputs, as we will re-add those
-             inputs that were actually used in the build */
-          r->num_inputs = r->num_explicit_inputs;
-          for (int ii=0;ii<r->num_inputs;ii++) {
-            struct target *t = create_target_with_stat(all, r->inputs[ii]->path);
-            if (!t) {
-              error(1, 0, "Unable to stat input file %s (this should be impossible)\n",
-                    r->inputs[ii]->path);
-            } else {
-              if (sha1_is_zero(t->stat.hash)) find_target_sha1(t, "we have no hash");
-              add_input(r, t);
-              delete_from_array(bs[i]->read, r->inputs[ii]->path);
-              delete_from_array(bs[i]->written, r->inputs[ii]->path);
-            }
-          }
-          for (int ii=0;ii<r->num_outputs;ii++) {
-            struct target *t = lookup_target(all, r->outputs[ii]->path);
-            if (t) {
-              t->stat.time = 0;
-              t->stat.size = 0;
-            }
-            t = create_target_with_stat(all, r->outputs[ii]->path);
-            if (!t && ii < r->num_explicit_outputs) {
-              erase_and_printf("build failed to create: %s\n",
-                               pretty_path(r->outputs[ii]->path));
-              rule_failed(all, r);
-              if (!show_output) {
-                dump_to_stdout(bs[i]->stdouterrfd);
-                close(bs[i]->stdouterrfd);
-              }
+            if (bs[i]->all_done == failed) {
+              rule_failed(all, bs[i]->rule);
+              erase_and_printf("build failed: %s\n", pretty_rule(bs[i]->rule));
               free(bs[i]->read);
               free(bs[i]->readdir);
+              for (int nn=0; bs[i]->written[nn]; nn++) {
+                // Delete any files that were created, so that they
+                // will be properly re-created next time this command
+                // is run.
+                unlink(bs[i]->written[nn]);
+              }
               free(bs[i]->written);
+              for (int nn=0; bs[i]->mkdir[nn]; nn++) {
+                // Delete any files that were created, so that they
+                // will be properly re-created next time this command
+                // is run.
+                rmdir(bs[i]->mkdir[nn]);
+              }
               free(bs[i]->mkdir);
               free(bs[i]);
               bs[i] = 0;
               break;
-            } else if (!t) {
-              /* This file was previously created, but is no longer
-                 there, so we should remove it from the list of
-                 outputs. */
-              r->outputs[ii]->rule = 0; // dissociate ourselves with this output
-              r->outputs[ii]->status = dirty; // mark it as dirty, since we didn't create it
-
-              r->num_outputs -= 1;
-              for (int j=ii;j<r->num_outputs;j++) {
-                r->outputs[j] = r->outputs[j+1];
-              }
-              ii -= 1; /* we need to do "ii" one more time, since we
-                          shifted everything else back */
-            } else {
-              find_target_sha1(t, "t");
-              t->rule = r;
-              add_output(r, t);
-              delete_from_array(bs[i]->read, r->outputs[ii]->path);
-              delete_from_array(bs[i]->written, r->outputs[ii]->path);
-              delete_from_array(bs[i]->mkdir, r->outputs[ii]->path);
             }
-          }
-          if (!bs[i]) break; // happens if we failed to create an output
 
-          for (int nn=0; bs[i]->read[nn]; nn++) {
-            char *path = bs[i]->read[nn];
-            if (is_interesting_path(r, path)) {
-              struct target *t = create_target_with_stat(all, path);
+            struct rule *r = bs[i]->rule;
+            insert_to_listset(&facfiles_used, r->facfile_path);
+
+            /* First, we want to save as many of the old inputs as
+               possible. */
+            for (int ii=0; ii<r->num_inputs; ii++) {
+              struct target *t = create_target_with_stat(all, r->inputs[ii]->path);
+              if (t
+                  && sha1_is_zero(t->stat.hash)
+                  && t->stat.time == r->input_stats[ii].time
+                  && t->stat.size == r->input_stats[ii].size) {
+                /* Assume with same modification time and size that
+                   the file contents are not changed. */
+                t->stat.hash = r->input_stats[ii].hash;
+              }
+            }
+            /* Forget the non-explicit imputs, as we will re-add those
+               inputs that were actually used in the build */
+            r->num_inputs = r->num_explicit_inputs;
+            for (int ii=0;ii<r->num_inputs;ii++) {
+              struct target *t = create_target_with_stat(all, r->inputs[ii]->path);
               if (!t) {
-                /* Assume that the file was deleted, and there's no
-                   problem. */
-                // error(1, errno, "Unable to input stat file %s", path);
+                error(1, 0, "Unable to stat input file %s (this should be impossible)\n",
+                      r->inputs[ii]->path);
               } else {
-                if (!t->rule && is_in_root(path) && !t->is_in_git && !is_in_gitdir(path)) {
-                  if (git_add_files) {
-                    git_add(path);
-                    t->is_in_git = true;
-                  } else {
-                    erase_and_printf("error: %s should be in git for %s\n",
-                                     pretty_path(t->path), pretty_rule(r));
-                    rule_failed(all, r);
-                  }
-                }
-                if (sha1_is_zero(t->stat.hash)) find_target_sha1(t, "fixed case");
+                if (sha1_is_zero(t->stat.hash)) find_target_sha1(t, "we have no hash");
                 add_input(r, t);
+                delete_from_array(bs[i]->read, r->inputs[ii]->path);
+                delete_from_array(bs[i]->written, r->inputs[ii]->path);
               }
             }
-          }
-
-          for (int nn=0; bs[i]->readdir[nn]; nn++) {
-            char *path = bs[i]->readdir[nn];
-            if (is_interesting_path(r, path)) {
-              struct target *t = create_target_with_stat(all, path);
-              if (t && t->is_dir) {
-                find_target_sha1(t, "created new");
-                add_input(r, t);
-              }
-            }
-          }
-
-          for (int nn=0; bs[i]->written[nn]; nn++) {
-            char *path = bs[i]->written[nn];
-            // The following ignores writes to files in the .git/
-            // directory, in order to avoid situations where running
-            // fac -c cleans up such files, causing repository
-            // corruption.  It also ignores paths that have been
-            // marked as "cache" paths by the user.
-            if (!is_git_path(path) && is_interesting_path(r, path)) {
-              struct target *t = lookup_target(all, path);
+            for (int ii=0;ii<r->num_outputs;ii++) {
+              struct target *t = lookup_target(all, r->outputs[ii]->path);
               if (t) {
                 t->stat.time = 0;
                 t->stat.size = 0;
               }
-              t = create_target_with_stat(all, path);
-              if (t && (t->is_file || t->is_symlink)) {
-                if (t->rule && t->rule != r) {
-                  erase_and_printf("error: two rules generate same output %s:\n\t%s\nand\n\t%s\n",
-                                   pretty_path(path), r->command, t->rule->command);
-                  rule_failed(all, r);
+              t = create_target_with_stat(all, r->outputs[ii]->path);
+              if (!t && ii < r->num_explicit_outputs) {
+                erase_and_printf("build failed to create: %s\n",
+                                 pretty_path(r->outputs[ii]->path));
+                rule_failed(all, r);
+                if (!show_output) {
+                  dump_to_stdout(bs[i]->stdouterrfd);
+                  close(bs[i]->stdouterrfd);
                 }
-                if (path == pretty_path(path)) {
-                  // Changed behavior in February 2017: We will just
-                  // ignore files created outside the repository,
-                  // rather than treating this as an error.  I have
-                  // not yet found a real bug through this checking,
-                  // and it ends up being a nuisance because of
-                  // software (such as matplotlib or inkscape) that
-                  // either uses caches or log files in the home
-                  // directory.
+                free(bs[i]->read);
+                free(bs[i]->readdir);
+                free(bs[i]->written);
+                free(bs[i]->mkdir);
+                free(bs[i]);
+                bs[i] = 0;
+                break;
+              } else if (!t) {
+                /* This file was previously created, but is no longer
+                   there, so we should remove it from the list of
+                   outputs. */
+                r->outputs[ii]->rule = 0; // dissociate ourselves with this output
+                r->outputs[ii]->status = dirty; // mark it as dirty, since we didn't create it
 
-                  // Bugs that this would have caught would be:
-                  // a) temp files that aren't cleaned up
-                  // b) installing files using fac
+                r->num_outputs -= 1;
+                for (int j=ii;j<r->num_outputs;j++) {
+                  r->outputs[j] = r->outputs[j+1];
+                }
+                ii -= 1; /* we need to do "ii" one more time, since we
+                            shifted everything else back */
+              } else {
+                find_target_sha1(t, "t");
+                t->rule = r;
+                add_output(r, t);
+                delete_from_array(bs[i]->read, r->outputs[ii]->path);
+                delete_from_array(bs[i]->written, r->outputs[ii]->path);
+                delete_from_array(bs[i]->mkdir, r->outputs[ii]->path);
+              }
+            }
+            if (!bs[i]) break; // happens if we failed to create an output
 
-                  /* erase_and_printf("error: created file outside source directory: %s (%s)\n", */
-                  /*                  path, pretty_rule(r)); */
-                  /* rule_failed(all, r); */
+            for (int nn=0; bs[i]->read[nn]; nn++) {
+              char *path = bs[i]->read[nn];
+              if (is_interesting_path(r, path)) {
+                struct target *t = create_target_with_stat(all, path);
+                if (!t) {
+                  /* Assume that the file was deleted, and there's no
+                     problem. */
+                  // error(1, errno, "Unable to input stat file %s", path);
                 } else {
+                  if (!t->rule && is_in_root(path) && !t->is_in_git && !is_in_gitdir(path)) {
+                    if (git_add_files) {
+                      git_add(path);
+                      t->is_in_git = true;
+                    } else {
+                      erase_and_printf("error: %s should be in git for %s\n",
+                                       pretty_path(t->path), pretty_rule(r));
+                      rule_failed(all, r);
+                    }
+                  }
+                  if (sha1_is_zero(t->stat.hash)) find_target_sha1(t, "fixed case");
+                  add_input(r, t);
+                }
+              }
+            }
+
+            for (int nn=0; bs[i]->readdir[nn]; nn++) {
+              char *path = bs[i]->readdir[nn];
+              if (is_interesting_path(r, path)) {
+                struct target *t = create_target_with_stat(all, path);
+                if (t && t->is_dir) {
+                  find_target_sha1(t, "created new");
+                  add_input(r, t);
+                }
+              }
+            }
+
+            for (int nn=0; bs[i]->written[nn]; nn++) {
+              char *path = bs[i]->written[nn];
+              // The following ignores writes to files in the .git/
+              // directory, in order to avoid situations where running
+              // fac -c cleans up such files, causing repository
+              // corruption.  It also ignores paths that have been
+              // marked as "cache" paths by the user.
+              if (!is_git_path(path) && is_interesting_path(r, path)) {
+                struct target *t = lookup_target(all, path);
+                if (t) {
+                  t->stat.time = 0;
+                  t->stat.size = 0;
+                }
+                t = create_target_with_stat(all, path);
+                if (t && (t->is_file || t->is_symlink)) {
+                  if (t->rule && t->rule != r) {
+                    erase_and_printf("error: two rules generate same output %s:\n\t%s\nand\n\t%s\n",
+                                     pretty_path(path), r->command, t->rule->command);
+                    rule_failed(all, r);
+                  }
+                  if (path == pretty_path(path)) {
+                    // Changed behavior in February 2017: We will just
+                    // ignore files created outside the repository,
+                    // rather than treating this as an error.  I have
+                    // not yet found a real bug through this checking,
+                    // and it ends up being a nuisance because of
+                    // software (such as matplotlib or inkscape) that
+                    // either uses caches or log files in the home
+                    // directory.
+
+                    // Bugs that this would have caught would be:
+                    // a) temp files that aren't cleaned up
+                    // b) installing files using fac
+
+                    /* erase_and_printf("error: created file outside source directory: %s (%s)\n", */
+                    /*                  path, pretty_rule(r)); */
+                    /* rule_failed(all, r); */
+                  } else {
+                    t->rule = r;
+                    t->status = unknown; // if it is a facfile, we haven't yet read it
+                    find_target_sha1(t, "new output");
+                    add_output(r, t);
+                  }
+                }
+              }
+            }
+            for (int nn=0; bs[i]->mkdir[nn]; nn++) {
+              char *path = bs[i]->mkdir[nn];
+              // The following ignores creation of directories in the
+              // .git/ directory, in order to avoid situations where
+              // running fac -c cleans up such directories, causing
+              // repository corruption.  It also ignores paths that
+              // have been marked as "cache" paths by the user.
+              if (!is_git_path(path) && is_interesting_path(r, path)) {
+                struct target *t = lookup_target(all, path);
+                if (t) {
+                  t->stat.time = 0;
+                  t->stat.size = 0;
+                }
+                t = create_target_with_stat(all, path);
+                if (t && (t->is_dir)) {
+                  if (path == pretty_path(path)) {
+                    erase_and_printf("error: created directory outside source directory: %s (%s)\n",
+                                     path, pretty_rule(r));
+                    rule_failed(all, r);
+                  }
+                  if (t->rule && t->rule != r) {
+                    erase_and_printf("error: two rules generate same output %s:\n\t%s\nand\n\t%s\n",
+                                     pretty_path(path), r->command, t->rule->command);
+                    rule_failed(all, r);
+                  }
                   t->rule = r;
                   t->status = unknown; // if it is a facfile, we haven't yet read it
-                  find_target_sha1(t, "new output");
+                  find_target_sha1(t, "mkdir output");
                   add_output(r, t);
                 }
               }
             }
+            if (r->status != failed) {
+              r->env = env; /* save the environment for this rule */
+              built_rule(all, r);
+            }
+            insert_to_listset(&facfiles_used, r->facfile_path);
+
+            if (!show_output) close(bs[i]->stdouterrfd);
+            free(bs[i]->read);
+            free(bs[i]->readdir);
+            free(bs[i]->written);
+            free(bs[i]->mkdir);
+            free(bs[i]);
+            bs[i] = 0;
           }
-          for (int nn=0; bs[i]->mkdir[nn]; nn++) {
-            char *path = bs[i]->mkdir[nn];
-            // The following ignores creation of directories in the
-            // .git/ directory, in order to avoid situations where
-            // running fac -c cleans up such directories, causing
-            // repository corruption.  It also ignores paths that have
-            // been marked as "cache" paths by the user.
-            if (!is_git_path(path) && is_interesting_path(r, path)) {
-              struct target *t = lookup_target(all, path);
-              if (t) {
-                t->stat.time = 0;
-                t->stat.size = 0;
-              }
-              t = create_target_with_stat(all, path);
-              if (t && (t->is_dir)) {
-                if (path == pretty_path(path)) {
-                  erase_and_printf("error: created directory outside source directory: %s (%s)\n",
-                                   path, pretty_rule(r));
-                  rule_failed(all, r);
-                }
-                if (t->rule && t->rule != r) {
-                  erase_and_printf("error: two rules generate same output %s:\n\t%s\nand\n\t%s\n",
-                                   pretty_path(path), r->command, t->rule->command);
-                  rule_failed(all, r);
-                }
-                t->rule = r;
-                t->status = unknown; // if it is a facfile, we haven't yet read it
-                find_target_sha1(t, "mkdir output");
-                add_output(r, t);
+        }
+      }
+
+      {
+        int N = num_jobs - threads_in_use;
+        struct rule **toqueue = calloc(N, sizeof(struct rule *));
+        int i = 0;
+        for (struct rule *r = all->lists[dirty]; r && i < N; r = r->status_next) {
+          toqueue[i++] = r;
+        }
+        for (i=0;i<N;i++) {
+          if (toqueue[i]) {
+            for (int j=0;j<num_jobs;j++) {
+              if (!bs[j]) {
+                bs[j] = build_rule(all, toqueue[i],
+                                   slots_available, log_directory);
+                break;
               }
             }
           }
-          if (r->status != failed) {
-            r->env = env; /* save the environment for this rule */
-            built_rule(all, r);
-          }
-          insert_to_listset(&facfiles_used, r->facfile_path);
-
-          if (!show_output) close(bs[i]->stdouterrfd);
-          free(bs[i]->read);
-          free(bs[i]->readdir);
-          free(bs[i]->written);
-          free(bs[i]->mkdir);
-          free(bs[i]);
-          bs[i] = 0;
         }
+        free(toqueue);
       }
-    }
-
-    {
-      int N = num_jobs - threads_in_use;
-      struct rule **toqueue = calloc(N, sizeof(struct rule *));
-      int i = 0;
-      for (struct rule *r = all->lists[dirty]; r && i < N; r = r->status_next) {
-        toqueue[i++] = r;
-      }
-      for (i=0;i<N;i++) {
-        if (toqueue[i]) {
-          for (int j=0;j<num_jobs;j++) {
-            if (!bs[j]) {
-              bs[j] = build_rule(all, toqueue[i],
-                                 slots_available, log_directory);
-              break;
-            }
+      if (am_interrupted) {
+        for (int i=0;i<num_jobs;i++) {
+          if (bs[i]) {
+            verbose_printf("killing %d (%s)\n", bs[i]->child_pid,
+                           pretty_rule(bs[i]->rule));
+#ifdef _WIN32
+            erase_and_printf("do not know how to kill %d\n", (int)-bs[i]->child_pid);
+#else
+            kill(-bs[i]->child_pid, SIGTERM); /* ask child to die */
+#endif
           }
         }
-      }
-      free(toqueue);
-    }
-    if (am_interrupted) {
-      for (int i=0;i<num_jobs;i++) {
-        if (bs[i]) {
-          verbose_printf("killing %d (%s)\n", bs[i]->child_pid,
-                         pretty_rule(bs[i]->rule));
+        sleep(1); /* give them a second to die politely */
+        for (int i=0;i<num_jobs;i++) {
+          if (bs[i]) {
 #ifdef _WIN32
-          erase_and_printf("do not know how to kill %d\n", (int)-bs[i]->child_pid);
+            erase_and_printf("do not know how to kill %d\n", (int)-bs[i]->child_pid);
 #else
-          kill(-bs[i]->child_pid, SIGTERM); /* ask child to die */
+            kill(-bs[i]->child_pid, SIGKILL); /* kill with extreme prejudice */
 #endif
+            free(bs[i]);
+            bs[i] = 0;
+          }
         }
-      }
-      sleep(1); /* give them a second to die politely */
-      for (int i=0;i<num_jobs;i++) {
-        if (bs[i]) {
-#ifdef _WIN32
-          erase_and_printf("do not know how to kill %d\n", (int)-bs[i]->child_pid);
-#else
-          kill(-bs[i]->child_pid, SIGKILL); /* kill with extreme prejudice */
-#endif
-          free(bs[i]);
-          bs[i] = 0;
+        erase_and_printf("Interrupted!\n");
+
+        while (facfiles_used) {
+          char *donefile = done_name(facfiles_used->path);
+          FILE *f = fopen(donefile, "w");
+          if (!f) error(1,errno,"oopse");
+          fprint_facfile(f, all, facfiles_used->path);
+          fclose(f);
+          free(donefile);
+          listset *to_delete = facfiles_used;
+          facfiles_used = facfiles_used->next;
+          free(to_delete->path);
+          free(to_delete);
         }
+
+        exit(1);
       }
-      erase_and_printf("Interrupted!\n");
+    } while (all->lists[dirty] || all->lists[building]);
 
-      while (facfiles_used) {
-        char *donefile = done_name(facfiles_used->path);
-        FILE *f = fopen(donefile, "w");
-        if (!f) error(1,errno,"oopse");
-        fprint_facfile(f, all, facfiles_used->path);
-        fclose(f);
-        free(donefile);
-        listset *to_delete = facfiles_used;
-        facfiles_used = facfiles_used->next;
-        free(to_delete->path);
-        free(to_delete);
-      }
-
-      exit(1);
-    }
-  } while (all->lists[dirty] || all->lists[building]);
-
-  int num_finally_built = all->num_with_status[built];
-  for (struct rule *r = all->lists[unready]; r; r = all->lists[unready]) {
-    if ((happy_building_at_least_one && num_built_when_we_started != num_finally_built)
-        || ignore_missing_files) {
-      set_status(all, r, unknown);
-    } else {
-      for (int i=0;i<r->num_inputs;i++) {
-        if (!r->inputs[i]->rule && !r->inputs[i]->is_in_git &&
-            !is_in_gitdir(r->inputs[i]->path) && is_in_root(r->inputs[i]->path)) {
-          if (!access(r->inputs[i]->path, R_OK)) {
-            char *thepath = realpath(r->inputs[i]->path, 0);
-            if (thepath && strcmp(thepath, r->inputs[i]->path) != 0) {
-              // The canonicalization of the path has changed! See
-              // issue #17 which this fixes. Presumably a directory
-              // has been created or a symlink modified, and the path
-              // is now different.
-              printf("Now canonicalizing path %s to %s\n", r->inputs[i]->path, thepath);
-              struct target *t = lookup_target(all, thepath);
-              if (!t) t = create_target_with_stat(all, thepath);
-              // There is a small memory leak here, since we don't
-              // free the old target.  The trouble is that we don't
-              // know if it is otherwise in use, e.g. as the output or
-              // input of a different rule.  This *shouldn't* be
-              // common, since once the path exists, future runs will
-              // not run into this leak.
-              r->inputs[i] = t;
-              need_to_try_again = true;
-            } else if (git_add_files) {
-              git_add(r->inputs[i]->path);
-              need_to_try_again = true;
+    int num_finally_built = all->num_with_status[built];
+    for (struct rule *r = all->lists[unready]; r; r = all->lists[unready]) {
+      if ((happy_building_at_least_one && num_built_when_we_started != num_finally_built)
+          || ignore_missing_files) {
+        set_status(all, r, unknown);
+      } else {
+        for (int i=0;i<r->num_inputs;i++) {
+          if (!r->inputs[i]->rule && !r->inputs[i]->is_in_git &&
+              !is_in_gitdir(r->inputs[i]->path) && is_in_root(r->inputs[i]->path)) {
+            if (!access(r->inputs[i]->path, R_OK)) {
+              char *thepath = realpath(r->inputs[i]->path, 0);
+              if (thepath && strcmp(thepath, r->inputs[i]->path) != 0) {
+                // The canonicalization of the path has changed! See
+                // issue #17 which this fixes. Presumably a directory
+                // has been created or a symlink modified, and the
+                // path is now different.
+                struct target *t = lookup_target(all, thepath);
+                if (!t) t = create_target_with_stat(all, thepath);
+                // There is a small memory leak here, since we don't
+                // free the old target.  The trouble is that we don't
+                // know if it is otherwise in use, e.g. as the output
+                // or input of a different rule.  This *shouldn't* be
+                // common, since once the path exists, future runs
+                // will not run into this leak.
+                r->inputs[i] = t;
+                need_to_try_again = true;
+              } else if (git_add_files) {
+                git_add(r->inputs[i]->path);
+                need_to_try_again = true;
+              } else {
+                erase_and_printf("error: add %s to git, which is required for %s\n",
+                                 pretty_path(r->inputs[i]->path), pretty_reason(r));
+              }
             } else {
-              erase_and_printf("error: add %s to git, which is required for %s\n",
+              erase_and_printf("error: missing file %s, which is required for %s\n",
                                pretty_path(r->inputs[i]->path), pretty_reason(r));
             }
-          } else {
-            erase_and_printf("error: missing file %s, which is required for %s\n",
-                             pretty_path(r->inputs[i]->path), pretty_reason(r));
           }
         }
+        if (need_to_try_again) {
+          check_cleanliness(all, r);
+          break;
+        }
+        rule_failed(all, r);
       }
-      if (need_to_try_again) {
-        check_cleanliness(all, r);
-        break;
-      }
-      rule_failed(all, r);
     }
-  }
- } while (need_to_try_again);
+  } while (need_to_try_again);
 
   while (facfiles_used) {
     char *donefile = done_name(facfiles_used->path);
