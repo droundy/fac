@@ -18,6 +18,13 @@
 #include <windows.h> // for Sleep
 #define sleep Sleep
 
+/* fixme: the following is a very broken version of realpath for windows! */
+static char *realpath(const char *p, int i) {
+  char *r = malloc(strlen(p));
+  strcpy(r, p);
+  return r;
+}
+
 #else
 
 #include <sys/types.h>
@@ -625,6 +632,10 @@ static void build_marked(struct all_targets *all, const char *log_directory,
   sigaction(SIGINT, &act, &oldact);
 #endif
 
+ bool need_to_try_again = false;
+ do {
+   need_to_try_again = false;
+
   for (struct rule *r = all->lists[marked]; r; r = all->lists[marked]) {
     check_cleanliness(all, r);
   }
@@ -1018,8 +1029,26 @@ static void build_marked(struct all_targets *all, const char *log_directory,
         if (!r->inputs[i]->rule && !r->inputs[i]->is_in_git &&
             !is_in_gitdir(r->inputs[i]->path) && is_in_root(r->inputs[i]->path)) {
           if (!access(r->inputs[i]->path, R_OK)) {
-            if (git_add_files) {
+            char *thepath = realpath(r->inputs[i]->path, 0);
+            if (thepath && strcmp(thepath, r->inputs[i]->path) != 0) {
+              // The canonicalization of the path has changed! See
+              // issue #17 which this fixes. Presumably a directory
+              // has been created or a symlink modified, and the path
+              // is now different.
+              printf("Now canonicalizing path %s to %s\n", r->inputs[i]->path, thepath);
+              struct target *t = lookup_target(all, thepath);
+              if (!t) t = create_target_with_stat(all, thepath);
+              // There is a small memory leak here, since we don't
+              // free the old target.  The trouble is that we don't
+              // know if it is otherwise in use, e.g. as the output or
+              // input of a different rule.  This *shouldn't* be
+              // common, since once the path exists, future runs will
+              // not run into this leak.
+              r->inputs[i] = t;
+              need_to_try_again = true;
+            } else if (git_add_files) {
               git_add(r->inputs[i]->path);
+              need_to_try_again = true;
             } else {
               erase_and_printf("error: add %s to git, which is required for %s\n",
                                pretty_path(r->inputs[i]->path), pretty_reason(r));
@@ -1030,9 +1059,14 @@ static void build_marked(struct all_targets *all, const char *log_directory,
           }
         }
       }
+      if (need_to_try_again) {
+        check_cleanliness(all, r);
+        break;
+      }
       rule_failed(all, r);
     }
   }
+ } while (need_to_try_again);
 
   while (facfiles_used) {
     char *donefile = done_name(facfiles_used->path);

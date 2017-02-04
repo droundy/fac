@@ -9,7 +9,6 @@
 #include <errno.h>
 #include <string.h>
 #include <limits.h>
-#include <stdlib.h>
 #include <sys/stat.h>
 
 #ifdef _WIN32
