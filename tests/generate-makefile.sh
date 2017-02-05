@@ -12,7 +12,7 @@ cat > build.fac <<EOF
 
 | echo foo > foo
 
-# The following is malformed, but does not trigger bug.
+# The following is malformed output
 
 | echo hello > /tmp/mistake && echo baz > baz
 > /tmp/mistake
@@ -21,6 +21,20 @@ EOF
 
 git init
 git add build.fac
+
+if ../../fac --makefile Makefile; then
+    echo this should have failed, since it has malformed output
+fi
+
+cat > build.fac <<EOF
+| echo awesome > awesome
+> awesome
+
+| echo foo > foo
+
+| echo hello > /tmp/mistake && echo baz > baz
+
+EOF
 
 ../../fac --makefile Makefile
 
@@ -36,6 +50,6 @@ make
 
 grep awesome awesome
 grep foo foo
-
+grep baz baz
 
 exit 0

@@ -213,6 +213,12 @@ void read_fac_file(struct all_targets *all, const char *path) {
         error_at_line(1, 0, pretty_path(path), linenum,
                       "\">\" output lines must follow a \"|\" command line");
       {
+        if (one_line[2] == '/' || one_line[2] == '~') {
+          // this looks like an absolute path, which is wrong.
+          error_at_line(1, 0, pretty_path(path), linenum,
+                        "\">\" cannot be followed by an absolute path (%s)\n",
+                        one_line+2);
+        }
         char *filepath = absolute_path(the_directory, one_line+2);
         thetarget = create_target(all, filepath);
         if (thetarget->rule && therule != thetarget->rule) {
