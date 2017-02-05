@@ -44,7 +44,7 @@ grep baz baz
 
 cat Makefile
 
-fac -c
+../../fac -c
 
 make
 
