@@ -31,7 +31,7 @@ datadir = os.getcwd()+'/bench/data/'
 os.makedirs(datadir, exist_ok=True)
 modules = [sleepy, dependentchains, hierarchy, cats]
 
-rootdirnames = ['tmp', 'home'] # , 'vartmp']
+rootdirnames = ['tmp', 'home' , 'vartmp']
 rootdirs = {'home': os.getcwd()+'/bench/temp',
             'tmp': '/tmp/benchmarking',
             'vartmp': '/var/tmp/benchmarking'}
@@ -49,9 +49,16 @@ def identify_filesystem(path):
     x = x[x.find(' '+path+' ')+len(path)+2:]
     return x[:x.find(' ')]
 
+tmprootdirnames = rootdirnames
+rootdirnames = []
 filesystems = {}
-for r in rootdirnames:
-    filesystems[r] = identify_filesystem(rootdirs[r])
+for r in tmprootdirnames:
+    fs = identify_filesystem(rootdirs[r])
+    if fs in filesystems.values():
+        print(fs,'is already covered')
+    else:
+        filesystems[r] = fs
+        rootdirnames.append(r)
 print(filesystems)
 
 def time_command(mod, builder):
