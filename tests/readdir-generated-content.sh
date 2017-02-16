@@ -10,7 +10,7 @@ cat > top.fac <<EOF
 | ls foo > foo-listing
 < foo
 
-| mkdir foo
+| mkdir -p foo
 
 | echo hello > foo/hello
 < foo
@@ -22,7 +22,7 @@ EOF
 git init
 git add top.fac
 
-../../fac
+../../fac -v
 
 grep hello foo/hello
 grep world foo/world
@@ -30,7 +30,9 @@ grep world foo/world
 # foo-listing may not be correct the first time, since content is generated in foo
 cat foo-listing
 
-../../fac
+sleep 1
+
+../../fac -v
 
 grep hello foo/hello
 grep world foo/world
@@ -44,7 +46,13 @@ cat >> top.fac <<EOF
 | echo wonderful > foo/wonderful
 EOF
 
-../../fac
+sleep 1
+
+../../fac -v
+
+# have to run twice because first time we modify the directory.  Should we make this build in just one rune?
+
+../../fac -v
 
 grep wonderful foo/wonderful
 
