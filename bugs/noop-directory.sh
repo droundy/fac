@@ -28,7 +28,7 @@ cat > top.fac <<EOF
 | sleep 1 && echo awesome > foo/subdir/subsub/great
 < foo/subdir/subsub
 
-| mkdir foo/subdir2
+| sleep 1 && mkdir foo/subdir2
 < foo
 EOF
 
