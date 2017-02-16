@@ -8,6 +8,11 @@ rm -rf $0.dir
 mkdir $0.dir
 cd $0.dir
 
+# The build rules below would be more robust if we used mkdir -p, but
+# that would defeat the point, which is to ensure that we aren't
+# rerunning these rules unnecessarily.  So we use just a plain mkdir,
+# which will fail if it is run a second time.
+
 cat > top.fac <<EOF
 | mkdir foo
 
@@ -32,10 +37,6 @@ git add top.fac
 
 ../../fac
 
-pat='^Build succeeded!.*$'
-if [[ ! `../../fac -v -j 1` =~ $pat ]]; then
-  echo repeat build should have succeeded w/out additional work
-  exit 1
-fi
+../../fac -v -j 1
 
 exit 0
