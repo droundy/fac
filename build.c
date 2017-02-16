@@ -429,9 +429,15 @@ void check_cleanliness(struct all_targets *all, struct rule *r) {
         }
       }
     } else {
-      rebuild_excuse(r, "#%d %s has no input time",
-                     i, pretty_path(r->inputs[i]->path));
-      is_dirty = true;
+      if (!r->inputs[i]->is_dir) {
+        /* In case of an input that is a directory, if it has no input
+           time, we conclude that it wasn't actually readdired, and
+           only needs to exist.  Otherwise, if there is no input time,
+           something is weird and we must need to rebuild. */
+        rebuild_excuse(r, "#%d %s has no input time",
+                       i, pretty_path(r->inputs[i]->path));
+        is_dirty = true;
+      }
     }
   }
   if (is_dirty) rule_is_ready(all, r);
@@ -781,10 +787,17 @@ static void build_marked(struct all_targets *all, const char *log_directory,
                 error(1, 0, "Unable to stat input file %s (this should be impossible)\n",
                       r->inputs[ii]->path);
               } else {
-                if (sha1_is_zero(t->stat.hash)) find_target_sha1(t, "we have no hash");
-                add_input(r, t);
-                delete_from_array(bs[i]->read, r->inputs[ii]->path);
-                delete_from_array(bs[i]->written, r->inputs[ii]->path);
+                if (!t->is_dir) {
+                  /* If this was a directory, let us only output its
+                     properties later, if it turns out we actually saw
+                     a readdir.  Otherwise, we conclude that it only
+                     needed to exist, not to have any particular
+                     contents. */
+                  if (sha1_is_zero(t->stat.hash)) find_target_sha1(t, "we have no hash");
+                  add_input(r, t);
+                  delete_from_array(bs[i]->read, r->inputs[ii]->path);
+                  delete_from_array(bs[i]->written, r->inputs[ii]->path);
+                }
               }
             }
             for (int ii=0;ii<r->num_outputs;ii++) {

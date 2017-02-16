@@ -37,6 +37,8 @@ git add top.fac
 
 ../../fac
 
+grep foo top.fac.tum
+
 ../../fac -v -j 1
 
 exit 0
