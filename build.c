@@ -270,6 +270,7 @@ static void find_target_sha1(struct target *t, const char *why) {
     int n;
     n = scandir(t->path, &namelist, NULL, alphasort);
     if (n >= 0) {
+      if (false) verbose_printf(" *** sha1directory %s (%s)\n", pretty_path(t->path), why);
       sha1nfo sh;
       sha1_init(&sh);
 
@@ -857,7 +858,7 @@ static void build_marked(struct all_targets *all, const char *log_directory,
               if (is_interesting_path(r, path)) {
                 struct target *t = create_target_with_stat(all, path);
                 if (t && t->is_dir) {
-                  find_target_sha1(t, "created new");
+                  find_target_sha1(t, "new readdir");
                   add_input(r, t);
                 }
               }
