@@ -440,9 +440,14 @@ void check_cleanliness(struct all_targets *all, struct rule *r) {
       if (!create_target_with_stat(all, r->outputs[i]->path) ||
           r->output_stats[i].time != r->outputs[i]->stat.time ||
           r->output_stats[i].size != r->outputs[i]->stat.size) {
-        rebuild_excuse(r, "%s has wrong output time",
-                       pretty_path(r->outputs[i]->path));
-        is_dirty = true;
+        /* If the rule creates a directory, we want to ignore any
+           changes within that directory, there is no reason to
+           rebuild just because the directory contents changed. */
+        if (!r->outputs[i]->is_dir) {
+          rebuild_excuse(r, "%s has wrong output time",
+                         pretty_path(r->outputs[i]->path));
+          is_dirty = true;
+        }
       }
     } else {
       rebuild_excuse(r, "%s has no output time", pretty_path(r->outputs[i]->path));
