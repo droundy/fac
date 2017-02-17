@@ -17,10 +17,10 @@ script:
   - $CC --version
   - sh build/linux.sh
   - ./fac
-  - python2 run-tests.py -v
+  - python3 run-tests.py -v
 before_install:
   - sudo apt-get update -qq
-  - sudo apt-get install -y python3 python-markdown
+  - sudo apt-get install -y python3 python-markdown python3-markdown
   - sudo apt-get install -y ruby-sass ghc help2man
   - sudo apt-get install -y texlive # for tests
   - git config --global user.email "testing-on-travis@example.com"

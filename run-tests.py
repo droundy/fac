@@ -1,4 +1,5 @@
-#!/usr/bin/python2
+#!/usr/bin/python3
+from __future__ import print_function
 
 import glob, os, subprocess, platform, sys
 
@@ -33,18 +34,18 @@ tarname = 'fac-%s.tar.gz' % version
 
 if system('MINIMAL=1 ./fac --script build/%s.sh -i version-identifier.h -i README.md -i COPYING --tar %s fac'
           % (platform.system().lower(), tarname)):
-    print 'Build failed!'
+    print('Build failed!')
     exit(1)
 
 if system('MINIMAL=1 ./fac --script build/%s.sh fac'
           % (platform.system().lower())):
-    print 'Build failed!'
+    print('Build failed!')
     exit(1)
 system('echo rm -rf bigbro >> build/%s.sh' % platform.system().lower())
 system('chmod +x build/%s.sh' % platform.system().lower())
 
 if system('./fac'):
-    print 'Build failed!'
+    print('Build failed!')
     exit(1)
 
 numpassed = 0
@@ -60,11 +61,11 @@ def write_script_name(n):
 
 if system('cd bigbro && python3 run-tests.py'):
     write_script_name('ran all bigbro tests')
-    print bcolors.FAIL+'FAIL', bcolors.ENDC
+    print(bcolors.FAIL+'FAIL', bcolors.ENDC)
     numfailed += 1
 else:
     write_script_name('ran all bigbro tests')
-    print bcolors.OKGREEN+'PASS', bcolors.ENDC
+    print(bcolors.OKGREEN+'PASS', bcolors.ENDC)
     numpassed += 1
 
 for sh in sorted(glob.glob('tests/*.sh')):
@@ -72,27 +73,27 @@ for sh in sorted(glob.glob('tests/*.sh')):
     cmdline = 'bash %s > %s.log 2>&1' % (sh, sh)
     exitval = system(cmdline)
     if exitval == 137:
-        print bcolors.OKBLUE+'SKIP', bcolors.ENDC
+        print(bcolors.OKBLUE+'SKIP', bcolors.ENDC)
         numskipped += 1
     elif exitval:
-        print bcolors.FAIL+'FAIL', bcolors.ENDC
+        print(bcolors.FAIL+'FAIL', bcolors.ENDC)
         if '-v' in sys.argv:
             os.system('cat %s.log' % sh)
         numfailed += 1
     else:
-        print bcolors.OKGREEN+'PASS', bcolors.ENDC
+        print(bcolors.OKGREEN+'PASS', bcolors.ENDC)
         numpassed += 1
 for sh in sorted(glob.glob('tests/*.test')):
     if 'assertion-fails' in sh:
         continue
     write_script_name(sh)
     if system('%s > %s.log 2>&1' % (sh, sh)):
-        print bcolors.FAIL+'FAIL', bcolors.ENDC
+        print(bcolors.FAIL+'FAIL', bcolors.ENDC)
         if '-v' in sys.argv:
             os.system('cat %s.log' % sh)
         numfailed += 1
     else:
-        print bcolors.OKGREEN+'PASS', bcolors.ENDC
+        print(bcolors.OKGREEN+'PASS', bcolors.ENDC)
         numpassed += 1
 
 expectedfailures = 0
@@ -101,20 +102,20 @@ unexpectedpasses = 0
 for sh in sorted(glob.glob('bugs/*.sh')):
     write_script_name(sh)
     if system('bash %s > %s.log 2>&1' % (sh, sh)):
-        print bcolors.OKGREEN+'fail', bcolors.ENDC
+        print(bcolors.OKGREEN+'fail', bcolors.ENDC)
         expectedfailures += 1
     else:
-        print bcolors.FAIL+'pass', bcolors.ENDC, sh
+        print(bcolors.FAIL+'pass', bcolors.ENDC, sh)
         if '-v' in sys.argv:
             os.system('cat %s.log' % sh)
         unexpectedpasses += 1
 for sh in sorted(glob.glob('bugs/*.test')):
     write_script_name(sh)
     if system('bash %s > %s.log 2>&1' % (sh, sh)):
-        print bcolors.OKGREEN+'fail', bcolors.ENDC
+        print(bcolors.OKGREEN+'fail', bcolors.ENDC)
         expectedfailures += 1
     else:
-        print bcolors.FAIL+'pass', bcolors.ENDC, sh
+        print(bcolors.FAIL+'pass', bcolors.ENDC, sh)
         if '-v' in sys.argv:
             os.system('cat %s.log' % sh)
         unexpectedpasses += 1
@@ -127,19 +128,19 @@ def pluralize(num, noun):
             return str(num)+' '+noun+'es'
         return str(num)+' '+noun+'s'
 
-print
+print()
 if numfailed:
-    print bcolors.FAIL+'Failed', str(numfailed)+'/'+str(numfailed+numpassed)+bcolors.ENDC
+    print(bcolors.FAIL+'Failed', str(numfailed)+'/'+str(numfailed+numpassed)+bcolors.ENDC)
 else:
-    print 'All', pluralize(numpassed, 'test'), 'passed!'
+    print('All', pluralize(numpassed, 'test'), 'passed!')
 
 if expectedfailures:
-    print pluralize(expectedfailures, 'expected failure')
+    print(pluralize(expectedfailures, 'expected failure'))
 if numskipped:
-    print pluralize(numskipped, 'test'), 'skipped'
+    print(pluralize(numskipped, 'test'), 'skipped')
 
 if unexpectedpasses:
-    print bcolors.FAIL+pluralize(unexpectedpasses, 'unexpected pass')+bcolors.ENDC
+    print(bcolors.FAIL+pluralize(unexpectedpasses, 'unexpected pass')+bcolors.ENDC)
 
 if numfailed:
     exit(1)
