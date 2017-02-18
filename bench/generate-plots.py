@@ -1,4 +1,5 @@
-#!/usr/bin/python2
+#!/usr/bin/python3
+from __future__ import print_function
 
 import os
 
@@ -30,7 +31,7 @@ for mod in modules:
     dates.sort()
     date = dates[-1]
     # os.chdir(datadir+date+'/'+mod.name)
-    print 'date', date, mod.name
+    print('date', date, mod.name)
 
     for verb in mod.verbs:
         plt.figure(figsize=(6,4.3))

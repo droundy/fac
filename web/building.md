@@ -3,13 +3,10 @@
 $docnav
 
 Before building fac, you need to install its prerequisites.  This
-consists of a C compiler (either gcc or clang), python2, and python3.
+consists of a C compiler (either gcc or clang), and python3.
 On a Debian-based system, you can install all of this with
 
     apt-get install build-essential git python python3
-
-(Yes, it is a little silly using both python2 and python3 in the build
-process... I should probably switch entirely to python3.)
 
 You can obtain the fac source code using git clone:
 

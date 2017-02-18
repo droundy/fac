@@ -12,8 +12,6 @@
    maintained by myself and distribution developers.  But that still
    seems like a poor choice.
 
-1. Move build process to use only python3 and not python2.
-
 1. Look into using libseccomp to optimize the ptrace usage by having
    only the system calls we want to trace generate events.
 

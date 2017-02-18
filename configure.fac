@@ -11,9 +11,9 @@ C bigbro/.git/
 | python3 configure.py > .fac
 > .fac
 
-| python2 web/mkdown.py
+| python3 web/mkdown.py
 > web/index.html
 
 
-# | python2 bench/generate-plots.py
+# | python3 bench/generate-plots.py
 # > web/hierarchy-building.pdf
