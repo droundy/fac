@@ -19,13 +19,13 @@ git add git-cloning.fac
 
 grep superheros-are-awesome fac-testing/tests/git-clone-rule.sh
 
-grep fac-testing/lib/master.py git-cloning.fac.tum
+grep fac-testing/configure.py git-cloning.fac.tum
 
 echo bad-news >> fac-testing/tests/git-clone-rule.sh
 
 ../../fac
 
-grep fac-testing/lib/master.py git-cloning.fac.tum
+grep fac-testing/configure.py git-cloning.fac.tum
 
 cd fac-testing
 git reset --hard HEAD~1
@@ -33,6 +33,6 @@ cd ..
 
 ../../fac
 
-grep fac-testing/lib/master.py git-cloning.fac.tum
+grep fac-testing/configure.py git-cloning.fac.tum
 
 exit 0
