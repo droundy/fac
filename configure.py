@@ -42,7 +42,7 @@ if os.getenv('MINIMAL') == None:
                      'arch': platform.machine()},
                 '-static': {'cc': os.getenv('CC', 'gcc'),
                             'flags': [os.getenv('CFLAGS', '') + ' -Ibigbro'],
-                            'linkflags': [os.getenv('LDFLAGS', '')],
+                            'linkflags': [os.getenv('LDFLAGS', ''), '-static'],
                             'os': platform.system().lower(),
                             'arch': platform.machine()},
                 '-win': {'cc': 'x86_64-w64-mingw32-gcc',
