@@ -32,15 +32,21 @@ except:
 version = version[:-1]
 tarname = 'fac-%s.tar.gz' % version
 
-if system('MINIMAL=1 ./fac --script build/%s.sh -i version-identifier.h -i README.md -i COPYING --tar %s fac'
-          % (platform.system().lower(), tarname)):
-    print('Build failed!')
-    exit(1)
+print('building on', platform.system())
+if platform.system() == 'Windows':
+    if system('./fac fac.exe -v'):
+        print('Build failed!')
+        exit(1)
+else:
+    if system('MINIMAL=1 ./fac --script build/%s.sh -i version-identifier.h -i README.md -i COPYING --tar %s fac'
+              % (platform.system().lower(), tarname)):
+        print('Build failed!')
+        exit(1)
 
-if system('MINIMAL=1 ./fac --script build/%s.sh fac'
-          % (platform.system().lower())):
-    print('Build failed!')
-    exit(1)
+    if system('MINIMAL=1 ./fac --script build/%s.sh fac'
+              % (platform.system().lower())):
+        print('Build failed!')
+        exit(1)
 system('echo rm -rf bigbro >> build/%s.sh' % platform.system().lower())
 system('chmod +x build/%s.sh' % platform.system().lower())
 

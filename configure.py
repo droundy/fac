@@ -156,7 +156,7 @@ for variant in variants.keys():
     if variant != '-win':
         build_fac()
     else:
-        print('| %s -o fac.exe %s' %
+        print('| %s -o fac.exe -static %s' %
               (cc,
                ' '.join(['%s%s.o' % (s, variant) for s in sources]
                         + ['bigbro/libbigbro-windows.a']

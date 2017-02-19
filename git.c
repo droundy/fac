@@ -25,10 +25,12 @@ int ReadChildProcess(char **output, char *cmdline) {
   sa.lpSecurityDescriptor = NULL;
   // Create a pipe for the child process's STDOUT.
   if ( ! CreatePipe(&g_hChildStd_OUT_Rd, &g_hChildStd_OUT_Wr, &sa, 0) ) {
+    printf("Unable to create stdout pipe!\n");
     exit(1);
   }
   // Ensure the read handle to the pipe for STDOUT is not inherited
   if ( ! SetHandleInformation(g_hChildStd_OUT_Rd, HANDLE_FLAG_INHERIT, 0) ){
+    printf("Unable to create stdout inherit thingy!\n");
     exit(1);
   }
 
@@ -64,6 +66,7 @@ int ReadChildProcess(char **output, char *cmdline) {
   CloseHandle(g_hChildStd_OUT_Wr);
   // If an error occurs, exit the application.
   if ( ! bSuccess ) {
+    printf("Unable to CreateProcess!\n");
     exit(1);
   }
 
@@ -75,6 +78,7 @@ int ReadChildProcess(char **output, char *cmdline) {
   *output = malloc(bufsize);
   int read_offset = 0;
   do {
+    printf("reading stdout...\n");
     bSuccess=ReadFile( g_hChildStd_OUT_Rd, *output + read_offset,
                        bufsize-read_offset-1, &dwRead, NULL);
 
@@ -97,6 +101,8 @@ int ReadChildProcess(char **output, char *cmdline) {
     error(1, myerrno, "GetExitCodeProcess() failed");
   }
 
+  printf("returning final result %d!\n", result);
+  printf("stdout is %s\n", *output);
   return result;
 }
 
@@ -116,6 +122,10 @@ int ReadChildProcess(char **output, char *cmdline) {
 char *go_to_git_top() {
   char *buf = git_revparse("--show-toplevel");
 
+  if (!buf) {
+    printf("Error identifying git toplevel directory!\n");
+    exit(1);
+  }
   if (chdir(buf) != 0) {
     printf("Error changing to git toplevel directory!\n");
     exit(1);
@@ -134,6 +144,7 @@ char *git_revparse(const char *flag) {
   int retval = ReadChildProcess(&buf, cmdline);
   free(cmdline);
   if (retval) {
+    printf("bad retval %d from %s\n", retval, flag);
     free(buf);
     return 0;
   }
