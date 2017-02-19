@@ -45,7 +45,7 @@ def compile32(cfile):
 shutil.rmtree('bigbro', ignore_errors=True)
 subprocess.run('git clone git://github.com/droundy/bigbro', shell=True, check=True)
 os.chdir('bigbro')
-subprocess.run('python3 build/windows.py', shell=True, check=True)
+subprocess.run('python build/windows.py', shell=True, check=True)
 os.chdir('..')
 
 print('\nDone building bigbro!\n\n')
