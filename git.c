@@ -52,6 +52,8 @@ int ReadChildProcess(char **output, char *cmdline) {
   siStartInfo.hStdOutput = g_hChildStd_OUT_Wr;
   siStartInfo.dwFlags |= STARTF_USESTDHANDLES;
 
+  char *cwd = malloc(4096);
+  GetCurrentDirectory(4096, cwd);
   // Create the child process.
   bSuccess = CreateProcess(NULL,
                            cmdline,       // command line
@@ -59,11 +61,12 @@ int ReadChildProcess(char **output, char *cmdline) {
                            NULL,          // primary thread security attributes
                            TRUE,          // handles are inherited
                            0,             // creation flags
-                           NULL,          // use parent's environment
-                           NULL,          // use parent's current directory
+                           GetEnvironmentStrings(), // use parent's environment
+                           cwd,          // use parent's current directory
                            &siStartInfo,  // STARTUPINFO pointer
                            &piProcInfo);  // receives PROCESS_INFORMATION
   CloseHandle(g_hChildStd_OUT_Wr);
+  free(cwd);
   // If an error occurs, exit the application.
   if ( ! bSuccess ) {
     printf("Unable to CreateProcess!\n");
@@ -78,7 +81,6 @@ int ReadChildProcess(char **output, char *cmdline) {
   *output = malloc(bufsize);
   int read_offset = 0;
   do {
-    printf("reading stdout...\n");
     bSuccess=ReadFile( g_hChildStd_OUT_Rd, *output + read_offset,
                        bufsize-read_offset-1, &dwRead, NULL);
 

@@ -1,4 +1,4 @@
-| python3 generate-version-header.py > version-identifier.h
+| python generate-version-header.py > version-identifier.h
 > version-identifier.h
 C .git/objects
 C .git/refs
@@ -8,12 +8,12 @@ C .git/index
 > bigbro/configure.fac
 C bigbro/.git/
 
-| python3 configure.py > .fac
+| python configure.py > .fac
 > .fac
 
 | python3 web/mkdown.py
 > web/index.html
 
 
-# | python3 bench/generate-plots.py
+# | python bench/generate-plots.py
 # > web/hierarchy-building.pdf
