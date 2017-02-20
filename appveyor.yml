@@ -9,6 +9,9 @@ build_script:
   - set PATH=%PATH%;C:\msys64\mingw32\bin
   - python -u build/windows.py
 
+test_script:
+  - fac.exe fac.exe
+
 branches:
   only:
     - master
