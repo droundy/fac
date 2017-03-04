@@ -18,7 +18,7 @@ int ReadChildProcess(char **output, char *cmdline) {
   HANDLE g_hChildStd_OUT_Wr = NULL;
 
   SECURITY_ATTRIBUTES sa;
-  printf("\n->Start of parent execution.\n");
+  printf("\n->Start of parent execution %s.\n", cmdline);
   // Set the bInheritHandle flag so pipe handles are inherited.
   sa.nLength = sizeof(SECURITY_ATTRIBUTES);
   sa.bInheritHandle = TRUE;
@@ -123,6 +123,14 @@ int ReadChildProcess(char **output, char *cmdline) {
 
 char *go_to_git_top() {
   char *buf = git_revparse("--show-toplevel");
+#ifdef _WIN32
+  if (strlen(buf) > 2 && buf[0] == '/' && buf[2] == '/') {
+	  // this is a workaround for a broken git included in msys2
+	  // which returns paths like /c/Users/username...
+	  buf[0] = buf[1];
+	  buf[1] = ':';
+  }
+#endif
 
   if (!buf) {
     printf("Error identifying git toplevel directory!\n");

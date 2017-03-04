@@ -12,10 +12,11 @@
 #include <sys/stat.h>
 
 #ifdef _WIN32
-/* fixme: the following is a very broken version of realpath for windows! */
+#include <windows.h>
+/* fixme: the following is a version of realpath for windows! */
 char *realpath(const char *p, int i) {
-  char *r = malloc(strlen(p));
-  strcpy(r, p);
+  char *r = malloc(4096);
+  GetFullPathName(p, 4096, r, 0);
   return r;
 }
 #else
@@ -25,6 +26,10 @@ char *realpath(const char *p, int i) {
 
 #if defined(_WIN32) || defined(__APPLE__)
 char *getline(char **lineptr, size_t *n, FILE *stream) {
+  if (*n == 0) {
+	  *n = 80;
+	  *lineptr = realloc(*lineptr, *n);
+  }
   int toread = *n;
   char *p = *lineptr;
   while (fgets(p, toread, stream), strlen(p) == toread-1) {
