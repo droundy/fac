@@ -52,6 +52,10 @@ static char *log_directory = 0;
 static const char **include_in_tar = 0;
 
 int main(int argc, const char **argv) {
+#ifdef _WIN32
+  // For some reason, line buffering doesn't seem to work on windows
+  setbuf(stdout, NULL);
+#endif
   initialize_starting_time();
 
   int_argument("jobs", 'j', &num_jobs,

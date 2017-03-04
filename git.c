@@ -103,8 +103,8 @@ int ReadChildProcess(char **output, char *cmdline) {
     error(1, myerrno, "GetExitCodeProcess() failed");
   }
 
-  printf("returning final result %d!\n", result);
-  printf("stdout is %s\n", *output);
+  //~ printf("returning final result %d!\n", result);
+  //~ printf("stdout is %s\n", *output);
   return result;
 }
 
