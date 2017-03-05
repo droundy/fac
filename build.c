@@ -15,7 +15,7 @@
 
 #include <direct.h> // for _chdir
 #define chdir _chdir
-#include <windows.h> // for Sleep
+#include <Windows.h> // for Sleep and file IO with HANDLEs
 #define sleep Sleep
 
 /* fixme: the following is a very broken version of realpath for windows! */
@@ -23,6 +23,41 @@ static char *realpath(const char *p, int i) {
   char *r = malloc(strlen(p));
   strcpy(r, p);
   return r;
+}
+
+static bigbro_fd_t mkstemp_win(char *namebuf) {
+  char *lpTempPathBuffer = malloc(MAX_PATH);
+  char *szTempFileName = malloc(MAX_PATH);
+  //  Gets the temp path env string (no guarantee it's a valid path).
+  long dwRetVal = GetTempPath(MAX_PATH,          // length of the buffer
+                              lpTempPathBuffer); // buffer for path 
+  if (dwRetVal > MAX_PATH || (dwRetVal == 0)) {
+    free(lpTempPathBuffer);
+    free(szTempFileName);
+    return invalid_bigbro_fd;
+  }
+  //  Generates a temporary file name. 
+  dwRetVal = GetTempFileName(lpTempPathBuffer, // directory for tmp files
+                            namebuf,     // temp file name prefix 
+                            0,                // create unique name 
+                            szTempFileName);  // buffer for name 
+  if (dwRetVal == 0) {
+    free(lpTempPathBuffer);
+    free(szTempFileName);
+    return invalid_bigbro_fd;
+  }
+  //  Creates the new file to write to for the upper-case version.
+  HANDLE hTempFile =
+    CreateFile((LPTSTR) szTempFileName, // file name 
+                GENERIC_WRITE | GENERIC_READ, // open for write 
+                0,                    // do not share 
+                NULL,                 // default security 
+                CREATE_ALWAYS,        // overwrite existing
+                FILE_ATTRIBUTE_NORMAL | FILE_ATTRIBUTE_TEMPORARY,// normal file 
+                NULL);                // no template 
+  free(lpTempPathBuffer);
+  free(szTempFileName);
+  return hTempFile;
 }
 
 #else
@@ -52,7 +87,7 @@ static char *realpath(const char *p, int i) {
 
 static listset *facfiles_used = 0;
 
-static  void dump_to_stdout(int fd);
+static  void dump_to_stdout(bigbro_fd_t fd);
 
 static inline double double_time() {
 #ifdef _WIN32
@@ -479,7 +514,7 @@ struct building {
   int all_done;
   pid_t child_pid;
   sem_t *slots_available;
-  int stdouterrfd;
+  bigbro_fd_t stdouterrfd;
   double build_time;
   struct rule *rule;
   char **readdir, **mkdir, **read, **written;
@@ -521,12 +556,11 @@ static struct building *build_rule(struct all_targets *all,
   struct building *b = malloc(sizeof(struct building));
   b->rule = r;
   b->slots_available = slots_available;
-  b->stdouterrfd = -1; /* start with an invalid value */
+  b->stdouterrfd = invalid_bigbro_fd; /* start with an invalid value */
   if (log_directory) {
     char *path = absolute_path(root, log_directory);
     add_cache_prefix(r, path);
     free(path);
-
     const char *rname = pretty_rule(r);
     char *fname = malloc(strlen(log_directory) + strlen(rname)+2);
 #ifdef _WIN32
@@ -552,15 +586,25 @@ static struct building *build_rule(struct all_targets *all,
     }
     fname[start+rulelen] = 0;
 #ifdef _WIN32
+    b->stdouterrfd = CreateFileA(fname,
+                                 GENERIC_WRITE | GENERIC_READ,
+                                 FILE_SHARE_READ,
+                                 NULL, // lpSecurityAttributes
+                                 CREATE_ALWAYS, // dwCreationDisposition
+                                 FILE_ATTRIBUTE_NORMAL, // dwFlagsAndAttributes
+                                 NULL // hTemplateFile
+                                 );
     printf("Do something here!\n");
 #else
     b->stdouterrfd = open(fname, O_RDWR | O_CREAT | O_TRUNC, 0666);
 #endif
     free(fname);
   }
-  if (b->stdouterrfd == -1) {
+  if (b->stdouterrfd == invalid_bigbro_fd) {
 #ifdef _WIN32
-    printf("Figure out how to create a temp file! Or just plan on reading from pipe?\n");
+    const char *templ = "fac-";
+    b->stdouterrfd = mkstemp(templ);
+    // FIXME: figure out how to unlink file!
 #else
     const char *templ = "/tmp/fac-XXXXXX";
     char *namebuf = malloc(strlen(templ)+1);
@@ -709,7 +753,6 @@ static void build_marked(struct all_targets *all, const char *log_directory,
             }
             if (bs[i]->all_done != built || show_output) {
               dump_to_stdout(bs[i]->stdouterrfd);
-              close(bs[i]->stdouterrfd);
             }
             if (bs[i]->all_done != built && bs[i]->all_done != failed) {
               erase_and_printf("INTERRUPTED!  bs[i]->all_done == %s\n",
@@ -813,7 +856,6 @@ static void build_marked(struct all_targets *all, const char *log_directory,
                 rule_failed(all, r);
                 if (!show_output) {
                   dump_to_stdout(bs[i]->stdouterrfd);
-                  close(bs[i]->stdouterrfd);
                 }
                 free(bs[i]->read);
                 free(bs[i]->readdir);
@@ -966,7 +1008,13 @@ static void build_marked(struct all_targets *all, const char *log_directory,
             }
             insert_to_listset(&facfiles_used, r->facfile_path);
 
-            if (!show_output) close(bs[i]->stdouterrfd);
+            if (!show_output) {
+#ifdef _WIN32
+              CloseHandle(bs[i]->stdouterrfd);
+#else
+              close(bs[i]->stdouterrfd);
+#endif
+            }
             free(bs[i]->read);
             free(bs[i]->readdir);
             free(bs[i]->written);
@@ -1395,14 +1443,26 @@ void do_actual_build(struct cmd_args *args) {
   lockfilename = 0;
 }
 
-static void dump_to_stdout(int fd) {
-  lseek(fd, 0, SEEK_SET);
-  size_t mysize = 0;
+static void dump_to_stdout(bigbro_fd_t fd) {
   void *buf = malloc(4096);
+#ifdef _WIN32
+  unsigned long mysize = 0;
+  SetFilePointer(fd, 0, 0, FILE_BEGIN);
+  while (ReadFile(fd, buf, 4096, &mysize, NULL) && mysize) {
+    if (fwrite(buf, 1, mysize, stdout) != mysize) {
+      erase_and_printf("\nerror: trouble writing to stdout!\n");
+    } 
+  }
+  CloseHandle(fd);
+#else
+  size_t mysize = 0;
+  lseek(fd, 0, SEEK_SET);
   while ((mysize = read(fd, buf, 4096)) > 0) {
     if (write(1, buf, mysize) != mysize) {
       erase_and_printf("\nerror: trouble writing to stdout!\n");
     }
   }
+  close(fd);
+#endif
   free(buf);
 }
