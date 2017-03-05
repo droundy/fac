@@ -3,5 +3,6 @@
 * [facfile format](file-format.html)
 * [command line](flags.html)
 * [feature comparison](features.html)
+* [security](security.html)
 
 
