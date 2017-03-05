@@ -25,20 +25,22 @@ char *realpath(const char *p, int i) {
 
 
 #if defined(_WIN32) || defined(__APPLE__)
-char *getline(char **lineptr, size_t *n, FILE *stream) {
+int getline(char **lineptr, size_t *n, FILE *stream) {
   if (*n == 0) {
 	  *n = 80;
 	  *lineptr = realloc(*lineptr, *n);
   }
   int toread = *n;
   char *p = *lineptr;
-  while (fgets(p, toread, stream), strlen(p) == toread-1) {
+  char *fgetsoutput = "foo";
+  while ((fgetsoutput = fgets(p, toread, stream)) && strlen(p) == toread-1) {
     toread = *n;
     *n *= 2;
     *lineptr = realloc(*lineptr, *n);
     p = *lineptr + toread - 1;
   }
-  return *lineptr;
+  if (!fgetsoutput) return -1;
+  return strlen(*lineptr);
 }
 #endif
 
