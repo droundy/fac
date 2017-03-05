@@ -15,7 +15,7 @@
 
 #include <direct.h> // for _chdir
 #define chdir _chdir
-#include <Windows.h> // for Sleep and file IO with HANDLEs
+#include <windows.h> // for Sleep and file IO with HANDLEs
 #define sleep Sleep
 
 /* fixme: the following is a very broken version of realpath for windows! */
@@ -25,7 +25,7 @@ static char *realpath(const char *p, int i) {
   return r;
 }
 
-static bigbro_fd_t mkstemp_win(char *namebuf) {
+static bigbro_fd_t mkstemp_win(const char *namebuf) {
   char *lpTempPathBuffer = malloc(MAX_PATH);
   char *szTempFileName = malloc(MAX_PATH);
   //  Gets the temp path env string (no guarantee it's a valid path).
@@ -603,7 +603,7 @@ static struct building *build_rule(struct all_targets *all,
   if (b->stdouterrfd == invalid_bigbro_fd) {
 #ifdef _WIN32
     const char *templ = "fac-";
-    b->stdouterrfd = mkstemp(templ);
+    b->stdouterrfd = mkstemp_win(templ);
     // FIXME: figure out how to unlink file!
 #else
     const char *templ = "/tmp/fac-XXXXXX";
