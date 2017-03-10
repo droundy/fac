@@ -106,7 +106,7 @@ for variant in variants.keys():
     sources = ['fac', 'files', 'targets', 'clean-all', 'build', 'git', 'environ',
                'mkdir', 'arguments']
 
-    libsources = ['listset', 'iterablehash', 'intmap', 'sha1']
+    libsources = ['listset', 'iterablehash', 'sha1']
 
     for s in sources:
         print('| %s %s -o %s%s.o -c %s.c' % (cc, ' '.join(flags), s, variant, s))
