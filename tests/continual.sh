@@ -44,10 +44,10 @@ ls -lh continual-output
 
 grep 'Build succeeded' continual-output
 
-ps
+ps || echo there is no ps
 kill $(jobs -p)
 
 echo after killing background child
-ps
+ps || echo there is no ps
 
 echo we passed!
