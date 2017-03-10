@@ -14,6 +14,9 @@ RUN apt-get -y install lcov
 RUN apt-get -y install gcovr
 RUN apt-get -y install libc6-dev-i386
 
+RUN git clone git://git.kernel.org/pub/scm/devel/sparse/chrisl/sparse.git /root/sparse
+RUN cd /root/sparse && make && cp sparse /usr/bin/
+
 RUN useradd developer
 RUN mkdir /home/developer
 
