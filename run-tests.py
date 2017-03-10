@@ -146,7 +146,9 @@ def pluralize(num, noun):
 
 if have_gcovr:
     print('files in test:')
-    os.system('ls -trlh test/')
+    os.system('ls -trlh tests/')
+    print('coverage here')
+    os.system('ls *.gc*')
     assert not os.system('gcovr --gcov-exclude tests/ -k -r . --exclude-unreachable-branches --html --html-details -o web/coverage.html')
     assert not os.system('gcovr --gcov-exclude tests/ -r . --exclude-unreachable-branches')
 else:
