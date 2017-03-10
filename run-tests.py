@@ -11,6 +11,9 @@ if 'GIT_AUTHOR_EMAIL' not in os.environ:
     os.putenv("GIT_COMMITTER_EMAIL", 'Tester <test@example.com>')
     os.putenv("GIT_COMMITTER_NAME", 'Tester')
 
+# we always run with test coverage if gcovr is present!
+have_gcovr = os.system('gcovr -h') == 0
+
 def system(cmd):
     return subprocess.call(cmd, shell=True)
 
@@ -50,9 +53,14 @@ else:
 system('echo rm -rf bigbro >> build/%s.sh' % platform.system().lower())
 system('chmod +x build/%s.sh' % platform.system().lower())
 
-if system('./fac'):
+run_fac = './fac'
+if have_gcovr:
+    run_fac = 'CFLAGS=--coverage LDFLAGS=--coverage ./fac'
+if system(run_fac):
     print('Build failed!')
     exit(1)
+else:
+    print('XXXXXXXXX built the fac we will test using', run_fac)
 
 numpassed = 0
 numfailed = 0
@@ -135,6 +143,12 @@ def pluralize(num, noun):
         if (noun[-1] == 's'):
             return str(num)+' '+noun+'es'
         return str(num)+' '+noun+'s'
+
+if have_gcovr:
+    assert not os.system('gcovr --gcov-exclude tests/ -k -r . --exclude-unreachable-branches --html --html-details -o web/coverage.html')
+    assert not os.system('gcovr --gcov-exclude tests/ -r . --exclude-unreachable-branches')
+else:
+    print('not running gcovr')
 
 print()
 if numfailed:

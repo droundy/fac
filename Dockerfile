@@ -10,7 +10,6 @@ RUN apt-get -y install texlive
 RUN apt-get -y install ghc
 RUN apt-get -y install make valgrind wamerican-small sparse
 RUN apt-get -y install gcc python3 git python3-markdown
-RUN apt-get -y install lcov
 RUN apt-get -y install gcovr
 RUN apt-get -y install libc6-dev-i386
 
