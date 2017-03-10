@@ -29,7 +29,7 @@ test:
     - apt-get -y install texlive gcovr libc6-dev-i386
     - apt-get -y install make valgrind wamerican-small
     - git clone git://git.kernel.org/pub/scm/devel/sparse/chrisl/sparse.git
-    - cd sparse && make && sudo cp sparse /usr/bin/ && cd ..
+    - cd sparse && make && sudo sparse /usr/bin/ && cd ..
     - git config --global user.email "testing-on-gitlab-ci@example.com"
     - git config --global user.name "CI Builder"
   script:
