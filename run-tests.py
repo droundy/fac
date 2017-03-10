@@ -80,6 +80,8 @@ for sh in sorted(glob.glob('tests/*.sh')):
     exitval = system(cmdline)
     if exitval == 137:
         print(bcolors.OKBLUE+'SKIP', bcolors.ENDC)
+        if '-v' in sys.argv:
+            os.system('cat %s.log' % sh)
         numskipped += 1
     elif exitval:
         print(bcolors.FAIL+'FAIL', bcolors.ENDC)
