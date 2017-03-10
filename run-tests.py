@@ -55,7 +55,7 @@ system('chmod +x build/%s.sh' % platform.system().lower())
 
 run_fac = './fac'
 if have_gcovr:
-    run_fac = 'CFLAGS=--coverage LDFLAGS=--coverage ./fac'
+    run_fac = 'COVERAGE=1 ./fac'
 if system(run_fac):
     print('Build failed!')
     exit(1)
@@ -145,6 +145,8 @@ def pluralize(num, noun):
         return str(num)+' '+noun+'s'
 
 if have_gcovr:
+    print('files in test:')
+    os.system('ls -trlh test/')
     assert not os.system('gcovr --gcov-exclude tests/ -k -r . --exclude-unreachable-branches --html --html-details -o web/coverage.html')
     assert not os.system('gcovr --gcov-exclude tests/ -r . --exclude-unreachable-branches')
 else:

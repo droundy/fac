@@ -20,10 +20,13 @@ int main() {
 }
 """)
 
-# add , '-fprofile-arcs', '-ftest-coverage' to both of the following
-# lines in order to enable gcov coverage testing
 optional_flags = ['-Wall', '-Werror', '-O2']
 optional_linkflags = ['-lprofiler']
+
+# To enable coverage testing define the environment variable $COVERAGE
+if os.getenv('COVERAGE') != None:
+    optional_flags += ['--coverage']
+    optional_linkflags += ['--coverage']
 
 possible_flags = ['-std=c11', '-std=c99']
 possible_linkflags = ['-lpthread', '-lm']
