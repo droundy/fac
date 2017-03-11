@@ -190,7 +190,7 @@ if have_help2man:
 | help2man --no-info ./fac > fac.1
 < fac''')
 else:
-    print("# no help2man, so we won't build the web page")
+    print("# no help2man, so we won't build the man page")
 
 if have_sass:
     print('''

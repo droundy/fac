@@ -47,6 +47,7 @@ pages:
     - git config --global user.name "CI Builder"
   script:
     - sh build/linux.sh
+    - ./fac
     - ./fac web/index.html web/fac-latest.deb web/style.css
     - mv web public
   artifacts:
