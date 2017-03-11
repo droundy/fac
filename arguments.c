@@ -52,6 +52,10 @@ void string_argument_list(const char *long_name, char short_name, const char ***
   a->type = STRINGLIST_ARG;
   a->description = description;
   a->fieldname = outname;
+  if (!*a->stringlist_location) {
+    *a->stringlist_location = malloc(sizeof(char **));
+    **a->stringlist_location = 0;
+  }
 }
 
 void int_argument(const char *long_name, char short_name, int *output,
@@ -99,10 +103,6 @@ static void handle_arg(struct a *the_a, const char *the_arg) {
   } else if (the_a->type == STRING_ARG) {
     *(the_a->string_location) = the_arg;
   } else if (the_a->type == STRINGLIST_ARG) {
-    if (!*the_a->stringlist_location) {
-      *the_a->stringlist_location = malloc(sizeof(char **));
-      **the_a->stringlist_location = 0;
-    }
     int num_strings;
     for (num_strings=0; (*the_a->stringlist_location)[num_strings]; num_strings++) {
       // counting how many strings we have already.

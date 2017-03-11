@@ -227,10 +227,6 @@ static inline const char *pretty_reason(struct rule *r) {
   return pretty_rule(r); // ?!
 }
 
-void create_parent_directories(const char *fname);
-
-void create_directories(const char *dir);
-
 int rm_recursive(const char *dir);
 
 void cp_to_dir(const char *fname, const char *dir);
