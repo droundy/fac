@@ -12,6 +12,15 @@ cat > top.fac <<EOF
 | cat foo/bar > baz
 
 | grep nice foo/dir/bar > foo/nice
+
+| cp foo/nice foo/nice1
+< foo/nice
+
+| cp baz baz2
+< baz
+
+| cp baz2 baz3
+< baz2
 EOF
 
 mkdir foo
@@ -71,7 +80,7 @@ fi
 # the following is hokey, we wouldn't really do this
 touch Tupfile.ini
 
-../../fac -v --include-in-tar Tupfile.ini --tar fun.tar.gz --tupfile Tupfile
+../../fac -v --include-in-tar Tupfile.ini --tar fun.tar.gz --tupfile Tupfile --dotfile fun.dot
 
 tar zxvf fun.tar.gz
 cd fun
