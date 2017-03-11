@@ -251,8 +251,8 @@ void add_git_files(struct all_targets *all) {
     return; // fixme should exit
   }
   if (WEXITSTATUS(status)) {
-    printf("Unable to run git ls-files successfully %d\n", WEXITSTATUS(status));
-    //    return 0;
+    printf("Unable to run git ls-files successfully (exit code %d)\n", WEXITSTATUS(status));
+    exit(1); // fixme is this the right error handling?
   }
   off_t stdoutlen = lseek(out, 0, SEEK_END);
   lseek(out, 0, SEEK_SET);
@@ -314,11 +314,12 @@ void git_add(const char *path) {
   int status = 0;
   if (waitpid(new_pid, &status, 0) != new_pid) {
     printf("Unable to exec git add -- %s\n", path);
-    return; // fixme should exit
+    exit(1); // fixme is this the right error handling?
   }
   int retval = WEXITSTATUS(status);
 #endif
   if (retval) {
-    printf("Unable to run git add -- %s successfully %d\n", path, retval);
+    printf("Unable to run git add -- %s successfully (exit code %d)\n", path, retval);
+    exit(1); // fixme is this the right error handling?
   }
 }
