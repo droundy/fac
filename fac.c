@@ -90,16 +90,14 @@ int main(int argc, const char **argv) {
   listset *cmd_line_args = 0;
   {
     const char **extra_args = parse_arguments_return_extras(argv);
-    if (extra_args) {
-      char *cwd = getcwd(0,0);
-      for (const char **arg = extra_args; *arg; arg++) {
-        char *abspath = absolute_path(cwd, *arg);
-        insert_to_listset(&cmd_line_args, abspath);
-        free(abspath); // insert_to_listset makes a copy
-      }
-      free(cwd);
-      free(extra_args);
+    char *cwd = getcwd(0,0);
+    for (const char **arg = extra_args; *arg; arg++) {
+      char *abspath = absolute_path(cwd, *arg);
+      insert_to_listset(&cmd_line_args, abspath);
+      free(abspath); // insert_to_listset makes a copy
     }
+    free(cwd);
+    free(extra_args);
   }
 
   if (show_version) {

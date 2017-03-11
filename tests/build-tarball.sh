@@ -23,11 +23,12 @@ cat > top.fac <<EOF
 < baz2
 EOF
 
+mkdir foo
+
 cat > foo/foo.fac <<EOF
 | cp bar silly
 EOF
 
-mkdir foo
 echo bar > foo/bar
 mkdir foo/dir
 echo mean > foo/dir/bar
@@ -40,6 +41,9 @@ git add top.fac foo/foo.fac
 
 grep bar baz
 grep nice foo/nice
+grep bar baz3
+
+../../fac baz3 foo/nice1
 
 ../../fac --tar fun.tar.gz --script build.sh --tupfile Tupfile --makefile Makefile
 
