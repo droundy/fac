@@ -188,6 +188,7 @@ const char **parse_arguments_return_extras(const char **argv) {
         }
         if (!the_a) {
           fprintf(stderr, "invalid argument -%c\n", c);
+          exit(1);
         }
         if (the_a->type != NO_ARG) {
           if (i < strlen(*here)-1) {
