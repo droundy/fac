@@ -9,7 +9,7 @@ build:
   before_script:
     - apt-get update
     - apt-get -y install gcc git python python3 python3-markdown
-    - apt-get -y install ruby-sass ghc help2man
+    - apt-get -y install ruby-sass help2man
     - git config --global user.email "testing-on-gitlab-ci@example.com"
     - git config --global user.name "CI Builder"
   script:
@@ -41,7 +41,8 @@ pages:
   before_script:
     - apt-get update
     - apt-get -y install gcc git python python3 python3-markdown
-    - apt-get -y install ruby-sass ghc help2man
+    - apt-get -y install ruby-sass help2man
+    - apt-get -y install checkinstall
     - git config --global user.email "testing-on-gitlab-ci@example.com"
     - git config --global user.name "CI Builder"
   script:
