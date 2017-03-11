@@ -1,13 +1,18 @@
 image: debian:stretch
 
+before_script:
+  - apt-get update
+  - apt-get -y install gcc git python python3 python3-markdown
+  - apt-get -y install ruby-sass ghc help2man
+  - git config --global user.email "testing-on-gitlab-ci@example.com"
+  - git config --global user.name "CI Builder"
+
+cache:
+  paths:
+    - "/var/cache/apt/archives/*.deb"
+
 build:
   stage: build
-  before_script:
-    - apt-get update
-    - apt-get -y install gcc git python python3 python3-markdown
-    - apt-get -y install ruby-sass ghc help2man
-    - git config --global user.email "testing-on-gitlab-ci@example.com"
-    - git config --global user.name "CI Builder"
   script:
     - sh build/linux.sh
     - ./fac
@@ -15,26 +20,24 @@ build:
     paths:
       - fac
       - fac-static
-  cache:
-    paths:
-      - "/var/cache/apt/archives/*.deb"
 
 # run tests
 test:
   stage: test
   before_script:
-    - apt-get update
-    - apt-get -y install gcc git python python3 python3-markdown
-    - apt-get -y install ruby-sass ghc help2man
     - apt-get -y install texlive gcovr libc6-dev-i386
     - apt-get -y install make valgrind wamerican-small
     # - git clone git://git.kernel.org/pub/scm/devel/sparse/chrisl/sparse.git
     # - cd sparse && make && cp sparse /usr/bin/ && cd ..
-    - git config --global user.email "testing-on-gitlab-ci@example.com"
-    - git config --global user.name "CI Builder"
   script:
     - python3 run-tests.py -v
-  cache:
-    paths:
-      - "/var/cache/apt/archives/*.deb"
 
+pages:
+  stage: deploy
+  script:
+    - sh build/linux.sh
+    - ./fac web/index.html web/fac-latest.deb web/style.css
+    - mv web public
+  artifacts:
+    paths:
+      - public
