@@ -118,4 +118,12 @@ if which tup; then
     rm -rf fun
 fi
 
+# now just test a few extensions:
+../../fac --tar fun.tgz
+tar ztf fun.tgz
+../../fac --tar fun.tar.bz2
+tar jtf fun.tar.bz2
+../../fac --tar fun.tar
+tar tf fun.tar
+
 exit 0

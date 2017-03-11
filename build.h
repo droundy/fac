@@ -7,7 +7,6 @@ void initialize_starting_time();
 
 void mark_facfiles(struct all_targets *all);
 void mark_all(struct all_targets *all);
-void mark_rule(struct all_targets *all, struct rule *r);
 
 struct cmd_args {
   const char *create_dotfile, *create_makefile, *create_tupfile,

@@ -155,8 +155,9 @@ bool is_interesting_path(struct rule *r, const char *path) {
 }
 
 static void check_cleanliness(struct all_targets *all, struct rule *r);
+static void mark_rule(struct all_targets *all, struct rule *r);
 
-void mark_rule(struct all_targets *all, struct rule *r) {
+static void mark_rule(struct all_targets *all, struct rule *r) {
   if (r->status != unknown) {
     return;
   }
