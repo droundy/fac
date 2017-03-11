@@ -35,6 +35,9 @@ test:
     # - cd sparse && make && cp sparse /usr/bin/ && cd ..
   script:
     - python3 run-tests.py -v
+  artifacts:
+    paths:
+      - web
 
 pages:
   stage: deploy
