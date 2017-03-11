@@ -71,9 +71,10 @@ biggestname = max([len(f) for f in glob.glob('tests/*.sh') + glob.glob('tests/*.
 def write_script_name(n, num=0, tot=0):
     if tot > 0:
         n += ' (%d/%d)' % (num, tot)
+    extralen = len(' (%d/%d)' % (tot,tot))
     sys.stdout.write(n+':')
     sys.stdout.flush()
-    sys.stdout.write(' '*(biggestname+3-len(n)))
+    sys.stdout.write(' '*(biggestname+extralen+3-len(n)))
 
 if system('cd bigbro && python3 run-tests.py'):
     write_script_name('ran all bigbro tests')
@@ -151,6 +152,7 @@ def pluralize(num, noun):
 
 if have_gcovr:
     os.system('rm -f test.*') # generated while testing compiler flags
+    os.system('rm -f *-win.gc*') # generated while testing compiler flags
     os.system('rm -f bigbro/*.gc*') # not interested in bigbro coverage
     os.system('rm -f bigbro/*/*.gc*') # not interested in bigbro coverage
     os.system('rm -f tests/*.gc*') # not interested in test binaries
