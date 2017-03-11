@@ -68,7 +68,9 @@ numskipped = 0
 
 biggestname = max([len(f) for f in glob.glob('tests/*.sh') + glob.glob('tests/*.test')])
 
-def write_script_name(n):
+def write_script_name(n, num=0, tot=0):
+    if tot > 0:
+        n += ' (%d/%d)' % (num, tot)
     sys.stdout.write(n+':')
     sys.stdout.flush()
     sys.stdout.write(' '*(biggestname+3-len(n)))
@@ -82,8 +84,11 @@ else:
     print(bcolors.OKGREEN+'PASS', bcolors.ENDC)
     numpassed += 1
 
-for sh in sorted(glob.glob('tests/*.sh')):
-    write_script_name(sh)
+sh_tests = sorted(glob.glob('tests/*.sh'))
+num_sh = len(sh_tests);
+for i in range(num_sh):
+    sh = sh_tests[i]
+    write_script_name(sh, i, num_sh)
     cmdline = 'bash %s > %s.log 2>&1' % (sh, sh)
     exitval = system(cmdline)
     if exitval == 137:
@@ -145,10 +150,10 @@ def pluralize(num, noun):
         return str(num)+' '+noun+'s'
 
 if have_gcovr:
-    os.system('rm -v -f test.*') # generated while testing compiler flags
-    os.system('rm -v -f bigbro/*.gc*') # not interested in bigbro coverage
-    os.system('rm -v -f bigbro/*/*.gc*') # not interested in bigbro coverage
-    os.system('rm -v -f tests/*.gc*') # not interested in test binaries
+    os.system('rm -f test.*') # generated while testing compiler flags
+    os.system('rm -f bigbro/*.gc*') # not interested in bigbro coverage
+    os.system('rm -f bigbro/*/*.gc*') # not interested in bigbro coverage
+    os.system('rm -f tests/*.gc*') # not interested in test binaries
     assert not os.system('gcovr --gcov-exclude tests/ -k -r . --exclude-unreachable-branches --html --html-details -o web/coverage.html')
     assert not os.system('gcovr --gcov-exclude tests/ -r . --exclude-unreachable-branches')
 else:
