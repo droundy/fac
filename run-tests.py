@@ -145,10 +145,10 @@ def pluralize(num, noun):
         return str(num)+' '+noun+'s'
 
 if have_gcovr:
-    print('files in test:')
-    os.system('ls -trlh tests/')
-    print('coverage here')
-    os.system('ls *.gc*')
+    os.system('rm -v -f test.*') # generated while testing compiler flags
+    os.system('rm -v -f bigbro/*.gc*') # not interested in bigbro coverage
+    os.system('rm -v -f bigbro/*/*.gc*') # not interested in bigbro coverage
+    os.system('rm -v -f tests/*.gc*') # not interested in test binaries
     assert not os.system('gcovr --gcov-exclude tests/ -k -r . --exclude-unreachable-branches --html --html-details -o web/coverage.html')
     assert not os.system('gcovr --gcov-exclude tests/ -r . --exclude-unreachable-branches')
 else:
