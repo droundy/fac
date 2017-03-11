@@ -12,6 +12,7 @@ RUN apt-get -y install make valgrind wamerican-small sparse
 RUN apt-get -y install gcc python3 git python3-markdown
 RUN apt-get -y install gcovr
 RUN apt-get -y install libc6-dev-i386
+RUN apt-get -y install help2man checkinstall
 
 RUN git clone git://git.kernel.org/pub/scm/devel/sparse/chrisl/sparse.git /root/sparse
 RUN cd /root/sparse && make && cp sparse /usr/bin/
