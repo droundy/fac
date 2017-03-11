@@ -6,6 +6,8 @@
 #include <assert.h>
 #include <stdio.h>
 
+void __gcov_flush();
+
 #ifdef _WIN32
 
 #include <windows.h>
@@ -178,6 +180,9 @@ char *git_revparse(const char *flag) {
     args[1] = "rev-parse";
     args[2] = (char *)flag;
     args[3] = 0;
+#ifdef COVERAGE
+    __gcov_flush();
+#endif
     execvp("git", args);
     exit(0);
   }
@@ -234,6 +239,9 @@ void add_git_files(struct all_targets *all) {
     args[0] = "git";
     args[1] = "ls-files";
     args[2] = 0;
+#ifdef COVERAGE
+    __gcov_flush();
+#endif
     execvp("git", args);
     exit(0);
   }
@@ -297,6 +305,9 @@ void git_add(const char *path) {
   pid_t new_pid = fork();
   if (new_pid == 0) {
     close(0);
+#ifdef COVERAGE
+    __gcov_flush();
+#endif
     execvp("git", (char **)args);
     error(1, errno, "running git");
   }

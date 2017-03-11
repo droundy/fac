@@ -25,7 +25,7 @@ optional_linkflags = ['-lprofiler']
 
 # To enable coverage testing define the environment variable $COVERAGE
 if os.getenv('COVERAGE') != None:
-    optional_flags += ['--coverage']
+    optional_flags += ['--coverage', "-DCOVERAGE"]
     optional_linkflags += ['--coverage']
 
 possible_flags = ['-std=c11', '-std=c99']
