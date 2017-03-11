@@ -4,8 +4,8 @@
 <!-- [![Build Status](https://travis-ci.org/droundy/fac.svg?branch=master)](https://travis-ci.org/droundy/fac) -->
 
 [![Build Status](https://semaphoreci.com/api/v1/droundy/fac/branches/master/shields_badge.svg)](https://semaphoreci.com/droundy/fac)
-[![build status](https://gitlab.com/daveroundy/fac/badges/master/build.svg)](https://gitlab.com/daveroundy/fac/pipelines)
-[![coverage report](https://gitlab.com/daveroundy/fac/badges/master/coverage.svg)](https://gitlab.com/daveroundy/fac/pipelines)
+[![build status](https://gitlab.com/daveroundy/fac/badges/master/build.svg)](https://gitlab.com/facio/fac/pipelines)
+[![coverage report](https://gitlab.com/daveroundy/fac/badges/master/coverage.svg)](https://facio.gitlab.io/fac/coverage.html)
 
 Fac is a general-purpose build system inspired by make that utilizes
 ptrace to ensure that all dependences are enumerated and that all
