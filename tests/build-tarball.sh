@@ -23,6 +23,10 @@ cat > top.fac <<EOF
 < baz2
 EOF
 
+cat > foo/foo.fac <<EOF
+| cp bar silly
+EOF
+
 mkdir foo
 echo bar > foo/bar
 mkdir foo/dir
@@ -30,7 +34,7 @@ echo mean > foo/dir/bar
 echo nice >> foo/dir/bar
 
 git init
-git add top.fac
+git add top.fac foo/foo.fac
 
 ../../fac --git-add
 
