@@ -42,7 +42,7 @@ void sha1_init(sha1nfo *s) {
 	s->bufferOffset = 0;
 }
 
-uint32_t sha1_rol32(uint32_t number, uint8_t bits) {
+static uint32_t sha1_rol32(uint32_t number, uint8_t bits) {
 	return ((number << bits) | (number >> (32-bits)));
 }
 
@@ -83,7 +83,7 @@ void sha1_hashBlock(sha1nfo *s) {
 	s->state[4] += e;
 }
 
-void sha1_addUncounted(sha1nfo *s, uint8_t data) {
+static void sha1_addUncounted(sha1nfo *s, uint8_t data) {
 	uint8_t * const b = (uint8_t*) s->buffer;
 #ifdef SHA_BIG_ENDIAN
 	b[s->bufferOffset] = data;
@@ -97,7 +97,7 @@ void sha1_addUncounted(sha1nfo *s, uint8_t data) {
 	}
 }
 
-void sha1_writebyte(sha1nfo *s, uint8_t data) {
+static void sha1_writebyte(sha1nfo *s, uint8_t data) {
 	++s->byteCount;
 	sha1_addUncounted(s, data);
 }
@@ -173,10 +173,14 @@ sha1hash read_sha1(const char *str) {
   return h;
 }
 
+/* self-test */
+
+#if SHA1TEST
+
 #define HMAC_IPAD 0x36
 #define HMAC_OPAD 0x5c
 
-void sha1_initHmac(sha1nfo *s, const uint8_t* key, int keyLength) {
+static void sha1_initHmac(sha1nfo *s, const uint8_t* key, int keyLength) {
 	uint8_t i;
 	memset(s->keyBuffer, 0, BLOCK_LENGTH);
 	if (keyLength > BLOCK_LENGTH) {
@@ -195,7 +199,7 @@ void sha1_initHmac(sha1nfo *s, const uint8_t* key, int keyLength) {
 	}
 }
 
-uint8_t* sha1_resultHmac(sha1nfo *s) {
+static uint8_t* sha1_resultHmac(sha1nfo *s) {
 	uint8_t i;
 	// Complete inner hash
 	memcpy(s->innerHash,sha1_result(s),HASH_LENGTH);
@@ -206,9 +210,6 @@ uint8_t* sha1_resultHmac(sha1nfo *s) {
 	return sha1_result(s);
 }
 
-/* self-test */
-
-#if SHA1TEST
 #include <stdio.h>
 
 uint8_t hmacKey1[]={
