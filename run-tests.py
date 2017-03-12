@@ -71,7 +71,7 @@ biggestname = max([len(f) for f in glob.glob('tests/*.sh') + glob.glob('tests/*.
 def write_script_name(n, num=0, tot=0):
     if tot > 0:
         n += ' (%d/%d)' % (num, tot)
-    extralen = len(' (%d/%d)' % (tot,tot))
+    extralen = 8 # len(' (%d/%d)' % (tot,tot))
     sys.stdout.write(n+':')
     sys.stdout.flush()
     sys.stdout.write(' '*(biggestname+extralen+3-len(n)))
