@@ -528,6 +528,24 @@ static void *run_bigbrother(void *ptr) {
   b->mkdir = 0;
   b->read = 0;
   b->written = 0;
+  if (dry_run) {
+    b->readdir = malloc(sizeof(char *));
+    *b->readdir = 0;
+    b->mkdir = malloc(sizeof(char *));
+    *b->mkdir = 0;
+    b->read = malloc(sizeof(char *));
+    *b->read = 0;
+    b->written = malloc(sizeof(char *));
+    *b->written  = 0;
+    b->build_time = rand()/(double)RAND_MAX;
+    // memory barrier to ensure b->all_done is not modified before we
+    // finish filling everything in:
+    __sync_synchronize();
+    b->all_done = failed;
+    sem_post(b->slots_available);
+    pthread_exit(0);
+    return 0;
+  }
 
   double started = double_time();
   int ret = bigbro_with_mkdir(b->rule->working_directory,
@@ -1196,6 +1214,9 @@ void summarize_build_results(struct all_targets *all, bool am_continual) {
     fflush(stdout);
     if (am_continual) {
       printf("Waiting for change to try again...\n");
+    } else if (dry_run) {
+      printf("But it is only a dry run, so it's all cool!\n");
+      exit(0);
     } else {
       exit(1);
     }

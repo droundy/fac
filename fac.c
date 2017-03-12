@@ -32,6 +32,7 @@
 const char *root = 0;
 
 int verbose = 0;
+int dry_run = 0;
 int show_output = 0;
 int num_jobs = 0;
 
@@ -48,6 +49,7 @@ static char *create_tupfile = 0;
 static char *create_script = 0;
 static char *create_tarball = 0;
 static char *log_directory = 0;
+static char *parse_only = 0;
 
 static const char **include_in_tar = 0;
 
@@ -87,6 +89,11 @@ int main(int argc, const char **argv) {
   no_argument("version", 'V', (bool *)&show_version,
               "display the version");
 
+  no_argument("dry", 0, (bool *)&dry_run,
+              "dry run (don't do any building!)");
+  string_argument("parse-only", 0, &parse_only,
+                  "just parse this .fac file", "FACFILENAME");
+
   listset *cmd_line_args = 0;
   {
     const char **extra_args = parse_arguments_return_extras(argv);
@@ -106,6 +113,15 @@ int main(int argc, const char **argv) {
   }
 
   root = go_to_git_top();
+
+  if (parse_only) {
+    struct all_targets all;
+    init_all(&all);
+    parse_only = absolute_path(root, parse_only);
+    read_fac_file(&all, parse_only);
+    printf("finished parsing file %s\n", parse_only);
+    exit(0);
+  }
 
   struct cmd_args args;
   args.include_in_tar = include_in_tar;

@@ -37,3 +37,5 @@ testing-flags
 fac.1
 bigbro-static
 bigbro
+tests/afl-input/
+tests/afl-output/
