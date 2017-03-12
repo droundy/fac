@@ -113,10 +113,10 @@ if which tup; then
     grep nice foo/dir/bar
     grep bar baz
     grep nice foo/nice
-
-    cd ..
-    rm -rf fun
 fi
+
+cd ..
+rm -rf fun
 
 # now just test a few extensions:
 ../../fac --tar fun.tgz
