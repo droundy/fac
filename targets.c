@@ -98,8 +98,10 @@ void set_status(struct all_targets *all, struct rule *r, enum target_status stat
     all->num_with_status[r->status]--;
     all->estimated_times[r->status] -= r->build_time;
   } else if (status) {
-    fprintf(stderr, "%s was in no list at all but had status %s!",
-            pretty_rule(r), pretty_status(r->status));
+    fprintf(stderr, "%s was in no list at all but had status %d!",
+            pretty_rule(r), r->status);
+    /* fprintf(stderr, "%s was in no list at all but had status %s!", */
+    /*         pretty_rule(r), pretty_status(r->status)); */
     exit(1);
   }
   if (r->status_next) {

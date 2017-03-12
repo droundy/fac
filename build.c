@@ -759,8 +759,9 @@ static void build_marked(struct all_targets *all, const char *log_directory,
               dump_to_stdout(bs[i]->stdouterrfd);
             }
             if (bs[i]->all_done != built && bs[i]->all_done != failed) {
-              erase_and_printf("INTERRUPTED!  bs[i]->all_done == %s\n",
-                               pretty_status(bs[i]->all_done));
+              erase_and_printf("INTERRUPTED! or crashed?  bs[i]->all_done == %d\n",
+                               bs[i]->all_done);
+              // pretty_status(bs[i]->all_done));
               am_interrupted = true;
               break;
             }
