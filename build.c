@@ -634,9 +634,12 @@ void initialize_starting_time() {
   starting_time = double_time();
 }
 
+static sem_t *slots_available = NULL;
+
 #ifndef _WIN32
 static void handle_interrupt(int sig) {
   am_interrupted = true;
+  if (slots_available) sem_post(slots_available); // interrupt things now!
 }
 #endif
 
@@ -676,7 +679,7 @@ static void build_marked(struct all_targets *all, const char *log_directory,
   }
 
   struct building **bs = malloc(num_jobs*sizeof(struct building *));
-  sem_t *slots_available = malloc(sizeof(sem_t));
+  slots_available = malloc(sizeof(sem_t));
   if (sem_init(slots_available, 0, 0) == -1) {
     error(1, errno, "unable to create semaphore");
   }
@@ -1066,11 +1069,39 @@ static void build_marked(struct all_targets *all, const char *log_directory,
 #else
             kill(-bs[i]->child_pid, SIGKILL); /* kill with extreme prejudice */
 #endif
+          }
+        }
+        for (int i=0;i<num_jobs;i++) {
+          if (bs[i]) {
+            if (bs[i]->written) {
+              for (int nn=0; bs[i]->written[nn]; nn++) {
+                // Delete any files that were created, so that they
+                // will be properly re-created next time this command
+                // is run.
+                verbose_printf("deleting %s\n", bs[i]->written[nn]);
+                unlink(bs[i]->written[nn]);
+              }
+              free(bs[i]->written);
+            }
+            for (int nn=0; nn < bs[i]->rule->num_outputs; nn++) {
+              verbose_printf("deleting %s\n", bs[i]->rule->outputs[nn]->path);
+              unlink(bs[i]->rule->outputs[nn]->path);
+            }
+            if (bs[i]->mkdir) {
+              for (int nn=0; bs[i]->mkdir[nn]; nn++) {
+                // Delete any files that were created, so that they
+                // will be properly re-created next time this command
+                // is run.
+                rmdir(bs[i]->mkdir[nn]);
+              }
+              free(bs[i]->mkdir);
+            }
             free(bs[i]);
             bs[i] = 0;
           }
         }
         erase_and_printf("Interrupted!\n");
+        fflush(stdout);
 
         while (facfiles_used) {
           char *donefile = done_name(facfiles_used->path);
@@ -1467,3 +1498,4 @@ static void dump_to_stdout(bigbro_fd_t fd) {
 #endif
   free(buf);
 }
+
