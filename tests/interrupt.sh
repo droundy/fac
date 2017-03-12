@@ -14,7 +14,6 @@ cat > top.fac <<EOF
 | cp input output1 && sleep 5
 
 | sleep 5 && cp input output2
-> output2
 EOF
 
 echo input > input
@@ -22,18 +21,15 @@ echo input > input
 git init
 git add top.fac input
 
-../../fac
-
-../../fac -c
-
-../../fac -v > fac.out &
+../../fac -v &
 ID=$!
 
 sleep 1
 
 kill -s SIGINT $ID
 
-cat fac.out
+sleep 2
+echo done killing?
 
 ls -trlh
 
