@@ -94,13 +94,20 @@ grep 'error: my.fac:2: .c. cache lines' fac.err
 chmod a-r my.fac
 ls -l my.fac
 
-if ../../fac 2> fac.err; then
-  cat fac.err
-  echo build should fail
-  exit 1
-fi
-cat fac.err
+if wc my.fac; then
+    echo we have some funky broken filesystem here
+else
 
-grep 'error: unable to open file' fac.err
+    if ../../fac 2> fac.err; then
+        cat fac.err
+        echo build should fail
+        exit 1
+    fi
+    cat fac.err
+
+    grep 'error: unable to open file' fac.err
+fi
+
+chmod +r my.fac
 
 exit 0

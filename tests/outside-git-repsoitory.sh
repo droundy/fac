@@ -43,22 +43,31 @@ cd subdir
 
 chmod a-x ..
 
-if $FAC &> fac.err; then
+if cd ..; then
+    echo we have some funky broken filesystem here
+else
+
+    if $FAC &> fac.err; then
+        cat fac.err
+        echo should have failed error identifying
+        exit 1
+    fi
+
     cat fac.err
-    echo should have failed error identifying
-    exit 1
+    # the following is perhaps a confusing error, but it's a confusing situation
+    grep 'Unable to run git rev-parse successfully' fac.err
+
+    chmod +x ..
 fi
-
-cat fac.err
-# the following is perhaps a confusing error, but it's a confusing situation
-grep 'Unable to run git rev-parse successfully' fac.err
-
-chmod +x ..
 
 $FAC -c
 
 chmod a-r ..
 
+$FAC --dry
+
 $FAC
+
+chmod a+r ..
 
 exit 0
