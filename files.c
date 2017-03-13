@@ -10,6 +10,7 @@
 #include <string.h>
 #include <limits.h>
 #include <sys/stat.h>
+#include <assert.h>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -69,9 +70,8 @@ char *absolute_path(const char *dir, const char *rel) {
       free(myrel);
       len = strlen(thepath);
       thepath = realloc(thepath, len+lastbit_length+2);
-      if (snprintf(thepath+len, lastbit_length+2, "/%s", rel+strlen(rel)-lastbit_length)
-          >= lastbit_length+2)
-        error_at_line(1,0, __FILE__, __LINE__, "bug!!!");
+      len = snprintf(thepath+len, lastbit_length+2, "/%s", rel+strlen(rel)-lastbit_length);
+      assert(len < lastbit_length+2);
       return thepath;
     }
   }
@@ -86,8 +86,8 @@ char *absolute_path(const char *dir, const char *rel) {
   int rel_len = strlen(rel);
   int dirlen = strlen(thepath);
   thepath = realloc(thepath, dirlen + rel_len + 2);
-  if (snprintf(thepath+dirlen, rel_len+2, "/%s", rel) >= rel_len+2)
-    error_at_line(1,0, __FILE__, __LINE__, "bug!!!");
+  int bytes_printed = snprintf(thepath+dirlen, rel_len+2, "/%s", rel);
+  assert(bytes_printed < rel_len+2);
   return thepath;
 }
 
