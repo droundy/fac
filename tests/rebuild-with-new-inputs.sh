@@ -46,6 +46,16 @@ EOF
 
 ../../fac --parse-only my.fac
 
+if ../../fac --parse-only=myfac &> fac.out; then
+    echo should have failed because myfac does not exist
+    cat fac.out
+    exit 1
+fi
+
+cat fac.out
+grep 'unable to open file' fac.out
+grep myfac fac.out
+
 ../../fac
 
 grep foo out
