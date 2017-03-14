@@ -157,7 +157,7 @@ if have_gcovr:
     os.system('rm -f bigbro/*/*.gc*') # not interested in bigbro coverage
     os.system('rm -f tests/*.gc*') # not interested in test binaries
     assert not os.system('gcovr --gcov-exclude tests/ -k -r . --exclude-unreachable-branches --html --html-details -o web/coverage.html')
-    assert not os.system('gcovr --gcov-exclude tests/ -r . --exclude-unreachable-branches')
+    assert not os.system('gcovr --gcov-exclude tests/ -k -r . --exclude-unreachable-branches')
 else:
     print('not running gcovr')
 
