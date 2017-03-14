@@ -814,9 +814,9 @@ static void build_marked(struct all_targets *all, const char *log_directory,
               }
               free(bs[i]->written);
               for (int nn=0; bs[i]->mkdir[nn]; nn++) {
-                // Delete any files that were created, so that they
-                // will be properly re-created next time this command
-                // is run.
+                // Delete any directories that were created, so that
+                // they will be properly re-created next time this
+                // command is run.
                 rmdir(bs[i]->mkdir[nn]);
               }
               free(bs[i]->mkdir);

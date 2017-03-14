@@ -12,6 +12,7 @@ cd /tmp/$0.dir
 cat > my.fac <<EOF
 | cat foo bar > out || true
 
+| mkdir -p directory && echo hello > directory/hello
 EOF
 
 if $FAC &> fac.err; then
@@ -62,6 +63,11 @@ fi
 
 $FAC -c
 
+if ls directory; then
+    echo directory should have been deleted
+    exit 1
+fi
+
 chmod a-r ..
 
 $FAC --dry
@@ -69,5 +75,17 @@ $FAC --dry
 $FAC
 
 chmod a+r ..
+
+cd ..
+ls -l
+ls directory
+
+$FAC -c
+
+if ls directory; then
+    echo directory should have been deleted
+    exit 1
+fi
+echo all good
 
 exit 0
