@@ -42,6 +42,7 @@ $FAC
 mkdir subdir
 cd subdir
 
+pwd
 chmod a-x ..
 
 if cd ..; then
@@ -59,6 +60,8 @@ else
     grep 'Unable to run git rev-parse successfully' fac.err
 
     chmod +x ..
+
+    cd ..
 fi
 
 $FAC -c
@@ -75,8 +78,6 @@ $FAC --dry
 $FAC
 
 chmod a+r ..
-
-cd ..
 ls -l
 ls directory
 

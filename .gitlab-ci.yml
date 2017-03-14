@@ -26,7 +26,7 @@ test:
   before_script:
     - apt-get update
     - apt-get -y install gcc git python python3 python3-markdown
-    - apt-get -y install ruby-sass ghc help2man screen
+    - apt-get -y install ruby-sass ghc help2man screen curl
     - git config --global user.email "testing-on-gitlab-ci@example.com"
     - git config --global user.name "CI Builder"
     - apt-get -y install texlive gcovr libc6-dev-i386
@@ -35,6 +35,8 @@ test:
     # - cd sparse && make && cp sparse /usr/bin/ && cd ..
   script:
     - python3 run-tests.py -v
+  after_script:
+    - bash <(curl -s https://codecov.io/bash)
   artifacts:
     paths:
       - web
