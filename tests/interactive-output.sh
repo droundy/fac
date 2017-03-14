@@ -27,5 +27,20 @@ screen -m -D -L output ../../fac --jobs=1
 
 cat output
 grep 'Build time remaining' output
+grep good good
+grep good better
+grep good best
+
+if ../../fac --jobs=a1 &> output; then
+    echo should have faile bad integer
+    cat output
+    exit 1
+fi
+
+cat output
+
+grep 'invalid integer argument' output
+
+echo all is good
 
 exit 0
