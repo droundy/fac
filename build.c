@@ -108,7 +108,7 @@ struct a_path {
 // This code determines if a file might be in the git repository.  We
 // whitelist the hooks directory, since it is reasonable (or
 // semireasonable) for rules to create files in there.
-bool is_git_path(const char *path) {
+static bool is_git_path(const char *path) {
   static char *gitpath = 0, *githookspath = 0;
   static int gitlen = 0, githookslen = 0;
   if (!gitpath) {
