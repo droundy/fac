@@ -288,10 +288,7 @@ static void find_target_sha1(struct target *t, const char *why) {
       bufferlen += 4096;
       buffer = realloc(buffer, bufferlen);
       readlen = readlink(t->path, buffer, bufferlen);
-      if (readlen < 0) {
-        free(buffer);
-        return;
-      }
+      if (readlen < 0) error(1, errno, "error reading symlink %s", t->path);
     } while (readlen > bufferlen);
     sha1nfo sh;
     sha1_init(&sh);
