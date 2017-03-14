@@ -28,8 +28,8 @@ if os.getenv('COVERAGE') != None:
     optional_flags += ['--coverage', "-DCOVERAGE"]
     optional_linkflags += ['--coverage']
 
-possible_flags = ['-std=c11', '-std=c99']
-possible_linkflags = ['-lpthread', '-lm']
+possible_flags = ['-std=c11', '-std=c99', '-flto']
+possible_linkflags = ['-lpthread', '-lm', '-flto']
 
 if os.getenv('MINIMAL') == None:
     print('# We are not minimal')
