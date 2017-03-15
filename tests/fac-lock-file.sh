@@ -7,13 +7,15 @@ mkdir $0.dir
 cd $0.dir
 
 cat > my.fac <<EOF
-| sleep 17 && echo good > good
+| sleep 15 && echo good > good
 EOF
 
 git init
 git add my.fac
 
 ../../fac &
+
+sleep 1
 
 if ../../fac &> output; then
     echo should have failed due to lock

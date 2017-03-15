@@ -1266,7 +1266,7 @@ void do_actual_build(struct cmd_args *args) {
     {
       int seconds_waited = 0;
       while (fac_is_already_running()) {
-        if (seconds_waited > 15) {
+        if (seconds_waited > 9) {
           printf("Giving up after %d seconds... remove %s?\n",
                  seconds_waited, lockfilename);
           exit(1);
