@@ -1,17 +1,7 @@
-image: debian:stretch
-
-cache:
-  paths:
-    - "/var/cache/apt/archives/*.deb"
+image: facio/build
 
 build:
   stage: build
-  before_script:
-    - apt-get update
-    - apt-get -y install gcc git python python3 python3-markdown
-    - apt-get -y install ruby-sass help2man
-    - git config --global user.email "testing-on-gitlab-ci@example.com"
-    - git config --global user.name "CI Builder"
   script:
     - sh build/linux.sh
     - ./fac
@@ -24,15 +14,8 @@ build:
 test:
   stage: test
   before_script:
-    - apt-get update
-    - apt-get -y install gcc git python python3 python3-markdown
-    - apt-get -y install ruby-sass ghc help2man screen curl
     - git config --global user.email "testing-on-gitlab-ci@example.com"
     - git config --global user.name "CI Builder"
-    - apt-get -y install texlive gcovr libc6-dev-i386
-    - apt-get -y install make valgrind wamerican-small
-    # - git clone git://git.kernel.org/pub/scm/devel/sparse/chrisl/sparse.git
-    # - cd sparse && make && cp sparse /usr/bin/ && cd ..
   script:
     - python3 run-tests.py -v
   after_script:
@@ -43,13 +26,6 @@ test:
 
 pages:
   stage: deploy
-  before_script:
-    - apt-get update
-    - apt-get -y install gcc git python python3 python3-markdown
-    - apt-get -y install ruby-sass help2man
-    - apt-get -y install checkinstall
-    - git config --global user.email "testing-on-gitlab-ci@example.com"
-    - git config --global user.name "CI Builder"
   script:
     - sh build/linux.sh
     - ./fac
