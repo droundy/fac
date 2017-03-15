@@ -55,6 +55,7 @@ system('chmod +x build/%s.sh' % platform.system().lower())
 
 run_fac = './fac'
 if have_gcovr:
+    os.system('rm -f *.gc* */*.gc*') # remove any preexisting coverage files
     run_fac = 'COVERAGE=1 ./fac'
 if system(run_fac):
     print('Build failed!')
