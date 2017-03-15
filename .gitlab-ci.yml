@@ -36,7 +36,7 @@ test:
   script:
     - python3 run-tests.py -v
   after_script:
-    - (bash <(curl -s https://codecov.io/bash) -t 4bcdcd28-ba20-4da7-ab75-2ac3344e2f15) || true
+    - bash <(curl -s https://codecov.io/bash) -t 4bcdcd28-ba20-4da7-ab75-2ac3344e2f15
   artifacts:
     paths:
       - web
