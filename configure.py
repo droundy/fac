@@ -119,6 +119,8 @@ for variant in variants.keys():
     for s in sources:
         print('| %s %s -o %s%s.o -c %s.c' % (cc, ' '.join(flags), s, variant, s))
         print('> %s%s.o' % (s, variant))
+        if '-flto' in flags and s == 'fac':
+            print('c %s%s.gcno' % (s, variant))
         if s == 'fac':
             print('< version-identifier.h')
         print()
