@@ -152,7 +152,8 @@ def pluralize(num, noun):
 
 if have_gcovr:
     os.system('rm -f test.*') # generated while testing compiler flags
-    os.system('rm -f *-win.gc*') # generated while testing compiler flags
+    os.system('rm -f *-win.gc* *-static.gc* *-afl.gc*') # generated for other builds than "standard"
+    os.system('rm -f cc*.gc*') # not sure where these come from!
     os.system('rm -f bigbro/*.gc*') # not interested in bigbro coverage
     os.system('rm -f bigbro/*/*.gc*') # not interested in bigbro coverage
     os.system('rm -f tests/*.gc*') # not interested in test binaries
