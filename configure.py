@@ -20,16 +20,16 @@ int main() {
 }
 """)
 
-optional_flags = ['-Wall', '-Werror', '-O2']
-optional_linkflags = ['-lprofiler']
+optional_flags = ['-Wall', '-Werror', '-O2', '-flto']
+optional_linkflags = ['-lprofiler', '-flto']
 
 # To enable coverage testing define the environment variable $COVERAGE
 if os.getenv('COVERAGE') != None:
     optional_flags += ['--coverage', "-DCOVERAGE"]
     optional_linkflags += ['--coverage']
 
-possible_flags = ['-std=c11', '-std=c99', '-flto']
-possible_linkflags = ['-lpthread', '-lm', '-flto']
+possible_flags = ['-std=c11', '-std=c99']
+possible_linkflags = ['-lpthread', '-lm']
 
 if os.getenv('MINIMAL') == None:
     print('# We are not minimal')
