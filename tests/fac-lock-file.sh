@@ -2,11 +2,6 @@
 
 set -ev
 
-if ! which screen; then
-    echo there is no screen available
-    exit 137
-fi
-
 rm -rf $0.dir
 mkdir $0.dir
 cd $0.dir
