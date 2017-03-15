@@ -159,6 +159,7 @@ for variant in variants.keys():
         for s in libsources:
             print('< lib/%s%s.o' % (s, variant))
         print('> fac%s%s' % (variant, postfix))
+        print('c .gcno')
         print()
 
     if variant != '-win':
