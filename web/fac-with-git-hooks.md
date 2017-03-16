@@ -70,6 +70,9 @@ CI infrastructure not supporting clang-3.9).  In our example, we will
 instead use a git version of sparse (which supports `-Wsparse-error`
 to check our code.
 
+    $ sparse --version
+    v0.5.0-...
+
 ##### configure.fac
     | python3 configure.py
     > .fac
