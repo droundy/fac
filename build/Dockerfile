@@ -9,3 +9,4 @@ RUN apt-get -y update && apt-get -y upgrade && apt-get -y install apt-utils && a
 
 RUN git clone git://git.kernel.org/pub/scm/devel/sparse/chrisl/sparse.git /root/sparse && cd /root/sparse && make && cp sparse /usr/bin/
 
+COPY test.sh
