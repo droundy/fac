@@ -1,15 +1,24 @@
 #!/usr/bin/python3
 
 from __future__ import print_function
-import string, os, sys, platform
+import string, os, sys, platform, subprocess
 
 myplatform = sys.platform
 if myplatform == 'linux2':
     myplatform = 'linux'
 
-have_sass = os.system('sass -h > /dev/null') == 0
-have_help2man = os.system('help2man --help > /dev/null') == 0
-have_checkinstall = os.system('checkinstall --version > /dev/null') == 0
+def can_run(cmd):
+    print('# trying', cmd, file=sys.stdout)
+    try:
+        subprocess.check_output(cmd, shell=True)
+        return True
+    except Exception as e:
+        print("# error: ", e)
+        return False
+
+have_sass = can_run('sass -h')
+have_help2man = can_run('help2man --help')
+have_checkinstall = can_run('checkinstall --version')
 
 os.system('rm -rf testing-flags')
 os.mkdir('testing-flags');
@@ -71,11 +80,9 @@ else:
     print('# compiling with just the variant:', variants)
 
 def compile_works(flags):
-    return not os.system('%s %s -c -o testing-flags/test.o testing-flags/test.c' % (cc, ' '.join(flags)))
+    return can_run('%s %s -c -o testing-flags/test.o testing-flags/test.c' % (cc, ' '.join(flags)))
 def link_works(flags):
-    cmd = '%s -o testing-flags/test testing-flags/test.c %s' % (cc, ' '.join(flags))
-    print('# trying', cmd, file=sys.stdout)
-    return not os.system(cmd)
+    return can_run('%s -o testing-flags/test testing-flags/test.c %s' % (cc, ' '.join(flags)))
 
 for variant in variants.keys():
     print('# Considering variant: "%s"' % variant)

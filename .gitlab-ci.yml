@@ -29,6 +29,7 @@ pages:
   script:
     - sh build/linux.sh
     - ./fac
+    - cat .fac
     - ./fac web/index.html web/fac-latest.deb web/style.css
     - mv web public
   artifacts:
