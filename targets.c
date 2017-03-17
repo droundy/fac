@@ -18,14 +18,14 @@ struct target *create_target(struct all_targets *all, const char *path) {
     t->is_file = false;
     t->is_dir = false;
     t->is_symlink = false;
-    t->e.next = 0;
+    t->e.next = NULL;
     t->status = unknown;
-    t->rule = 0;
+    t->rule = NULL;
     t->stat.time = 0;
     t->stat.size = 0;
     t->stat.hash.abc.a = t->stat.hash.abc.b = t->stat.hash.abc.c = 0;
     t->num_children = t->children_size = 0;
-    t->children = 0;
+    t->children = NULL;
     insert_target(all, t);
   }
   return t;
@@ -52,7 +52,7 @@ struct rule *create_rule(struct all_targets *all, const char *facfile_path,
   strcpy((char *)r->facfile_path, facfile_path);
 
   r->e.key = rule_key(command, working_directory);
-  r->e.next = 0;
+  r->e.next = NULL;
   r->status_next = all->lists[unknown];
   r->status_prev = &all->lists[unknown];
   r->status = unknown;
@@ -65,8 +65,8 @@ struct rule *create_rule(struct all_targets *all, const char *facfile_path,
   r->num_inputs = r->num_outputs = 0;
   r->num_explicit_inputs = r->num_explicit_outputs = 0;
   r->input_array_size = 0;
-  r->inputs = r->outputs = 0;
-  r->input_stats = r->output_stats = 0;
+  r->inputs = r->outputs = NULL;
+  r->input_stats = r->output_stats = NULL;
   r->facfile_linenum = 0;
   /* Initial guess of a second for build_time helps us build commands
      with dependencies first, even if we don't know how long those
@@ -77,7 +77,7 @@ struct rule *create_rule(struct all_targets *all, const char *facfile_path,
   r->is_default = true;
 
   r->num_cache_suffixes = r->num_cache_prefixes = 0;
-  r->cache_suffixes_reversed = r->cache_prefixes = 0;
+  r->cache_suffixes_reversed = r->cache_prefixes = NULL;
 
   add_to_hash(&all->r, &r->e);
 
@@ -239,7 +239,7 @@ void init_all(struct all_targets *all) {
   init_hash_table(&all->r, 1000);
   init_hash_table(&all->t, 10000);
   for (enum target_status i=0;i<num_statuses;i++) {
-    all->lists[i] = 0;
+    all->lists[i] = NULL;
     all->num_with_status[i] = 0;
     all->estimated_times[i] = 0;
   }

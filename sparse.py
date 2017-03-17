@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 from __future__ import print_function
-import string, os, sys, platform, subprocess
+import glob, os, sys, platform, subprocess
 
 myplatform = sys.platform
 if myplatform == 'linux2':
@@ -25,9 +25,6 @@ if ver.stdout[:len(myver)] == myver:
 else:
     print('# I am not confident with sparse version', ver.stdout)
 
-files_to_sparse = ['fac.c', 'environ.c', 'clean-all.c', 'arguments.c', 'git.c',
-                   'build.c', 'files.c']
-
-for f in files_to_sparse:
+for f in sorted(glob.glob('*.c')):
     print('| sparse -Ibigbro -Wsparse-error %s > %s.sparse' % (f, f[:-2]))
     print('> %s.sparse' % (f[:-2]))
