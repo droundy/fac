@@ -14,6 +14,8 @@ C bigbro/.git/
 | python3 web/mkdown.py
 > web/index.html
 
+| python3 sparse.py > sparse.fac
+> sparse.fac
 
 # | python bench/generate-plots.py
 # > web/hierarchy-building.pdf

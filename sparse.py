@@ -25,4 +25,7 @@ if ver.stdout[:len(myver)] == myver:
 else:
     print('# I am not confident with sparse version', ver.stdout)
 
-print('| sparse -Wsparse-error fac.c > fac.sparse')
+files_to_sparse = ['fac.c', 'environ.c']
+
+for f in files_to_sparse:
+    print('| sparse -Wsparse-error %s > %s.sparse' % (f, f[:-2]))

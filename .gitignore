@@ -6,6 +6,8 @@ fac-*
 version-identifier.h
 .bilge
 .fac
+sparse.fac
+*.sparse
 *.backup
 *~
 *.tum

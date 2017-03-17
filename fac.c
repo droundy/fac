@@ -29,7 +29,7 @@
 #include "version-identifier.h"
 #include "errors.h"
 
-const char *root = 0;
+const char *root = NULL;
 
 int verbose = 0;
 int dry_run = 0;
@@ -43,15 +43,15 @@ static int git_add_flag = 0;
 
 extern inline void verbose_printf(const char *format, ...);
 
-static char *create_dotfile = 0;
-static char *create_makefile = 0;
-static char *create_tupfile = 0;
-static char *create_script = 0;
-static char *create_tarball = 0;
-static char *log_directory = 0;
-static char *parse_only = 0;
+static char *create_dotfile = NULL;
+static char *create_makefile = NULL;
+static char *create_tupfile = NULL;
+static char *create_script = NULL;
+static char *create_tarball = NULL;
+static char *log_directory = NULL;
+static char *parse_only = NULL;
 
-static const char **include_in_tar = 0;
+static const char **include_in_tar = NULL;
 
 int main(int argc, const char **argv) {
 #ifdef _WIN32
@@ -94,10 +94,10 @@ int main(int argc, const char **argv) {
   string_argument("parse-only", 0, &parse_only,
                   "just parse this .fac file", "FACFILENAME");
 
-  listset *cmd_line_args = 0;
+  listset *cmd_line_args = NULL;
   {
     const char **extra_args = parse_arguments_return_extras(argv);
-    char *cwd = getcwd(0,0);
+    char *cwd = getcwd(NULL,0);
     for (const char **arg = extra_args; *arg; arg++) {
       char *abspath = absolute_path(cwd, *arg);
       insert_to_listset(&cmd_line_args, abspath);
