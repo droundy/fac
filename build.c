@@ -748,6 +748,7 @@ static void build_marked(struct all_targets *all, const char *log_directory,
               erase_and_printf("%d/%d [%.0fs]: %s\n",
                                num_built, num_total, bs[i]->build_time, bs[i]->rule->command);
             }
+            fflush(stdout);
             double estimated_time = (all->estimated_times[building] +
                                      all->estimated_times[dirty] +
                                      all->estimated_times[unready])/num_jobs;
@@ -1516,6 +1517,5 @@ static void dump_to_stdout(bigbro_fd_t fd) {
   close(fd);
 #endif
   free(buf);
-  fflush(stdout);
 }
 
