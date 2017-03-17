@@ -6,7 +6,7 @@ FROM debian:stretch-slim
 RUN apt-get -y update
 RUN apt-get -y upgrade
 RUN apt-get -y install apt-utils
-RUN apt-get -y install texlive
+RUN apt-get -y install texlive-latex-base
 RUN apt-get -y install ghc
 RUN apt-get -y install make valgrind wamerican-small sparse
 RUN apt-get -y install gcc python3 git python3-markdown
