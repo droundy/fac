@@ -15,7 +15,7 @@
 #ifdef _WIN32
 #include <windows.h>
 /* fixme: the following is a version of realpath for windows! */
-char *realpath(const char *p, int i) {
+char *realpath(const char *p, char *unused) {
   char *r = malloc(4096);
   GetFullPathName(p, 4096, r, 0);
   return r;
@@ -57,7 +57,7 @@ char *absolute_path(const char *dir, const char *rel) {
       char *filename = malloc(len);
       if (snprintf(filename, len, "%s/%s", dir, myrel) >= len)
         error_at_line(1,0, __FILE__, __LINE__, "filename too large!!!");
-      char *thepath = realpath(filename, 0);
+      char *thepath = realpath(filename, NULL);
       if (!thepath) {
         if (errno != ENOENT) {
           fprintf(stderr, "Difficulty disambiguating %s: %s\n",
@@ -76,7 +76,7 @@ char *absolute_path(const char *dir, const char *rel) {
     }
   }
   free(myrel);
-  char *thepath = realpath(dir, 0);
+  char *thepath = realpath(dir, NULL);
   if (!thepath)
 #ifdef _WIN32
     error_at_line(1,0, __FILE__, __LINE__, "filename trouble");
@@ -91,7 +91,7 @@ char *absolute_path(const char *dir, const char *rel) {
   return thepath;
 }
 
-const char *relative_path(const char *myroot, const char *path) {
+static const char *relative_path(const char *myroot, const char *path) {
   int len = strlen(myroot);
   int pathlen = strlen(path);
   if (pathlen > len && path[len] == '/' && !memcmp(path, myroot, len)) {
@@ -123,22 +123,22 @@ void read_fac_file(struct all_targets *all, const char *path) {
       break;
     }
   }
-  char *the_directory = realpath(rel_directory, 0);
+  char *the_directory = realpath(rel_directory, NULL);
   if (strlen(rel_directory) == strlen(path)) {
     free(rel_directory);
     free(the_directory);
     rel_directory = ".";
-    the_directory = realpath(rel_directory, 0);
+    the_directory = realpath(rel_directory, NULL);
   } else {
     free(rel_directory);
   }
 
-  struct rule *therule = 0;
-  struct target *thetarget = 0;
-  struct hashstat *stat_last_file = 0;
+  struct rule *therule = NULL;
+  struct target *thetarget = NULL;
+  struct hashstat *stat_last_file = NULL;
 
   int linenum = 0;
-  char *one_line = 0;
+  char *one_line = NULL;
   size_t buffer_length = 0;
   while (getline(&one_line, &buffer_length, f) >= 0) {
     linenum++;
@@ -163,8 +163,8 @@ void read_fac_file(struct all_targets *all, const char *path) {
                         one_line+2, existing->facfile_path, existing->facfile_linenum);
         therule = create_rule(all, path, one_line+2, the_directory);
         therule->facfile_linenum = linenum;
-        thetarget = 0;
-        stat_last_file = 0;
+        thetarget = NULL;
+        stat_last_file = NULL;
         if (one_line[0] == '?') therule->is_default = false;
       }
       break;
@@ -178,7 +178,7 @@ void read_fac_file(struct all_targets *all, const char *path) {
           /* It is in the home directory.  We use realpath to handle
              the case where the home directory defined in $HOME
              actually is a symlink to the real home directory. */
-          const char *home = realpath(getenv("HOME"), 0);
+          const char *home = realpath(getenv("HOME"), NULL);
           if (!home) {
             fprintf(stderr, "ignoring %s directive since $HOME does not exist...\n",
                     one_line);
@@ -281,8 +281,8 @@ void read_fac_file(struct all_targets *all, const char *path) {
         therule = lookup_rule(all, one_line+2, the_directory);
         if (!therule) am_deleting_output = true;
         //printf(":: %s\n", therule->command);
-        thetarget = 0;
-        stat_last_file = 0;
+        thetarget = NULL;
+        stat_last_file = NULL;
         break;
       case '<':
         if (therule) {
@@ -316,8 +316,8 @@ void read_fac_file(struct all_targets *all, const char *path) {
             }
           } else {
             // It is cached, so we need to ignore any stats of this file!
-            thetarget = 0;
-            stat_last_file = 0;
+            thetarget = NULL;
+            stat_last_file = NULL;
           }
           free(path);
         }
@@ -346,8 +346,8 @@ void read_fac_file(struct all_targets *all, const char *path) {
           } else {
             /* It is a cache file, so we need to ignore any stats of
                this file! */
-            thetarget = 0;
-            stat_last_file = 0;
+            thetarget = NULL;
+            stat_last_file = NULL;
           }
           free(path);
         } else if (am_deleting_output) {
@@ -359,13 +359,13 @@ void read_fac_file(struct all_targets *all, const char *path) {
       case 'T':
         if (stat_last_file) {
           /* ignore errors in the done file: */
-          stat_last_file->time = strtol(one_line+2, 0, 0);
+          stat_last_file->time = strtol(one_line+2, NULL, 0);
         }
         break;
       case 'S':
         if (stat_last_file) {
           /* ignore errors in the done file: */
-          stat_last_file->size = strtol(one_line+2, 0, 0);
+          stat_last_file->size = strtol(one_line+2, NULL, 0);
         }
         break;
       case 'H':

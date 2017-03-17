@@ -26,7 +26,7 @@ else:
     print('# I am not confident with sparse version', ver.stdout)
 
 files_to_sparse = ['fac.c', 'environ.c', 'clean-all.c', 'arguments.c', 'git.c',
-                   'build.c']
+                   'build.c', 'files.c']
 
 for f in files_to_sparse:
     print('| sparse -Ibigbro -Wsparse-error %s > %s.sparse' % (f, f[:-2]))

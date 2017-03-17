@@ -11,6 +11,11 @@
 #include "lib/listset.h"
 #include "lib/iterablehash.h"
 
+#ifdef _WIN32
+/* the following is a version of realpath for windows! */
+char *realpath(const char *p, char *unused);
+#endif
+
 extern int num_jobs; /* number of jobs to run simultaneously */
 extern int show_output; /* true if user requests to see command output */
 

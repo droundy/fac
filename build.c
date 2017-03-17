@@ -18,13 +18,6 @@
 #include <windows.h> // for Sleep and file IO with HANDLEs
 #define sleep Sleep
 
-/* fixme: the following is a very broken version of realpath for windows! */
-static char *realpath(const char *p, char *unused) {
-  char *r = malloc(strlen(p));
-  strcpy(r, p);
-  return r;
-}
-
 static bigbro_fd_t mkstemp_win(const char *namebuf) {
   char *lpTempPathBuffer = malloc(MAX_PATH);
   char *szTempFileName = malloc(MAX_PATH);
