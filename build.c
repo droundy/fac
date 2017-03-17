@@ -1516,5 +1516,6 @@ static void dump_to_stdout(bigbro_fd_t fd) {
   close(fd);
 #endif
   free(buf);
+  fflush(stdout);
 }
 
