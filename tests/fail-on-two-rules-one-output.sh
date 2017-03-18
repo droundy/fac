@@ -10,10 +10,10 @@ echo foo > foo
 echo bar > bar
 
 cat > top.fac <<EOF
-| echo good > foobar
+| echo good >> foobar && echo nice > nice
 > foobar
 
-| echo bad > foobar
+| echo bad >> foobar && echo mean > mean
 > foobar
 EOF
 
@@ -26,5 +26,32 @@ if ../../fac > fac.out; then
     exit 1
 fi
 cat fac.out
+
+grep 'two' fac.out
+
+cat > top.fac <<EOF
+| echo good >> foobar && echo nice > nice
+
+| echo bad >> foobar && echo mean > mean
+EOF
+
+if ../../fac > fac.out; then
+    cat fac.out
+    echo This should not have passed
+    exit 1
+fi
+cat fac.out
+
+grep 'two' fac.out
+
+cat > top.fac <<EOF
+| echo good >> foobar && echo nice > nice
+c bar
+
+| echo bad >> foobar && echo mean > mean
+c bar
+EOF
+
+../../fac
 
 exit 0
