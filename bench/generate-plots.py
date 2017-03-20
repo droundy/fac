@@ -72,6 +72,6 @@ for mod in modules:
         plt.xlabel('$N$')
         plt.ylabel('$t$ (s)')
         plt.legend(fshandles+toolhandles, fslabels+toollabels, loc='best', frameon=False)
-        plt.savefig('web/%s-%s.pdf' % (mod.name, verb))
+        # plt.savefig('web/%s-%s.pdf' % (mod.name, verb))
         plt.savefig('web/%s-%s.svg' % (mod.name, verb), dpi=60)
-        plt.savefig('web/%s-%s.png' % (mod.name, verb), dpi=100)
+        # plt.savefig('web/%s-%s.png' % (mod.name, verb), dpi=100)

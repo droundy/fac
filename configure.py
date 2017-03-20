@@ -215,3 +215,13 @@ C .sass-cache
 ''')
 else:
     print("# no sass, so we won't build style.css")
+
+try:
+    import matplotlib
+    print('''
+| python bench/generate-plots.py
+> web/hierarchy-building.svg
+c .pyc
+''')
+except:
+    print('# not generating plots due to lack of matplotlib')

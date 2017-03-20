@@ -25,7 +25,6 @@ temp-cat
 .sass-cache
 *.pyc
 web/style.css
-bench/data
 *.gcno
 *.gcda
 *.gcov
