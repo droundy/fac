@@ -16,3 +16,7 @@ C bigbro/.git/
 
 | python3 sparse.py > sparse.fac
 > sparse.fac
+
+| cd bench && python3 fac-plots.py > .fac
+> bench/.fac
+c .pyc
