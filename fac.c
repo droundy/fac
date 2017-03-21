@@ -53,11 +53,7 @@ static char *parse_only = NULL;
 
 static const char **include_in_tar = NULL;
 
-int main(int argc, const char **argv) {
-#ifdef _WIN32
-  // For some reason, line buffering doesn't seem to work on windows
-  setbuf(stdout, NULL);
-#endif
+int run_fac(int argc, const char **argv) {
   initialize_starting_time();
 
   int_argument("jobs", 'j', &num_jobs,

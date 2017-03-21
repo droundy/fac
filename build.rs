@@ -5,6 +5,7 @@ use std::os::unix::io::{FromRawFd, IntoRawFd};
 
 fn main() {
 
+    std::fs::remove_dir_all("bigbro").ok();
     git2::build::RepoBuilder::new()
         .clone("git://github.com/droundy/bigbro.git", std::path::Path::new("bigbro"))
         .unwrap();
@@ -20,6 +21,7 @@ fn main() {
                 .file("build.c")
                 .file("clean-all.c")
                 .file("environ.c")
+                .file("fac.c")
                 .file("files.c")
                 .file("git.c")
                 .file("mkdir.c")

@@ -118,7 +118,7 @@ for variant in variants.keys():
     variants[variant]['flags'] = flags
     variants[variant]['linkflags'] = linkflags
 
-    sources = ['fac', 'files', 'targets', 'clean-all', 'build', 'git', 'environ',
+    sources = ['main', 'fac', 'files', 'targets', 'clean-all', 'build', 'git', 'environ',
                'mkdir', 'arguments']
 
     libsources = ['listset', 'iterablehash', 'sha1']
@@ -126,7 +126,7 @@ for variant in variants.keys():
     for s in sources:
         print('| %s %s -o %s%s.o -c %s.c' % (cc, ' '.join(flags), s, variant, s))
         print('> %s%s.o' % (s, variant))
-        if '-flto' in flags and s == 'fac':
+        if '-flto' in flags and s == 'main':
             print('c %s%s.gcno' % (s, variant))
         if s == 'fac':
             print('< version-identifier.h')
