@@ -103,9 +103,9 @@ static void handle_arg(struct a *the_a, const char *the_arg) {
   } else if (the_a->type == STRING_ARG) {
     *(the_a->string_location) = the_arg;
   } else if (the_a->type == STRINGLIST_ARG) {
-    int num_strings;
-    for (num_strings=0; (*the_a->stringlist_location)[num_strings]; num_strings++) {
-      // counting how many strings we have already.
+    int num_strings = 0;
+    while ((*the_a->stringlist_location)[num_strings]) {
+      num_strings++; // counting how many strings we have already.
     }
     *the_a->stringlist_location = realloc(*(the_a->stringlist_location),
                                           (num_strings+2)*sizeof(char **));
