@@ -537,11 +537,11 @@ static void *run_bigbrother(void *ptr) {
   }
 
   double started = double_time();
-  int ret = bigbro_with_mkdir(b->rule->working_directory,
-                              &b->child_pid,
-                              b->stdouterrfd, b->stdouterrfd, NULL,
-                              b->rule->command,
-                              &b->readdir, &b->mkdir, &b->read, &b->written);
+  int ret = bigbro(b->rule->working_directory,
+                   &b->child_pid,
+                   b->stdouterrfd, b->stdouterrfd, NULL,
+                   b->rule->command,
+                   &b->readdir, &b->mkdir, &b->read, &b->written);
 
   b->build_time = double_time() - started;
   // memory barrier to ensure b->all_done is not modified before we
