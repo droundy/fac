@@ -1017,14 +1017,10 @@ static void build_marked(struct all_targets *all, const char *log_directory,
                     /*                  path, pretty_rule(r)); */
                     /* rule_failed(all, r); */
                   } else {
-                    if (t->rule && t->rule != r) {
-                      erase_and_printf("error: two rules generate same output %s:\n\t%s\nand\n\t%s\n",
-                                       pretty_path(path), r->command, t->rule->command);
-                      rule_failed(all, r);
-                    }
-                    t->rule = r;
-                    t->status = unknown; // if it is a facfile, we haven't yet read it
-                    find_target_sha1(t, "mkdir output");
+                    // We allow multiple rules to mkdir the same
+                    // directory.  This is fine, since we do not apply
+                    // strict ordering to the creation of a directory.
+                    if (!t->rule) t->rule = r;
                     add_output(r, t);
                   }
                 }
