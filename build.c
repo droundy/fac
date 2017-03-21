@@ -11,6 +11,8 @@
 #include "bigbro.h"
 #include "lib/listset.h"
 
+#include <assert.h>
+
 #ifdef _WIN32
 
 #include <direct.h> // for _chdir
@@ -148,12 +150,9 @@ bool is_interesting_path(struct rule *r, const char *path) {
 }
 
 static void check_cleanliness(struct all_targets *all, struct rule *r);
-static void mark_rule(struct all_targets *all, struct rule *r);
 
-static void mark_rule(struct all_targets *all, struct rule *r) {
-  if (r->status != unknown) {
-    return;
-  }
+static inline void mark_rule(struct all_targets *all, struct rule *r) {
+  assert(r->status == unknown);
   set_status(all, r, marked);
 }
 
