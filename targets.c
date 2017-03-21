@@ -93,17 +93,11 @@ void set_status(struct all_targets *all, struct rule *r, enum target_status stat
   if (r->status == status) return;
 
   /* remove from its former list */
-  if (r->status_prev) {
-    (*r->status_prev) = r->status_next;
-    all->num_with_status[r->status]--;
-    all->estimated_times[r->status] -= r->build_time;
-  } else if (status) {
-    fprintf(stderr, "%s was in no list at all but had status %d!",
-            pretty_rule(r), r->status);
-    /* fprintf(stderr, "%s was in no list at all but had status %s!", */
-    /*         pretty_rule(r), pretty_status(r->status)); */
-    exit(1);
-  }
+  assert(r->status_prev);
+  (*r->status_prev) = r->status_next;
+  all->num_with_status[r->status]--;
+  all->estimated_times[r->status] -= r->build_time;
+
   if (r->status_next) {
     r->status_next->status_prev = r->status_prev;
   }
