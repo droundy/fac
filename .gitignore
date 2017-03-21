@@ -40,3 +40,5 @@ bigbro-static
 bigbro
 tests/afl-input/
 tests/afl-output/
+*.lock
+target
