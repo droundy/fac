@@ -16,6 +16,14 @@ fn main() {
         .current_dir("bigbro")
         .stdout(unsafe {std::process::Stdio::from_raw_fd(linux_h_fd)})
         .status().unwrap();
+
+    let version_fd = std::fs::File::create("version-identifier.h")
+        .unwrap().into_raw_fd();
+    std::process::Command::new("python")
+        .args(&["generate-version-header.py"])
+        .stdout(unsafe {std::process::Stdio::from_raw_fd(version_fd)})
+        .status().unwrap();
+
     gcc::Config::new()
                 .file("arguments.c")
                 .file("build.c")

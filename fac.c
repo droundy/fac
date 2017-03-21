@@ -54,8 +54,6 @@ static char *parse_only = NULL;
 static const char **include_in_tar = NULL;
 
 int run_fac(int argc, const char **argv) {
-  initialize_starting_time();
-
   int_argument("jobs", 'j', &num_jobs,
                "the number of jobs to run simultaneously", "JOBS");
   no_argument("clean", 'c', (bool *)&clean_me,

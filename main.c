@@ -20,11 +20,15 @@
 #include <stdio.h>
 
 #include "fac.h"
+#include "build.h"
 
 int main(int argc, const char **argv) {
 #ifdef _WIN32
   // For some reason, line buffering doesn't seem to work on windows
   setbuf(stdout, NULL);
 #endif
+
+  initialize_starting_time();
+
   run_fac(argc, argv);
 }
