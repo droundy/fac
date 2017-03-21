@@ -16,7 +16,7 @@ cd $0.dir
 # travis gets a shallow clone, which I can't clone, so I will clone
 # the old-fashioned way...
 
-tarname=`ls ../../fac-*.tar.gz | tail -1`
+tarname=`ls -tr ../../web/fac-*.tar.gz | tail -1`
 
 echo tarname is $tarname
 tar xvzf $tarname

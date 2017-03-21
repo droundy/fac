@@ -50,6 +50,8 @@ else:
               % (platform.system().lower())):
         print('Build failed!')
         exit(1)
+system('mv %s web/' % tarname)
+system('ln -s %s web/fac.tar.gz' % tarname)
 system('echo rm -rf bigbro >> build/%s.sh' % platform.system().lower())
 system('chmod +x build/%s.sh' % platform.system().lower())
 
