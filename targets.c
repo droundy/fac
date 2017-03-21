@@ -6,8 +6,6 @@
 #include <string.h>
 #include <assert.h>
 
-void insert_target(struct all_targets *all, struct target *t);
-
 struct target *create_target(struct all_targets *all, const char *path) {
   struct target *t = lookup_target(all, path);
   if (!t) {
@@ -26,7 +24,7 @@ struct target *create_target(struct all_targets *all, const char *path) {
     t->stat.hash.abc.a = t->stat.hash.abc.b = t->stat.hash.abc.c = 0;
     t->num_children = t->children_size = 0;
     t->children = NULL;
-    insert_target(all, t);
+    add_to_hash(&all->t, &t->e);
   }
   return t;
 }
@@ -223,10 +221,6 @@ void free_all_targets(struct all_targets *all) {
 
 struct target *lookup_target(struct all_targets *all, const char *path) {
   return (struct target *)lookup_in_hash(&all->t, path);
-}
-
-void insert_target(struct all_targets *all, struct target *t) {
-  add_to_hash(&all->t, &t->e);
 }
 
 void init_all(struct all_targets *all) {
