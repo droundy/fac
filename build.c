@@ -100,26 +100,34 @@ struct a_path {
   const char path[];
 };
 
-// This code determines if a file might be in the git repository.  We
-// whitelist the hooks directory, since it is reasonable (or
-// semireasonable) for rules to create files in there.
+// This code determines if a file might be in the internal files of a
+// git repository (any git repository).  We whitelist the hooks
+// directory of each repository, since it is reasonable (or
+// semireasonable) for rules to create files in there.  Note that this
+// is basically special-casing a "cache" location.  It seems
+// worthwhile, because we know that random git commands may modify
+// files in ./git.
 static bool is_git_path(const char *path) {
-  static char *gitpath = NULL, *githookspath = NULL;
-  static int gitlen = 0, githookslen = 0;
-  if (!gitpath) {
-    gitpath = absolute_path(root, ".git/");
-    gitlen = strlen(gitpath);
-  }
-  if (!githookspath) {
-    githookspath = absolute_path(root, ".git/hooks/");
-    githookslen = strlen(githookspath);
-  }
-  int len = strlen(path);
-  if (len > gitlen && memcmp(path, gitpath, gitlen) == 0) {
-    if (len > githookslen && memcmp(path, githookspath, githookslen) == 0) {
-      return false;
+  while (*path) {
+    // Note: the following relies on short-circuit && to maintain
+    // memory safety.
+    if (path[0] == '/' &&
+        path[1] == '.' &&
+        path[2] == 'g' &&
+        path[3] == 'i' &&
+        path[4] == 't' &&
+        path[5] == '/') {
+      if (path[6] == 'h' &&
+          path[7] == 'o' &&
+          path[8] == 'o' &&
+          path[9] == 'k' &&
+          path[10] == 's' &&
+          path[11] == '/') {
+        return false;
+      }
+      return true;
     }
-    return true;
+    path++;
   }
   return false;
 }
