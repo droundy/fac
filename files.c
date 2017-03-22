@@ -815,7 +815,7 @@ static void cp_rule(const char *dir, struct rule *r) {
     if (r->inputs[i]->rule) {
       cp_rule(dir, r->inputs[i]->rule);
     } else if (is_in_root(r->inputs[i]->path)) {
-      if (r->inputs[i]->is_file) {
+      if (r->inputs[i]->is_file && r->inputs[i]->is_in_git) {
         // this is a source file, so we should copy it!
         // printf("cp %s %s/\n", r->inputs[i]->path + lenroot + 1, dir);
         cp_to_dir(r->inputs[i]->path + lenroot + 1, dir);

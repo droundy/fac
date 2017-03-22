@@ -1,12 +1,8 @@
 | python generate-version-header.py > version-identifier.h
 > version-identifier.h
-C .git/objects
-C .git/refs
-C .git/index
 
 | if cd bigbro; then git pull; else git clone https://github.com/droundy/bigbro; fi
 > bigbro/configure.fac
-C bigbro/.git/
 
 | python configure.py > .fac
 > .fac

@@ -107,7 +107,7 @@ struct a_path {
 // is basically special-casing a "cache" location.  It seems
 // worthwhile, because we know that random git commands may modify
 // files in ./git.
-static bool is_git_path(const char *path) {
+static inline bool is_git_path(const char *path) {
   while (*path) {
     // Note: the following relies on short-circuit && to maintain
     // memory safety.
@@ -414,7 +414,7 @@ static void check_cleanliness(struct all_targets *all, struct rule *r) {
     is_dirty = true;
   }
   for (int i=0;i<r->num_inputs;i++) {
-    if (!r->inputs[i]->is_in_git && !is_in_gitdir(r->inputs[i]->path) &&
+    if (!r->inputs[i]->is_in_git && !is_git_path(r->inputs[i]->path) &&
         !r->inputs[i]->rule && is_in_root(r->inputs[i]->path)) {
       if (i < r->num_explicit_inputs) {
         set_status(all, r, unready);
@@ -918,7 +918,7 @@ static void build_marked(struct all_targets *all, const char *log_directory,
                      problem. */
                   // error(1, errno, "Unable to input stat file %s", path);
                 } else {
-                  if (!t->rule && is_in_root(path) && !t->is_in_git && !is_in_gitdir(path)) {
+                  if (!t->rule && is_in_root(path) && !t->is_in_git && !is_git_path(path)) {
                     if (git_add_files) {
                       git_add(path);
                       t->is_in_git = true;
@@ -1155,7 +1155,7 @@ static void build_marked(struct all_targets *all, const char *log_directory,
       } else {
         for (int i=0;i<r->num_inputs;i++) {
           if (!r->inputs[i]->rule && !r->inputs[i]->is_in_git &&
-              !is_in_gitdir(r->inputs[i]->path) && is_in_root(r->inputs[i]->path)) {
+              !is_git_path(r->inputs[i]->path) && is_in_root(r->inputs[i]->path)) {
             if (!access(r->inputs[i]->path, R_OK)) {
               char *thepath = realpath(r->inputs[i]->path, NULL);
               if (thepath && strcmp(thepath, r->inputs[i]->path) != 0) {
