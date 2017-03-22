@@ -16,16 +16,6 @@ void delete_from_listset(listset **list, const char *path) {
   }
 }
 
-int is_in_listset(const listset *ptr, const char *path) {
-  while (ptr != NULL) {
-    if (strcmp(ptr->path, path) == 0) {
-      return 1;
-    }
-    ptr = ptr->next;
-  }
-  return 0;
-}
-
 void insert_to_listset(listset **list, const char *path) {
   delete_from_listset(list, path);
   listset *newhead = (listset *)malloc(sizeof(listset));
