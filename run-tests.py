@@ -55,15 +55,14 @@ system('ln -s %s web/fac.tar.gz' % tarname)
 system('echo rm -rf bigbro >> build/%s.sh' % platform.system().lower())
 system('chmod +x build/%s.sh' % platform.system().lower())
 
-run_fac = './fac'
+if system('./fac'):
+    print('Build everything failed!')
+    exit(1)
 if have_gcovr:
     os.system('rm -f *.gc* */*.gc*') # remove any preexisting coverage files
-    run_fac = 'COVERAGE=1 ./fac'
-if system(run_fac):
-    print('Build failed!')
-    exit(1)
-else:
-    print('XXXXXXXXX built the fac we will test using', run_fac)
+    if system('COVERAGE=1 ./fac fac'):
+        print('Build with coverage failed!')
+        exit(1)
 
 numpassed = 0
 numfailed = 0
