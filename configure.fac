@@ -4,7 +4,7 @@ C .git/objects
 C .git/refs
 C .git/index
 
-| if cd bigbro; then git pull; else git clone https://github.com/droundy/bigbro; fi
+| python build/get-bigbro.py
 > bigbro/configure.fac
 C bigbro/.git/
 
