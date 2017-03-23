@@ -4,29 +4,126 @@ set -ev
 
 echo $0
 
-# This test ensures that we can build fac properly from the git
-# source.  Sadly that means it doesn't test the uncommitted changes.
-# But at least I should have some confirmation that the build script
-# works right!
-
 rm -rf $0.dir
 mkdir $0.dir
 cd $0.dir
 
-# travis gets a shallow clone, which I can't clone, so I will clone
-# the old-fashioned way...
+cat > top.fac <<EOF
+| cat foo/bar > baz
 
-tarname=`ls ../../fac-*.tar.gz | tail -1`
+| grep nice foo/dir/bar > foo/nice
 
-echo tarname is $tarname
-tar xvzf $tarname
+| cp foo/nice foo/nice1
+< foo/nice
 
-cd fac-*
+| cp baz baz2
+< baz
 
-ls -lh
-cat build/linux.sh
-sh build/linux.sh
+| cp baz2 baz3
+< baz2
+EOF
 
-cat README.md
+mkdir foo
+
+cat > foo/foo.fac <<EOF
+| cp bar silly
+EOF
+
+echo bar > foo/bar
+mkdir foo/dir
+echo mean > foo/dir/bar
+echo nice >> foo/dir/bar
+
+git init
+git add top.fac foo/foo.fac
+
+../../fac --git-add
+
+grep bar baz
+grep nice foo/nice
+grep bar baz3
+
+../../fac baz3 foo/nice1
+
+../../fac --tar fun.tar.gz --script build.sh --tupfile Tupfile --makefile Makefile
+
+tar zxvf fun.tar.gz
+
+cd fun
+sh build.sh
+grep bar baz
+grep nice foo/nice
+
+cd ..
+rm -rf fun
+
+if which make; then
+    tar zxvf fun.tar.gz
+
+    cd fun
+    make
+    grep bar baz
+    grep nice foo/nice
+
+    cd ..
+    rm -rf fun
+fi
+
+if which tup; then
+    tar zxvf fun.tar.gz
+
+    cd fun
+    cat Tupfile
+    tup init
+    tup
+    grep bar foo/bar
+    grep nice foo/dir/bar
+    grep bar baz
+    grep nice foo/nice
+
+    cd ..
+    rm -rf fun
+fi
+
+# the following is hokey, we wouldn't really do this
+touch Tupfile.ini
+
+../../fac -v --include-in-tar Tupfile.ini --tar fun.tar.gz --tupfile Tupfile --dotfile fun.dot
+
+tar zxvf fun.tar.gz
+cd fun
+cat Tupfile.ini
+
+if grep bar baz; then
+    echo baz should not be in the tarball!
+    exit 1
+fi
+if grep nice nice; then
+    echo nice should not be in the tarball!
+    exit 1
+fi
+
+if which tup; then
+
+    ls -lh --recursive
+    cat Tupfile
+    tup init
+    tup
+    grep bar foo/bar
+    grep nice foo/dir/bar
+    grep bar baz
+    grep nice foo/nice
+fi
+
+cd ..
+rm -rf fun
+
+# now just test a few extensions:
+../../fac --tar fun.tgz
+tar ztf fun.tgz
+../../fac --tar fun.tar.bz2
+tar jtf fun.tar.bz2
+../../fac --tar fun.tar
+tar tf fun.tar
 
 exit 0

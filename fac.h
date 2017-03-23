@@ -11,6 +11,11 @@
 #include "lib/listset.h"
 #include "lib/iterablehash.h"
 
+#ifdef _WIN32
+/* the following is a version of realpath for windows! */
+char *realpath(const char *p, char *unused);
+#endif
+
 extern int num_jobs; /* number of jobs to run simultaneously */
 extern int show_output; /* true if user requests to see command output */
 
@@ -20,17 +25,6 @@ static inline bool is_in_root(const char *path) {
   int lenroot = strlen(root);
   if (lenpath < lenroot + 1) return false;
   return path[lenroot] == '/' && !memcmp(path, root, lenroot);
-}
-static inline bool is_in_gitdir(const char *path) {
-  int lenpath = strlen(path);
-  int lenroot = strlen(root);
-  if (lenpath < lenroot + 6) return false;
-  return path[lenroot] == '/' &&
-       path[lenroot+1] == '.' &&
-       path[lenroot+2] == 'g' &&
-       path[lenroot+3] == 'i' &&
-       path[lenroot+4] == 't' &&
-       path[lenroot+5] == '/' && !memcmp(path, root, lenroot);
 }
 static inline bool is_facfile(const char *path) {
   int len = strlen(path);
@@ -227,12 +221,10 @@ static inline const char *pretty_reason(struct rule *r) {
   return pretty_rule(r); // ?!
 }
 
-void create_parent_directories(const char *fname);
-
-void create_directories(const char *dir);
-
 int rm_recursive(const char *dir);
 
 void cp_to_dir(const char *fname, const char *dir);
+
+int run_fac(int argc, const char **argv);
 
 #endif

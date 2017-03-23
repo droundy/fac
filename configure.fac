@@ -1,12 +1,8 @@
 | python generate-version-header.py > version-identifier.h
 > version-identifier.h
-C .git/objects
-C .git/refs
-C .git/index
 
 | python build/get-bigbro.py
 > bigbro/configure.fac
-C bigbro/.git/
 
 | python configure.py > .fac
 > .fac
@@ -14,6 +10,9 @@ C bigbro/.git/
 | python3 web/mkdown.py
 > web/index.html
 
+| python3 sparse.py > sparse.fac
+> sparse.fac
 
-# | python bench/generate-plots.py
-# > web/hierarchy-building.pdf
+| cd bench && python3 fac-plots.py > .fac
+> bench/.fac
+c .pyc

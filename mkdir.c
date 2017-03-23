@@ -9,7 +9,10 @@
 #include "fac.h"
 #include "errors.h"
 
-void create_directories(const char *dir) {
+static void create_parent_directories(const char *fname);
+static void create_directories(const char *dir);
+
+static void create_directories(const char *dir) {
   create_parent_directories(dir);
 #ifdef _WIN32
   mkdir(dir);
@@ -18,7 +21,7 @@ void create_directories(const char *dir) {
 #endif
 }
 
-void create_parent_directories(const char *fname) {
+static void create_parent_directories(const char *fname) {
   char *dirname = malloc(strlen(fname)+1);
   strcpy(dirname, fname);
   if (strrchr(dirname,  '/')) {

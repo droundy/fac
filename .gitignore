@@ -6,6 +6,8 @@ fac-*
 version-identifier.h
 .bilge
 .fac
+sparse.fac
+*.sparse
 *.backup
 *~
 *.tum
@@ -23,7 +25,6 @@ temp-cat
 .sass-cache
 *.pyc
 web/style.css
-bench/data
 *.gcno
 *.gcda
 *.gcov
@@ -37,3 +38,7 @@ testing-flags
 fac.1
 bigbro-static
 bigbro
+tests/afl-input/
+tests/afl-output/
+*.lock
+target

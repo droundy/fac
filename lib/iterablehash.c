@@ -50,27 +50,3 @@ void add_to_hash(struct hash_table *hash, struct hash_entry *e) {
     hash->table[h] = e;
   }
 }
-
-void remove_from_hash(struct hash_table *hash, struct hash_entry *e) {
-  assert(lookup_in_hash(hash, e->key));
-  struct hash_entry *x = hash->first;
-  if (x == e) {
-    hash->first = e->next;
-  } else {
-    while (x) {
-      if (x->next == e) {
-        x->next = e->next;
-      }
-      x = x->next;
-    }
-  }
-  unsigned long h = hash_function(e->key) % hash->size;
-  if (hash->table[h] == e) {
-    if (e->next && hash_function(e->next->key) % hash->size == h) {
-      hash->table[h] = e->next;
-    } else {
-      hash->table[h] = 0;
-    }
-  }
-  hash->num_entries -= 1;
-}

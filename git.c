@@ -6,6 +6,8 @@
 #include <assert.h>
 #include <stdio.h>
 
+void __gcov_flush();
+
 #ifdef _WIN32
 
 #include <windows.h>
@@ -121,7 +123,7 @@ int ReadChildProcess(char **output, char *cmdline) {
 #endif
 
 
-char *go_to_git_top() {
+char *go_to_git_top(void) {
   char *buf = git_revparse("--show-toplevel");
 #ifdef _WIN32
   if (strlen(buf) > 2 && buf[0] == '/' && buf[2] == '/') {
@@ -145,7 +147,7 @@ char *go_to_git_top() {
 
 char *git_revparse(const char *flag) {
 #ifdef _WIN32
-  char *buf = 0;
+  char *buf = NULL;
   char *cmdline = malloc(500);
   if (snprintf(cmdline, 500, "git rev-parse %s", flag) >= 500) {
     printf("bug: long argument to git_revparse: %s\n", flag);
@@ -177,18 +179,21 @@ char *git_revparse(const char *flag) {
     args[0] = "git";
     args[1] = "rev-parse";
     args[2] = (char *)flag;
-    args[3] = 0;
+    args[3] = NULL;
+#ifdef COVERAGE
+    __gcov_flush();
+#endif
     execvp("git", args);
     exit(0);
   }
   int status = 0;
   if (waitpid(new_pid, &status, 0) != new_pid) {
     printf("Unable to exec git ls-files\n");
-    return 0; // fixme should exit
+    return NULL; // fixme should exit
   }
   if (WEXITSTATUS(status)) {
     printf("Unable to run git rev-parse successfully %d\n", WEXITSTATUS(status));
-    return 0;
+    return NULL;
   }
   off_t stdoutlen = lseek(out, 0, SEEK_END);
   lseek(out, 0, SEEK_SET);
@@ -196,7 +201,7 @@ char *git_revparse(const char *flag) {
   if (read(out, buf, stdoutlen) != stdoutlen) {
     printf("Error reading output of git rev-parse %s\n", flag);
     free(buf);
-    return 0;
+    return NULL;
   }
 #endif
   for (int i=0;i<stdoutlen;i++) {
@@ -209,7 +214,7 @@ char *git_revparse(const char *flag) {
 
 void add_git_files(struct all_targets *all) {
 #ifdef _WIN32
-  char *buf = 0;
+  char *buf = NULL;
   int retval = ReadChildProcess(&buf, "git ls-files");
   if (retval) {
     free(buf);
@@ -233,7 +238,10 @@ void add_git_files(struct all_targets *all) {
     open("/dev/null", O_WRONLY);
     args[0] = "git";
     args[1] = "ls-files";
-    args[2] = 0;
+    args[2] = NULL;
+#ifdef COVERAGE
+    __gcov_flush();
+#endif
     execvp("git", args);
     exit(0);
   }
@@ -243,8 +251,8 @@ void add_git_files(struct all_targets *all) {
     return; // fixme should exit
   }
   if (WEXITSTATUS(status)) {
-    printf("Unable to run git ls-files successfully %d\n", WEXITSTATUS(status));
-    //    return 0;
+    printf("Unable to run git ls-files successfully (exit code %d)\n", WEXITSTATUS(status));
+    exit(1); // fixme is this the right error handling?
   }
   off_t stdoutlen = lseek(out, 0, SEEK_END);
   lseek(out, 0, SEEK_SET);
@@ -289,7 +297,7 @@ void git_add(const char *path) {
   args[1] = "add";
   args[2] = "--";
   args[3] = path;
-  args[4] = 0;
+  args[4] = NULL;
 
 #ifdef _WIN32
   int retval = spawnvp(P_WAIT, "git", (char **)args);
@@ -297,17 +305,21 @@ void git_add(const char *path) {
   pid_t new_pid = fork();
   if (new_pid == 0) {
     close(0);
+#ifdef COVERAGE
+    __gcov_flush();
+#endif
     execvp("git", (char **)args);
     error(1, errno, "running git");
   }
   int status = 0;
   if (waitpid(new_pid, &status, 0) != new_pid) {
     printf("Unable to exec git add -- %s\n", path);
-    return; // fixme should exit
+    exit(1); // fixme is this the right error handling?
   }
   int retval = WEXITSTATUS(status);
 #endif
   if (retval) {
-    printf("Unable to run git add -- %s successfully %d\n", path, retval);
+    printf("Unable to run git add -- %s successfully (exit code %d)\n", path, retval);
+    exit(1); // fixme is this the right error handling?
   }
 }

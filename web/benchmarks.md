@@ -24,7 +24,7 @@ implements the same simple linked list, and imports more system
 headers than it needs (but not an unusual number) to try to make
 compile times close to typical.  In all of the plots below $N$ is the
 number of C files that need to be built.
-<a href="hierarchy-building.pdf"><img
+<a href="hierarchy-building.svg"><img
 src="hierarchy-building.svg" alt="build times"/></a>
 
 ### Initial build (hierarchy)
@@ -34,7 +34,7 @@ scenario.  Some build systems, however, have a large constant term
 which can make a large difference up to surprisingly large systems.
 In addition, some build systems may have a different $\O{N}$
 prefactor, which can make an even bigger difference for large
-systems. <a href="hierarchy-touching-all.pdf"><img
+systems. <a href="hierarchy-touching-all.svg"><img
 src="hierarchy-touching-all.svg" alt="rebuild times"/></a>
 
 ### Touching all (hierarchy)
@@ -43,7 +43,7 @@ For the rebuild, we touch all the C files.  The cost is still $\O{N}$
 at best, but by remembering a hash of file content it is possible to
 dramatically reduce the cost of the rebuild, which allows scons to win
 in this case by more than an order of magnitude.  <a
-href="hierarchy-modifying-c.pdf"><img src="hierarchy-modifying-c.svg"
+href="hierarchy-modifying-c.svg"><img src="hierarchy-modifying-c.svg"
 alt="more build times"/></a>
 
 ### Modify a C file (hierarchy)
@@ -56,7 +56,7 @@ believe tup "magically" determines which files to build by running a
 background process that uses inotify (or similar) to wait for changes
 to input files.  You can note that scons here has a dramatically more
 expensive $\O{N}$ cost, as it reads each C file to check dependencies
-(I think).  <a href="hierarchy-modifying-header.pdf"><img
+(I think).  <a href="hierarchy-modifying-header.svg"><img
 src="hierarchy-modifying-header.svg" alt="more build times"/></a>
 
 ### Modify a header file (hierarchy)
@@ -65,7 +65,7 @@ The following modifies a single header file, adding a newline to its
 end.  This should be close to identical to the former test, but
 requires rebuilding about 10 times as many files.  Thus the $\O{1}$
 term is increased while the $\O{N}$ term is hardly affected.  <a
-href="hierarchy-doing-nothing.pdf"><img
+href="hierarchy-doing-nothing.svg"><img
 src="hierarchy-doing-nothing.svg" alt="more build times"/></a>
 
 ### Doing nothing (hierarchy)
@@ -82,7 +82,7 @@ that is run to generate a header file that is included by the
 following C file.  This tests the scaling of each build system in the
 extreme case of a highly dependent build, in contrast to the previous
 case, in which each build operation could be performed independently.
-<a href="dependent-chain-building.pdf"><img
+<a href="dependent-chain-building.svg"><img
 src="dependent-chain-building.svg" alt="build times"/></a>
 
 ### Initial build (linear chain)
@@ -91,7 +91,7 @@ Obviously again this must be $\O{N}$.  As usual, scons and tup have a
 noticeable $\O{1}$ contribution, which is much more significant for
 tup.  FIXME I think there must be a bug in the scons benchmarking in
 this case.
-<a href="dependent-chain-rebuilding.pdf"><img
+<a href="dependent-chain-rebuilding.svg"><img
 src="dependent-chain-rebuilding.svg" alt="rebuild times"/></a>
 
 ### Rebuild (linear chain)
@@ -101,7 +101,7 @@ $\O{N}$.  This technically does not require an entire rebuild, since
 we need do not need to rerun the executables, so long as they come out
 the same as last time.  But that is irrelevant, because compiling and
 linking is way slower than running the executables.
-<a href="dependent-chain-modifying-c.pdf"><img
+<a href="dependent-chain-modifying-c.svg"><img
 src="dependent-chain-modifying-c.svg" alt="more build times"/></a>
 
 ### Modifying a C file (linear chain)
@@ -112,7 +112,7 @@ tracking of file checksums makes this much faster, as it realizes that
 the output is identical, so there is no rebuilding required.  I do not
 understand why tup is cheap here.  Tup should need to rebuild
 everything.
-<a href="dependent-chain-modifying-header.pdf"><img
+<a href="dependent-chain-modifying-header.svg"><img
 src="dependent-chain-modifying-header.svg" alt="more build times"/></a>
 
 ### Modifying a header (linear chain)
@@ -121,7 +121,7 @@ This test touches a header that only requires one rebuild.  It thus
 requires only $\O{1}$ rebuilds, but should with most systems require
 $\O{N}$ checks of file modification times.  Presumably my tests are
 small enough that we aren't able to see the $\O{N}$ costs clearly.
-<a href="dependent-chain-doing-nothing.pdf"><img
+<a href="dependent-chain-doing-nothing.svg"><img
 src="dependent-chain-doing-nothing.svg" alt="more build times"/></a>
 
 ### Doing nothing (linear chain)
@@ -137,7 +137,7 @@ which we `cat` a file $N$ times.  This tests the scaling of each build
 system in the extreme case of a highly dependent build, but with an
 even faster build command, to highlight scaling issues by making
 $\O{N}$ costs as small as possible.
-<a href="cat-building.pdf"><img
+<a href="cat-building.svg"><img
 src="cat-building.svg" alt="build times"/></a>
 
 ### Initial build of cats
@@ -145,14 +145,14 @@ src="cat-building.svg" alt="build times"/></a>
 Obviously again this must be $\O{N}$.  As usual, scons and tup have a
 noticeable $\O{1}$ contribution, which is much more significant for
 tup.
-<a href="cat-rebuilding.pdf"><img
+<a href="cat-rebuilding.svg"><img
 src="cat-rebuilding.svg" alt="rebuild times"/></a>
 
 ### Rebuild cats
 
 Here we modify the source file from which the entire dependency chain
 depends, which results in $\O{N}$ run cost.  <a
-href="cat-doing-nothing.pdf"><img src="cat-doing-nothing.svg"
+href="cat-doing-nothing.svg"><img src="cat-doing-nothing.svg"
 alt="more build times"/></a>
 
 ### Doing nothing to cats
@@ -175,7 +175,7 @@ research code) where a few rules take much more time than the others.
 Thus, it is best to start the slow rules early, since the total build
 time is determined by when we start those few rules.
 
-<a href="sleepy-building.pdf"><img
+<a href="sleepy-building.svg"><img
 src="sleepy-building.svg" alt="build times"/></a>
 
 ### Initial build of sleeps
@@ -184,7 +184,7 @@ This must be $\O{N}$, and should come out to somewhere between $N$ and
 $1.5N$ seconds.  The first build can be done a bit better first
 building commands that are required in order to build other commands.
 Make and fac both use this trick, and run a bit faster.  <a
-href="sleepy-rebuilding.pdf"><img src="sleepy-rebuilding.svg"
+href="sleepy-rebuilding.svg"><img src="sleepy-rebuilding.svg"
 alt="rebuild times"/></a>
 
 ### Rebuild sleeps

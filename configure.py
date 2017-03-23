@@ -1,15 +1,24 @@
 #!/usr/bin/python3
 
 from __future__ import print_function
-import string, os, sys, platform
+import string, os, sys, platform, subprocess
 
 myplatform = sys.platform
 if myplatform == 'linux2':
     myplatform = 'linux'
 
-have_sass = os.system('sass -h > /dev/null') == 0
-have_help2man = os.system('help2man --help > /dev/null') == 0
-have_checkinstall = os.system('checkinstall --version > /dev/null') == 0
+def can_run(cmd):
+    print('# trying', cmd, file=sys.stdout)
+    try:
+        subprocess.check_output(cmd, shell=True)
+        return True
+    except Exception as e:
+        print("# error: ", e)
+        return False
+
+have_sass = can_run('sass -h')
+have_help2man = can_run('help2man --help')
+have_checkinstall = can_run('checkinstall --version')
 
 os.system('rm -rf testing-flags')
 os.mkdir('testing-flags');
@@ -20,10 +29,13 @@ int main() {
 }
 """)
 
-# add , '-fprofile-arcs', '-ftest-coverage' to both of the following
-# lines in order to enable gcov coverage testing
-optional_flags = ['-Wall', '-Werror', '-O2']
-optional_linkflags = ['-lprofiler']
+optional_flags = ['-Wall', '-Werror', '-O2', '-flto']
+optional_linkflags = ['-lprofiler', '-flto']
+
+# To enable coverage testing define the environment variable $COVERAGE
+if os.getenv('COVERAGE') != None:
+    optional_flags += ['--coverage', "-DCOVERAGE"]
+    optional_linkflags += ['--coverage']
 
 possible_flags = ['-std=c11', '-std=c99']
 possible_linkflags = ['-lpthread', '-lm']
@@ -41,6 +53,11 @@ if os.getenv('MINIMAL') == None:
                      'os': platform.system().lower(),
                      'arch': platform.machine()},
                 '-static': {'cc': os.getenv('CC', 'gcc'),
+                            'flags': [os.getenv('CFLAGS', '') + ' -Ibigbro'],
+                            'linkflags': [os.getenv('LDFLAGS', ''), '-static'],
+                            'os': platform.system().lower(),
+                            'arch': platform.machine()},
+                '-afl': {'cc': 'afl-gcc',
                             'flags': [os.getenv('CFLAGS', '') + ' -Ibigbro'],
                             'linkflags': [os.getenv('LDFLAGS', ''), '-static'],
                             'os': platform.system().lower(),
@@ -63,11 +80,9 @@ else:
     print('# compiling with just the variant:', variants)
 
 def compile_works(flags):
-    return not os.system('%s %s -c -o testing-flags/test.o testing-flags/test.c' % (cc, ' '.join(flags)))
+    return can_run('%s %s -c -o testing-flags/test.o testing-flags/test.c' % (cc, ' '.join(flags)))
 def link_works(flags):
-    cmd = '%s -o testing-flags/test testing-flags/test.c %s' % (cc, ' '.join(flags))
-    print('# trying', cmd, file=sys.stdout)
-    return not os.system(cmd)
+    return can_run('%s -o testing-flags/test testing-flags/test.c %s' % (cc, ' '.join(flags)))
 
 for variant in variants.keys():
     print('# Considering variant: "%s"' % variant)
@@ -103,14 +118,16 @@ for variant in variants.keys():
     variants[variant]['flags'] = flags
     variants[variant]['linkflags'] = linkflags
 
-    sources = ['fac', 'files', 'targets', 'clean-all', 'build', 'git', 'environ',
+    sources = ['main', 'fac', 'files', 'targets', 'clean-all', 'build', 'git', 'environ',
                'mkdir', 'arguments']
 
-    libsources = ['listset', 'iterablehash', 'intmap', 'sha1']
+    libsources = ['listset', 'iterablehash', 'sha1']
 
     for s in sources:
         print('| %s %s -o %s%s.o -c %s.c' % (cc, ' '.join(flags), s, variant, s))
         print('> %s%s.o' % (s, variant))
+        if '-flto' in flags and s == 'main':
+            print('c %s%s.gcno' % (s, variant))
         if s == 'fac':
             print('< version-identifier.h')
         print()
@@ -151,6 +168,7 @@ for variant in variants.keys():
         for s in libsources:
             print('< lib/%s%s.o' % (s, variant))
         print('> fac%s%s' % (variant, postfix))
+        print('c .gcno')
         print()
 
     if variant != '-win':
@@ -187,7 +205,7 @@ if have_help2man:
 | help2man --no-info ./fac > fac.1
 < fac''')
 else:
-    print("# no help2man, so we won't build the web page")
+    print("# no help2man, so we won't build the man page")
 
 if have_sass:
     print('''

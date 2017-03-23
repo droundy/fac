@@ -19,7 +19,7 @@ git clone ../../bigbro
 
 cd bigbro
 
-valgrind --leak-check=full --errors-for-leak-kinds=definite --error-exitcode=1 ../../../fac
+SKIPSPARSE=1 valgrind --leak-check=full --errors-for-leak-kinds=definite --error-exitcode=1 ../../../fac
 
 valgrind --leak-check=full --errors-for-leak-kinds=definite --error-exitcode=1 ../../../fac -c
 

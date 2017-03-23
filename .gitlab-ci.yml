@@ -1,0 +1,38 @@
+image: facio/build
+
+build:
+  stage: build
+  script:
+    - sh build/linux.sh
+    - ./fac
+  artifacts:
+    paths:
+      - fac
+      - fac-static
+
+# run tests
+test:
+  stage: test
+  before_script:
+    - git config --global user.email "testing-on-gitlab-ci@example.com"
+    - git config --global user.name "CI Builder"
+  script:
+    - python3 run-tests.py -v
+  after_script:
+    - bash <(curl -s https://codecov.io/bash) -t 4bcdcd28-ba20-4da7-ab75-2ac3344e2f15
+  artifacts:
+    paths:
+      - web
+
+pages:
+  stage: deploy
+  script:
+    - sh build/linux.sh
+    - ./fac
+    - cat .fac
+    - ./fac web/index.html web/fac-latest.deb web/style.css
+    - ./fac
+    - mv web public
+  artifacts:
+    paths:
+      - public

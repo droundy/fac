@@ -11,19 +11,14 @@
 #include "bigbro.h"
 #include "lib/listset.h"
 
+#include <assert.h>
+
 #ifdef _WIN32
 
 #include <direct.h> // for _chdir
 #define chdir _chdir
 #include <windows.h> // for Sleep and file IO with HANDLEs
 #define sleep Sleep
-
-/* fixme: the following is a very broken version of realpath for windows! */
-static char *realpath(const char *p, int i) {
-  char *r = malloc(strlen(p));
-  strcpy(r, p);
-  return r;
-}
 
 static bigbro_fd_t mkstemp_win(const char *namebuf) {
   char *lpTempPathBuffer = malloc(MAX_PATH);
@@ -85,16 +80,16 @@ static bigbro_fd_t mkstemp_win(const char *namebuf) {
 #include <stdlib.h>
 #include <fcntl.h>
 
-static listset *facfiles_used = 0;
+static listset *facfiles_used = NULL;
 
 static  void dump_to_stdout(bigbro_fd_t fd);
 
-static inline double double_time() {
+static inline double double_time(void) {
 #ifdef _WIN32
   return GetTickCount()*1e-3;
 #else
   struct timeval now;
-  gettimeofday(&now, 0);
+  gettimeofday(&now, NULL);
   return now.tv_sec + now.tv_usec*1e-6;
 #endif
 }
@@ -105,26 +100,34 @@ struct a_path {
   const char path[];
 };
 
-// This code determines if a file might be in the git repository.  We
-// whitelist the hooks directory, since it is reasonable (or
-// semireasonable) for rules to create files in there.
-bool is_git_path(const char *path) {
-  static char *gitpath = 0, *githookspath = 0;
-  static int gitlen = 0, githookslen = 0;
-  if (!gitpath) {
-    gitpath = absolute_path(root, ".git/");
-    gitlen = strlen(gitpath);
-  }
-  if (!githookspath) {
-    githookspath = absolute_path(root, ".git/hooks/");
-    githookslen = strlen(githookspath);
-  }
-  int len = strlen(path);
-  if (len > gitlen && memcmp(path, gitpath, gitlen) == 0) {
-    if (len > githookslen && memcmp(path, githookspath, githookslen) == 0) {
-      return false;
+// This code determines if a file might be in the internal files of a
+// git repository (any git repository).  We whitelist the hooks
+// directory of each repository, since it is reasonable (or
+// semireasonable) for rules to create files in there.  Note that this
+// is basically special-casing a "cache" location.  It seems
+// worthwhile, because we know that random git commands may modify
+// files in ./git.
+static inline bool is_git_path(const char *path) {
+  while (*path) {
+    // Note: the following relies on short-circuit && to maintain
+    // memory safety.
+    if (path[0] == '/' &&
+        path[1] == '.' &&
+        path[2] == 'g' &&
+        path[3] == 'i' &&
+        path[4] == 't' &&
+        path[5] == '/') {
+      if (path[6] == 'h' &&
+          path[7] == 'o' &&
+          path[8] == 'o' &&
+          path[9] == 'k' &&
+          path[10] == 's' &&
+          path[11] == '/') {
+        return false;
+      }
+      return true;
     }
-    return true;
+    path++;
   }
   return false;
 }
@@ -156,10 +159,8 @@ bool is_interesting_path(struct rule *r, const char *path) {
 
 static void check_cleanliness(struct all_targets *all, struct rule *r);
 
-void mark_rule(struct all_targets *all, struct rule *r) {
-  if (r->status != unknown) {
-    return;
-  }
+static inline void mark_rule(struct all_targets *all, struct rule *r) {
+  assert(r->status == unknown);
   set_status(all, r, marked);
 }
 
@@ -194,7 +195,7 @@ static void find_latency(struct rule *r) {
   }
   r->latency_estimate = r->build_time + maxchild;
 }
-void rule_is_ready(struct all_targets *all, struct rule *r) {
+static void rule_is_ready(struct all_targets *all, struct rule *r) {
   if (false) {
     set_status(all, r, dirty);
   } else {
@@ -230,7 +231,7 @@ void rule_is_ready(struct all_targets *all, struct rule *r) {
   }
 
 }
-void built_rule(struct all_targets *all, struct rule *r) {
+static void built_rule(struct all_targets *all, struct rule *r) {
   set_status(all, r, built);
   for (int i=0;i<r->num_outputs;i++) {
     for (int j=0;j<r->outputs[i]->num_children;j++) {
@@ -239,7 +240,7 @@ void built_rule(struct all_targets *all, struct rule *r) {
     }
   }
 }
-void rule_failed(struct all_targets *all, struct rule *r) {
+static void rule_failed(struct all_targets *all, struct rule *r) {
   if (r->status == failed) return; /* just in case! */
   r->num_inputs = r->num_explicit_inputs;
   /* We do not want to throw away old non-explicit outputs, since
@@ -281,16 +282,13 @@ static void find_target_sha1(struct target *t, const char *why) {
 #ifdef _WIN32
 #else
     int bufferlen = 0;
-    char *buffer = 0;
+    char *buffer = NULL;
     int readlen;
     do {
       bufferlen += 4096;
       buffer = realloc(buffer, bufferlen);
       readlen = readlink(t->path, buffer, bufferlen);
-      if (readlen < 0) {
-        free(buffer);
-        return;
-      }
+      if (readlen < 0) error(1, errno, "error reading symlink %s", t->path);
     } while (readlen > bufferlen);
     sha1nfo sh;
     sha1_init(&sh);
@@ -326,7 +324,7 @@ static struct target *create_target_with_stat(struct all_targets *all,
   if (!t->stat.time) {
 #ifndef _WIN32
     struct stat st;
-    if (lstat(t->path, &st)) return 0;
+    if (lstat(t->path, &st)) return NULL;
     t->is_file = S_ISREG(st.st_mode);
     t->is_dir = S_ISDIR(st.st_mode);
     t->is_symlink = S_ISLNK(st.st_mode);
@@ -367,7 +365,7 @@ static inline void rebuild_excuse(struct rule *r, const char *format, ...) {
 }
 
 
-void check_cleanliness(struct all_targets *all, struct rule *r) {
+static void check_cleanliness(struct all_targets *all, struct rule *r) {
   if (r->status != unknown && r->status != unready && r->status != marked) {
     /* We have already determined the cleanliness of this rule. */
     return;
@@ -416,7 +414,7 @@ void check_cleanliness(struct all_targets *all, struct rule *r) {
     is_dirty = true;
   }
   for (int i=0;i<r->num_inputs;i++) {
-    if (!r->inputs[i]->is_in_git && !is_in_gitdir(r->inputs[i]->path) &&
+    if (!r->inputs[i]->is_in_git && !is_git_path(r->inputs[i]->path) &&
         !r->inputs[i]->rule && is_in_root(r->inputs[i]->path)) {
       if (i < r->num_explicit_inputs) {
         set_status(all, r, unready);
@@ -523,17 +521,35 @@ struct building {
 static void *run_bigbrother(void *ptr) {
   struct building *b = ptr;
 
-  b->readdir = 0;
-  b->mkdir = 0;
-  b->read = 0;
-  b->written = 0;
+  b->readdir = NULL;
+  b->mkdir = NULL;
+  b->read = NULL;
+  b->written = NULL;
+  if (dry_run) {
+    b->readdir = malloc(sizeof(char *));
+    *b->readdir = NULL;
+    b->mkdir = malloc(sizeof(char *));
+    *b->mkdir = NULL;
+    b->read = malloc(sizeof(char *));
+    *b->read = NULL;
+    b->written = malloc(sizeof(char *));
+    *b->written  = NULL;
+    b->build_time = rand()/(double)RAND_MAX;
+    // memory barrier to ensure b->all_done is not modified before we
+    // finish filling everything in:
+    __sync_synchronize();
+    b->all_done = failed;
+    sem_post(b->slots_available);
+    pthread_exit(NULL);
+    return NULL;
+  }
 
   double started = double_time();
-  int ret = bigbro_with_mkdir(b->rule->working_directory,
-                              &b->child_pid,
-                              b->stdouterrfd, b->stdouterrfd, 0,
-                              b->rule->command,
-                              &b->readdir, &b->mkdir, &b->read, &b->written);
+  int ret = bigbro(b->rule->working_directory,
+                   &b->child_pid,
+                   b->stdouterrfd, b->stdouterrfd, NULL,
+                   b->rule->command,
+                   &b->readdir, &b->mkdir, &b->read, &b->written);
 
   b->build_time = double_time() - started;
   // memory barrier to ensure b->all_done is not modified before we
@@ -545,8 +561,8 @@ static void *run_bigbrother(void *ptr) {
     b->all_done = built;
   }
   sem_post(b->slots_available);
-  pthread_exit(0);
-  return 0;
+  pthread_exit(NULL);
+  return NULL;
 }
 
 static struct building *build_rule(struct all_targets *all,
@@ -619,7 +635,7 @@ static struct building *build_rule(struct all_targets *all,
 
   /* Now we go ahead and actually start running the build. */
   pthread_t child = 0;
-  pthread_create(&child, 0, run_bigbrother, b);
+  pthread_create(&child, NULL, run_bigbrother, b);
   pthread_detach(child);
 
   return b;
@@ -629,17 +645,20 @@ static double starting_time;
 static double elapsed_seconds, elapsed_minutes;
 static bool am_interrupted = false;
 
-void initialize_starting_time() {
+void initialize_starting_time(void) {
   starting_time = double_time();
 }
+
+static sem_t *slots_available = NULL;
 
 #ifndef _WIN32
 static void handle_interrupt(int sig) {
   am_interrupted = true;
+  if (slots_available) sem_post(slots_available); // interrupt things now!
 }
 #endif
 
-static void find_elapsed_time() {
+static void find_elapsed_time(void) {
   double et = double_time() - starting_time;
   elapsed_minutes = floor(et/60);
   elapsed_seconds = et - elapsed_minutes*60;
@@ -675,11 +694,11 @@ static void build_marked(struct all_targets *all, const char *log_directory,
   }
 
   struct building **bs = malloc(num_jobs*sizeof(struct building *));
-  sem_t *slots_available = malloc(sizeof(sem_t));
+  slots_available = malloc(sizeof(sem_t));
   if (sem_init(slots_available, 0, 0) == -1) {
     error(1, errno, "unable to create semaphore");
   }
-  for (int i=0;i<num_jobs;i++) bs[i] = 0;
+  for (int i=0;i<num_jobs;i++) bs[i] = NULL;
 #ifndef _WIN32
   struct sigaction act, oldact;
   act.sa_handler = handle_interrupt;
@@ -729,6 +748,7 @@ static void build_marked(struct all_targets *all, const char *log_directory,
               erase_and_printf("%d/%d [%.0fs]: %s\n",
                                num_built, num_total, bs[i]->build_time, bs[i]->rule->command);
             }
+            fflush(stdout);
             double estimated_time = (all->estimated_times[building] +
                                      all->estimated_times[dirty] +
                                      all->estimated_times[unready])/num_jobs;
@@ -755,8 +775,9 @@ static void build_marked(struct all_targets *all, const char *log_directory,
               dump_to_stdout(bs[i]->stdouterrfd);
             }
             if (bs[i]->all_done != built && bs[i]->all_done != failed) {
-              erase_and_printf("INTERRUPTED!  bs[i]->all_done == %s\n",
-                               pretty_status(bs[i]->all_done));
+              erase_and_printf("INTERRUPTED! or crashed?  bs[i]->all_done == %d\n",
+                               bs[i]->all_done);
+              // pretty_status(bs[i]->all_done));
               am_interrupted = true;
               break;
             }
@@ -766,7 +787,7 @@ static void build_marked(struct all_targets *all, const char *log_directory,
                   struct a_path *foo = malloc(sizeof(struct a_path) + strlen(bs[i]->read[nn])+1);
                   foo->e.key = foo->path;
                   strcpy((char *)foo->path, bs[i]->read[nn]);
-                  foo->e.next = 0;
+                  foo->e.next = NULL;
                   add_to_hash(files_to_watch, &foo->e);
                 }
               }
@@ -775,7 +796,7 @@ static void build_marked(struct all_targets *all, const char *log_directory,
                   struct a_path *foo = malloc(sizeof(struct a_path) + strlen(bs[i]->readdir[nn])+1);
                   foo->e.key = foo->path;
                   strcpy((char *)foo->path, bs[i]->readdir[nn]);
-                  foo->e.next = 0;
+                  foo->e.next = NULL;
                   add_to_hash(files_to_watch, &foo->e);
                 }
               }
@@ -794,14 +815,14 @@ static void build_marked(struct all_targets *all, const char *log_directory,
               }
               free(bs[i]->written);
               for (int nn=0; bs[i]->mkdir[nn]; nn++) {
-                // Delete any files that were created, so that they
-                // will be properly re-created next time this command
-                // is run.
+                // Delete any directories that were created, so that
+                // they will be properly re-created next time this
+                // command is run.
                 rmdir(bs[i]->mkdir[nn]);
               }
               free(bs[i]->mkdir);
               free(bs[i]);
-              bs[i] = 0;
+              bs[i] = NULL;
               break;
             }
 
@@ -862,13 +883,13 @@ static void build_marked(struct all_targets *all, const char *log_directory,
                 free(bs[i]->written);
                 free(bs[i]->mkdir);
                 free(bs[i]);
-                bs[i] = 0;
+                bs[i] = NULL;
                 break;
               } else if (!t) {
                 /* This file was previously created, but is no longer
                    there, so we should remove it from the list of
                    outputs. */
-                r->outputs[ii]->rule = 0; // dissociate ourselves with this output
+                r->outputs[ii]->rule = NULL; // dissociate ourselves with this output
                 r->outputs[ii]->status = dirty; // mark it as dirty, since we didn't create it
 
                 r->num_outputs -= 1;
@@ -897,7 +918,7 @@ static void build_marked(struct all_targets *all, const char *log_directory,
                      problem. */
                   // error(1, errno, "Unable to input stat file %s", path);
                 } else {
-                  if (!t->rule && is_in_root(path) && !t->is_in_git && !is_in_gitdir(path)) {
+                  if (!t->rule && is_in_root(path) && !t->is_in_git && !is_git_path(path)) {
                     if (git_add_files) {
                       git_add(path);
                       t->is_in_git = true;
@@ -986,19 +1007,29 @@ static void build_marked(struct all_targets *all, const char *log_directory,
                 t = create_target_with_stat(all, path);
                 if (t && (t->is_dir)) {
                   if (path == pretty_path(path)) {
-                    erase_and_printf("error: created directory outside source directory: %s (%s)\n",
-                                     path, pretty_rule(r));
-                    rule_failed(all, r);
+                    // Changed behavior in March 2017: We will just
+                    // ignore directories created outside the repository,
+                    // rather than treating this as an error.  I have
+                    // not yet found a real bug through this checking,
+                    // and it ends up being a nuisance because of
+                    // software (such as matplotlib or inkscape) that
+                    // either uses caches or log files in the home
+                    // directory.
+
+                    // Bugs that this would have caught would be:
+                    // a) temp files that aren't cleaned up
+                    // b) installing files using fac
+
+                    /* erase_and_printf("error: created directory outside source directory: %s (%s)\n", */
+                    /*                  path, pretty_rule(r)); */
+                    /* rule_failed(all, r); */
+                  } else {
+                    // We allow multiple rules to mkdir the same
+                    // directory.  This is fine, since we do not apply
+                    // strict ordering to the creation of a directory.
+                    if (!t->rule) t->rule = r;
+                    add_output(r, t);
                   }
-                  if (t->rule && t->rule != r) {
-                    erase_and_printf("error: two rules generate same output %s:\n\t%s\nand\n\t%s\n",
-                                     pretty_path(path), r->command, t->rule->command);
-                    rule_failed(all, r);
-                  }
-                  t->rule = r;
-                  t->status = unknown; // if it is a facfile, we haven't yet read it
-                  find_target_sha1(t, "mkdir output");
-                  add_output(r, t);
                 }
               }
             }
@@ -1020,7 +1051,7 @@ static void build_marked(struct all_targets *all, const char *log_directory,
             free(bs[i]->written);
             free(bs[i]->mkdir);
             free(bs[i]);
-            bs[i] = 0;
+            bs[i] = NULL;
           }
         }
       }
@@ -1065,11 +1096,39 @@ static void build_marked(struct all_targets *all, const char *log_directory,
 #else
             kill(-bs[i]->child_pid, SIGKILL); /* kill with extreme prejudice */
 #endif
+          }
+        }
+        for (int i=0;i<num_jobs;i++) {
+          if (bs[i]) {
+            if (bs[i]->written) {
+              for (int nn=0; bs[i]->written[nn]; nn++) {
+                // Delete any files that were created, so that they
+                // will be properly re-created next time this command
+                // is run.
+                verbose_printf("deleting %s\n", bs[i]->written[nn]);
+                unlink(bs[i]->written[nn]);
+              }
+              free(bs[i]->written);
+            }
+            for (int nn=0; nn < bs[i]->rule->num_outputs; nn++) {
+              verbose_printf("deleting %s\n", bs[i]->rule->outputs[nn]->path);
+              unlink(bs[i]->rule->outputs[nn]->path);
+            }
+            if (bs[i]->mkdir) {
+              for (int nn=0; bs[i]->mkdir[nn]; nn++) {
+                // Delete any files that were created, so that they
+                // will be properly re-created next time this command
+                // is run.
+                rmdir(bs[i]->mkdir[nn]);
+              }
+              free(bs[i]->mkdir);
+            }
             free(bs[i]);
-            bs[i] = 0;
+            bs[i] = NULL;
           }
         }
         erase_and_printf("Interrupted!\n");
+        fflush(stdout);
 
         while (facfiles_used) {
           char *donefile = done_name(facfiles_used->path);
@@ -1096,9 +1155,9 @@ static void build_marked(struct all_targets *all, const char *log_directory,
       } else {
         for (int i=0;i<r->num_inputs;i++) {
           if (!r->inputs[i]->rule && !r->inputs[i]->is_in_git &&
-              !is_in_gitdir(r->inputs[i]->path) && is_in_root(r->inputs[i]->path)) {
+              !is_git_path(r->inputs[i]->path) && is_in_root(r->inputs[i]->path)) {
             if (!access(r->inputs[i]->path, R_OK)) {
-              char *thepath = realpath(r->inputs[i]->path, 0);
+              char *thepath = realpath(r->inputs[i]->path, NULL);
               if (thepath && strcmp(thepath, r->inputs[i]->path) != 0) {
                 // The canonicalization of the path has changed! See
                 // issue #17 which this fixes. Presumably a directory
@@ -1152,17 +1211,20 @@ static void build_marked(struct all_targets *all, const char *log_directory,
   free(slots_available);
   free(bs);
 #ifndef _WIN32
-  sigaction(SIGINT, &oldact, 0);
+  sigaction(SIGINT, &oldact, NULL);
 #endif
 }
 
-void summarize_build_results(struct all_targets *all, bool am_continual) {
+static void summarize_build_results(struct all_targets *all, bool am_continual) {
   if (all->lists[failed] || all->num_with_status[failed]) {
     erase_and_printf("Build failed %d/%d failures\n", all->num_with_status[failed],
                      all->num_with_status[failed] + all->num_with_status[built]);
     fflush(stdout);
     if (am_continual) {
       printf("Waiting for change to try again...\n");
+    } else if (dry_run) {
+      printf("But it is only a dry run, so it's all cool!\n");
+      exit(0);
     } else {
       exit(1);
     }
@@ -1177,9 +1239,9 @@ void summarize_build_results(struct all_targets *all, bool am_continual) {
 sha1hash env;
 
 static bool have_lock = false;
-static char *lockfilename = 0;
+static char *lockfilename = NULL;
 
-void find_lockfilename() {
+static void find_lockfilename(void) {
   if (!lockfilename) {
     char *gitdir = git_revparse("--git-dir");
     int len = 50 + strlen(gitdir);
@@ -1189,7 +1251,7 @@ void find_lockfilename() {
   }
 }
 
-void free_lock() {
+static void free_lock(void) {
   if (have_lock) {
     find_lockfilename();
     unlink(lockfilename);
@@ -1197,7 +1259,7 @@ void free_lock() {
   }
 }
 
-bool fac_is_already_running() {
+static bool fac_is_already_running(void) {
   find_lockfilename();
   int lockfd = open(lockfilename, O_CREAT | O_EXCL, 0666);
   if (lockfd >= 0) {
@@ -1215,7 +1277,7 @@ void do_actual_build(struct cmd_args *args) {
     {
       int seconds_waited = 0;
       while (fac_is_already_running()) {
-        if (seconds_waited > 15) {
+        if (seconds_waited > 9) {
           printf("Giving up after %d seconds... remove %s?\n",
                  seconds_waited, lockfilename);
           exit(1);
@@ -1231,7 +1293,7 @@ void do_actual_build(struct cmd_args *args) {
     struct all_targets all;
     init_all(&all);
 
-    struct hash_table *files_to_watch = 0;
+    struct hash_table *files_to_watch = NULL;
     if (args->continual) {
       files_to_watch = (struct hash_table *)malloc(sizeof(struct hash_table));
       init_hash_table(files_to_watch, 2048);
@@ -1321,7 +1383,7 @@ void do_actual_build(struct cmd_args *args) {
         for (int i=0; args->include_in_tar[i]; i++) {
           struct target *t = lookup_target(&all, absolute_path(root, args->include_in_tar[i]));
           if (t) {
-            t->rule = 0;
+            t->rule = NULL;
             t->is_in_git = true;
           }
         }
@@ -1440,7 +1502,7 @@ void do_actual_build(struct cmd_args *args) {
 
   free_listset(args->targets_requested); // avoid harmless memory leaks
   if (lockfilename) free(lockfilename);
-  lockfilename = 0;
+  lockfilename = NULL;
 }
 
 static void dump_to_stdout(bigbro_fd_t fd) {
@@ -1451,7 +1513,7 @@ static void dump_to_stdout(bigbro_fd_t fd) {
   while (ReadFile(fd, buf, 4096, &mysize, NULL) && mysize) {
     if (fwrite(buf, 1, mysize, stdout) != mysize) {
       erase_and_printf("\nerror: trouble writing to stdout!\n");
-    } 
+    }
   }
   CloseHandle(fd);
 #else
@@ -1466,3 +1528,4 @@ static void dump_to_stdout(bigbro_fd_t fd) {
 #endif
   free(buf);
 }
+

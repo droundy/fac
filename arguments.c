@@ -23,10 +23,10 @@ struct a {
   bool *bool_location;
 };
 
-int num_arguments = 0;
-static struct a *args = 0;
+static int num_arguments = 0;
+static struct a *args = NULL;
 
-static struct a * add_argument() {
+static struct a * add_argument(void) {
   num_arguments++;
   args = (struct a *)realloc(args, num_arguments*sizeof(struct a));
   return &args[num_arguments - 1];
@@ -52,6 +52,10 @@ void string_argument_list(const char *long_name, char short_name, const char ***
   a->type = STRINGLIST_ARG;
   a->description = description;
   a->fieldname = outname;
+  if (!*a->stringlist_location) {
+    *a->stringlist_location = malloc(sizeof(char **));
+    **a->stringlist_location = NULL;
+  }
 }
 
 void int_argument(const char *long_name, char short_name, int *output,
@@ -73,11 +77,11 @@ void no_argument(const char *long_name, char short_name, bool *output,
   a->type = NO_ARG;
   a->bool_location = output;
   a->description = description;
-  a->fieldname = 0;
+  a->fieldname = NULL;
 }
 
 static bool read_int(const char *str, int *val) {
-  char *end = 0;
+  char *end = NULL;
   long int v = strtol(str, &end, 0);
   if (end != str + strlen(str)) {
     return false;
@@ -99,17 +103,13 @@ static void handle_arg(struct a *the_a, const char *the_arg) {
   } else if (the_a->type == STRING_ARG) {
     *(the_a->string_location) = the_arg;
   } else if (the_a->type == STRINGLIST_ARG) {
-    if (!*the_a->stringlist_location) {
-      *the_a->stringlist_location = malloc(sizeof(char **));
-      **the_a->stringlist_location = 0;
-    }
-    int num_strings;
-    for (num_strings=0; (*the_a->stringlist_location)[num_strings]; num_strings++) {
-      // counting how many strings we have already.
+    int num_strings = 0;
+    while ((*the_a->stringlist_location)[num_strings]) {
+      num_strings++; // counting how many strings we have already.
     }
     *the_a->stringlist_location = realloc(*(the_a->stringlist_location),
                                           (num_strings+2)*sizeof(char **));
-    (*the_a->stringlist_location)[num_strings+1] = 0;
+    (*the_a->stringlist_location)[num_strings+1] = NULL;
     (*the_a->stringlist_location)[num_strings] = the_arg;
   } else if (the_a->type == NO_ARG) {
     *(the_a->bool_location) = true;
@@ -119,7 +119,7 @@ static void handle_arg(struct a *the_a, const char *the_arg) {
 const char **parse_arguments_return_extras(const char **argv) {
   argv++;
   int num_output = 0;
-  const char **output = 0;
+  const char **output = NULL;
   for (const char **here = argv; *here; here++) {
     if (strcmp(*here, "--help") == 0) {
       bool help_argument;
@@ -150,8 +150,8 @@ const char **parse_arguments_return_extras(const char **argv) {
       exit(0);
     } else if (strncmp(*here, "--", 2) == 0) {
       const char *name = *here + 2;
-      const char *the_arg = 0;
-      struct a *the_a = 0;
+      const char *the_arg = NULL;
+      struct a *the_a = NULL;
       for (int j=0; j<num_arguments; j++) {
         if (strcmp(args[j].long_name, name) == 0) {
           the_a = &args[j];
@@ -178,8 +178,8 @@ const char **parse_arguments_return_extras(const char **argv) {
     } else if (strncmp(*here, "-", 1) == 0) {
       for (int i=1; i<strlen(*here); i++) {
         char c = (*here)[i];
-        struct a *the_a = 0;
-        const char *the_arg = 0;
+        struct a *the_a = NULL;
+        const char *the_arg = NULL;
         for (int j=0; j<num_arguments; j++) {
           if (args[j].short_name == c) {
             the_a = &args[j];
@@ -188,6 +188,7 @@ const char **parse_arguments_return_extras(const char **argv) {
         }
         if (!the_a) {
           fprintf(stderr, "invalid argument -%c\n", c);
+          exit(1);
         }
         if (the_a->type != NO_ARG) {
           if (i < strlen(*here)-1) {
@@ -212,7 +213,7 @@ const char **parse_arguments_return_extras(const char **argv) {
   }
   num_output++;
   output = (const char **)realloc(output, num_output*sizeof(char *));
-  output[num_output-1] = 0;
+  output[num_output-1] = NULL;
   return output;
 }
 

@@ -32,13 +32,6 @@ void add(const char *string) {
   add_to_hash(&a, e);
 }
 
-void remove_thingy(const char *string) {
-  printf("removing %s\n", string);
-  struct hash_entry *e = lookup_in_hash(&a, string);
-  remove_from_hash(&a, e);
-  free(e);
-}
-
 int main(int argc, char **argv) {
   init_hash_table(&a, 5);
 
@@ -89,15 +82,6 @@ int main(int argc, char **argv) {
   assert(a.num_entries == 4);
 
   has("foo", __LINE__);
-  has("foobar", __LINE__);
-  has("bar", __LINE__);
-  has("", __LINE__);
-
-  remove_thingy("foo");
-
-  assert(a.num_entries == 3);
-
-  hasnot("foo", __LINE__);
   has("foobar", __LINE__);
   has("bar", __LINE__);
   has("", __LINE__);

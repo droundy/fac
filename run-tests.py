@@ -11,6 +11,9 @@ if 'GIT_AUTHOR_EMAIL' not in os.environ:
     os.putenv("GIT_COMMITTER_EMAIL", 'Tester <test@example.com>')
     os.putenv("GIT_COMMITTER_NAME", 'Tester')
 
+# we always run with test coverage if gcovr is present!
+have_gcovr = os.system('gcovr -h') == 0
+
 def system(cmd):
     return subprocess.call(cmd, shell=True)
 
@@ -47,12 +50,19 @@ else:
               % (platform.system().lower())):
         print('Build failed!')
         exit(1)
+system('mv %s web/' % tarname)
+system('ln -s %s web/fac.tar.gz' % tarname)
 system('echo rm -rf bigbro >> build/%s.sh' % platform.system().lower())
 system('chmod +x build/%s.sh' % platform.system().lower())
 
 if system('./fac'):
-    print('Build failed!')
+    print('Build everything failed!')
     exit(1)
+if have_gcovr:
+    os.system('rm -f *.gc* */*.gc*') # remove any preexisting coverage files
+    if system('COVERAGE=1 ./fac fac'):
+        print('Build with coverage failed!')
+        exit(1)
 
 numpassed = 0
 numfailed = 0
@@ -60,10 +70,13 @@ numskipped = 0
 
 biggestname = max([len(f) for f in glob.glob('tests/*.sh') + glob.glob('tests/*.test')])
 
-def write_script_name(n):
+def write_script_name(n, num=0, tot=0):
+    if tot > 0:
+        n += ' (%d/%d)' % (num, tot)
+    extralen = 8 # len(' (%d/%d)' % (tot,tot))
     sys.stdout.write(n+':')
     sys.stdout.flush()
-    sys.stdout.write(' '*(biggestname+3-len(n)))
+    sys.stdout.write(' '*(biggestname+extralen+3-len(n)))
 
 if system('cd bigbro && python3 run-tests.py'):
     write_script_name('ran all bigbro tests')
@@ -74,12 +87,17 @@ else:
     print(bcolors.OKGREEN+'PASS', bcolors.ENDC)
     numpassed += 1
 
-for sh in sorted(glob.glob('tests/*.sh')):
-    write_script_name(sh)
+sh_tests = sorted(glob.glob('tests/*.sh'))
+num_sh = len(sh_tests);
+for i in range(num_sh):
+    sh = sh_tests[i]
+    write_script_name(sh, i, num_sh)
     cmdline = 'bash %s > %s.log 2>&1' % (sh, sh)
     exitval = system(cmdline)
     if exitval == 137:
         print(bcolors.OKBLUE+'SKIP', bcolors.ENDC)
+        if '-v' in sys.argv:
+            os.system('cat %s.log' % sh)
         numskipped += 1
     elif exitval:
         print(bcolors.FAIL+'FAIL', bcolors.ENDC)
@@ -133,6 +151,18 @@ def pluralize(num, noun):
         if (noun[-1] == 's'):
             return str(num)+' '+noun+'es'
         return str(num)+' '+noun+'s'
+
+if have_gcovr:
+    os.system('rm -f test.*') # generated while testing compiler flags
+    os.system('rm -f *-win.gc* *-static.gc* *-afl.gc*') # generated for other builds than "standard"
+    os.system('rm -f cc*.gc*') # not sure where these come from!
+    os.system('rm -f bigbro/*.gc*') # not interested in bigbro coverage
+    os.system('rm -f bigbro/*/*.gc*') # not interested in bigbro coverage
+    os.system('rm -f tests/*.gc*') # not interested in test binaries
+    assert not os.system('gcovr --gcov-exclude tests/ -k -r . --exclude-unreachable-branches --html --html-details -o web/coverage.html')
+    assert not os.system('gcovr --gcov-exclude tests/ -k -r . --exclude-unreachable-branches')
+else:
+    print('not running gcovr')
 
 print()
 if numfailed:

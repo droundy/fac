@@ -50,8 +50,8 @@ os.chdir('..')
 
 print('\nDone building bigbro!\n\n')
 
-cfiles = ['arguments.c', 'build.c', 'clean-all.c', 'environ.c', 'fac.c', 'files.c', 'git.c',
-          'lib/intmap.c', 'lib/iterablehash.c', 'lib/listset.c', 'lib/sha1.c',
+cfiles = ['arguments.c', 'build.c', 'clean-all.c', 'environ.c', 'main.c', 'fac.c', 'files.c', 'git.c',
+          'lib/iterablehash.c', 'lib/listset.c', 'lib/sha1.c',
           'mkdir.c', 'targets.c']
 
 ofiles = [f[:-1]+'obj' for f in cfiles]

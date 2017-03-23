@@ -54,10 +54,10 @@ static const char *ignore_these[] = {
   "XDG_SESSION_ID=",
   "XDG_VTNR=",
   "_=",
-  0
+  NULL
 };
 
-sha1hash hash_environment() {
+sha1hash hash_environment(void) {
   bool done_removing = true;
   do {
     const char **to_ignore = &ignore_these[0];

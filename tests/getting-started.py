@@ -2,10 +2,15 @@
 
 import sys, os, re, subprocess
 
+if sys.version_info < (3,5):
+    print('Please run this script with python 3.5 or newer:', sys.version)
+    exit(137)
+
 runre = re.compile(r'\[run\]: # \((.+)\)')
 shellre = re.compile(r'^    \$ (.+)')
 filere = re.compile(r'##### (.+)')
 verbre = re.compile(r'^    (.*)')
+time_remaining_re = re.compile(r'^Build time remaining: ')
 
 with open(sys.argv[1]) as f:
     for line in f:
@@ -27,12 +32,21 @@ with open(sys.argv[1]) as f:
                 tocheck = False
                 print('SHOULD FAIL!')
                 isshell[0] = isshell[0][:-len('# fails')]
-            output = subprocess.run(isshell, shell=True,
-                                    stderr=subprocess.STDOUT,
-                                    check=tocheck,
-                                    stdout=subprocess.PIPE).stdout
+            ret = subprocess.run(isshell, shell=True,
+                                 stderr=subprocess.STDOUT,
+                                 check=tocheck,
+                                 stdout=subprocess.PIPE)
+            if not tocheck and ret.returncode == 0:
+                print("DID NOT FAIL!!!")
+                exit(1)
+            print('output:', ret.stdout)
+            output = ret.stdout
             for outline in output.decode('utf-8').split('\n'):
-                if len(outline)>0:
+                # The time_remaining_re bit is needed to skip the
+                # "Build time remaining:" lines that get printed every
+                # once in a while.  These are irregular, which is why
+                # we need to do this.
+                if len(outline)>0 and not time_remaining_re.match(outline):
                     print('output:', outline)
                     expectedline = f.readline()
                     if len(verbre.findall(expectedline)) == 0:

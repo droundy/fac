@@ -70,6 +70,9 @@ CI infrastructure not supporting clang-3.9).  In our example, we will
 instead use a git version of sparse (which supports `-Wsparse-error`
 to check our code.
 
+    $ sparse --version
+    v0.5.0-...
+
 ##### configure.fac
     | python3 configure.py
     > .fac
@@ -99,9 +102,12 @@ Or we can just run the lint (sparse) by
 
     $ fac
     ...
-    $ fac sparse.log # fails
+    $ # I am first running it manually to show you sparse's output
+    $ sparse  -Wsparse-error hello.c # fails
     hello.c:3:6: error: non-ANSI function declaration of function 'main'
+    $ fac sparse.log # fails
     1/2 [...s]: sparse -Wsparse-error hello.c > hello.sparse
+    hello.c:3:6: error: non-ANSI function declaration of function 'main'
     build failed: hello.sparse
     Build failed 2/2 failures
 

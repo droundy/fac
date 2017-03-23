@@ -2,6 +2,11 @@
 
 set -ev
 
+if ! which ghc; then
+    echo there is no make
+    exit 137
+fi
+
 rm -rf $0.dir
 mkdir $0.dir
 cd $0.dir
