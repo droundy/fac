@@ -29,7 +29,7 @@ int main() {
 }
 """)
 
-optional_flags = ['-Wall', '-Werror', '-O2', '-flto']
+optional_flags = ['-Wall', '-Werror', '-g', '-O2', '-flto']
 optional_linkflags = ['-lprofiler', '-flto']
 
 # To enable coverage testing define the environment variable $COVERAGE

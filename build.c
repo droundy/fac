@@ -674,7 +674,8 @@ static void delete_from_array(char **array, const char *str) {
 
 static void build_marked(struct all_targets *all, const char *log_directory,
                          bool git_add_files, bool happy_building_at_least_one,
-                         bool ignore_missing_files, struct hash_table *files_to_watch) {
+                         bool ignore_missing_files, enum strictness strictness,
+                         struct hash_table *files_to_watch) {
   int num_built_when_we_started = all->num_with_status[built];
   if (!all->lists[marked] && !all->lists[dirty]) {
     if (all->num_with_status[failed]) {
@@ -862,6 +863,54 @@ static void build_marked(struct all_targets *all, const char *log_directory,
                   delete_from_array(bs[i]->read, r->inputs[ii]->path);
                   delete_from_array(bs[i]->written, r->inputs[ii]->path);
                 }
+              }
+            }
+            {
+              // here come the strictness tests, to see if we have
+              // specified sufficient inputs.
+              bool missing = false;
+              if (strictness == exhaustive) {
+                for (int nn=0; bs[i]->read[nn]; nn++) {
+                  char *path = bs[i]->read[nn];
+                  if (is_interesting_path(r, path) &&
+                      is_in_root(path) && !is_git_path(path)) {
+                    missing = true;
+                    erase_and_printf("missing dependency: \"%s\" requires %s\n",
+                                     r->command, pretty_path(path));
+                  }
+                }
+              } else if (strictness == strict) {
+                for (int nn=0; bs[i]->read[nn]; nn++) {
+                  char *path = bs[i]->read[nn];
+                  if (is_interesting_path(r, path) &&
+                      is_in_root(path) && !is_git_path(path)) {
+                    struct target *t = lookup_target(all, path);
+                    bool have_rule_already = false;
+                    for (int ii=0;ii<r->num_inputs;ii++) {
+                      if (t->rule == r->inputs[ii]->rule) {
+                        have_rule_already = true;
+                        break;
+                      }
+                    }
+                    if (!have_rule_already) {
+                      missing = true;
+                      erase_and_printf("missing dependency: \"%s\" requires %s\n",
+                                       r->command, pretty_path(path));
+                      break;
+                    }
+                  }
+                }
+              }
+              if (missing) {
+                rule_failed(all, r);
+                if (!show_output) dump_to_stdout(bs[i]->stdouterrfd);
+                free(bs[i]->read);
+                free(bs[i]->readdir);
+                free(bs[i]->written);
+                free(bs[i]->mkdir);
+                free(bs[i]);
+                bs[i] = NULL;
+                break;
               }
             }
             for (int ii=0;ii<r->num_outputs;ii++) {
@@ -1316,7 +1365,7 @@ void do_actual_build(struct cmd_args *args) {
       }
       mark_facfiles(&all);
       build_marked(&all, args->log_directory, args->git_add_files, true, still_reading,
-                   files_to_watch);
+                   args->strictness, files_to_watch);
       for (struct target *t = (struct target *)all.t.first; t; t = (struct target *)t->e.next) {
         if (t->status == unknown &&
             (!t->rule ||
@@ -1348,7 +1397,7 @@ void do_actual_build(struct cmd_args *args) {
     }
 
     build_marked(&all, args->log_directory, args->git_add_files, false, false,
-                 files_to_watch);
+                 args->strictness, files_to_watch);
     summarize_build_results(&all, args->continual);
 
     if (args->create_dotfile || args->create_makefile || args->create_tupfile

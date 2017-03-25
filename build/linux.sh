@@ -4,7 +4,7 @@ set -ev
 
 (gcc ${CFLAGS} -Ibigbro -std=c99 -o arguments.o -c arguments.c)
 
-(if cd bigbro; then git pull; else git clone https://github.com/droundy/bigbro; fi)
+(python build/get-bigbro.py)
 
 (cd bigbro && python3 syscalls/linux.py > syscalls/linux.h)
 

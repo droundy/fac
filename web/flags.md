@@ -28,6 +28,13 @@ with the following options.
   can be convenient if you know you have created a bunch of new input
   files.
 
+`--strict`
+: Make fac insist that the facfile specifies sufficient inputs to the
+  build to determine a correct build order.
+
+`--exhaustive`
+: Make fac insist that *every* input for every rule is specified.
+
 `--verbose, -v`
 : Provide extra debugging output.
 

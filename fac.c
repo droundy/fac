@@ -1,5 +1,5 @@
 /* Fac build system
-   Copyright (C) 2015 David Roundy
+   Copyright (C) 2015,2017 David Roundy
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -54,6 +54,9 @@ static char *parse_only = NULL;
 static const char **include_in_tar = NULL;
 
 int run_fac(int argc, const char **argv) {
+  int strict = 0;
+  int exhaustive = 0;
+
   int_argument("jobs", 'j', &num_jobs,
                "the number of jobs to run simultaneously", "JOBS");
   no_argument("clean", 'c', (bool *)&clean_me,
@@ -68,6 +71,10 @@ int run_fac(int argc, const char **argv) {
               "show command output");
   no_argument("git-add", 0, (bool *)&git_add_flag,
               "git add needed files");
+  no_argument("strict", 0, (bool *)&strict,
+              "require strict dependencies, so first build will succeed");
+  no_argument("exhaustive", 0, (bool *)&exhaustive,
+              "require exhaustive dependencies (suitable for ...)");
   string_argument("dotfile", 0, &create_dotfile,
                   "create a dotfile to visualize dependencies", "DOTFILE");
   string_argument("makefile", 0, &create_makefile,
@@ -124,6 +131,13 @@ int run_fac(int argc, const char **argv) {
   args.create_tupfile = create_tupfile;
   args.create_script = create_script;
   args.create_tarball = create_tarball;
+  args.strictness = normal;
+  if (strict) {
+    args.strictness = strict;
+  }
+  if (exhaustive) {
+    args.strictness = exhaustive;
+  }
   args.clean = clean_me;
   args.continual = continually_build;
   args.git_add_files = git_add_flag;

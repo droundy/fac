@@ -14,11 +14,18 @@ void initialize_starting_time();
 void mark_facfiles(struct all_targets *all);
 void mark_all(struct all_targets *all);
 
+enum strictness {
+  normal,
+  strict,
+  exhaustive
+};
+
 struct cmd_args {
   const char *create_dotfile, *create_makefile, *create_tupfile,
     *create_script, *create_tarball, *log_directory;
   const char **include_in_tar;
   bool clean, continual, git_add_files;
+  enum strictness strictness;
   listset *targets_requested;
 };
 
