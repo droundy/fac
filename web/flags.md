@@ -35,6 +35,12 @@ with the following options.
 `--exhaustive`
 : Make fac insist that *every* input for every rule is specified.
 
+`--blind`
+: Disable the automatic tracking of dependencies.  This is useful for
+  testing, for benchmarking, and possibly for improving build speed
+  in cases where `--exhaustive has indicated that we have documented
+  all dependencies (and hope none will change).
+
 `--verbose, -v`
 : Provide extra debugging output.
 

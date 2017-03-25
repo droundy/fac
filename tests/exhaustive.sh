@@ -90,4 +90,10 @@ EOF
 
 grep foo bar
 
+# now that we have exhaustive knowledge, we should be able to run blind!
+
+rm bar foo baz
+
+../../fac --blind
+
 exit 0

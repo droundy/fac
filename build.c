@@ -510,6 +510,7 @@ static void check_cleanliness(struct all_targets *all, struct rule *r) {
 
 struct building {
   int all_done;
+  bool blind;
   pid_t child_pid;
   sem_t *slots_available;
   bigbro_fd_t stdouterrfd;
@@ -525,7 +526,7 @@ static void *run_bigbrother(void *ptr) {
   b->mkdir = NULL;
   b->read = NULL;
   b->written = NULL;
-  if (dry_run) {
+  if (dry_run || b->blind) {
     b->readdir = malloc(sizeof(char *));
     *b->readdir = NULL;
     b->mkdir = malloc(sizeof(char *));
@@ -534,6 +535,8 @@ static void *run_bigbrother(void *ptr) {
     *b->read = NULL;
     b->written = malloc(sizeof(char *));
     *b->written  = NULL;
+  }
+  if (dry_run) {
     b->build_time = rand()/(double)RAND_MAX;
     // memory barrier to ensure b->all_done is not modified before we
     // finish filling everything in:
@@ -545,11 +548,19 @@ static void *run_bigbrother(void *ptr) {
   }
 
   double started = double_time();
-  int ret = bigbro(b->rule->working_directory,
-                   &b->child_pid,
-                   b->stdouterrfd, b->stdouterrfd, NULL,
-                   b->rule->command,
-                   &b->readdir, &b->mkdir, &b->read, &b->written);
+  int ret;
+  if (b->blind) {
+    ret = bigbro_blind(b->rule->working_directory,
+                       &b->child_pid,
+                       b->stdouterrfd, b->stdouterrfd, NULL,
+                       b->rule->command);
+  } else {
+    ret = bigbro(b->rule->working_directory,
+                 &b->child_pid,
+                 b->stdouterrfd, b->stdouterrfd, NULL,
+                 b->rule->command,
+                 &b->readdir, &b->mkdir, &b->read, &b->written);
+  }
 
   b->build_time = double_time() - started;
   // memory barrier to ensure b->all_done is not modified before we
@@ -568,8 +579,10 @@ static void *run_bigbrother(void *ptr) {
 static struct building *build_rule(struct all_targets *all,
                                    struct rule *r,
                                    sem_t *slots_available,
-                                   const char *log_directory) {
+                                   const char *log_directory,
+                                   bool blind) {
   struct building *b = malloc(sizeof(struct building));
+  b->blind = blind;
   b->rule = r;
   b->slots_available = slots_available;
   b->stdouterrfd = invalid_bigbro_fd; /* start with an invalid value */
@@ -675,6 +688,7 @@ static void delete_from_array(char **array, const char *str) {
 static void build_marked(struct all_targets *all, const char *log_directory,
                          bool git_add_files, bool happy_building_at_least_one,
                          bool ignore_missing_files, enum strictness strictness,
+                         bool blind,
                          struct hash_table *files_to_watch) {
   int num_built_when_we_started = all->num_with_status[built];
   if (!all->lists[marked] && !all->lists[dirty]) {
@@ -1117,7 +1131,8 @@ static void build_marked(struct all_targets *all, const char *log_directory,
             for (int j=0;j<num_jobs;j++) {
               if (!bs[j]) {
                 bs[j] = build_rule(all, toqueue[i],
-                                   slots_available, log_directory);
+                                   slots_available, log_directory,
+                                   blind);
                 break;
               }
             }
@@ -1365,7 +1380,7 @@ void do_actual_build(struct cmd_args *args) {
       }
       mark_facfiles(&all);
       build_marked(&all, args->log_directory, args->git_add_files, true, still_reading,
-                   args->strictness, files_to_watch);
+                   args->strictness, args->blind, files_to_watch);
       for (struct target *t = (struct target *)all.t.first; t; t = (struct target *)t->e.next) {
         if (t->status == unknown &&
             (!t->rule ||
@@ -1397,7 +1412,7 @@ void do_actual_build(struct cmd_args *args) {
     }
 
     build_marked(&all, args->log_directory, args->git_add_files, false, false,
-                 args->strictness, files_to_watch);
+                 args->strictness, args->blind, files_to_watch);
     summarize_build_results(&all, args->continual);
 
     if (args->create_dotfile || args->create_makefile || args->create_tupfile

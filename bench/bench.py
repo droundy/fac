@@ -12,7 +12,7 @@ hour = 60*minute
 day = 24*hour
 time_limit = 6*day
 
-tools = [cmd+' -j4' for cmd in ['make', 'fac', 'tup', 'scons']] # + ['sh build.sh']
+tools = [cmd+' -j4' for cmd in ['make', 'fac', 'fac --blind', 'tup', 'scons']] # + ['sh build.sh']
 
 # The variable "date" actually contains the date and short hash of the
 # commit information.  This could lead to confusion and incorrectness

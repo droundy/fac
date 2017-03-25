@@ -56,6 +56,7 @@ static const char **include_in_tar = NULL;
 int run_fac(int argc, const char **argv) {
   int strict = 0;
   int exhaustive = 0;
+  int blind = 0;
 
   int_argument("jobs", 'j', &num_jobs,
                "the number of jobs to run simultaneously", "JOBS");
@@ -75,6 +76,7 @@ int run_fac(int argc, const char **argv) {
               "require strict dependencies, so first build will succeed");
   no_argument("exhaustive", 0, (bool *)&exhaustive,
               "require exhaustive dependencies (suitable for ...)");
+  no_argument("blind", 0, (bool *)&blind, "do not track dependencies");
   string_argument("dotfile", 0, &create_dotfile,
                   "create a dotfile to visualize dependencies", "DOTFILE");
   string_argument("makefile", 0, &create_makefile,
@@ -138,6 +140,7 @@ int run_fac(int argc, const char **argv) {
   if (exhaustive) {
     args.strictness = exhaustive;
   }
+  args.blind = blind;
   args.clean = clean_me;
   args.continual = continually_build;
   args.git_add_files = git_add_flag;
