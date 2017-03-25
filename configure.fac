@@ -1,7 +1,7 @@
 | python generate-version-header.py > version-identifier.h
 > version-identifier.h
 
-| if cd bigbro; then git pull; else git clone https://github.com/droundy/bigbro; fi
+| python build/get-bigbro.py
 > bigbro/configure.fac
 
 | python configure.py > .fac
