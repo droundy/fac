@@ -10,6 +10,7 @@ EOF
 
 set -ev
 
+rm -f web/`fac-git describe --dirty`.deb
 checkinstall -D --fstrans=yes --pkglicense=gplv2+ --pkgname fac -y --strip=yes --deldoc=yes --deldesc=yes --delspec=yes --install=no --pakdir=web --pkgversion=`git describe --dirty` sh build/install.sh
 ln -sf fac_`git describe --dirty`-1_amd64.deb web/fac-latest.deb
 
