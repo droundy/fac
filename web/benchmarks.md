@@ -2,10 +2,12 @@
 
 $docnav
 
-We present here a large number of benchmarks.  Each test was done
-using multiple file systems, to see how sensitive the result is to
-file system speed.  Also note that you can click on each plot to view
-a high-resolution version of that plot.
+We present here a large number of benchmarks.  You can click on each
+plot to view that plot as a high-resolution SVG file.
+
+<!-- Each test was done using multiple file systems, to see how sensitive -->
+<!-- the result is to file system speed.  Also note that you can click on -->
+<!-- each plot to view a high-resolution version of that plot. -->
 
 One major conclusion is that `fac` is generally a factor of two or
 three times slower than make.  But do keep in mind that `fac` does

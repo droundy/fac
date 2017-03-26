@@ -21,7 +21,6 @@ modules = [dependentchains, cats, hierarchy, sleepy]
 allcolors = ['r','b','g','k','c','y']
 allpatterns = ['o-', 's:', '*-.', 'x--', '.-', '<-', '>-', 'v-']
 
-fs_colors = {}
 tool_patterns = {}
 fslabels, fshandles = [], []
 toollabels, toolhandles = [], []
@@ -49,18 +48,23 @@ plt.figure(figsize=(6,4.3))
 plt.title('%s %s on %s' % (verb, mod.name, date))
 have_handled = {}
 
+num_fs = len(os.listdir(datadir+date+'/'+mod.name+'/fac -j4'))
+
 tools = os.listdir(datadir+date+'/'+mod.name)
 tools.sort()
 for tool in tools:
     if not tool in tool_patterns:
         tool_patterns[tool] = allpatterns[0]
         allpatterns = allpatterns[1:]
+        if num_fs == 1:
+            mycolor = allcolors[0]
+            allcolors = allcolors[1:]
         toollabels.append(tool)
         toolhandles.append(plt.Line2D((0,1),(0,0), marker=tool_patterns[tool][0],
                                   linestyle=tool_patterns[tool][1:], color='k'))
     for fs in os.listdir(datadir+date+'/'+mod.name+'/'+tool):
-        if not fs in fs_colors:
-            fs_colors[fs] = allcolors[0]
+        if num_fs > 1 and not fs in fs_colors:
+            mycolor = allcolors[0]
             allcolors = allcolors[1:]
             fslabels.append(fs)
             fshandles.append(plt.Line2D((0,1),(0,0), color=fs_colors[fs], linewidth=3))
@@ -75,14 +79,23 @@ for tool in tools:
                 ind = data[:,0] == n
                 data[ind,1] = np.mean(data[ind,1])
             data = np.sort(np.vstack({tuple(row) for row in data}), axis=0) # remove duplicate lines
-            plt.loglog(data[:,0], data[:,1],
+            if num_fs > 1:
+                mylabel = '%s on %s' % (tool, fs)
+            else:
+                mylabel = tool
+            plt.loglog(data[:,0], data[:,1]/data[:,0],
                        tool_patterns[tool],
-                       color=fs_colors[fs],
-                       label='%s on %s' % (tool, fs))
+                       color=mycolor,
+                       label=mylabel)
 plt.gca().grid(True)
 plt.xlabel('$N$')
-plt.ylabel('$t$ (s)')
-plt.legend(fshandles+toolhandles, fslabels+toollabels, loc='best', frameon=False)
+plt.ylabel('$t/N$ (s)')
+if num_fs > 1:
+    plt.legend(fshandles+toolhandles, fslabels+toollabels, loc='best', frameon=False)
+else:
+    plt.legend(loc='best', frameon=False)
+
+plt.tight_layout()
 # plt.savefig('../web/%s-%s.pdf' % (mod.name, verb))
 plt.savefig('../web/%s-%s.svg' % (mod.name, verb), dpi=60)
 # plt.savefig('../web/%s-%s.png' % (mod.name, verb), dpi=100)

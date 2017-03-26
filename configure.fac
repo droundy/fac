@@ -16,3 +16,5 @@
 | cd bench && python3 fac-plots.py > .fac
 > bench/.fac
 c .pyc
+
+| python3 bench/download-data.py

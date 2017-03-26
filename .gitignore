@@ -42,3 +42,5 @@ tests/afl-input/
 tests/afl-output/
 *.lock
 target
+bench/data/
+bench/data.tar.bz2
