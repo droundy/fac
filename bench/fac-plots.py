@@ -17,4 +17,5 @@ modules = [dependentchains, cats, hierarchy, sleepy]
 for mod in modules:
     for verb in mod.verbs:
         print('| python3 plot-benchmark.py %s %s' % (mod.name, verb))
+        print('< data')
         print('c .pyc')
