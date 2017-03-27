@@ -201,6 +201,13 @@ static inline const char *pretty_rule(struct rule *r) {
   }
   return r->command;
 }
+static inline const char *easy_rule(struct rule *r) {
+  if (!r) return "<nil rule>";
+  if (r->num_explicit_outputs && strlen(pretty_path(r->outputs[0]->path)) <= strlen(r->command)) {
+    return pretty_path(r->outputs[0]->path);
+  }
+  return r->command;
+}
 
 /* pretty_reason is a way of describing a rule in terms of why it
    needs to be built.  If the rule is always built by default, it

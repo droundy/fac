@@ -18,6 +18,7 @@ EOF
 
 cat > facfile <<EOF
 | cp good excellent
+< good
 EOF
 
 git init

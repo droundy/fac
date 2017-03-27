@@ -54,8 +54,8 @@ static char *parse_only = NULL;
 static const char **include_in_tar = NULL;
 
 int run_fac(int argc, const char **argv) {
-  int strict = 0;
-  int exhaustive = 0;
+  int am_strict = 0;
+  int am_exhaustive = 0;
   int blind = 0;
 
   int_argument("jobs", 'j', &num_jobs,
@@ -72,9 +72,9 @@ int run_fac(int argc, const char **argv) {
               "show command output");
   no_argument("git-add", 0, (bool *)&git_add_flag,
               "git add needed files");
-  no_argument("strict", 0, (bool *)&strict,
+  no_argument("strict", 0, (bool *)&am_strict,
               "require strict dependencies, so first build will succeed");
-  no_argument("exhaustive", 0, (bool *)&exhaustive,
+  no_argument("exhaustive", 0, (bool *)&am_exhaustive,
               "require exhaustive dependencies (suitable for ...)");
   no_argument("blind", 0, (bool *)&blind, "do not track dependencies");
   string_argument("dotfile", 0, &create_dotfile,
@@ -134,10 +134,10 @@ int run_fac(int argc, const char **argv) {
   args.create_script = create_script;
   args.create_tarball = create_tarball;
   args.strictness = normal;
-  if (strict) {
+  if (am_strict) {
     args.strictness = strict;
   }
-  if (exhaustive) {
+  if (am_exhaustive) {
     args.strictness = exhaustive;
   }
   args.blind = blind;

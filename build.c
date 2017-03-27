@@ -687,8 +687,7 @@ static void delete_from_array(char **array, const char *str) {
 
 static void build_marked(struct all_targets *all, const char *log_directory,
                          bool git_add_files, bool happy_building_at_least_one,
-                         bool ignore_missing_files, enum strictness strictness,
-                         bool blind,
+                         bool ignore_missing_files, bool blind,
                          struct hash_table *files_to_watch) {
   int num_built_when_we_started = all->num_with_status[built];
   if (!all->lists[marked] && !all->lists[dirty]) {
@@ -877,54 +876,6 @@ static void build_marked(struct all_targets *all, const char *log_directory,
                   delete_from_array(bs[i]->read, r->inputs[ii]->path);
                   delete_from_array(bs[i]->written, r->inputs[ii]->path);
                 }
-              }
-            }
-            {
-              // here come the strictness tests, to see if we have
-              // specified sufficient inputs.
-              bool missing = false;
-              if (strictness == exhaustive) {
-                for (int nn=0; bs[i]->read[nn]; nn++) {
-                  char *path = bs[i]->read[nn];
-                  if (is_interesting_path(r, path) &&
-                      is_in_root(path) && !is_git_path(path)) {
-                    missing = true;
-                    erase_and_printf("missing dependency: \"%s\" requires %s\n",
-                                     r->command, pretty_path(path));
-                  }
-                }
-              } else if (strictness == strict) {
-                for (int nn=0; bs[i]->read[nn]; nn++) {
-                  char *path = bs[i]->read[nn];
-                  if (is_interesting_path(r, path) &&
-                      is_in_root(path) && !is_git_path(path)) {
-                    struct target *t = lookup_target(all, path);
-                    bool have_rule_already = false;
-                    for (int ii=0;ii<r->num_inputs;ii++) {
-                      if (t->rule == r->inputs[ii]->rule) {
-                        have_rule_already = true;
-                        break;
-                      }
-                    }
-                    if (!have_rule_already) {
-                      missing = true;
-                      erase_and_printf("missing dependency: \"%s\" requires %s\n",
-                                       r->command, pretty_path(path));
-                      break;
-                    }
-                  }
-                }
-              }
-              if (missing) {
-                rule_failed(all, r);
-                if (!show_output) dump_to_stdout(bs[i]->stdouterrfd);
-                free(bs[i]->read);
-                free(bs[i]->readdir);
-                free(bs[i]->written);
-                free(bs[i]->mkdir);
-                free(bs[i]);
-                bs[i] = NULL;
-                break;
               }
             }
             for (int ii=0;ii<r->num_outputs;ii++) {
@@ -1279,7 +1230,8 @@ static void build_marked(struct all_targets *all, const char *log_directory,
 #endif
 }
 
-static void summarize_build_results(struct all_targets *all, bool am_continual) {
+static void summarize_build_results(struct all_targets *all, bool am_continual,
+                                    bool missing_dependencies) {
   if (all->lists[failed] || all->num_with_status[failed]) {
     erase_and_printf("Build failed %d/%d failures\n", all->num_with_status[failed],
                      all->num_with_status[failed] + all->num_with_status[built]);
@@ -1294,8 +1246,14 @@ static void summarize_build_results(struct all_targets *all, bool am_continual) 
     }
   } else {
     find_elapsed_time();
-    erase_and_printf("Build succeeded! %.0f:%05.2f\n",
-                     elapsed_minutes, elapsed_seconds);
+    if (missing_dependencies) {
+      erase_and_printf("Build failed due to missing dependencies! %.0f:%05.2f\n",
+                       elapsed_minutes, elapsed_seconds);
+      exit(1);
+    } else {
+      erase_and_printf("Build succeeded! %.0f:%05.2f\n",
+                       elapsed_minutes, elapsed_seconds);
+    }
     fflush(stdout);
   }
 }
@@ -1332,6 +1290,51 @@ static bool fac_is_already_running(void) {
     return false;
   }
   return true;
+}
+
+static bool require_exhaustive_dependencies(struct all_targets *all) {
+  // Here we just need to check that there are NO local inputs
+  // (i.e. ones in our repository directory) for any rules that are
+  // not explicit.
+  erase_and_printf("Checking for exhaustive dependencies...\n");
+  bool fails = false;
+  for (struct rule *r = (struct rule *)all->r.first; r; r = (struct rule *)r->e.next) {
+    for (int i=r->num_explicit_inputs; i<r->num_inputs; i++) {
+      const char *path = r->inputs[i]->path;
+      if (is_in_root(path)) {
+        printf("num explicit = %d\n", r->num_explicit_inputs);
+        erase_and_printf("missing dependency: \"%s\" requires %s\n",
+                         easy_rule(r), pretty_path(r->inputs[i]->path));
+        fails = true;
+      }
+    }
+  }
+  return fails;
+}
+static bool require_strict_dependencies(struct all_targets *all) {
+  // Checking for strict dependencies is harder than for exhaustive,
+  // because we need to ensure that everything will be built prior to
+  // being needed.  For each input there must be an explicit input
+  // that has the same rule that generates that input.
+  erase_and_printf("Checking for strict dependencies...\n");
+  bool fails = false;
+  for (struct rule *r = (struct rule *)all->r.first; r; r = (struct rule *)r->e.next) {
+    for (int i=r->num_explicit_inputs; i<r->num_inputs; i++) {
+      const char *path = r->inputs[i]->path;
+      if (is_in_root(path)) {
+        bool have_rule = false;
+        for (int j=0; j<r->num_explicit_outputs; j++) {
+          have_rule = have_rule || (r->inputs[j]->rule == r->inputs[i]->rule);
+        }
+        if (!have_rule) {
+          erase_and_printf("missing dependency: \"%s\" requires %s\n",
+                           easy_rule(r), pretty_path(r->inputs[i]->path));
+          fails = true;
+        }
+      }
+    }
+  }
+  return fails;
 }
 
 void do_actual_build(struct cmd_args *args) {
@@ -1380,7 +1383,7 @@ void do_actual_build(struct cmd_args *args) {
       }
       mark_facfiles(&all);
       build_marked(&all, args->log_directory, args->git_add_files, true, still_reading,
-                   args->strictness, args->blind, files_to_watch);
+                   args->blind, files_to_watch);
       for (struct target *t = (struct target *)all.t.first; t; t = (struct target *)t->e.next) {
         if (t->status == unknown &&
             (!t->rule ||
@@ -1412,8 +1415,15 @@ void do_actual_build(struct cmd_args *args) {
     }
 
     build_marked(&all, args->log_directory, args->git_add_files, false, false,
-                 args->strictness, args->blind, files_to_watch);
-    summarize_build_results(&all, args->continual);
+                 args->blind, files_to_watch);
+
+    bool missing_dependencies = false;
+    if (args->strictness == strict) {
+      missing_dependencies = require_strict_dependencies(&all);
+    } else if (args->strictness == exhaustive) {
+      missing_dependencies = require_exhaustive_dependencies(&all);
+    }
+    summarize_build_results(&all, args->continual, missing_dependencies);
 
     if (args->create_dotfile || args->create_makefile || args->create_tupfile
         || args->create_script || args->create_tarball) {
@@ -1592,4 +1602,3 @@ static void dump_to_stdout(bigbro_fd_t fd) {
 #endif
   free(buf);
 }
-
