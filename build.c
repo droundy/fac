@@ -82,6 +82,21 @@ static bigbro_fd_t mkstemp_win(const char *namebuf) {
 
 static listset *facfiles_used = NULL;
 
+static void save_factum_files(struct all_targets *all) {
+  while (facfiles_used) {
+    char *donefile = done_name(facfiles_used->path);
+    FILE *f = fopen(donefile, "w");
+    if (!f) error(1,errno,"oopse");
+    fprint_facfile(f, all, facfiles_used->path);
+    fclose(f);
+    free(donefile);
+    listset *to_delete = facfiles_used;
+    facfiles_used = facfiles_used->next;
+    free(to_delete->path);
+    free(to_delete);
+  }
+}
+
 static  void dump_to_stdout(bigbro_fd_t fd);
 
 static inline double double_time(void) {
@@ -1145,18 +1160,7 @@ static void build_marked(struct all_targets *all, const char *log_directory,
         erase_and_printf("Interrupted!\n");
         fflush(stdout);
 
-        while (facfiles_used) {
-          char *donefile = done_name(facfiles_used->path);
-          FILE *f = fopen(donefile, "w");
-          if (!f) error(1,errno,"oopse");
-          fprint_facfile(f, all, facfiles_used->path);
-          fclose(f);
-          free(donefile);
-          listset *to_delete = facfiles_used;
-          facfiles_used = facfiles_used->next;
-          free(to_delete->path);
-          free(to_delete);
-        }
+        save_factum_files(all);
 
         exit(1);
       }
@@ -1210,18 +1214,7 @@ static void build_marked(struct all_targets *all, const char *log_directory,
     }
   } while (need_to_try_again);
 
-  while (facfiles_used) {
-    char *donefile = done_name(facfiles_used->path);
-    FILE *f = fopen(donefile, "w");
-    if (!f) error(1,errno,"oopsies");
-    fprint_facfile(f, all, facfiles_used->path);
-    fclose(f);
-    free(donefile);
-    listset *to_delete = facfiles_used;
-    facfiles_used = facfiles_used->next;
-    free(to_delete->path);
-    free(to_delete);
-  }
+  save_factum_files(all);
 
   free(slots_available);
   free(bs);
