@@ -215,3 +215,14 @@ C .sass-cache
 ''')
 else:
     print("# no sass, so we won't build style.css")
+
+if can_run('cargo help'):
+    print('''
+| cargo build
+< version-identifier.h
+C bench
+c ~
+c .tum
+''')
+else:
+    print('# no cargo, so cannot build using rust')
