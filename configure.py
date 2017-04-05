@@ -223,6 +223,7 @@ if can_run('cargo help'):
 C bench
 c ~
 c .tum
+C web
 ''')
 else:
     print('# no cargo, so cannot build using rust')

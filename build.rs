@@ -30,6 +30,7 @@ fn main() {
     }
 
     gcc::Config::new()
+                .flag("-std=c99")
                 .file("arguments.c")
                 .file("build.c")
                 .file("clean-all.c")
