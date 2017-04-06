@@ -222,7 +222,9 @@ if can_run('cargo help'):
 < version-identifier.h
 C bench
 c ~
+C .nfs
 c .tum
+C tests
 C web
 ''')
 else:
