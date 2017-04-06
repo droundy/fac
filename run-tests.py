@@ -63,6 +63,10 @@ if have_gcovr:
     if system('COVERAGE=1 ./fac fac'):
         print('Build with coverage failed!')
         exit(1)
+    system('cp fac tests/fac-with-coverage')
+    system('COVERAGE=1 tests/fac-with-coverage -c')
+    system('COVERAGE=1 tests/fac-with-coverage')
+    system('rm tests/fac-with-coverage')
 
 numpassed = 0
 numfailed = 0
