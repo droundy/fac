@@ -10,6 +10,8 @@ use std::ffi::CString;
 
 mod git;
 
+pub mod build;
+
 #[link(name="fac")]
 extern "C" {
     fn run_fac(argc: c_int, argv: *const *const c_char);
