@@ -44,3 +44,4 @@ tests/afl-output/
 target
 bench/data/
 bench/data.tar.bz2
+web/doc/
