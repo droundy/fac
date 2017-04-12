@@ -5,25 +5,6 @@ use std;
 use std::cell::{Cell, RefCell};
 use refset::{RefSet};
 
-pub struct File<'a> {
-    build: &'a Build<'a>,
-    rule: RefCell<Option<&'a Rule<'a>>>,
-    path: std::path::PathBuf,
-}
-
-impl<'a> File<'a> {
-    // pub fn new(path: & std::path::Path) -> File<'a> {
-    //     File {
-    //         rule: RefCell::new(None),
-    //         path: std::path::PathBuf::from(path),
-    //     }
-    // }
-    pub fn set_rule(& self, r: &'a Rule<'a>) -> & File<'a> {
-        *self.rule.borrow_mut() = Some(r);
-        self
-    }
-}
-
 #[derive(PartialEq, Eq, Hash, Copy, Clone)]
 pub enum Status {
     Unknown,
@@ -54,6 +35,25 @@ impl<T> std::ops::Index<Status> for StatusMap<T>  {
     }
 }
 
+pub struct File<'a> {
+    build: &'a Build<'a>,
+    rule: RefCell<Option<&'a Rule<'a>>>,
+    path: std::path::PathBuf,
+    // Question: could Vec be more efficient than RefSet here? It
+    // depends if we add a rule multiple times to the same set of
+    // children.  FIXME check this!
+    children: RefCell<RefSet<'a, Rule<'a>>>,
+}
+
+impl<'a> File<'a> {
+    pub fn dirty(& self) -> & File<'a> {
+        for r in self.children.borrow().iter() {
+            r.dirty();
+        }
+        self
+    }
+}
+
 pub struct Rule<'a> {
     build: &'a Build<'a>,
     inputs: RefCell<Vec<&'a File<'a>>>,
@@ -63,12 +63,14 @@ pub struct Rule<'a> {
 }
 
 impl<'a> Rule<'a> {
-    pub fn add_input(&self, input: &'a File<'a>) -> &Rule<'a> {
+    pub fn add_input(&'a self, input: &'a File<'a>) -> &Rule<'a> {
         self.inputs.borrow_mut().push(input);
+        input.children.borrow_mut().insert(self);
         self
     }
-    pub fn add_output(&self, input: &'a File<'a>) -> &Rule<'a> {
+    pub fn add_output(&'a self, input: &'a File<'a>) -> &Rule<'a> {
         self.outputs.borrow_mut().push(input);
+        *input.rule.borrow_mut() = Some(self);
         self
     }
 
@@ -76,6 +78,31 @@ impl<'a> Rule<'a> {
         self.build.statuses[self.status.get()].borrow_mut().remove(self);
         self.build.statuses[s].borrow_mut().insert(self);
         self.status.set(s);
+    }
+    pub fn dirty(&'a self) {
+        let oldstat = self.status.get();
+        if oldstat != Status::Dirty {
+            self.set_status(Status::Dirty);
+            if oldstat != Status::Unready {
+                // Need to inform child rules they are unready now
+                for o in self.outputs.borrow().iter() {
+                    for r in o.children.borrow().iter() {
+                        r.unready();
+                    }
+                }
+            }
+        }
+    }
+    pub fn unready(&'a self) {
+        if self.status.get() != Status::Unready {
+            self.set_status(Status::Unready);
+            // Need to inform child rules they are unready now
+            for o in self.outputs.borrow().iter() {
+                for r in o.children.borrow().iter() {
+                    r.unready();
+                }
+            }
+        }
     }
 }
 
@@ -118,6 +145,7 @@ impl<'a> Build<'a> {
             build: self,
             rule: RefCell::new(None),
             path: std::path::PathBuf::from(path),
+            children: RefCell::new(RefSet::new()),
         });
         self.files.borrow_mut().insert(& f.path, f);
         f
