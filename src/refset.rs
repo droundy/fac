@@ -1,4 +1,8 @@
 //! A nice type for holding sets of references defined by address.
+//! This can only really be used with either `'static` or with arena
+//! allocators or the like.  But in those case, a `RefSet` ought to be
+//! your most efficient way to store a set of items, provided you can
+//! ensure that you don't ever allocate a duplicate.
 
 use std;
 use std::hash::{Hash, Hasher};
@@ -19,6 +23,21 @@ impl<'a, T: 'a> std::cmp::PartialEq for HashableRef<'a, T> {
 impl<'a, T: 'a> Eq for HashableRef<'a, T> {}
 
 /// A set of items held by reference.
+///
+/// # Examples
+///
+/// ```
+/// use refset::RefSet;
+/// let mut a = RefSet::new(); // this will have 'static lifetime
+/// a.insert("Hello");
+/// a.insert("World");
+/// for s in a.iter() {
+///     println!(s)
+/// }
+/// // the following only passes because rust allocates each string only once
+/// assert!(a.contains("Hello"));
+/// assert!(a.contains("World"));
+/// ```
 pub struct RefSet<'a, T: 'a> (std::collections::HashSet<HashableRef<'a,T>>);
 
 fn unwrapref<'a,T:'a>(x: &HashableRef<'a,T>) -> &'a T {
