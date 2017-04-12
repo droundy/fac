@@ -1,3 +1,6 @@
+#![cfg_attr(feature = "strict", deny(warnings))]
+#![cfg_attr(feature = "strict", deny(missing_docs))]
+
 extern crate libc;
 
 use libc::c_char;
@@ -9,6 +12,7 @@ use std::os::unix::ffi::OsStringExt;
 use std::ffi::CString;
 
 mod git;
+mod refset;
 
 pub mod build;
 

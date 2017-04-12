@@ -11,3 +11,7 @@ typed-arena = "1.2.0"
 
 [build-dependencies]
 gcc = "0.3"
+
+[features]
+# Treat warnings as a build error.
+strict = []
