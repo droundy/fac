@@ -4,5 +4,6 @@
 * [command line](flags.html)
 * [feature comparison](features.html)
 * [security](security.html)
+* [internal rust docs](doc/fac/index.html)
 
 

@@ -3,9 +3,6 @@ use std;
 use std::ffi::OsString;
 use std::os::unix::ffi::OsStringExt;
 
-use std::ffi::CString;
-
-
 pub fn go_to_top() -> std::path::PathBuf {
     let mut output = std::process::Command::new("git")
         .args(&["rev-parse", "--show-toplevel"])

@@ -218,7 +218,7 @@ else:
 
 if can_run('cargo help'):
     print('''
-| cargo build
+| cargo build --features strict && cargo doc && cargo test --features strict
 < version-identifier.h
 C bench
 c ~
@@ -226,6 +226,10 @@ C .nfs
 c .tum
 C tests
 C web
+
+| cp -a target/doc web/
+> web/doc/fac/index.html
+< target/doc/fac/index.html
 ''')
 else:
     print('# no cargo, so cannot build using rust')

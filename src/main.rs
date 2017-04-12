@@ -1,3 +1,5 @@
+//! Fac is a build system.
+
 #![cfg_attr(feature = "strict", deny(warnings))]
 #![cfg_attr(feature = "strict", deny(missing_docs))]
 
@@ -6,13 +8,10 @@ extern crate libc;
 use libc::c_char;
 use libc::c_int;
 
-use std::ffi::OsString;
-use std::os::unix::ffi::OsStringExt;
-
 use std::ffi::CString;
 
 mod git;
-mod refset;
+pub mod refset;
 
 pub mod build;
 

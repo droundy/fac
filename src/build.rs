@@ -1,3 +1,5 @@
+//! Rules and types for building the stuff.
+
 extern crate typed_arena;
 
 use std;
@@ -5,20 +7,32 @@ use std;
 use std::cell::{Cell, RefCell};
 use refset::{RefSet};
 
+/// The status of a rule.
 #[derive(PartialEq, Eq, Hash, Copy, Clone)]
 pub enum Status {
+    /// This is the default status.
     Unknown,
+    /// We are still deciding whether this needs to be built.
     BeingDetermined,
+    /// We have determined that the rule doesn't need to run.
     Clean,
+    /// The rule already ran.
     Built,
+    /// The rule is currently being built.
     Building,
+    /// The rule failed.
     Failed,
-    Marked, // means unknown, but want to build it
-    Unready, // means that it is dirty but we cannot yet build it
+    /// This is used to indicate that specific rules are requested to
+    /// be built.
+    Marked,
+    /// A rule cannot yet be built, because one of its inputs still
+    /// needs to be built.
+    Unready,
+    /// This rule needs to be run.
     Dirty,
 }
 
-pub struct StatusMap<T>( [T;9] );
+struct StatusMap<T>( [T;9] );
 
 impl<T> StatusMap<T> {
     fn new<F>(v: F) -> StatusMap<T>
@@ -35,8 +49,10 @@ impl<T> std::ops::Index<Status> for StatusMap<T>  {
     }
 }
 
+/// A file (or directory) that is either an input or an output for
+/// some rule.
 pub struct File<'a> {
-    build: &'a Build<'a>,
+    // build: &'a Build<'a>,
     rule: RefCell<Option<&'a Rule<'a>>>,
     path: std::path::PathBuf,
     // Question: could Vec be more efficient than RefSet here? It
@@ -46,14 +62,16 @@ pub struct File<'a> {
 }
 
 impl<'a> File<'a> {
-    pub fn dirty(& self) -> & File<'a> {
+    /// Declare that this File is dirty (i.e. has been modified since
+    /// the last build).
+    pub fn dirty(&'a self) {
         for r in self.children.borrow().iter() {
             r.dirty();
         }
-        self
     }
 }
 
+/// A rule for building something.
 pub struct Rule<'a> {
     build: &'a Build<'a>,
     inputs: RefCell<Vec<&'a File<'a>>>,
@@ -63,22 +81,26 @@ pub struct Rule<'a> {
 }
 
 impl<'a> Rule<'a> {
+    /// Add a new File as an input to this rule.
     pub fn add_input(&'a self, input: &'a File<'a>) -> &Rule<'a> {
         self.inputs.borrow_mut().push(input);
         input.children.borrow_mut().insert(self);
         self
     }
+    /// Add a new File as an output of this rule.
     pub fn add_output(&'a self, input: &'a File<'a>) -> &Rule<'a> {
         self.outputs.borrow_mut().push(input);
         *input.rule.borrow_mut() = Some(self);
         self
     }
-
+    /// Adjust the status of this rule, making sure to keep our sets
+    /// up to date.
     pub fn set_status(&'a self, s: Status) {
         self.build.statuses[self.status.get()].borrow_mut().remove(self);
         self.build.statuses[s].borrow_mut().insert(self);
         self.status.set(s);
     }
+    /// Mark this rule as dirty, adjusting other rules to match.
     pub fn dirty(&'a self) {
         let oldstat = self.status.get();
         if oldstat != Status::Dirty {
@@ -93,6 +115,7 @@ impl<'a> Rule<'a> {
             }
         }
     }
+    /// Make this rule (and any that depend on it) `Status::Unready`.
     pub fn unready(&'a self) {
         if self.status.get() != Status::Unready {
             self.set_status(Status::Unready);
@@ -107,6 +130,11 @@ impl<'a> Rule<'a> {
 }
 
 
+/// A struct that holds all the information needed to build.  You can
+/// think of this as behaving like a set of global variables, but we
+/// can drop the whole thing.  It is implmented using arena
+/// allocation, so all of our Rules and Files are guaranteed to live
+/// as long as the Build lives.
 pub struct Build<'a> {
     alloc_files: typed_arena::Arena<File<'a>>,
     alloc_rules: typed_arena::Arena<Rule<'a>>,
@@ -117,6 +145,7 @@ pub struct Build<'a> {
 }
 
 impl<'a> Build<'a> {
+    /// Construct a new `Build`.
     pub fn new() -> Build<'a> {
         Build {
             alloc_files: typed_arena::Arena::new(),
@@ -128,6 +157,7 @@ impl<'a> Build<'a> {
         }
     }
 
+    /// Allocate space for a new `Rule`.
     pub fn new_rule(&'a self) -> &'a Rule<'a> {
         let r = self.alloc_rules.alloc(Rule {
             inputs: RefCell::new(vec![]),
@@ -140,9 +170,10 @@ impl<'a> Build<'a> {
         r
     }
 
+    /// Allocate space for a new `File`.
     pub fn new_file(&'a self, path: & std::path::Path) -> &'a File<'a> {
         let f = self.alloc_files.alloc(File {
-            build: self,
+            // build: self,
             rule: RefCell::new(None),
             path: std::path::PathBuf::from(path),
             children: RefCell::new(RefSet::new()),
