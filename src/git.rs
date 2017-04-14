@@ -1,8 +1,12 @@
+//! Support interaction with git
+
 use std;
 
 use std::ffi::OsString;
 use std::os::unix::ffi::OsStringExt;
 
+/// Go to the top level of the git repository (typically the one
+/// containing a `.git` directory).
 pub fn go_to_top() -> std::path::PathBuf {
     let mut output = std::process::Command::new("git")
         .args(&["rev-parse", "--show-toplevel"])

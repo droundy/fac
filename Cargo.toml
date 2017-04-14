@@ -4,6 +4,15 @@ version = "0.1.0"
 authors = ["daveroundy@gmail.com"]
 build = "build.rs"
 
+[lib]
+name = "fac"
+path = "src/lib.rs"
+
+[[bin]]
+name = "fac"
+path = "src/main.rs"
+doc = false
+
 [dependencies]
 
 libc = "^0.2"

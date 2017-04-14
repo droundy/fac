@@ -7,53 +7,56 @@
 use std;
 use std::hash::{Hash, Hasher};
 
-struct HashableRef<'a, T: 'a> (&'a T);
+struct HashableRef<'a, T: 'a + ?Sized> (&'a T);
 
-impl<'a, T: 'a> Hash for HashableRef<'a, T> {
+impl<'a, T: 'a + ?Sized> Hash for HashableRef<'a, T> {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        (self.0 as *const T).hash(state);
+        // the following double cast is apparently needed to satisfy
+        // rust, which for some reason will refuse to hash a pointer
+        // to a ?Sized type.
+        (self.0 as *const T as *const usize as usize).hash(state);
     }
 }
 
-impl<'a, T: 'a> std::cmp::PartialEq for HashableRef<'a, T> {
+impl<'a, T: 'a + ?Sized> std::cmp::PartialEq for HashableRef<'a, T> {
     fn eq(&self, other: &HashableRef<'a,T>) -> bool {
         (self.0 as *const T) == (other.0 as *const T)
     }
 }
-impl<'a, T: 'a> Eq for HashableRef<'a, T> {}
+impl<'a, T: 'a + ?Sized> Eq for HashableRef<'a, T> {}
 
 /// A set of items held by reference.
 ///
 /// # Examples
 ///
 /// ```
-/// use refset::RefSet;
+/// use fac::refset::RefSet;
 /// let mut a = RefSet::new(); // this will have 'static lifetime
 /// a.insert("Hello");
 /// a.insert("World");
 /// for s in a.iter() {
-///     println!(s)
+///     println!("{}", s)
 /// }
 /// // the following only passes because rust allocates each string only once
 /// assert!(a.contains("Hello"));
 /// assert!(a.contains("World"));
 /// ```
-pub struct RefSet<'a, T: 'a> (std::collections::HashSet<HashableRef<'a,T>>);
+pub struct RefSet<'a, T: 'a + ?Sized> (std::collections::HashSet<HashableRef<'a,T>>);
 
-fn unwrapref<'a,T:'a>(x: &HashableRef<'a,T>) -> &'a T {
+fn unwrapref<'a,T:'a + ?Sized>(x: &HashableRef<'a,T>) -> &'a T {
     x.0
 }
 
 /// The iterator for RefSet.
-pub struct Iter<'b, 'a: 'b, T: 'a>(std::iter::Map<std::collections::hash_set::Iter<'b, HashableRef<'a,T>>,
+pub struct Iter<'b, 'a: 'b, T: 'a + ?Sized>(std::iter::Map<std::collections::hash_set::Iter<'b, HashableRef<'a,T>>,
                                               fn(&HashableRef<'a,T>) -> &'a T>);
-impl<'b,'a: 'b,T> Iterator for Iter<'b,'a,T> {
+impl<'b,'a: 'b,T: ?Sized> Iterator for Iter<'b,'a,T> {
     type Item = &'a T;
     fn next(& mut self) -> Option<&'a T> { self.0.next() }
     fn size_hint(& self) -> (usize, Option<usize>) { self.0.size_hint() }
 }
 
-impl<'a, T: 'a> RefSet<'a, T> {
+impl<'a, T: 'a + ?Sized> RefSet<'a, T> {
     /// Create an empty set.
     pub fn new() -> RefSet<'a,T> {
         RefSet(std::collections::HashSet::new())

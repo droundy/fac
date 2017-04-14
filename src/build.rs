@@ -49,6 +49,16 @@ impl<T> std::ops::Index<Status> for StatusMap<T>  {
     }
 }
 
+/// Is the file a regular file, a symlink, or a directory?
+pub enum FileKind {
+    /// It is a regular file
+    File,
+    /// It is a directory
+    Dir,
+    /// It is a symlink
+    Symlink,
+}
+
 /// A file (or directory) that is either an input or an output for
 /// some rule.
 pub struct File<'a> {
@@ -59,6 +69,11 @@ pub struct File<'a> {
     // depends if we add a rule multiple times to the same set of
     // children.  FIXME check this!
     children: RefCell<RefSet<'a, Rule<'a>>>,
+
+    
+
+    // bool is_file, is_dir, is_symlink;
+    // bool is_in_git, is_printed;
 }
 
 impl<'a> File<'a> {
@@ -172,18 +187,26 @@ impl<'a> Build<'a> {
 
     /// Look up a `File` corresponding to a path, or if it doesn't
     /// exist, allocate space for a new `File`.
-    pub fn new_file(&'a self, path: & std::path::Path) -> &'a File<'a> {
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use fac::build;
+    /// let mut b = build::Build::new();
+    /// let t = b.new_file("test");
+    /// ```
+    pub fn new_file<P: AsRef<std::path::Path>>(&'a self, path: P) -> &'a File<'a> {
         // If this file is already in our database, use the version
         // that we have.  It is an important invariant that we can
         // only have one file with a given path in the database.
-        match self.files.get(path) {
-            Some(f) => return f;,
+        match self.files.borrow().get(path.as_ref()) {
+            Some(f) => return f,
             None => ()
         }
         let f = self.alloc_files.alloc(File {
             // build: self,
             rule: RefCell::new(None),
-            path: std::path::PathBuf::from(path),
+            path: std::path::PathBuf::from(path.as_ref()),
             children: RefCell::new(RefSet::new()),
         });
         self.files.borrow_mut().insert(& f.path, f);
