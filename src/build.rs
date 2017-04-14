@@ -170,8 +170,16 @@ impl<'a> Build<'a> {
         r
     }
 
-    /// Allocate space for a new `File`.
+    /// Look up a `File` corresponding to a path, or if it doesn't
+    /// exist, allocate space for a new `File`.
     pub fn new_file(&'a self, path: & std::path::Path) -> &'a File<'a> {
+        // If this file is already in our database, use the version
+        // that we have.  It is an important invariant that we can
+        // only have one file with a given path in the database.
+        match self.files.get(path) {
+            Some(f) => return f;,
+            None => ()
+        }
         let f = self.alloc_files.alloc(File {
             // build: self,
             rule: RefCell::new(None),
