@@ -50,6 +50,7 @@ impl<T> std::ops::Index<Status> for StatusMap<T>  {
 }
 
 /// Is the file a regular file, a symlink, or a directory?
+#[derive(PartialEq, Eq, Hash, Copy, Clone)]
 pub enum FileKind {
     /// It is a regular file
     File,
@@ -70,7 +71,7 @@ pub struct File<'a> {
     // children.  FIXME check this!
     children: RefCell<RefSet<'a, Rule<'a>>>,
 
-    
+    kind: Cell<Option<FileKind>>,
 
     // bool is_file, is_dir, is_symlink;
     // bool is_in_git, is_printed;
@@ -82,6 +83,24 @@ impl<'a> File<'a> {
     pub fn dirty(&'a self) {
         for r in self.children.borrow().iter() {
             r.dirty();
+        }
+    }
+
+    /// Set file properties...
+    pub fn stat(&'a self) -> std::io::Result<FileKind> {
+        let attr = std::fs::metadata(&self.path)?;
+        self.kind.set(if attr.file_type().is_symlink() {
+            Some(FileKind::Symlink)
+        } else if attr.file_type().is_dir() {
+            Some(FileKind::Dir)
+        } else if attr.file_type().is_file() {
+            Some(FileKind::File)
+        } else {
+            None
+        });
+        match self.kind.get() {
+            Some(k) => Ok(k),
+            None => Err(std::io::Error::new(std::io::ErrorKind::Other, "irregular file")),
         }
     }
 }
@@ -208,6 +227,7 @@ impl<'a> Build<'a> {
             rule: RefCell::new(None),
             path: std::path::PathBuf::from(path.as_ref()),
             children: RefCell::new(RefSet::new()),
+            kind: Cell::new(None),
         });
         self.files.borrow_mut().insert(& f.path, f);
         f
