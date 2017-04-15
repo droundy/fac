@@ -7,6 +7,8 @@ use std;
 use std::cell::{Cell, RefCell};
 use refset::{RefSet};
 
+use git;
+
 /// The status of a rule.
 #[derive(PartialEq, Eq, Hash, Copy, Clone)]
 pub enum Status {
@@ -72,22 +74,20 @@ pub struct File<'a> {
     children: RefCell<RefSet<'a, Rule<'a>>>,
 
     kind: Cell<Option<FileKind>>,
-
-    // bool is_file, is_dir, is_symlink;
-    // bool is_in_git, is_printed;
+    is_in_git: bool,
 }
 
 impl<'a> File<'a> {
     /// Declare that this File is dirty (i.e. has been modified since
     /// the last build).
-    pub fn dirty(&'a self) {
+    pub fn dirty(&self) {
         for r in self.children.borrow().iter() {
             r.dirty();
         }
     }
 
     /// Set file properties...
-    pub fn stat(&'a self) -> std::io::Result<FileKind> {
+    pub fn stat(&self) -> std::io::Result<FileKind> {
         let attr = std::fs::metadata(&self.path)?;
         self.kind.set(if attr.file_type().is_symlink() {
             Some(FileKind::Symlink)
@@ -103,6 +103,11 @@ impl<'a> File<'a> {
             None => Err(std::io::Error::new(std::io::ErrorKind::Other, "irregular file")),
         }
     }
+
+    /// Is this `File` in git?
+    pub fn in_git(&self) -> bool {
+        self.is_in_git
+    }
 }
 
 /// A rule for building something.
@@ -116,26 +121,26 @@ pub struct Rule<'a> {
 
 impl<'a> Rule<'a> {
     /// Add a new File as an input to this rule.
-    pub fn add_input(&'a self, input: &'a File<'a>) -> &Rule<'a> {
+    pub fn add_input<'b: 'a>(&'b self, input: &'a File<'a>) -> &Rule<'a> {
         self.inputs.borrow_mut().push(input);
         input.children.borrow_mut().insert(self);
         self
     }
     /// Add a new File as an output of this rule.
-    pub fn add_output(&'a self, input: &'a File<'a>) -> &Rule<'a> {
+    pub fn add_output<'b: 'a>(&'b self, input: &'a File<'a>) -> &Rule<'a> {
         self.outputs.borrow_mut().push(input);
         *input.rule.borrow_mut() = Some(self);
         self
     }
     /// Adjust the status of this rule, making sure to keep our sets
     /// up to date.
-    pub fn set_status(&'a self, s: Status) {
+    pub fn set_status<'b: 'a>(&'b self, s: Status) {
         self.build.statuses[self.status.get()].borrow_mut().remove(self);
         self.build.statuses[s].borrow_mut().insert(self);
         self.status.set(s);
     }
     /// Mark this rule as dirty, adjusting other rules to match.
-    pub fn dirty(&'a self) {
+    pub fn dirty<'b: 'a>(&'b self) {
         let oldstat = self.status.get();
         if oldstat != Status::Dirty {
             self.set_status(Status::Dirty);
@@ -150,7 +155,7 @@ impl<'a> Rule<'a> {
         }
     }
     /// Make this rule (and any that depend on it) `Status::Unready`.
-    pub fn unready(&'a self) {
+    pub fn unready<'b: 'a>(&'b self) {
         if self.status.get() != Status::Unready {
             self.set_status(Status::Unready);
             // Need to inform child rules they are unready now
@@ -181,18 +186,26 @@ pub struct Build<'a> {
 impl<'a> Build<'a> {
     /// Construct a new `Build`.
     pub fn new() -> Build<'a> {
-        Build {
+        let b: Build<'a> = Build {
             alloc_files: typed_arena::Arena::new(),
             alloc_rules: typed_arena::Arena::new(),
             files: RefCell::new(std::collections::HashMap::new()),
             rules: RefCell::new(RefSet::new()),
 
             statuses: StatusMap::new(|| RefCell::new(RefSet::new())),
+        };
+        for ref f in git::ls_files() {
+            println!("i see {:?}", f);
+            // fixme: the following line causes trouble, "does not
+            // live long enough".
+
+            // b.new_file_private(f, true);
         }
+        b
     }
 
     /// Allocate space for a new `Rule`.
-    pub fn new_rule(&'a self) -> &'a Rule<'a> {
+    pub fn new_rule<'b: 'a>(&'b self) -> &'a Rule<'a> {
         let r = self.alloc_rules.alloc(Rule {
             inputs: RefCell::new(vec![]),
             outputs: RefCell::new(vec![]),
@@ -214,7 +227,13 @@ impl<'a> Build<'a> {
     /// let mut b = build::Build::new();
     /// let t = b.new_file("test");
     /// ```
-    pub fn new_file<P: AsRef<std::path::Path>>(&'a self, path: P) -> &'a File<'a> {
+    pub fn new_file<'b: 'a , P: AsRef<std::path::Path>>(&'b self, path: P) -> &'a File<'a> {
+        self.new_file_private(path, false)
+    }
+
+    fn new_file_private<'b: 'a, P: AsRef<std::path::Path>>(&'b self, path: P,
+                                                           is_in_git: bool)
+                                                           -> &'a File<'a> {
         // If this file is already in our database, use the version
         // that we have.  It is an important invariant that we can
         // only have one file with a given path in the database.
@@ -228,6 +247,7 @@ impl<'a> Build<'a> {
             path: std::path::PathBuf::from(path.as_ref()),
             children: RefCell::new(RefSet::new()),
             kind: Cell::new(None),
+            is_in_git: is_in_git,
         });
         self.files.borrow_mut().insert(& f.path, f);
         f

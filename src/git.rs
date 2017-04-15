@@ -27,3 +27,20 @@ pub fn go_to_top() -> std::path::PathBuf {
     std::env::set_current_dir(&p).unwrap();
     p
 }
+
+/// Find out what files are in git.
+pub fn ls_files() -> std::collections::HashSet<std::path::PathBuf> {
+    let output = std::process::Command::new("git")
+        .arg("ls-files")
+        .arg("-z")
+        .output()
+        .expect("Error calling git ls-files");
+    let mut fs = std::collections::HashSet::new();
+    for s in output.stdout.split(|c| *c == 0) {
+        if s.len() > 0 {
+            let p = std::path::PathBuf::from(OsString::from_vec(Vec::from(s)));
+            fs.insert(p);
+        }
+    }
+    fs
+}
