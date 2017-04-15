@@ -218,12 +218,17 @@ else:
 
 if can_run('cargo help'):
     print('''
+# cargo is annoying in that it calls stat on every file in the repository, making
+# it near impossible to discern its inputs.  So we have to list everything as
+# "cached" content.  :(
 | cargo build --features strict && cargo doc && cargo test --features strict
 < version-identifier.h
 C bench
 c ~
 C .nfs
 c .tum
+c .gcno
+c .gcda
 C tests
 C web
 

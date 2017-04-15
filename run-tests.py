@@ -15,7 +15,10 @@ if 'GIT_AUTHOR_EMAIL' not in os.environ:
 have_gcovr = os.system('gcovr -h') == 0
 
 def system(cmd):
-    return subprocess.call(cmd, shell=True)
+    # print("running:", cmd)
+    x = subprocess.call(cmd, shell=True)
+    assert(x == 0)
+    return x
 
 class bcolors:
     HEADER = '\033[95m'
@@ -51,7 +54,7 @@ else:
         print('Build failed!')
         exit(1)
 system('mv %s web/' % tarname)
-system('ln -s %s web/fac.tar.gz' % tarname)
+system('ln -sf %s web/fac.tar.gz' % tarname)
 system('echo rm -rf bigbro >> build/%s.sh' % platform.system().lower())
 system('chmod +x build/%s.sh' % platform.system().lower())
 
@@ -65,6 +68,7 @@ if have_gcovr:
         exit(1)
     system('cp fac tests/fac-with-coverage')
     system('COVERAGE=1 tests/fac-with-coverage -c')
+    system('rm -rf bigbro') # needed because -c doesn't remove cached files!  :(
     system('COVERAGE=1 tests/fac-with-coverage')
     system('rm tests/fac-with-coverage')
 
