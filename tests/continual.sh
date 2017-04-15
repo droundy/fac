@@ -25,7 +25,7 @@ sleep 1
 cat ../continual-output
 ls -lh ../continual-output
 
-grep 'Build failed' continual-output
+grep 'Build failed' ../continual-output
 
 if grep 'Build succeeded' ../continual-output; then
     echo should not succeed
