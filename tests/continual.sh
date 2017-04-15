@@ -14,7 +14,7 @@ cd bigbro
 
 echo this is a bug here >> bigbro.h
 
-../../../fac --continual > continual-output &
+../../../fac --continual > ../continual-output &
 
 sleep 1
 while test -e .git/fac-lock; do
@@ -22,12 +22,12 @@ while test -e .git/fac-lock; do
 done
 sleep 1
 
-cat continual-output
-ls -lh continual-output
+cat ../continual-output
+ls -lh ../continual-output
 
 grep 'Build failed' continual-output
 
-if grep 'Build succeeded' continual-output; then
+if grep 'Build succeeded' ../continual-output; then
     echo should not succeed
     exit 1
 fi
@@ -39,10 +39,10 @@ while test -e .git/fac-lock; do
     sleep 1
 done
 
-cat continual-output
-ls -lh continual-output
+cat ../continual-output
+ls -lh ../continual-output
 
-grep 'Build succeeded' continual-output
+grep 'Build succeeded' ../continual-output
 
 ps || echo there is no ps
 kill $(jobs -p)
