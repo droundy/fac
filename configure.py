@@ -229,6 +229,7 @@ C .nfs
 c .tum
 c .gcno
 c .gcda
+c .gcov
 C tests
 C web
 
