@@ -191,44 +191,13 @@ impl<'a> Build<'a> {
             alloc_rules: typed_arena::Arena::new(),
             files: RefCell::new(std::collections::HashMap::new()),
             rules: RefCell::new(RefSet::new()),
-
             statuses: StatusMap::new(|| RefCell::new(RefSet::new())),
         };
         for ref f in git::ls_files() {
+            //b.new_file_private(f, true); // fixme: causes trouble, "does not live long enough".
             println!("i see {:?}", f);
-            // fixme: the following line causes trouble, "does not
-            // live long enough".
-
-            // b.new_file_private(f, true);
         }
         b
-    }
-
-    /// Allocate space for a new `Rule`.
-    pub fn new_rule<'b: 'a>(&'b self) -> &'a Rule<'a> {
-        let r = self.alloc_rules.alloc(Rule {
-            inputs: RefCell::new(vec![]),
-            outputs: RefCell::new(vec![]),
-            status: Cell::new(Status::Unknown),
-            build: self,
-        });
-        self.statuses[Status::Unknown].borrow_mut().insert(r);
-        self.rules.borrow_mut().insert(r);
-        r
-    }
-
-    /// Look up a `File` corresponding to a path, or if it doesn't
-    /// exist, allocate space for a new `File`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use fac::build;
-    /// let mut b = build::Build::new();
-    /// let t = b.new_file("test");
-    /// ```
-    pub fn new_file<'b: 'a , P: AsRef<std::path::Path>>(&'b self, path: P) -> &'a File<'a> {
-        self.new_file_private(path, false)
     }
 
     fn new_file_private<'b: 'a, P: AsRef<std::path::Path>>(&'b self, path: P,
@@ -251,5 +220,32 @@ impl<'a> Build<'a> {
         });
         self.files.borrow_mut().insert(& f.path, f);
         f
+    }
+
+    /// Look up a `File` corresponding to a path, or if it doesn't
+    /// exist, allocate space for a new `File`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use fac::build;
+    /// let mut b = build::Build::new();
+    /// let t = b.new_file("test");
+    /// ```
+    pub fn new_file<'b: 'a , P: AsRef<std::path::Path>>(&'b self, path: P) -> &'a File<'a> {
+        self.new_file_private(path, false)
+    }
+
+    /// Allocate space for a new `Rule`.
+    pub fn new_rule<'b: 'a>(&'b self) -> &'a Rule<'a> {
+        let r = self.alloc_rules.alloc(Rule {
+            inputs: RefCell::new(vec![]),
+            outputs: RefCell::new(vec![]),
+            status: Cell::new(Status::Unknown),
+            build: self,
+        });
+        self.statuses[Status::Unknown].borrow_mut().insert(r);
+        self.rules.borrow_mut().insert(r);
+        r
     }
 }
