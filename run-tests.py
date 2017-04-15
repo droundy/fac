@@ -17,7 +17,7 @@ have_gcovr = os.system('gcovr -h') == 0
 def system(cmd):
     # print("running:", cmd)
     x = subprocess.call(cmd, shell=True)
-    assert(x == 0)
+    # assert(x == 0)
     return x
 
 class bcolors:
