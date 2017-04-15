@@ -15,4 +15,6 @@ COPY test.sh test.sh
 
 ENV PATH=/root/.cargo/bin:$PATH
 
+RUN rustup target add x86_64-pc-windows-gnu
+
 # docker build -t facio/build . && docker run --security-opt seccomp:../docker-security.json facio/build bash test.sh
