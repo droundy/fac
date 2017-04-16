@@ -219,14 +219,13 @@ pub struct Build<'a> {
     facfiles_used: RefCell<RefSet<'a, File<'a>>>,
 }
 
-/// Create the arenas to give to `Build::new`
-pub fn make_arenas<'a>() -> (typed_arena::Arena<File<'a>>,
-                             typed_arena::Arena<Rule<'a>>) {
-    (typed_arena::Arena::new(),
-     typed_arena::Arena::new())
-}
-
 impl<'a> Build<'a> {
+    /// Create the arenas to give to `Build::new`
+    pub fn arenas() -> (typed_arena::Arena<File<'a>>,
+                        typed_arena::Arena<Rule<'a>>) {
+        (typed_arena::Arena::new(),
+         typed_arena::Arena::new())
+    }
     /// Construct a new `Build`.
     pub fn new(allocators: &'a (typed_arena::Arena<File<'a>>,
                                 typed_arena::Arena<Rule<'a>>)) -> Build<'a> {
@@ -273,7 +272,7 @@ impl<'a> Build<'a> {
     ///
     /// ```
     /// use fac::build;
-    /// let arenas = build::make_arenas();
+    /// let arenas = build::Build::arenas();
     /// let mut b = build::Build::new(&arenas);
     /// let t = b.new_file("test");
     /// ```
