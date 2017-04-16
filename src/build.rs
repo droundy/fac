@@ -195,37 +195,39 @@ fn is_prefix(path: &Path, suff: &OsStr) -> bool {
 /// allocation, so all of our Rules and Files are guaranteed to live
 /// as long as the Build lives.
 pub struct Build<'a> {
-    alloc_files: typed_arena::Arena<File<'a>>,
-    alloc_rules: typed_arena::Arena<Rule<'a>>,
+    alloc_files: &'a typed_arena::Arena<File<'a>>,
+    alloc_rules: &'a typed_arena::Arena<Rule<'a>>,
     files: RefCell<std::collections::HashMap<&'a Path, &'a File<'a>>>,
     rules: RefCell<RefSet<'a, Rule<'a>>>,
 
     statuses: StatusMap<RefCell<RefSet<'a, Rule<'a>>>>,
 }
 
+/// Create the arenas to give to `Build::new`
+pub fn make_arenas<'a>() -> (typed_arena::Arena<File<'a>>, typed_arena::Arena<Rule<'a>>) {
+    (typed_arena::Arena::new(), typed_arena::Arena::new())
+}
+
 impl<'a> Build<'a> {
     /// Construct a new `Build`.
-    pub fn new() -> Build<'a> {
-        Build {
-            alloc_files: typed_arena::Arena::new(),
-            alloc_rules: typed_arena::Arena::new(),
+    pub fn new(alloc_files: &'a typed_arena::Arena<File<'a>>,
+               alloc_rules: &'a typed_arena::Arena<Rule<'a>>) -> Build<'a> {
+        let b = Build {
+            alloc_files: alloc_files,
+            alloc_rules: alloc_rules,
             files: RefCell::new(std::collections::HashMap::new()),
             rules: RefCell::new(RefSet::new()),
             statuses: StatusMap::new(|| RefCell::new(RefSet::new())),
-        }
-    }
-    /// initialize
-    pub fn init(&'a self) -> &'a Build<'a> {
+        };
         for ref f in git::ls_files() {
-            self.new_file_private(f, true); // fixme: causes trouble, "does not live long enough".
+            b.new_file_private(f, true); // fixme: causes trouble, "does not live long enough".
             println!("i see {:?}", f);
         }
-        self
+        b
     }
-
-    fn new_file_private<P: AsRef<Path>>(&'a self, path: P,
+    fn new_file_private<P: AsRef<Path>>(&self, path: P,
                                         is_in_git: bool)
-                                        -> &'a File<'a> {
+                                        -> &File<'a> {
         // If this file is already in our database, use the version
         // that we have.  It is an important invariant that we can
         // only have one file with a given path in the database.
@@ -252,10 +254,11 @@ impl<'a> Build<'a> {
     ///
     /// ```
     /// use fac::build;
-    /// let mut b = build::Build::new();
+    /// let (af,ar) = build::make_arenas();
+    /// let mut b = build::Build::new(&af, &ar);
     /// let t = b.new_file("test");
     /// ```
-    pub fn new_file<P: AsRef<Path>>(&'a self, path: P) -> &'a File<'a> {
+    pub fn new_file<P: AsRef<Path>>(&self, path: P) -> &File<'a> {
         self.new_file_private(path, false)
     }
 
@@ -263,7 +266,7 @@ impl<'a> Build<'a> {
     pub fn new_rule(&'a self,
                     cache_suffixes: std::collections::HashSet<OsString>,
                     cache_prefixes: std::collections::HashSet<OsString>)
-                    -> &'a Rule<'a> {
+                    -> &Rule<'a> {
         let r = self.alloc_rules.alloc(Rule {
             inputs: RefCell::new(vec![]),
             outputs: RefCell::new(vec![]),
