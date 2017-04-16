@@ -78,6 +78,8 @@ pub struct File<'a> {
     // children.  FIXME check this!
     children: RefCell<RefSet<'a, Rule<'a>>>,
 
+    rules_defined: RefCell<RefSet<'a, Rule<'a>>>,
+
     kind: Cell<Option<FileKind>>,
     is_in_git: bool,
 }
@@ -112,6 +114,11 @@ impl<'a> File<'a> {
     /// Is this `File` in git?
     pub fn in_git(&self) -> bool {
         self.is_in_git
+    }
+
+    /// Is this a fac file?
+    pub fn is_fac_file(&self) -> bool {
+        self.rules_defined.borrow().len() > 0
     }
 }
 
@@ -266,6 +273,7 @@ impl<'a> Build<'a> {
             rule: RefCell::new(None),
             path: PathBuf::from(path.as_ref()),
             children: RefCell::new(RefSet::new()),
+            rules_defined: RefCell::new(RefSet::new()),
             kind: Cell::new(None),
             is_in_git: is_in_git,
         });
