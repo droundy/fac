@@ -174,15 +174,19 @@ impl<'a> Rule<'a> {
     /// Identifies whether a given path is "cache"
     pub fn is_cache(&'a self, path: &Path) -> bool {
         self.cache_suffixes.iter().any(|s| is_suffix(path, s)) ||
-            self.cache_prefixes.iter().any(|s| is_suffix(path, s))
+            self.cache_prefixes.iter().any(|s| is_prefix(path, s))
     }
 }
-
 
 use std::os::unix::ffi::{OsStrExt};
 fn is_suffix(path: &Path, suff: &OsStr) -> bool {
     let l = suff.as_bytes().len();
     path.as_os_str().as_bytes()[..l] == suff.as_bytes()[..]
+}
+fn is_prefix(path: &Path, suff: &OsStr) -> bool {
+    let l = suff.as_bytes().len();
+    let p = path.as_os_str().as_bytes();
+    p[p.len()-l..] == suff.as_bytes()[..]
 }
 
 /// A struct that holds all the information needed to build.  You can
