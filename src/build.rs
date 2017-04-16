@@ -1,6 +1,7 @@
 //! Rules and types for building the stuff.
 
 extern crate typed_arena;
+extern crate bigbro;
 
 use std;
 
@@ -8,6 +9,8 @@ use std::cell::{Cell, RefCell};
 use refset::{RefSet};
 use std::ffi::{OsString, OsStr};
 use std::path::{Path,PathBuf};
+
+use std::collections::{HashSet, HashMap};
 
 use git;
 
@@ -119,8 +122,12 @@ pub struct Rule<'a> {
     outputs: RefCell<Vec<&'a File<'a>>>,
 
     status: Cell<Status>,
-    cache_prefixes: std::collections::HashSet<OsString>,
-    cache_suffixes: std::collections::HashSet<OsString>,
+    cache_prefixes: HashSet<OsString>,
+    cache_suffixes: HashSet<OsString>,
+
+    working_directory: PathBuf,
+    facfile: PathBuf,
+    command: OsString,
 }
 
 impl<'a> Rule<'a> {
@@ -172,9 +179,16 @@ impl<'a> Rule<'a> {
     }
 
     /// Identifies whether a given path is "cache"
-    pub fn is_cache(&'a self, path: &Path) -> bool {
+    pub fn is_cache(&self, path: &Path) -> bool {
         self.cache_suffixes.iter().any(|s| is_suffix(path, s)) ||
             self.cache_prefixes.iter().any(|s| is_prefix(path, s))
+    }
+
+    /// Actually run the command FJIXME
+    pub fn run(&mut self) {
+        bigbro::Command::new("sh").arg("-c").arg(&self.command)
+            .current_dir(&self.working_directory).status().unwrap();
+        self.build.facfiles_used.borrow_mut().insert(self.facfile.clone());
     }
 }
 
@@ -197,10 +211,12 @@ fn is_prefix(path: &Path, suff: &OsStr) -> bool {
 pub struct Build<'a> {
     alloc_files: &'a typed_arena::Arena<File<'a>>,
     alloc_rules: &'a typed_arena::Arena<Rule<'a>>,
-    files: RefCell<std::collections::HashMap<&'a Path, &'a File<'a>>>,
+    files: RefCell<HashMap<&'a Path, &'a File<'a>>>,
     rules: RefCell<RefSet<'a, Rule<'a>>>,
 
     statuses: StatusMap<RefCell<RefSet<'a, Rule<'a>>>>,
+
+    facfiles_used: RefCell<HashSet<PathBuf>>,
 }
 
 /// Create the arenas to give to `Build::new`
@@ -215,9 +231,10 @@ impl<'a> Build<'a> {
         let b = Build {
             alloc_files: alloc_files,
             alloc_rules: alloc_rules,
-            files: RefCell::new(std::collections::HashMap::new()),
+            files: RefCell::new(HashMap::new()),
             rules: RefCell::new(RefSet::new()),
             statuses: StatusMap::new(|| RefCell::new(RefSet::new())),
+            facfiles_used: RefCell::new(HashSet::new()),
         };
         for ref f in git::ls_files() {
             b.new_file_private(f, true); // fixme: causes trouble, "does not live long enough".
@@ -264,8 +281,11 @@ impl<'a> Build<'a> {
 
     /// Allocate space for a new `Rule`.
     pub fn new_rule(&'a self,
-                    cache_suffixes: std::collections::HashSet<OsString>,
-                    cache_prefixes: std::collections::HashSet<OsString>)
+                    command: &OsStr,
+                    working_directory: &Path,
+                    facfile: &Path,
+                    cache_suffixes: HashSet<OsString>,
+                    cache_prefixes: HashSet<OsString>)
                     -> &Rule<'a> {
         let r = self.alloc_rules.alloc(Rule {
             inputs: RefCell::new(vec![]),
@@ -274,6 +294,9 @@ impl<'a> Build<'a> {
             build: self,
             cache_prefixes: cache_prefixes,
             cache_suffixes: cache_suffixes,
+            working_directory: PathBuf::from(working_directory),
+            facfile: PathBuf::from(facfile),
+            command: OsString::from(command),
         });
         self.statuses[Status::Unknown].borrow_mut().insert(r);
         self.rules.borrow_mut().insert(r);

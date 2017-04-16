@@ -17,6 +17,7 @@ doc = false
 
 libc = "^0.2"
 typed-arena = "1.2.0"
+bigbro = "^0.2.0"
 
 [build-dependencies]
 gcc = "0.3"
