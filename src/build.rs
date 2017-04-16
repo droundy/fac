@@ -72,7 +72,7 @@ pub enum FileKind {
 pub struct File<'a> {
     // build: &'a Build<'a>,
     rule: RefCell<Option<&'a Rule<'a>>>,
-    path: std::path::PathBuf,
+    path: PathBuf,
     // Question: could Vec be more efficient than RefSet here? It
     // depends if we add a rule multiple times to the same set of
     // children.  FIXME check this!
@@ -126,7 +126,7 @@ pub struct Rule<'a> {
     cache_suffixes: HashSet<OsString>,
 
     working_directory: PathBuf,
-    facfile: PathBuf,
+    facfile: &'a File<'a>,
     command: OsString,
 }
 
@@ -188,7 +188,7 @@ impl<'a> Rule<'a> {
     pub fn run(&mut self) {
         bigbro::Command::new("sh").arg("-c").arg(&self.command)
             .current_dir(&self.working_directory).status().unwrap();
-        self.build.facfiles_used.borrow_mut().insert(self.facfile.clone());
+        self.build.facfiles_used.borrow_mut().insert(self.facfile);
     }
 }
 
@@ -216,25 +216,27 @@ pub struct Build<'a> {
 
     statuses: StatusMap<RefCell<RefSet<'a, Rule<'a>>>>,
 
-    facfiles_used: RefCell<HashSet<PathBuf>>,
+    facfiles_used: RefCell<RefSet<'a, File<'a>>>,
 }
 
 /// Create the arenas to give to `Build::new`
-pub fn make_arenas<'a>() -> (typed_arena::Arena<File<'a>>, typed_arena::Arena<Rule<'a>>) {
-    (typed_arena::Arena::new(), typed_arena::Arena::new())
+pub fn make_arenas<'a>() -> (typed_arena::Arena<File<'a>>,
+                             typed_arena::Arena<Rule<'a>>) {
+    (typed_arena::Arena::new(),
+     typed_arena::Arena::new())
 }
 
 impl<'a> Build<'a> {
     /// Construct a new `Build`.
-    pub fn new(alloc_files: &'a typed_arena::Arena<File<'a>>,
-               alloc_rules: &'a typed_arena::Arena<Rule<'a>>) -> Build<'a> {
+    pub fn new(allocators: &'a (typed_arena::Arena<File<'a>>,
+                                typed_arena::Arena<Rule<'a>>)) -> Build<'a> {
         let b = Build {
-            alloc_files: alloc_files,
-            alloc_rules: alloc_rules,
+            alloc_files: &allocators.0,
+            alloc_rules: &allocators.1,
             files: RefCell::new(HashMap::new()),
             rules: RefCell::new(RefSet::new()),
             statuses: StatusMap::new(|| RefCell::new(RefSet::new())),
-            facfiles_used: RefCell::new(HashSet::new()),
+            facfiles_used: RefCell::new(RefSet::new()),
         };
         for ref f in git::ls_files() {
             b.new_file_private(f, true); // fixme: causes trouble, "does not live long enough".
@@ -271,8 +273,8 @@ impl<'a> Build<'a> {
     ///
     /// ```
     /// use fac::build;
-    /// let (af,ar) = build::make_arenas();
-    /// let mut b = build::Build::new(&af, &ar);
+    /// let arenas = build::make_arenas();
+    /// let mut b = build::Build::new(&arenas);
     /// let t = b.new_file("test");
     /// ```
     pub fn new_file<P: AsRef<Path>>(&self, path: P) -> &File<'a> {
@@ -283,7 +285,7 @@ impl<'a> Build<'a> {
     pub fn new_rule(&'a self,
                     command: &OsStr,
                     working_directory: &Path,
-                    facfile: &Path,
+                    facfile: &'a File<'a>,
                     cache_suffixes: HashSet<OsString>,
                     cache_prefixes: HashSet<OsString>)
                     -> &Rule<'a> {
@@ -295,7 +297,7 @@ impl<'a> Build<'a> {
             cache_prefixes: cache_prefixes,
             cache_suffixes: cache_suffixes,
             working_directory: PathBuf::from(working_directory),
-            facfile: PathBuf::from(facfile),
+            facfile: facfile,
             command: OsString::from(command),
         });
         self.statuses[Status::Unknown].borrow_mut().insert(r);
