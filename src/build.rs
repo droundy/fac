@@ -227,6 +227,14 @@ impl<'a> Build<'a> {
          typed_arena::Arena::new())
     }
     /// Construct a new `Build`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use fac::build;
+    /// let arenas = build::Build::arenas();
+    /// let b = build::Build::new(&arenas);
+    /// ```
     pub fn new(allocators: &'a (typed_arena::Arena<File<'a>>,
                                 typed_arena::Arena<Rule<'a>>)) -> Build<'a> {
         let b = Build {
