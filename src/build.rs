@@ -6,6 +6,8 @@ use std;
 
 use std::cell::{Cell, RefCell};
 use refset::{RefSet};
+use std::ffi::{OsString, OsStr};
+use std::path::{Path,PathBuf};
 
 use git;
 
@@ -117,6 +119,8 @@ pub struct Rule<'a> {
     outputs: RefCell<Vec<&'a File<'a>>>,
 
     status: Cell<Status>,
+    cache_prefixes: std::collections::HashSet<OsString>,
+    cache_suffixes: std::collections::HashSet<OsString>,
 }
 
 impl<'a> Rule<'a> {
@@ -166,8 +170,20 @@ impl<'a> Rule<'a> {
             }
         }
     }
+
+    /// Identifies whether a given path is "cache"
+    pub fn is_cache(&'a self, path: &Path) -> bool {
+        self.cache_suffixes.iter().any(|s| is_suffix(path, s)) ||
+            self.cache_prefixes.iter().any(|s| is_suffix(path, s))
+    }
 }
 
+
+use std::os::unix::ffi::{OsStrExt};
+fn is_suffix(path: &Path, suff: &OsStr) -> bool {
+    let l = suff.as_bytes().len();
+    path.as_os_str().as_bytes()[..l] == suff.as_bytes()[..]
+}
 
 /// A struct that holds all the information needed to build.  You can
 /// think of this as behaving like a set of global variables, but we
@@ -177,7 +193,7 @@ impl<'a> Rule<'a> {
 pub struct Build<'a> {
     alloc_files: typed_arena::Arena<File<'a>>,
     alloc_rules: typed_arena::Arena<Rule<'a>>,
-    files: RefCell<std::collections::HashMap<&'a std::path::Path, &'a File<'a>>>,
+    files: RefCell<std::collections::HashMap<&'a Path, &'a File<'a>>>,
     rules: RefCell<RefSet<'a, Rule<'a>>>,
 
     statuses: StatusMap<RefCell<RefSet<'a, Rule<'a>>>>,
@@ -194,6 +210,7 @@ impl<'a> Build<'a> {
             statuses: StatusMap::new(|| RefCell::new(RefSet::new())),
         }
     }
+    /// initialize
     pub fn init(&'a self) -> &'a Build<'a> {
         for ref f in git::ls_files() {
             self.new_file_private(f, true); // fixme: causes trouble, "does not live long enough".
@@ -202,9 +219,9 @@ impl<'a> Build<'a> {
         self
     }
 
-    fn new_file_private<P: AsRef<std::path::Path>>(&'a self, path: P,
-                                                   is_in_git: bool)
-                                                   -> &'a File<'a> {
+    fn new_file_private<P: AsRef<Path>>(&'a self, path: P,
+                                        is_in_git: bool)
+                                        -> &'a File<'a> {
         // If this file is already in our database, use the version
         // that we have.  It is an important invariant that we can
         // only have one file with a given path in the database.
@@ -215,7 +232,7 @@ impl<'a> Build<'a> {
         let f = self.alloc_files.alloc(File {
             // build: self,
             rule: RefCell::new(None),
-            path: std::path::PathBuf::from(path.as_ref()),
+            path: PathBuf::from(path.as_ref()),
             children: RefCell::new(RefSet::new()),
             kind: Cell::new(None),
             is_in_git: is_in_git,
@@ -234,17 +251,22 @@ impl<'a> Build<'a> {
     /// let mut b = build::Build::new();
     /// let t = b.new_file("test");
     /// ```
-    pub fn new_file<P: AsRef<std::path::Path>>(&'a self, path: P) -> &'a File<'a> {
+    pub fn new_file<P: AsRef<Path>>(&'a self, path: P) -> &'a File<'a> {
         self.new_file_private(path, false)
     }
 
     /// Allocate space for a new `Rule`.
-    pub fn new_rule(&'a self) -> &'a Rule<'a> {
+    pub fn new_rule(&'a self,
+                    cache_suffixes: std::collections::HashSet<OsString>,
+                    cache_prefixes: std::collections::HashSet<OsString>)
+                    -> &'a Rule<'a> {
         let r = self.alloc_rules.alloc(Rule {
             inputs: RefCell::new(vec![]),
             outputs: RefCell::new(vec![]),
             status: Cell::new(Status::Unknown),
             build: self,
+            cache_prefixes: cache_prefixes,
+            cache_suffixes: cache_suffixes,
         });
         self.statuses[Status::Unknown].borrow_mut().insert(r);
         self.rules.borrow_mut().insert(r);
