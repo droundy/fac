@@ -1,5 +1,8 @@
 //! Rules and types for building the stuff.
 
+#[cfg(test)]
+extern crate quickcheck;
+
 extern crate typed_arena;
 extern crate bigbro;
 
@@ -15,7 +18,7 @@ use std::collections::{HashSet, HashMap};
 use git;
 
 /// The status of a rule.
-#[derive(PartialEq, Eq, Hash, Copy, Clone)]
+#[derive(PartialEq, Eq, Hash, Copy, Clone, Debug)]
 pub enum Status {
     /// This is the default status.
     Unknown,
@@ -39,6 +42,7 @@ pub enum Status {
     Dirty,
 }
 
+#[derive(PartialEq, Eq, Hash, Debug)]
 struct StatusMap<T>( [T;9] );
 
 impl<T> StatusMap<T> {
@@ -46,6 +50,73 @@ impl<T> StatusMap<T> {
         where F: Fn() -> T
     {
         StatusMap( [v(),v(),v(),v(),v(),v(),v(),v(),v()] )
+    }
+    #[cfg(test)]
+    fn from(a: [T;9]) -> StatusMap<T> {
+        StatusMap(a)
+    }
+}
+
+impl<T: Clone> Clone for StatusMap<T> {
+    fn clone(&self) -> Self {
+        StatusMap( [self.0[0].clone(),
+                    self.0[1].clone(),
+                    self.0[2].clone(),
+                    self.0[3].clone(),
+                    self.0[4].clone(),
+                    self.0[5].clone(),
+                    self.0[6].clone(),
+                    self.0[7].clone(),
+                    self.0[8].clone()])
+    }
+}
+
+#[cfg(test)]
+impl quickcheck::Arbitrary for Status {
+    fn arbitrary<G: quickcheck::Gen>(g: &mut G) -> Status {
+        let choice: u32 = g.gen();
+        match choice % 9 {
+            0 => Status::Unknown,
+            1 => Status::BeingDetermined,
+            2 => Status::Clean,
+            3 => Status::Built,
+            4 => Status::Building,
+            5 => Status::Failed,
+            6 => Status::Marked,
+            7 => Status::Unready,
+            8 => Status::Dirty,
+            _ => unimplemented!(),
+        }
+    }
+}
+
+#[cfg(test)]
+impl<A: quickcheck::Arbitrary> quickcheck::Arbitrary for StatusMap<A> {
+    fn arbitrary<G: quickcheck::Gen>(g: &mut G) -> StatusMap<A> {
+        StatusMap::from([quickcheck::Arbitrary::arbitrary(g),
+                         quickcheck::Arbitrary::arbitrary(g),
+                         quickcheck::Arbitrary::arbitrary(g),
+                         quickcheck::Arbitrary::arbitrary(g),
+                         quickcheck::Arbitrary::arbitrary(g),
+                         quickcheck::Arbitrary::arbitrary(g),
+                         quickcheck::Arbitrary::arbitrary(g),
+                         quickcheck::Arbitrary::arbitrary(g),
+                         quickcheck::Arbitrary::arbitrary(g),
+        ])
+    }
+}
+
+#[cfg(test)]
+quickcheck! {
+    fn prop_can_access_statusmap(m: StatusMap<bool>, s: Status) -> bool {
+        m[s] || !m[s]
+    }
+}
+
+#[cfg(test)]
+quickcheck! {
+    fn prop_status_eq(s: Status) -> bool {
+        s == s
     }
 }
 
