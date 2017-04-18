@@ -15,6 +15,8 @@ use std::path::{Path,PathBuf};
 
 use std::collections::{HashSet, HashMap};
 
+use std::io::{Read};
+
 use git;
 
 /// The status of a rule.
@@ -141,7 +143,6 @@ pub enum FileKind {
 /// A file (or directory) that is either an input or an output for
 /// some rule.
 pub struct File<'a> {
-    // build: &'a Build<'a>,
     rule: RefCell<Option<&'a Rule<'a>>>,
     path: PathBuf,
     // Question: could Vec be more efficient than RefSet here? It
@@ -191,11 +192,18 @@ impl<'a> File<'a> {
     pub fn is_fac_file(&self) -> bool {
         self.rules_defined.borrow().len() > 0
     }
+
+    /// Formats the path nicely as a relative path if possible
+    pub fn pretty_path(&self, b: &Build) -> PathBuf {
+        match self.path.strip_prefix(&b.root) {
+            Ok(p) => PathBuf::from(p),
+            Err(_) => self.path.clone(),
+        }
+    }
 }
 
 /// A rule for building something.
 pub struct Rule<'a> {
-    build: &'a Build<'a>,
     inputs: RefCell<Vec<&'a File<'a>>>,
     outputs: RefCell<Vec<&'a File<'a>>>,
 
@@ -223,9 +231,9 @@ impl<'a> Rule<'a> {
     }
     /// Adjust the status of this rule, making sure to keep our sets
     /// up to date.
-    pub fn set_status(&'a self, s: Status) {
-        self.build.statuses[self.status.get()].borrow_mut().remove(self);
-        self.build.statuses[s].borrow_mut().insert(self);
+    pub fn set_status(&self, b: &'a Build, s: Status) {
+        b.statuses[self.status.get()].borrow_mut().remove(self);
+        b.statuses[s].borrow_mut().insert(self);
         self.status.set(s);
     }
     /// Mark this rule as dirty, adjusting other rules to match.
@@ -263,10 +271,10 @@ impl<'a> Rule<'a> {
     }
 
     /// Actually run the command FJIXME
-    pub fn run(&mut self) {
+    pub fn run(&mut self, b: &Build) {
         bigbro::Command::new("sh").arg("-c").arg(&self.command)
             .current_dir(&self.working_directory).status().unwrap();
-        self.build.facfiles_used.borrow_mut().insert(self.facfile);
+        b.facfiles_used.borrow_mut().insert(self.facfile);
     }
 }
 
@@ -295,6 +303,7 @@ pub struct Build<'a> {
     statuses: StatusMap<RefCell<RefSet<'a, Rule<'a>>>>,
 
     facfiles_used: RefCell<RefSet<'a, File<'a>>>,
+    root: PathBuf,
 }
 
 impl<'a> Build<'a> {
@@ -315,6 +324,7 @@ impl<'a> Build<'a> {
     /// ```
     pub fn new(allocators: &'a (typed_arena::Arena<File<'a>>,
                                 typed_arena::Arena<Rule<'a>>)) -> Build<'a> {
+        let root = std::env::current_dir().unwrap();
         let b = Build {
             alloc_files: &allocators.0,
             alloc_rules: &allocators.1,
@@ -322,9 +332,10 @@ impl<'a> Build<'a> {
             rules: RefCell::new(RefSet::new()),
             statuses: StatusMap::new(|| RefCell::new(RefSet::new())),
             facfiles_used: RefCell::new(RefSet::new()),
+            root: root,
         };
         for ref f in git::ls_files() {
-            b.new_file_private(f, true); // fixme: causes trouble, "does not live long enough".
+            b.new_file_private(f, true);
             println!("i see {:?}", f);
         }
         b
@@ -340,7 +351,6 @@ impl<'a> Build<'a> {
             None => ()
         }
         let f = self.alloc_files.alloc(File {
-            // build: self,
             rule: RefCell::new(None),
             path: PathBuf::from(path.as_ref()),
             children: RefCell::new(RefSet::new()),
@@ -368,7 +378,7 @@ impl<'a> Build<'a> {
     }
 
     /// Allocate space for a new `Rule`.
-    pub fn new_rule(&'a self,
+    pub fn new_rule(&self,
                     command: &OsStr,
                     working_directory: &Path,
                     facfile: &'a File<'a>,
@@ -379,7 +389,6 @@ impl<'a> Build<'a> {
             inputs: RefCell::new(vec![]),
             outputs: RefCell::new(vec![]),
             status: Cell::new(Status::Unknown),
-            build: self,
             cache_prefixes: cache_prefixes,
             cache_suffixes: cache_suffixes,
             working_directory: PathBuf::from(working_directory),
@@ -389,5 +398,47 @@ impl<'a> Build<'a> {
         self.statuses[Status::Unknown].borrow_mut().insert(r);
         self.rules.borrow_mut().insert(r);
         r
+    }
+
+    /// Read a fac file
+    pub fn read_file(&self, file: &File<'a>) -> std::io::Result<()> {
+        let mut f = std::fs::File::open(&file.path)?;
+        let mut v = Vec::new();
+        f.read_to_end(&mut v)?;
+        let mut command: Option<&[u8]> = None;
+        let mut cache_prefixes = HashSet::new();
+        let mut cache_suffixes = HashSet::new();
+        for (lineno_minus_one, line) in v.split(|c| *c == b'\n').enumerate() {
+            let lineno = lineno_minus_one + 1;
+            let parse_error = |msg: &str| {
+                Err(std::io::Error::new(std::io::ErrorKind::Other,
+                                        format!("error: {:?}:{}: {}",
+                                                file.pretty_path(self), lineno, msg)))
+            };
+            if line.len() < 2 || line[0] == b'#' { continue };
+            if line[1] != b' ' {
+                return parse_error("Second character of line should be a space.");
+            }
+            match line[0] {
+                b'|' => {
+                    match command {
+                        None => (),
+                        Some(c) => {
+                            self.new_rule(OsStr::from_bytes(c),
+                                          file.path.parent().unwrap(),
+                                          file,
+                                          cache_suffixes,
+                                          cache_prefixes);
+                            cache_prefixes.clear();
+                            cache_suffixes.clear();
+                        }
+                    }
+                    command = Some(&line[2..]);
+                },
+                _ => return parse_error(&format!("Invalid first character: {:?}", line[0])),
+            }
+            println!("Line {}: {:?}", lineno, line);
+        }
+        Ok(())
     }
 }
