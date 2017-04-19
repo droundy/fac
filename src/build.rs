@@ -8,8 +8,6 @@ extern crate bigbro;
 
 use std;
 
-use std::cell::{Cell, RefCell};
-use refset::{RefSet};
 use std::ffi::{OsString, OsStr};
 use std::path::{Path,PathBuf};
 
@@ -128,6 +126,11 @@ impl<T> std::ops::Index<Status> for StatusMap<T>  {
         &self.0[s as usize]
     }
 }
+impl<T> std::ops::IndexMut<Status> for StatusMap<T>  {
+    fn index_mut(&mut self, s: Status) -> &mut T {
+        &mut self.0[s as usize]
+    }
+}
 
 /// Is the file a regular file, a symlink, or a directory?
 #[derive(PartialEq, Eq, Hash, Copy, Clone)]
@@ -140,35 +143,39 @@ pub enum FileKind {
     Symlink,
 }
 
+/// A reference to a File
+#[derive(PartialEq, Eq, Hash, Copy, Clone)]
+pub struct FileRef(usize);
+
 /// A file (or directory) that is either an input or an output for
 /// some rule.
-pub struct File<'a> {
-    rule: RefCell<Option<&'a Rule<'a>>>,
+pub struct File {
+    rule: Option<RuleRef>,
     path: PathBuf,
     // Question: could Vec be more efficient than RefSet here? It
     // depends if we add a rule multiple times to the same set of
     // children.  FIXME check this!
-    children: RefCell<RefSet<'a, Rule<'a>>>,
+    children: HashSet<RuleRef>,
 
-    rules_defined: RefCell<RefSet<'a, Rule<'a>>>,
+    rules_defined: HashSet<RuleRef>,
 
-    kind: Cell<Option<FileKind>>,
+    kind: Option<FileKind>,
     is_in_git: bool,
 }
 
-impl<'a> File<'a> {
-    /// Declare that this File is dirty (i.e. has been modified since
-    /// the last build).
-    pub fn dirty(&self) {
-        for r in self.children.borrow().iter() {
-            r.dirty();
-        }
-    }
+impl File {
+    // /// Declare that this File is dirty (i.e. has been modified since
+    // /// the last build).
+    // pub fn dirty(&self) {
+    //     for r in self.children.borrow().iter() {
+    //         r.dirty();
+    //     }
+    // }
 
     /// Set file properties...
-    pub fn stat(&self) -> std::io::Result<FileKind> {
+    pub fn stat(&mut self) -> std::io::Result<FileKind> {
         let attr = std::fs::metadata(&self.path)?;
-        self.kind.set(if attr.file_type().is_symlink() {
+        self.kind = if attr.file_type().is_symlink() {
             Some(FileKind::Symlink)
         } else if attr.file_type().is_dir() {
             Some(FileKind::Dir)
@@ -176,8 +183,8 @@ impl<'a> File<'a> {
             Some(FileKind::File)
         } else {
             None
-        });
-        match self.kind.get() {
+        };
+        match self.kind {
             Some(k) => Ok(k),
             None => Err(std::io::Error::new(std::io::ErrorKind::Other, "irregular file")),
         }
@@ -190,7 +197,7 @@ impl<'a> File<'a> {
 
     /// Is this a fac file?
     pub fn is_fac_file(&self) -> bool {
-        self.rules_defined.borrow().len() > 0
+        self.rules_defined.len() > 0
     }
 
     /// Formats the path nicely as a relative path if possible
@@ -202,79 +209,37 @@ impl<'a> File<'a> {
     }
 }
 
-/// A rule for building something.
-pub struct Rule<'a> {
-    inputs: RefCell<Vec<&'a File<'a>>>,
-    outputs: RefCell<Vec<&'a File<'a>>>,
+/// A reference to a Rule
+#[derive(PartialEq, Eq, Hash, Copy, Clone)]
+pub struct RuleRef(usize);
 
-    status: Cell<Status>,
+/// A rule for building something.
+pub struct Rule {
+    inputs: Vec<FileRef>,
+    outputs: Vec<FileRef>,
+
+    status: Status,
     cache_prefixes: HashSet<OsString>,
     cache_suffixes: HashSet<OsString>,
 
     working_directory: PathBuf,
-    facfile: &'a File<'a>,
+    facfile: FileRef,
     command: OsString,
 }
 
-impl<'a> Rule<'a> {
-    /// Add a new File as an input to this rule.
-    pub fn add_input(&'a self, input: &'a File<'a>) -> &Rule<'a> {
-        self.inputs.borrow_mut().push(input);
-        input.children.borrow_mut().insert(self);
-        self
-    }
-    /// Add a new File as an output of this rule.
-    pub fn add_output(&'a self, input: &'a File<'a>) -> &Rule<'a> {
-        self.outputs.borrow_mut().push(input);
-        *input.rule.borrow_mut() = Some(self);
-        self
-    }
-    /// Adjust the status of this rule, making sure to keep our sets
-    /// up to date.
-    pub fn set_status(&self, b: &'a Build, s: Status) {
-        b.statuses[self.status.get()].borrow_mut().remove(self);
-        b.statuses[s].borrow_mut().insert(self);
-        self.status.set(s);
-    }
-    /// Mark this rule as dirty, adjusting other rules to match.
-    pub fn dirty(&'a self) {
-        let oldstat = self.status.get();
-        if oldstat != Status::Dirty {
-            self.set_status(Status::Dirty);
-            if oldstat != Status::Unready {
-                // Need to inform child rules they are unready now
-                for o in self.outputs.borrow().iter() {
-                    for r in o.children.borrow().iter() {
-                        r.unready();
-                    }
-                }
-            }
-        }
-    }
-    /// Make this rule (and any that depend on it) `Status::Unready`.
-    pub fn unready(&'a self) {
-        if self.status.get() != Status::Unready {
-            self.set_status(Status::Unready);
-            // Need to inform child rules they are unready now
-            for o in self.outputs.borrow().iter() {
-                for r in o.children.borrow().iter() {
-                    r.unready();
-                }
-            }
-        }
-    }
-
+impl Rule {
     /// Identifies whether a given path is "cache"
     pub fn is_cache(&self, path: &Path) -> bool {
         self.cache_suffixes.iter().any(|s| is_suffix(path, s)) ||
             self.cache_prefixes.iter().any(|s| is_prefix(path, s))
     }
 
-    /// Actually run the command FJIXME
-    pub fn run(&mut self, b: &Build) {
+    /// Actually run the command FJIXME needs to move to impl Build,
+    /// and should deal with threads and store output etc.
+    pub fn run(&mut self, b: &mut Build) {
         bigbro::Command::new("sh").arg("-c").arg(&self.command)
             .current_dir(&self.working_directory).status().unwrap();
-        b.facfiles_used.borrow_mut().insert(self.facfile);
+        b.facfiles_used.insert(self.facfile);
     }
 }
 
@@ -294,44 +259,33 @@ fn is_prefix(path: &Path, suff: &OsStr) -> bool {
 /// can drop the whole thing.  It is implmented using arena
 /// allocation, so all of our Rules and Files are guaranteed to live
 /// as long as the Build lives.
-pub struct Build<'a> {
-    alloc_files: &'a typed_arena::Arena<File<'a>>,
-    alloc_rules: &'a typed_arena::Arena<Rule<'a>>,
-    files: RefCell<HashMap<&'a Path, &'a File<'a>>>,
-    rules: RefCell<RefSet<'a, Rule<'a>>>,
+pub struct Build {
+    files: Vec<File>,
+    rules: Vec<Rule>,
+    filemap: HashMap<PathBuf, FileRef>,
+    statuses: StatusMap<HashSet<RuleRef>>,
 
-    statuses: StatusMap<RefCell<RefSet<'a, Rule<'a>>>>,
-
-    facfiles_used: RefCell<RefSet<'a, File<'a>>>,
+    facfiles_used: HashSet<FileRef>,
     root: PathBuf,
 }
 
-impl<'a> Build<'a> {
-    /// Create the arenas to give to `Build::new`
-    pub fn arenas() -> (typed_arena::Arena<File<'a>>,
-                        typed_arena::Arena<Rule<'a>>) {
-        (typed_arena::Arena::new(),
-         typed_arena::Arena::new())
-    }
+impl Build {
     /// Construct a new `Build`.
     ///
     /// # Examples
     ///
     /// ```
     /// use fac::build;
-    /// let arenas = build::Build::arenas();
-    /// let b = build::Build::new(&arenas);
+    /// let b = build::Build::new();
     /// ```
-    pub fn new(allocators: &'a (typed_arena::Arena<File<'a>>,
-                                typed_arena::Arena<Rule<'a>>)) -> Build<'a> {
+    pub fn new() -> Build {
         let root = std::env::current_dir().unwrap();
-        let b = Build {
-            alloc_files: &allocators.0,
-            alloc_rules: &allocators.1,
-            files: RefCell::new(HashMap::new()),
-            rules: RefCell::new(RefSet::new()),
-            statuses: StatusMap::new(|| RefCell::new(RefSet::new())),
-            facfiles_used: RefCell::new(RefSet::new()),
+        let mut b = Build {
+            files: Vec::new(),
+            rules: Vec::new(),
+            filemap: HashMap::new(),
+            statuses: StatusMap::new(|| HashSet::new()),
+            facfiles_used: HashSet::new(),
             root: root,
         };
         for ref f in git::ls_files() {
@@ -340,25 +294,26 @@ impl<'a> Build<'a> {
         }
         b
     }
-    fn new_file_private<P: AsRef<Path>>(&self, path: P,
+    fn new_file_private<P: AsRef<Path>>(&mut self, path: P,
                                         is_in_git: bool)
-                                        -> &File<'a> {
+                                        -> FileRef {
         // If this file is already in our database, use the version
         // that we have.  It is an important invariant that we can
         // only have one file with a given path in the database.
-        match self.files.borrow().get(path.as_ref()) {
-            Some(f) => return f,
+        match self.filemap.get(path.as_ref()) {
+            Some(f) => return *f,
             None => ()
         }
-        let f = self.alloc_files.alloc(File {
-            rule: RefCell::new(None),
+        let f = FileRef(self.files.len());
+        self.files.push(File {
+            rule: None,
             path: PathBuf::from(path.as_ref()),
-            children: RefCell::new(RefSet::new()),
-            rules_defined: RefCell::new(RefSet::new()),
-            kind: Cell::new(None),
+            children: HashSet::new(),
+            rules_defined: HashSet::new(),
+            kind: None,
             is_in_git: is_in_git,
         });
-        self.files.borrow_mut().insert(& f.path, f);
+        self.filemap.insert(PathBuf::from(path.as_ref()), f);
         f
     }
 
@@ -373,36 +328,37 @@ impl<'a> Build<'a> {
     /// let mut b = build::Build::new(&arenas);
     /// let t = b.new_file("test");
     /// ```
-    pub fn new_file<P: AsRef<Path>>(&self, path: P) -> &File<'a> {
+    pub fn new_file<P: AsRef<Path>>(&mut self, path: P) -> FileRef {
         self.new_file_private(path, false)
     }
 
     /// Allocate space for a new `Rule`.
-    pub fn new_rule(&self,
+    pub fn new_rule(&mut self,
                     command: &OsStr,
                     working_directory: &Path,
-                    facfile: &'a File<'a>,
+                    facfile: FileRef,
                     cache_suffixes: HashSet<OsString>,
                     cache_prefixes: HashSet<OsString>)
-                    -> &Rule<'a> {
-        let r = self.alloc_rules.alloc(Rule {
-            inputs: RefCell::new(vec![]),
-            outputs: RefCell::new(vec![]),
-            status: Cell::new(Status::Unknown),
+                    -> RuleRef {
+        let r = RuleRef(self.rules.len());
+        self.rules.push(Rule {
+            inputs: Vec::new(),
+            outputs: Vec::new(),
+            status: Status::Unknown,
             cache_prefixes: cache_prefixes,
             cache_suffixes: cache_suffixes,
             working_directory: PathBuf::from(working_directory),
             facfile: facfile,
             command: OsString::from(command),
         });
-        self.statuses[Status::Unknown].borrow_mut().insert(r);
-        self.rules.borrow_mut().insert(r);
+        self.statuses[Status::Unknown].insert(r);
         r
     }
 
     /// Read a fac file
-    pub fn read_file(&self, file: &File<'a>) -> std::io::Result<()> {
-        let mut f = std::fs::File::open(&file.path)?;
+    pub fn read_file(&mut self, fileref: FileRef) -> std::io::Result<()> {
+        let filepath = self[fileref].path.clone();
+        let mut f = std::fs::File::open(&filepath)?;
         let mut v = Vec::new();
         f.read_to_end(&mut v)?;
         let mut command: Option<&[u8]> = None;
@@ -410,14 +366,15 @@ impl<'a> Build<'a> {
         let mut cache_suffixes = HashSet::new();
         for (lineno_minus_one, line) in v.split(|c| *c == b'\n').enumerate() {
             let lineno = lineno_minus_one + 1;
-            let parse_error = |msg: &str| {
+            fn parse_error(path: &Path, lineno: usize, msg: &str) -> std::io::Result<()> {
                 Err(std::io::Error::new(std::io::ErrorKind::Other,
                                         format!("error: {:?}:{}: {}",
-                                                file.pretty_path(self), lineno, msg)))
-            };
+                                                path, lineno, msg)))
+            }
             if line.len() < 2 || line[0] == b'#' { continue };
             if line[1] != b' ' {
-                return parse_error("Second character of line should be a space.");
+                return parse_error(&filepath, lineno,
+                                   "Second character of line should be a space.");
             }
             match line[0] {
                 b'|' => {
@@ -425,20 +382,95 @@ impl<'a> Build<'a> {
                         None => (),
                         Some(c) => {
                             self.new_rule(OsStr::from_bytes(c),
-                                          file.path.parent().unwrap(),
-                                          file,
+                                          filepath.parent().unwrap(),
+                                          fileref,
                                           cache_suffixes,
                                           cache_prefixes);
-                            cache_prefixes.clear();
-                            cache_suffixes.clear();
+                            cache_prefixes = HashSet::new();
+                            cache_suffixes = HashSet::new();
                         }
                     }
                     command = Some(&line[2..]);
                 },
-                _ => return parse_error(&format!("Invalid first character: {:?}", line[0])),
+                _ => return parse_error(&filepath, lineno,
+                                        &format!("Invalid first character: {:?}", line[0])),
             }
             println!("Line {}: {:?}", lineno, line);
         }
         Ok(())
+    }
+
+    /// Add a new File as an input to this rule.
+    pub fn add_input(&mut self, r: RuleRef, input: FileRef) {
+        self.rule_mut(r).inputs.push(input);
+        self[input].children.insert(r);
+    }
+    /// Add a new File as an output of this rule.
+    pub fn add_output(&mut self, r: RuleRef, output: FileRef) {
+        self.rule_mut(r).outputs.push(output);
+        self[output].rule = Some(r);
+    }
+
+    /// Adjust the status of this rule, making sure to keep our sets
+    /// up to date.
+    pub fn set_status(&mut self, r: RuleRef, s: Status) {
+        let oldstatus = self.rule(r).status;
+        self.statuses[oldstatus].remove(&r);
+        self.statuses[s].insert(r);
+        self.rule_mut(r).status = s;
+    }
+
+    /// Mark this rule as dirty, adjusting other rules to match.
+    pub fn dirty(&mut self, r: RuleRef) {
+        let oldstat = self.rule(r).status;
+        if oldstat != Status::Dirty {
+            self.set_status(r, Status::Dirty);
+            if oldstat != Status::Unready {
+                // Need to inform child rules they are unready now
+                let children: Vec<RuleRef> = self.rule(r).outputs.iter()
+                    .flat_map(|o| self[*o].children.iter()).map(|c| *c).collect();
+                // This is a separate loop to satisfy the borrow checker.
+                for childr in children.iter() {
+                    self.unready(*childr);
+                }
+            }
+        }
+    }
+    /// Make this rule (and any that depend on it) `Status::Unready`.
+    pub fn unready(&mut self, r: RuleRef) {
+        if self.rule(r).status != Status::Unready {
+            self.set_status(r, Status::Unready);
+            // Need to inform child rules they are unready now
+            let children: Vec<RuleRef> = self.rule(r).outputs.iter()
+                .flat_map(|o| self[*o].children.iter()).map(|c| *c).collect();
+            // This is a separate loop to satisfy the borrow checker.
+            // It is somewhat less efficient to store this, but such
+            // is life.  I could have stored a HashSet rather than a
+            // Vec, but suspect the hash table overhead would make it
+            // less efficient.
+            for childr in children.iter() {
+                self.unready(*childr);
+            }
+        }
+    }
+
+    pub fn rule_mut(&mut self, r: RuleRef) -> &mut Rule {
+        &mut self.rules[r.0]
+    }
+    pub fn rule(&self, r: RuleRef) -> &Rule {
+        &self.rules[r.0]
+    }
+
+}
+
+impl std::ops::Index<FileRef> for Build  {
+    type Output = File;
+    fn index(&self, r: FileRef) -> &File {
+        &self.files[r.0]
+    }
+}
+impl std::ops::IndexMut<FileRef> for Build  {
+    fn index_mut(&mut self, r: FileRef) -> &mut File {
+        &mut self.files[r.0]
     }
 }
