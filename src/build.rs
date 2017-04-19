@@ -17,6 +17,25 @@ use std::io::{Read};
 
 use git;
 
+/// `Id<'id>` is invariant w.r.t `'id`
+///
+/// This means that the inference engine is not allowed to shrink or
+/// grow 'id to solve the borrow system.  This implementation is taken
+/// from https://github.com/bluss/indexing/blob/master/src/lib.rs
+#[derive(Copy, Clone, PartialEq, PartialOrd, Eq, Hash)]
+struct Id<'id> { id: std::marker::PhantomData<*mut &'id ()>, }
+impl<'id> Default for Id<'id> {
+    #[inline]
+    fn default() -> Self {
+        Id { id: std::marker::PhantomData }
+    }
+}
+impl<'id> std::fmt::Debug for Id<'id> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        f.write_str("Id<'id>")
+    }
+}
+
 /// The status of a rule.
 #[derive(PartialEq, Eq, Hash, Copy, Clone, Debug)]
 pub enum Status {
@@ -133,7 +152,7 @@ impl<T> std::ops::IndexMut<Status> for StatusMap<T>  {
 }
 
 /// Is the file a regular file, a symlink, or a directory?
-#[derive(PartialEq, Eq, Hash, Copy, Clone)]
+#[derive(PartialEq, Eq, Hash, Copy, Clone, Debug)]
 pub enum FileKind {
     /// It is a regular file
     File,
@@ -144,26 +163,29 @@ pub enum FileKind {
 }
 
 /// A reference to a File
-#[derive(PartialEq, Eq, Hash, Copy, Clone)]
-pub struct FileRef(usize);
+#[derive(PartialEq, Eq, Hash, Copy, Clone, Debug)]
+pub struct FileRef<'id>(usize, Id<'id>);
 
 /// A file (or directory) that is either an input or an output for
 /// some rule.
-pub struct File {
-    rule: Option<RuleRef>,
+#[derive(Debug)]
+pub struct File<'id> {
+    #[allow(dead_code)]
+    id: Id<'id>,
+    rule: Option<RuleRef<'id>>,
     path: PathBuf,
     // Question: could Vec be more efficient than RefSet here? It
     // depends if we add a rule multiple times to the same set of
     // children.  FIXME check this!
-    children: HashSet<RuleRef>,
+    children: HashSet<RuleRef<'id>>,
 
-    rules_defined: HashSet<RuleRef>,
+    rules_defined: HashSet<RuleRef<'id>>,
 
     kind: Option<FileKind>,
     is_in_git: bool,
 }
 
-impl File {
+impl<'id> File<'id> {
     // /// Declare that this File is dirty (i.e. has been modified since
     // /// the last build).
     // pub fn dirty(&self) {
@@ -201,7 +223,7 @@ impl File {
     }
 
     /// Formats the path nicely as a relative path if possible
-    pub fn pretty_path(&self, b: &Build) -> PathBuf {
+    pub fn pretty_path(&self, b: &Build<'id>) -> PathBuf {
         match self.path.strip_prefix(&b.root) {
             Ok(p) => PathBuf::from(p),
             Err(_) => self.path.clone(),
@@ -210,24 +232,27 @@ impl File {
 }
 
 /// A reference to a Rule
-#[derive(PartialEq, Eq, Hash, Copy, Clone)]
-pub struct RuleRef(usize);
+#[derive(PartialEq, Eq, Hash, Copy, Clone, Debug)]
+pub struct RuleRef<'id>(usize, Id<'id>);
 
 /// A rule for building something.
-pub struct Rule {
-    inputs: Vec<FileRef>,
-    outputs: Vec<FileRef>,
+#[derive(Debug)]
+pub struct Rule<'id> {
+    #[allow(dead_code)]
+    id: Id<'id>,
+    inputs: Vec<FileRef<'id>>,
+    outputs: Vec<FileRef<'id>>,
 
     status: Status,
     cache_prefixes: HashSet<OsString>,
     cache_suffixes: HashSet<OsString>,
 
     working_directory: PathBuf,
-    facfile: FileRef,
+    facfile: FileRef<'id>,
     command: OsString,
 }
 
-impl Rule {
+impl<'id> Rule<'id> {
     /// Identifies whether a given path is "cache"
     pub fn is_cache(&self, path: &Path) -> bool {
         self.cache_suffixes.iter().any(|s| is_suffix(path, s)) ||
@@ -236,7 +261,7 @@ impl Rule {
 
     /// Actually run the command FJIXME needs to move to impl Build,
     /// and should deal with threads and store output etc.
-    pub fn run(&mut self, b: &mut Build) {
+    pub fn run(&mut self, b: &mut Build<'id>) {
         bigbro::Command::new("sh").arg("-c").arg(&self.command)
             .current_dir(&self.working_directory).status().unwrap();
         b.facfiles_used.insert(self.facfile);
@@ -256,47 +281,62 @@ fn is_prefix(path: &Path, suff: &OsStr) -> bool {
 
 /// A struct that holds all the information needed to build.  You can
 /// think of this as behaving like a set of global variables, but we
-/// can drop the whole thing.  It is implmented using arena
-/// allocation, so all of our Rules and Files are guaranteed to live
-/// as long as the Build lives.
-pub struct Build {
-    files: Vec<File>,
-    rules: Vec<Rule>,
-    filemap: HashMap<PathBuf, FileRef>,
-    statuses: StatusMap<HashSet<RuleRef>>,
+/// can drop the whole thing.
+///
+/// Build is implmented using a type witness `'id`, which makes it
+/// impossible to create RuleRefs and FileRefs that are out of bounds.
+/// I really should put some of these things in a "private" module so
+/// that I can provide stronger guarantees of correctness in the main
+/// build module.
+#[derive(Debug)]
+pub struct Build<'id> {
+    #[allow(dead_code)]
+    id: Id<'id>,
+    files: Vec<File<'id>>,
+    rules: Vec<Rule<'id>>,
+    filemap: HashMap<PathBuf, FileRef<'id>>,
+    statuses: StatusMap<HashSet<RuleRef<'id>>>,
 
-    facfiles_used: HashSet<FileRef>,
+    facfiles_used: HashSet<FileRef<'id>>,
     root: PathBuf,
 }
 
-impl Build {
-    /// Construct a new `Build`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use fac::build;
-    /// let b = build::Build::new();
-    /// ```
-    pub fn new() -> Build {
-        let root = std::env::current_dir().unwrap();
-        let mut b = Build {
-            files: Vec::new(),
-            rules: Vec::new(),
-            filemap: HashMap::new(),
-            statuses: StatusMap::new(|| HashSet::new()),
-            facfiles_used: HashSet::new(),
-            root: root,
-        };
-        for ref f in git::ls_files() {
-            b.new_file_private(f, true);
-            println!("i see {:?}", f);
-        }
-        b
+/// Construct a new `Build<'id>` and use it to do some computation.
+///
+/// # Examples
+///
+/// ```
+/// extern crate fac;
+/// fac::build::build(|b| {
+///   println!("I am building {:?}", b)
+/// });
+/// ```
+pub fn build<F, Out>(f: F) -> Out
+    where F: for<'id> FnOnce(Build<'id>) -> Out
+{
+    // This approach to type witnesses is taken from
+    // https://github.com/bluss/indexing/blob/master/src/container.rs
+    let root = std::env::current_dir().unwrap();
+    let mut b = Build {
+        id: Id::default(),
+        files: Vec::new(),
+        rules: Vec::new(),
+        filemap: HashMap::new(),
+        statuses: StatusMap::new(|| HashSet::new()),
+        facfiles_used: HashSet::new(),
+        root: root,
+    };
+    for ref f in git::ls_files() {
+        b.new_file_private(f, true);
+        println!("i see {:?}", f);
     }
+    f(b)
+}
+
+impl<'id> Build<'id> {
     fn new_file_private<P: AsRef<Path>>(&mut self, path: P,
                                         is_in_git: bool)
-                                        -> FileRef {
+                                        -> FileRef<'id> {
         // If this file is already in our database, use the version
         // that we have.  It is an important invariant that we can
         // only have one file with a given path in the database.
@@ -304,8 +344,9 @@ impl Build {
             Some(f) => return *f,
             None => ()
         }
-        let f = FileRef(self.files.len());
+        let f = FileRef(self.files.len(), self.id);
         self.files.push(File {
+            id: self.id,
             rule: None,
             path: PathBuf::from(path.as_ref()),
             children: HashSet::new(),
@@ -324,11 +365,11 @@ impl Build {
     ///
     /// ```
     /// use fac::build;
-    /// let arenas = build::Build::arenas();
-    /// let mut b = build::Build::new(&arenas);
-    /// let t = b.new_file("test");
+    /// build::build(|mut b| {
+    ///   let t = b.new_file("test");
+    /// })
     /// ```
-    pub fn new_file<P: AsRef<Path>>(&mut self, path: P) -> FileRef {
+    pub fn new_file<P: AsRef<Path>>(&mut self, path: P) -> FileRef<'id> {
         self.new_file_private(path, false)
     }
 
@@ -336,12 +377,13 @@ impl Build {
     pub fn new_rule(&mut self,
                     command: &OsStr,
                     working_directory: &Path,
-                    facfile: FileRef,
+                    facfile: FileRef<'id>,
                     cache_suffixes: HashSet<OsString>,
                     cache_prefixes: HashSet<OsString>)
-                    -> RuleRef {
-        let r = RuleRef(self.rules.len());
+                    -> RuleRef<'id> {
+        let r = RuleRef(self.rules.len(), self.id);
         self.rules.push(Rule {
+            id: self.id,
             inputs: Vec::new(),
             outputs: Vec::new(),
             status: Status::Unknown,
@@ -356,7 +398,7 @@ impl Build {
     }
 
     /// Read a fac file
-    pub fn read_file(&mut self, fileref: FileRef) -> std::io::Result<()> {
+    pub fn read_file(&mut self, fileref: FileRef<'id>) -> std::io::Result<()> {
         let filepath = self[fileref].path.clone();
         let mut f = std::fs::File::open(&filepath)?;
         let mut v = Vec::new();
@@ -401,19 +443,19 @@ impl Build {
     }
 
     /// Add a new File as an input to this rule.
-    pub fn add_input(&mut self, r: RuleRef, input: FileRef) {
+    pub fn add_input(&mut self, r: RuleRef<'id>, input: FileRef<'id>) {
         self.rule_mut(r).inputs.push(input);
         self[input].children.insert(r);
     }
     /// Add a new File as an output of this rule.
-    pub fn add_output(&mut self, r: RuleRef, output: FileRef) {
+    pub fn add_output(&mut self, r: RuleRef<'id>, output: FileRef<'id>) {
         self.rule_mut(r).outputs.push(output);
         self[output].rule = Some(r);
     }
 
     /// Adjust the status of this rule, making sure to keep our sets
     /// up to date.
-    pub fn set_status(&mut self, r: RuleRef, s: Status) {
+    pub fn set_status(&mut self, r: RuleRef<'id>, s: Status) {
         let oldstatus = self.rule(r).status;
         self.statuses[oldstatus].remove(&r);
         self.statuses[s].insert(r);
@@ -421,13 +463,13 @@ impl Build {
     }
 
     /// Mark this rule as dirty, adjusting other rules to match.
-    pub fn dirty(&mut self, r: RuleRef) {
+    pub fn dirty(&mut self, r: RuleRef<'id>) {
         let oldstat = self.rule(r).status;
         if oldstat != Status::Dirty {
             self.set_status(r, Status::Dirty);
             if oldstat != Status::Unready {
                 // Need to inform child rules they are unready now
-                let children: Vec<RuleRef> = self.rule(r).outputs.iter()
+                let children: Vec<RuleRef<'id>> = self.rule(r).outputs.iter()
                     .flat_map(|o| self[*o].children.iter()).map(|c| *c).collect();
                 // This is a separate loop to satisfy the borrow checker.
                 for childr in children.iter() {
@@ -437,11 +479,11 @@ impl Build {
         }
     }
     /// Make this rule (and any that depend on it) `Status::Unready`.
-    pub fn unready(&mut self, r: RuleRef) {
+    pub fn unready(&mut self, r: RuleRef<'id>) {
         if self.rule(r).status != Status::Unready {
             self.set_status(r, Status::Unready);
             // Need to inform child rules they are unready now
-            let children: Vec<RuleRef> = self.rule(r).outputs.iter()
+            let children: Vec<RuleRef<'id>> = self.rule(r).outputs.iter()
                 .flat_map(|o| self[*o].children.iter()).map(|c| *c).collect();
             // This is a separate loop to satisfy the borrow checker.
             // It is somewhat less efficient to store this, but such
@@ -454,23 +496,25 @@ impl Build {
         }
     }
 
-    pub fn rule_mut(&mut self, r: RuleRef) -> &mut Rule {
+    /// Look up the rule
+    pub fn rule_mut(&mut self, r: RuleRef<'id>) -> &mut Rule<'id> {
         &mut self.rules[r.0]
     }
-    pub fn rule(&self, r: RuleRef) -> &Rule {
+    /// Look up the rule
+    pub fn rule(&self, r: RuleRef<'id>) -> &Rule<'id> {
         &self.rules[r.0]
     }
 
 }
 
-impl std::ops::Index<FileRef> for Build  {
-    type Output = File;
-    fn index(&self, r: FileRef) -> &File {
+impl<'id> std::ops::Index<FileRef<'id>> for Build<'id>  {
+    type Output = File<'id>;
+    fn index(&self, r: FileRef<'id>) -> &File<'id> {
         &self.files[r.0]
     }
 }
-impl std::ops::IndexMut<FileRef> for Build  {
-    fn index_mut(&mut self, r: FileRef) -> &mut File {
+impl<'id> std::ops::IndexMut<FileRef<'id>> for Build<'id>  {
+    fn index_mut(&mut self, r: FileRef<'id>) -> &mut File<'id> {
         &mut self.files[r.0]
     }
 }
