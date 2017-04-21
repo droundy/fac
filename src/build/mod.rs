@@ -17,6 +17,8 @@ use std::io::{Read};
 
 use git;
 
+pub mod hashstat;
+
 /// `Id<'id>` is invariant w.r.t `'id`
 ///
 /// This means that the inference engine is not allowed to shrink or
