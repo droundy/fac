@@ -2,7 +2,6 @@
 name = "fac"
 version = "0.1.0"
 authors = ["daveroundy@gmail.com"]
-build = "build.rs"
 
 [lib]
 name = "fac"
