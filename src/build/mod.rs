@@ -227,7 +227,7 @@ impl<'id> File<'id> {
 
     /// Formats the path nicely as a relative path if possible
     pub fn pretty_path(&self, b: &Build<'id>) -> PathBuf {
-        match self.path.strip_prefix(&b.root) {
+        match self.path.strip_prefix(&b.flags.root) {
             Ok(p) => PathBuf::from(p),
             Err(_) => self.path.clone(),
         }
@@ -319,7 +319,8 @@ pub struct Build<'id> {
     statuses: StatusMap<HashSet<RuleRef<'id>>>,
 
     facfiles_used: HashSet<FileRef<'id>>,
-    root: PathBuf,
+
+    flags: flags::Flags,
 }
 
 /// Construct a new `Build<'id>` and use it to do some computation.
@@ -328,16 +329,15 @@ pub struct Build<'id> {
 ///
 /// ```
 /// extern crate fac;
-/// fac::build::build(|b| {
+/// fac::build::build(fac::build::flags::args(), |b| {
 ///   println!("I am building {:?}", b)
 /// });
 /// ```
-pub fn build<F, Out>(f: F) -> Out
+pub fn build<F, Out>(fl: flags::Flags, f: F) -> Out
     where F: for<'id> FnOnce(Build<'id>) -> Out
 {
     // This approach to type witnesses is taken from
     // https://github.com/bluss/indexing/blob/master/src/container.rs
-    let root = std::env::current_dir().unwrap();
     let mut b = Build {
         id: Id::default(),
         files: Vec::new(),
@@ -345,7 +345,7 @@ pub fn build<F, Out>(f: F) -> Out
         filemap: HashMap::new(),
         statuses: StatusMap::new(|| HashSet::new()),
         facfiles_used: HashSet::new(),
-        root: root,
+        flags: fl,
     };
     for ref f in git::ls_files() {
         b.new_file_private(f, true);
@@ -386,7 +386,7 @@ impl<'id> Build<'id> {
     ///
     /// ```
     /// use fac::build;
-    /// build::build(|mut b| {
+    /// build::build(build::flags::args(), |mut b| {
     ///   let t = b.new_file("test");
     /// })
     /// ```
