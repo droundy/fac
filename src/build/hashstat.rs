@@ -32,6 +32,7 @@ pub fn stat(f: &std::path::Path) -> std::io::Result<HashStat> {
         hash: 0,
     })
 }
+/// stat a file
 #[cfg(unix)]
 pub fn stat(f: &std::path::Path) -> std::io::Result<HashStat> {
     let s = std::fs::metadata(f)?;
