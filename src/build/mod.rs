@@ -199,7 +199,7 @@ impl<'id> File<'id> {
 
     /// Set file properties...
     pub fn stat(&mut self) -> std::io::Result<FileKind> {
-        let attr = std::fs::metadata(&self.path)?;
+        let attr = self.path.symlink_metadata()?;
         self.kind = if attr.file_type().is_symlink() {
             Some(FileKind::Symlink)
         } else if attr.file_type().is_dir() {

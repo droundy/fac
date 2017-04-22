@@ -7,6 +7,9 @@
 #[macro_use]
 extern crate quickcheck;
 
+#[macro_use]
+extern crate clap;
+
 extern crate libc;
 
 mod git;
@@ -15,6 +18,5 @@ pub mod refset;
 pub mod build;
 
 fn main() {
-    git::go_to_top();
     build::flags::args();
 }

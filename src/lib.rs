@@ -7,6 +7,9 @@
 #[macro_use]
 extern crate quickcheck;
 
+#[macro_use]
+extern crate clap;
+
 pub mod git;
 pub mod refset;
 
