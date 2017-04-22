@@ -408,7 +408,7 @@ impl<'id> Build<'id> {
         let mut command: Option<RuleRef<'id>> = None;
         for (lineno_minus_one, line) in v.split(|c| *c == b'\n').enumerate() {
             let lineno = lineno_minus_one + 1;
-            fn parse_error(path: &Path, lineno: usize, msg: &str) -> std::io::Result<()> {
+            fn parse_error<T>(path: &Path, lineno: usize, msg: &str) -> std::io::Result<T> {
                 Err(std::io::Error::new(std::io::ErrorKind::Other,
                                         format!("error: {:?}:{}: {}",
                                                 path, lineno, msg)))
@@ -418,6 +418,13 @@ impl<'id> Build<'id> {
                 return parse_error(&filepath, lineno,
                                    "Second character of line should be a space.");
             }
+            let get_rule = |r: Option<RuleRef<'id>>, c: char| -> std::io::Result<RuleRef<'id>> {
+                match r {
+                    None => parse_error(&filepath, lineno,
+                                        &format!("'{}' line must follow '|' or '?'",c)),
+                    Some(r) => Ok(r),
+                }
+            };
             match line[0] {
                 b'|' => {
                     command = Some(self.new_rule(OsStr::from_bytes(&line[2..]),
@@ -427,52 +434,20 @@ impl<'id> Build<'id> {
                                                  HashSet::new()));
                 },
                 b'>' => {
-                    match command {
-                        None =>
-                            return parse_error(&filepath, lineno,
-                                               &format!("'>' line must follow '|' or '?' : {:?}",
-                                                        line[0])),
-                        Some(r) => {
-                            let f = self.new_file(OsStr::from_bytes(&line[2..]));
-                            self.add_output(r, f);
-                        }
-                    }
+                    let f = self.new_file(OsStr::from_bytes(&line[2..]));
+                    self.add_output(get_rule(command, '>')?, f);
                 },
                 b'<' => {
-                    match command {
-                        None =>
-                            return parse_error(&filepath, lineno,
-                                               &format!("'<' line must follow '|' or '?' : {:?}",
-                                                        line[0])),
-                        Some(r) => {
-                            let f = self.new_file(OsStr::from_bytes(&line[2..]));
-                            self.add_input(r, f);
-                        }
-                    }
+                    let f = self.new_file(OsStr::from_bytes(&line[2..]));
+                    self.add_input(get_rule(command, '<')?, f);
                 },
                 b'c' => {
-                    match command {
-                        None =>
-                            return parse_error(&filepath, lineno,
-                                               &format!("'c' line must follow '|' or '?' : {:?}",
-                                                        line[0])),
-                        Some(r) => {
-                            self.rule_mut(r).cache_prefixes
-                                .insert(OsStr::from_bytes(&line[2..]).to_os_string());
-                        }
-                    }
+                    self.rule_mut(get_rule(command, 'c')?).cache_prefixes
+                        .insert(OsStr::from_bytes(&line[2..]).to_os_string());
                 },
                 b'C' => {
-                    match command {
-                        None =>
-                            return parse_error(&filepath, lineno,
-                                               &format!("'C' line must follow '|' or '?' : {:?}",
-                                                        line[0])),
-                        Some(r) => {
-                            self.rule_mut(r).cache_suffixes
-                                .insert(OsStr::from_bytes(&line[2..]).to_os_string());
-                        }
-                    }
+                    self.rule_mut(get_rule(command, 'C')?).cache_suffixes
+                        .insert(OsStr::from_bytes(&line[2..]).to_os_string());
                 },
                 _ => return parse_error(&filepath, lineno,
                                         &format!("Invalid first character: {:?}", line[0])),
