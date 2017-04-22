@@ -21,6 +21,57 @@ pub struct HashStat {
     pub hash: u64,
 }
 
+fn encode(i: u64) -> [u8; 16] {
+    let mut out = [0;16];
+    for x in 0..16 {
+        let hexit = ((i >> (x*4)) & 15) as u8;
+        if hexit < 10 {
+            out[x] = b'0' + hexit;
+        } else {
+            out[x] = b'a' + (hexit-10);
+        }
+    }
+    out
+}
+
+// fn decode(i: &[u8; 16]) -> u64 {
+fn decode(i: &[u8]) -> u64 {
+    let mut out = 0;
+    for x in 0..16 {
+        let hexit = if i[x] < 10 {
+            i[x] - b'0'
+        } else {
+            10 + i[x] - b'a'
+        };
+        out += (hexit as u64) << (x*4);
+    }
+    out
+}
+
+impl HashStat {
+    /// encode as bytes
+    pub fn encode(&self) -> Vec<u8> {
+        let mut v = Vec::from(&encode(self.size)[..]);
+        v.extend(&encode(self.time as u64)[..]);
+        v.extend(&encode(self.time_ns as u64)[..]);
+        v.extend(&encode(self.hash)[..]);
+        v
+    }
+    /// decode from bytes
+    pub fn decode(h: &[u8]) -> std::io::Result<HashStat> {
+        if h.len() != 64 {
+            Err(std::io::Error::new(std::io::ErrorKind::Other, "wrong size line!"))
+        } else {
+            Ok(HashStat {
+                size: decode(h),
+                time: decode(&h[16..]) as i64,
+                time_ns: decode(&h[32..]) as i64,
+                hash: decode(&h[48..]),
+            })
+        }
+    }
+}
+
 /// stat a file
 #[cfg(not(unix))]
 pub fn stat(f: &std::path::Path) -> std::io::Result<HashStat> {
