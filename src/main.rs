@@ -16,4 +16,5 @@ pub mod build;
 
 fn main() {
     git::go_to_top();
+    build::flags::args();
 }

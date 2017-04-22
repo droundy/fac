@@ -18,6 +18,7 @@ use std::io::{Read};
 use git;
 
 pub mod hashstat;
+pub mod flags;
 
 /// `Id<'id>` is invariant w.r.t `'id`
 ///
