@@ -405,9 +405,7 @@ impl<'id> Build<'id> {
         let mut f = std::fs::File::open(&filepath)?;
         let mut v = Vec::new();
         f.read_to_end(&mut v)?;
-        let mut command: Option<&[u8]> = None;
-        let mut cache_prefixes = HashSet::new();
-        let mut cache_suffixes = HashSet::new();
+        let mut command: Option<RuleRef<'id>> = None;
         for (lineno_minus_one, line) in v.split(|c| *c == b'\n').enumerate() {
             let lineno = lineno_minus_one + 1;
             fn parse_error(path: &Path, lineno: usize, msg: &str) -> std::io::Result<()> {
@@ -422,19 +420,59 @@ impl<'id> Build<'id> {
             }
             match line[0] {
                 b'|' => {
+                    command = Some(self.new_rule(OsStr::from_bytes(&line[2..]),
+                                                 filepath.parent().unwrap(),
+                                                 fileref,
+                                                 HashSet::new(),
+                                                 HashSet::new()));
+                },
+                b'>' => {
                     match command {
-                        None => (),
-                        Some(c) => {
-                            self.new_rule(OsStr::from_bytes(c),
-                                          filepath.parent().unwrap(),
-                                          fileref,
-                                          cache_suffixes,
-                                          cache_prefixes);
-                            cache_prefixes = HashSet::new();
-                            cache_suffixes = HashSet::new();
+                        None =>
+                            return parse_error(&filepath, lineno,
+                                               &format!("'>' line must follow '|' or '?' : {:?}",
+                                                        line[0])),
+                        Some(r) => {
+                            let f = self.new_file(OsStr::from_bytes(&line[2..]));
+                            self.add_output(r, f);
                         }
                     }
-                    command = Some(&line[2..]);
+                },
+                b'<' => {
+                    match command {
+                        None =>
+                            return parse_error(&filepath, lineno,
+                                               &format!("'<' line must follow '|' or '?' : {:?}",
+                                                        line[0])),
+                        Some(r) => {
+                            let f = self.new_file(OsStr::from_bytes(&line[2..]));
+                            self.add_input(r, f);
+                        }
+                    }
+                },
+                b'c' => {
+                    match command {
+                        None =>
+                            return parse_error(&filepath, lineno,
+                                               &format!("'c' line must follow '|' or '?' : {:?}",
+                                                        line[0])),
+                        Some(r) => {
+                            self.rule_mut(r).cache_prefixes
+                                .insert(OsStr::from_bytes(&line[2..]).to_os_string());
+                        }
+                    }
+                },
+                b'C' => {
+                    match command {
+                        None =>
+                            return parse_error(&filepath, lineno,
+                                               &format!("'C' line must follow '|' or '?' : {:?}",
+                                                        line[0])),
+                        Some(r) => {
+                            self.rule_mut(r).cache_suffixes
+                                .insert(OsStr::from_bytes(&line[2..]).to_os_string());
+                        }
+                    }
                 },
                 _ => return parse_error(&filepath, lineno,
                                         &format!("Invalid first character: {:?}", line[0])),
