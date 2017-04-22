@@ -1,5 +1,8 @@
 //! Hello
 
+#[cfg(test)]
+extern crate quickcheck;
+
 use std;
 use std::io::{Read};
 use std::hash::{Hasher};
@@ -9,7 +12,7 @@ use std::collections::hash_map::DefaultHasher;
 use std::os::unix::fs::{MetadataExt};
 
 /// The stat information about a file
-#[derive(Copy, Clone, PartialEq, PartialOrd, Eq, Hash)]
+#[derive(Copy, Clone, PartialEq, PartialOrd, Eq, Hash, Debug)]
 pub struct HashStat {
     /// modification time
     pub time: i64,
@@ -19,6 +22,25 @@ pub struct HashStat {
     pub size: u64,
     /// hash
     pub hash: u64,
+}
+
+#[cfg(test)]
+impl quickcheck::Arbitrary for HashStat {
+    fn arbitrary<G: quickcheck::Gen>(g: &mut G) -> HashStat {
+        HashStat {
+            time: i64::arbitrary(g),
+            time_ns: i64::arbitrary(g),
+            size: u64::arbitrary(g),
+            hash: u64::arbitrary(g),
+        }
+    }
+}
+
+#[cfg(test)]
+quickcheck! {
+    fn prop_encode_decode(hs: HashStat) -> bool {
+        hs == HashStat::decode(&hs.encode())
+    }
 }
 
 fn encode(i: u64) -> [u8; 16] {
@@ -38,7 +60,7 @@ fn encode(i: u64) -> [u8; 16] {
 fn decode(i: &[u8]) -> u64 {
     let mut out = 0;
     for x in 0..16 {
-        let hexit = if i[x] < 10 {
+        let hexit = if i[x] < b'a' {
             i[x] - b'0'
         } else {
             10 + i[x] - b'a'
@@ -58,16 +80,20 @@ impl HashStat {
         v
     }
     /// decode from bytes
-    pub fn decode(h: &[u8]) -> std::io::Result<HashStat> {
+    pub fn decode(h: &[u8]) -> HashStat {
         if h.len() != 64 {
-            Err(std::io::Error::new(std::io::ErrorKind::Other, "wrong size line!"))
-        } else {
-            Ok(HashStat {
-                size: decode(h),
-                time: decode(&h[16..]) as i64,
-                time_ns: decode(&h[32..]) as i64,
-                hash: decode(&h[48..]),
-            })
+            return HashStat {
+                size: 0,
+                time: 0,
+                time_ns: 0,
+                hash: 0,
+            };
+        }
+        HashStat {
+            size: decode(h),
+            time: decode(&h[16..]) as i64,
+            time_ns: decode(&h[32..]) as i64,
+            hash: decode(&h[48..]),
         }
     }
 }
