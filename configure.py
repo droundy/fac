@@ -239,3 +239,24 @@ C web
 ''')
 else:
     print('# no cargo, so cannot build using rust')
+
+try:
+    targets = subprocess.check_output('rustup show', shell=True)
+    if b'x86_64-pc-windows-gnu' in targets:
+        print('''
+| cargo build --features strict --target x86_64-pc-windows-gnu
+< target/debug/fac
+C bench
+C target/debug/build
+c -lock
+c ~
+C .nfs
+c .tum
+c .gcno
+c .gcda
+c .gcov
+C tests
+C web
+''')
+except:
+    print('# no rust for windows')

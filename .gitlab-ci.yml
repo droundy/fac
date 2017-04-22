@@ -5,7 +5,6 @@ build:
   script:
     - sh build/linux.sh
     - ./fac
-    - cargo build --target x86_64-pc-windows-gnu
   artifacts:
     paths:
       - fac
