@@ -8,7 +8,7 @@ use std::path::{PathBuf};
 use git;
 
 /// The flags determining build
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Flags {
     /// We are asked to clean rather than build!
     pub clean: bool,

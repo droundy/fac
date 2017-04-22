@@ -355,6 +355,10 @@ pub fn build<F, Out>(fl: flags::Flags, f: F) -> Out
 }
 
 impl<'id> Build<'id> {
+    /// Run the actual build!
+    pub fn build(&self) {
+        println!("I am building {:?}", self);
+    }
     fn new_file_private<P: AsRef<Path>>(&mut self, path: P,
                                         is_in_git: bool)
                                         -> FileRef<'id> {

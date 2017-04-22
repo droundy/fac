@@ -18,5 +18,8 @@ pub mod refset;
 pub mod build;
 
 fn main() {
-    build::flags::args();
+    let flags = build::flags::args();
+    build::build(flags.clone(), |b| {
+        b.build();
+    });
 }
