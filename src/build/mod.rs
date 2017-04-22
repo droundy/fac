@@ -252,6 +252,7 @@ pub struct Rule<'id> {
     working_directory: PathBuf,
     facfile: FileRef<'id>,
     command: OsString,
+    is_default: bool,
 }
 
 impl<'id> Rule<'id> {
@@ -398,7 +399,8 @@ impl<'id> Build<'id> {
                     working_directory: &Path,
                     facfile: FileRef<'id>,
                     cache_suffixes: HashSet<OsString>,
-                    cache_prefixes: HashSet<OsString>)
+                    cache_prefixes: HashSet<OsString>,
+                    is_default: bool)
                     -> RuleRef<'id> {
         let r = RuleRef(self.rules.len(), self.id);
         self.rules.push(Rule {
@@ -411,6 +413,7 @@ impl<'id> Build<'id> {
             working_directory: PathBuf::from(working_directory),
             facfile: facfile,
             command: OsString::from(command),
+            is_default: is_default,
         });
         self.statuses[Status::Unknown].insert(r);
         r
@@ -448,7 +451,16 @@ impl<'id> Build<'id> {
                                                  filepath.parent().unwrap(),
                                                  fileref,
                                                  HashSet::new(),
-                                                 HashSet::new()));
+                                                 HashSet::new(),
+                                                 true));
+                },
+                b'?' => {
+                    command = Some(self.new_rule(bytes_to_osstr(&line[2..]),
+                                                 filepath.parent().unwrap(),
+                                                 fileref,
+                                                 HashSet::new(),
+                                                 HashSet::new(),
+                                                 false));
                 },
                 b'>' => {
                     let f = self.new_file(bytes_to_osstr(&line[2..]));
