@@ -32,6 +32,7 @@ pages:
     - cat .fac
     - ./fac web/index.html web/fac-latest.deb web/style.css
     - ./fac
+    - cargo build --target x86_64-pc-windows-gnu
     - mv web public
   artifacts:
     paths:

@@ -270,15 +270,32 @@ impl<'id> Rule<'id> {
     }
 }
 
+#[cfg(unix)]
 use std::os::unix::ffi::{OsStrExt};
+#[cfg(unix)]
 fn is_suffix(path: &Path, suff: &OsStr) -> bool {
     let l = suff.as_bytes().len();
-    path.as_os_str().as_bytes()[..l] == suff.as_bytes()[..]
+    let pp = path.as_os_str().as_bytes().len();
+    path.as_os_str().as_bytes()[pp-l..] == suff.as_bytes()[..]
 }
+#[cfg(unix)]
 fn is_prefix(path: &Path, suff: &OsStr) -> bool {
     let l = suff.as_bytes().len();
     let p = path.as_os_str().as_bytes();
     p[p.len()-l..] == suff.as_bytes()[..]
+}
+
+#[cfg(not(unix))]
+fn is_suffix(path: &Path, suff: &OsStr) -> bool {
+    let pathstring: String = path.as_os_str().to_string_lossy().into_owned();
+    let suffstring: String = suff.to_string_lossy().into_owned();
+    pathstring.ends_with(&suffstring)
+}
+#[cfg(not(unix))]
+fn is_prefix(path: &Path, suff: &OsStr) -> bool {
+    let pathstring: String = path.as_os_str().to_string_lossy().into_owned();
+    let suffstring: String = suff.to_string_lossy().into_owned();
+    pathstring.starts_with(&suffstring)
 }
 
 /// A struct that holds all the information needed to build.  You can
@@ -427,27 +444,27 @@ impl<'id> Build<'id> {
             };
             match line[0] {
                 b'|' => {
-                    command = Some(self.new_rule(OsStr::from_bytes(&line[2..]),
+                    command = Some(self.new_rule(bytes_to_osstr(&line[2..]),
                                                  filepath.parent().unwrap(),
                                                  fileref,
                                                  HashSet::new(),
                                                  HashSet::new()));
                 },
                 b'>' => {
-                    let f = self.new_file(OsStr::from_bytes(&line[2..]));
+                    let f = self.new_file(bytes_to_osstr(&line[2..]));
                     self.add_output(get_rule(command, '>')?, f);
                 },
                 b'<' => {
-                    let f = self.new_file(OsStr::from_bytes(&line[2..]));
+                    let f = self.new_file(bytes_to_osstr(&line[2..]));
                     self.add_input(get_rule(command, '<')?, f);
                 },
                 b'c' => {
                     self.rule_mut(get_rule(command, 'c')?).cache_prefixes
-                        .insert(OsStr::from_bytes(&line[2..]).to_os_string());
+                        .insert(bytes_to_osstr(&line[2..]).to_os_string());
                 },
                 b'C' => {
                     self.rule_mut(get_rule(command, 'C')?).cache_suffixes
-                        .insert(OsStr::from_bytes(&line[2..]).to_os_string());
+                        .insert(bytes_to_osstr(&line[2..]).to_os_string());
                 },
                 _ => return parse_error(&filepath, lineno,
                                         &format!("Invalid first character: {:?}", line[0])),
@@ -532,4 +549,14 @@ impl<'id> std::ops::IndexMut<FileRef<'id>> for Build<'id>  {
     fn index_mut(&mut self, r: FileRef<'id>) -> &mut File<'id> {
         &mut self.files[r.0]
     }
+}
+
+#[cfg(unix)]
+fn bytes_to_osstr(b: &[u8]) -> &OsStr {
+    OsStr::from_bytes(b)
+}
+
+#[cfg(not(unix))]
+fn bytes_to_osstr(b: &[u8]) -> &OsStr {
+    Path::new(std::str::from_utf8(b).unwrap()).as_os_str()
 }

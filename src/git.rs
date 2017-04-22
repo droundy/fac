@@ -2,9 +2,6 @@
 
 use std;
 
-use std::ffi::OsString;
-use std::os::unix::ffi::OsStringExt;
-
 /// Go to the top level of the git repository (typically the one
 /// containing a `.git` directory).
 pub fn go_to_top() -> std::path::PathBuf {
@@ -23,7 +20,7 @@ pub fn go_to_top() -> std::path::PathBuf {
 
     let newlen = output.stdout.len()-1;
     output.stdout.truncate(newlen);
-    let p = std::path::PathBuf::from(OsString::from_vec(output.stdout));
+    let p = bytes_to_path(&output.stdout);
     std::env::set_current_dir(&p).unwrap();
     p
 }
@@ -38,9 +35,22 @@ pub fn ls_files() -> std::collections::HashSet<std::path::PathBuf> {
     let mut fs = std::collections::HashSet::new();
     for s in output.stdout.split(|c| *c == 0) {
         if s.len() > 0 {
-            let p = std::path::PathBuf::from(OsString::from_vec(Vec::from(s)));
-            fs.insert(p);
+            fs.insert(bytes_to_path(&output.stdout));
         }
     }
     fs
 }
+
+#[cfg(unix)]
+use std::os::unix::ffi::OsStrExt;
+
+#[cfg(unix)]
+fn bytes_to_path(b: &[u8]) -> std::path::PathBuf {
+    std::path::PathBuf::from(std::path::Path::new(std::ffi::OsStr::from_bytes(b)))
+}
+
+#[cfg(not(unix))]
+fn bytes_to_path(b: &[u8]) -> std::path::PathBuf {
+    std::path::PathBuf::from(std::path::Path::new(std::str::from_utf8(b).unwrap()))
+}
+

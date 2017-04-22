@@ -3,8 +3,9 @@
 use std;
 use std::io::{Read};
 use std::hash::{Hasher};
-use std::collections::hash_map::DefaultHasher; 
+use std::collections::hash_map::DefaultHasher;
 
+#[cfg(unix)]
 use std::os::unix::fs::{MetadataExt};
 
 /// The stat information about a file
@@ -21,6 +22,17 @@ pub struct HashStat {
 }
 
 /// stat a file
+#[cfg(not(unix))]
+pub fn stat(f: &std::path::Path) -> std::io::Result<HashStat> {
+    let s = std::fs::metadata(f)?;
+    Ok(HashStat {
+        time: 0,
+        time_ns: 0,
+        size: s.len(),
+        hash: 0,
+    })
+}
+#[cfg(unix)]
 pub fn stat(f: &std::path::Path) -> std::io::Result<HashStat> {
     let s = std::fs::metadata(f)?;
     Ok(HashStat {
@@ -43,11 +55,7 @@ pub fn hash(f: &std::path::Path) -> std::io::Result<u64> {
 
 /// hash and stat a file
 pub fn hashstat(f: &std::path::Path) -> std::io::Result<HashStat> {
-    let s = std::fs::metadata(f)?;
-    Ok(HashStat {
-        time: s.mtime(),
-        time_ns: s.mtime_nsec(),
-        size: s.len(),
-        hash: hash(f)?,
-    })
+    let mut hs = stat(f)?;
+    hs.hash = hash(f)?;
+    Ok(hs)
 }
