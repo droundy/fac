@@ -19,7 +19,7 @@ pub mod build;
 
 fn main() {
     let flags = build::flags::args();
-    build::build(flags.clone(), |b| {
+    build::build(flags.clone(), |mut b| {
         b.build();
     });
 }

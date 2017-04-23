@@ -222,7 +222,7 @@ impl<'id> File<'id> {
 
     /// Is this a fac file?
     pub fn is_fac_file(&self) -> bool {
-        self.rules_defined.len() > 0
+        self.path.as_os_str().to_string_lossy().ends_with(".fac")
     }
 
     /// Formats the path nicely as a relative path if possible
@@ -315,6 +315,8 @@ pub struct Build<'id> {
     id: Id<'id>,
     files: Vec<File<'id>>,
     rules: Vec<Rule<'id>>,
+    filerefs: Vec<FileRef<'id>>,
+    rulerefs: Vec<RuleRef<'id>>,
     filemap: HashMap<PathBuf, FileRef<'id>>,
     statuses: StatusMap<HashSet<RuleRef<'id>>>,
 
@@ -342,6 +344,8 @@ pub fn build<F, Out>(fl: flags::Flags, f: F) -> Out
         id: Id::default(),
         files: Vec::new(),
         rules: Vec::new(),
+        filerefs: Vec::new(),
+        rulerefs: Vec::new(),
         filemap: HashMap::new(),
         statuses: StatusMap::new(|| HashSet::new()),
         facfiles_used: HashSet::new(),
@@ -355,8 +359,21 @@ pub fn build<F, Out>(fl: flags::Flags, f: F) -> Out
 
 impl<'id> Build<'id> {
     /// Run the actual build!
-    pub fn build(&self) {
-        println!("I am building {:?}", self);
+    pub fn build(&mut self) {
+        let frfs = self.filerefs();
+        for f in frfs {
+            if self[f].is_fac_file() {
+                self.read_file(f).unwrap();
+                self.print_fac_file(f).unwrap();
+            }
+        }
+    }
+    fn filerefs(&self) -> Vec<FileRef<'id>> {
+        let mut out = Vec::new();
+        for i in 0 .. self.files.len() {
+            out.push(FileRef(i, self.id));
+        }
+        out
     }
     fn new_file_private<P: AsRef<Path>>(&mut self, path: P,
                                         is_in_git: bool)
@@ -451,12 +468,14 @@ impl<'id> Build<'id> {
             };
             match line[0] {
                 b'|' => {
-                    command = Some(self.new_rule(bytes_to_osstr(&line[2..]),
-                                                 filepath.parent().unwrap(),
-                                                 fileref,
-                                                 HashSet::new(),
-                                                 HashSet::new(),
-                                                 true));
+                    let r = self.new_rule(bytes_to_osstr(&line[2..]),
+                                          filepath.parent().unwrap(),
+                                          fileref,
+                                          HashSet::new(),
+                                          HashSet::new(),
+                                          true);
+                    self[fileref].rules_defined.insert(r);
+                    command = Some(r);
                 },
                 b'?' => {
                     command = Some(self.new_rule(bytes_to_osstr(&line[2..]),
@@ -485,7 +504,20 @@ impl<'id> Build<'id> {
                 _ => return parse_error(&filepath, lineno,
                                         &format!("Invalid first character: {:?}", line[0])),
             }
-            println!("Line {}: {:?}", lineno, line);
+        }
+        Ok(())
+    }
+
+    /// Write a fac file
+    pub fn print_fac_file(&mut self, fileref: FileRef<'id>) -> std::io::Result<()> {
+        for &r in self[fileref].rules_defined.iter() {
+            println!("| {}", self.rule(r).command.to_string_lossy());
+            for &i in self.rule(r).inputs.iter() {
+                println!("< {}", self[i].path.to_string_lossy());
+            }
+            for &o in self.rule(r).outputs.iter() {
+                println!("> {}", self[o].path.to_string_lossy());
+            }
         }
         Ok(())
     }
