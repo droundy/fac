@@ -4,6 +4,8 @@ build:
   stage: build
   script:
     - sh build/linux.sh
+    - ./fac fac
+    - cat bigbro/.cargo/config >> ~/.cargo/config
     - ./fac
   artifacts:
     paths:
@@ -32,6 +34,8 @@ pages:
   stage: deploy
   script:
     - sh build/linux.sh
+    - ./fac fac
+    - cat bigbro/.cargo/config >> ~/.cargo/config
     - ./fac
     - cat .fac
     - ./fac web/index.html web/fac-latest.deb web/style.css
