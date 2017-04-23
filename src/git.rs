@@ -33,12 +33,18 @@ pub fn ls_files() -> std::collections::HashSet<std::path::PathBuf> {
         .output()
         .expect("Error calling git ls-files");
     let mut fs = std::collections::HashSet::new();
-    for s in output.stdout.split(|c| *c == 0) {
+    for s in output.stdout.split(|c| *c == b'\0') {
         if s.len() > 0 {
-            fs.insert(bytes_to_path(&output.stdout));
+            fs.insert(bytes_to_path(s));
         }
     }
     fs
+}
+
+#[test]
+fn ls_files_works() {
+    let x = ls_files();
+    assert!(x.contains(&bytes_to_path(b".gitignore")));
 }
 
 #[cfg(unix)]

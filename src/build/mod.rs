@@ -349,7 +349,6 @@ pub fn build<F, Out>(fl: flags::Flags, f: F) -> Out
     };
     for ref f in git::ls_files() {
         b.new_file_private(f, true);
-        println!("i see {:?}", f);
     }
     f(b)
 }
