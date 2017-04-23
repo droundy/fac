@@ -16,6 +16,12 @@ git clone git://github.com/droundy/fac
 cd fac
 
 sh build/linux.sh
+
+./fac fac
+mkdir -p ~/.cargo
+# the following is needed for cross-compiling to work (for now?)
+cat bigbro/.cargo/config >> ~/.cargo/config
+
 python3 run-tests.py -v
 
 # execute this with:
