@@ -360,11 +360,15 @@ pub fn build<F, Out>(fl: flags::Flags, f: F) -> Out
 impl<'id> Build<'id> {
     /// Run the actual build!
     pub fn build(&mut self) {
-        let frfs = self.filerefs();
-        for f in frfs {
-            if self[f].is_fac_file() {
+        for f in self.filerefs() {
+            if self[f].is_fac_file() && self[f].rules_defined.len() == 0 {
                 self.read_file(f).unwrap();
                 self.print_fac_file(f).unwrap();
+            }
+        }
+        for r in self.rules.iter() {
+            if r.outputs.iter().any(|&o| self[o].is_fac_file()) {
+                println!("I should run: {}", r.command.to_string_lossy());
             }
         }
     }
