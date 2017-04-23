@@ -13,6 +13,8 @@ RUN git clone git://git.kernel.org/pub/scm/devel/sparse/chrisl/sparse.git /root/
 
 COPY test.sh test.sh
 
+COPY cargo-config /.cargo/config
+
 ENV PATH=/root/.cargo/bin:$PATH
 
 RUN rustup target add x86_64-pc-windows-gnu
