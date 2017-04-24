@@ -1,4 +1,5 @@
-//! Hello
+//! A file structure for holding hash and "stat" information about
+//! files.  This is what fac uses to determine if a file has changed.
 
 #[cfg(test)]
 extern crate quickcheck;
