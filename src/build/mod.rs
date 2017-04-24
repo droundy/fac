@@ -366,10 +366,12 @@ impl<'id> Build<'id> {
                 self.print_fac_file(f).unwrap();
             }
         }
-        for r in self.rules.iter() {
-            if r.outputs.iter().any(|&o| self[o].is_fac_file()) {
-                println!("I should run: {}", r.command.to_string_lossy());
-            }
+        self.mark_fac_files();
+        let marked_rules: Vec<RuleRef<'id>> =
+            self.statuses[Status::Marked].iter().map(|&r| r).collect();
+        for r in marked_rules {
+            self.check_cleanliness(r);
+            println!("I should run: {}", self.rule(r).command.to_string_lossy());
         }
     }
     fn filerefs(&self) -> Vec<FileRef<'id>> {
@@ -544,6 +546,170 @@ impl<'id> Build<'id> {
         self.statuses[oldstatus].remove(&r);
         self.statuses[s].insert(r);
         self.rule_mut(r).status = s;
+    }
+
+    fn mark_fac_files(&mut self) {
+        let mut to_mark = Vec::new();
+        for &r in self.statuses[Status::Unknown].iter() {
+            if self.rule(r).outputs.iter().any(|&f| self[f].is_fac_file()) {
+                to_mark.push(r)
+            }
+        }
+        for r in to_mark {
+            self.set_status(r, Status::Marked);
+        }
+    }
+
+    fn check_cleanliness(&mut self, r: RuleRef<'id>) {
+        let old_status = self.rule(r).status;
+        if old_status != Status::Unknown && old_status != Status::Unready &&
+            old_status != Status::Marked {
+                return; // We already know if it is clean!
+            }
+        if self.rule(r).inputs.len() == 0 && self.rule(r).outputs.len() == 0 {
+            // Presumably this means we have never built this rule, and its
+            // inputs are in git.
+            self.set_status(r, Status::Unready); // FIXME should sort by latency...
+        }
+        // let mut have_announced_rebuild_excuse = false;
+        self.set_status(r, Status::BeingDetermined);
+        let mut am_now_unready = false;
+        let r_inputs: Vec<FileRef<'id>> = self.rule(r).inputs.iter().map(|&i| i).collect();
+        for i in r_inputs {
+            if let Some(irule) = self[i].rule {
+                match self.rule(irule).status {
+                    Status::Unknown | Status::Marked => {
+                        self.check_cleanliness(irule);
+                    },
+                    Status::BeingDetermined => {
+                        // FIXME error cycle
+                        // error_at_line(1, 0, pretty_path(r->facfile_path), r->facfile_linenum,
+                        //               "error: cycle involving %s, %s and %s\n",
+                        //               pretty_rule(r),
+                        //               pretty_path(r->inputs[i]->path),
+                        //               pretty_rule(r->inputs[i]->rule));
+                    },
+                    Status::Dirty | Status::Unready | Status::Building => {
+                        am_now_unready = true;
+                    },
+                    Status::Clean | Status::Failed | Status::Built => {
+                        // Nothing to do here
+                    },
+                }
+            }
+        }
+        self.set_status(r, old_status);
+        if am_now_unready {
+            self.set_status(r, Status::Unready);
+            return;
+        }
+          if (am_now_unready) {
+    set_status(all, r, unready);
+    return;
+  }
+  // bool is_dirty = false;
+  // if (env.abc.a != r->env.abc.a || env.abc.b != r->env.abc.b || env.abc.c != r->env.abc.c) {
+  //   if (r->env.abc.a || r->env.abc.b || r->env.abc.c) {
+  //     rebuild_excuse(r, "the environment has changed");
+  //   } else {
+  //     rebuild_excuse(r, "we have never built it");
+  //   }
+  //   is_dirty = true;
+  // }
+  // for (int i=0;i<r->num_inputs;i++) {
+  //   if (!r->inputs[i]->is_in_git && !is_git_path(r->inputs[i]->path) &&
+  //       !r->inputs[i]->rule && is_in_root(r->inputs[i]->path)) {
+  //     if (i < r->num_explicit_inputs) {
+  //       set_status(all, r, unready);
+  //       return;
+  //     } else if (r->inputs[i]->is_file) {
+  //       rebuild_excuse(r, "input %s does not exist", pretty_path(r->inputs[i]->path));
+  //       rule_is_ready(all, r);
+  //       return;
+  //     }
+  //   }
+  //   if (is_dirty) continue; // no need to do the rest now
+  //   if (r->inputs[i]->rule && r->inputs[i]->rule->status == built) {
+  //     if (sha1_is_zero(r->inputs[i]->stat.hash)) find_target_sha1(r->inputs[i], "just built");
+  //     if (sha1_same(r->input_stats[i].hash, r->inputs[i]->stat.hash)) {
+  //       if (false) verbose_printf(" *** hashing saved us work on %s due to rebuild of %s\n",
+  //                                 pretty_rule(r), pretty_path(r->inputs[i]->path));
+  //       r->input_stats[i].time = r->inputs[i]->stat.time;
+  //       r->input_stats[i].size = r->inputs[i]->stat.size;
+  //       insert_to_listset(&facfiles_used, r->facfile_path);
+  //     } else {
+  //       rebuild_excuse(r, "%s has been rebuilt", pretty_path(r->inputs[i]->path));
+  //       is_dirty = true;
+  //     }
+  //   }
+  //   if (r->input_stats[i].time) {
+  //     if (!create_target_with_stat(all, r->inputs[i]->path) ||
+  //         r->input_stats[i].time != r->inputs[i]->stat.time ||
+  //         r->input_stats[i].size != r->inputs[i]->stat.size) {
+  //       if (!sha1_is_zero(r->input_stats[i].hash) && r->input_stats[i].size == r->inputs[i]->stat.size) {
+  //         if (sha1_is_zero(r->inputs[i]->stat.hash)) find_target_sha1(r->inputs[i],
+  //                                                                     "same size input, but zero input_stats");
+  //         if (sha1_same(r->input_stats[i].hash, r->inputs[i]->stat.hash)) {
+  //           if (false) verbose_printf(" *** hashing saved us work on %s due to %s\n",
+  //                                     pretty_rule(r), pretty_path(r->inputs[i]->path));
+  //           r->input_stats[i].time = r->inputs[i]->stat.time;
+  //           r->input_stats[i].size = r->inputs[i]->stat.size;
+  //           insert_to_listset(&facfiles_used, r->facfile_path);
+  //         } else {
+  //           rebuild_excuse(r, "%s is definitely modified", pretty_path(r->inputs[i]->path));
+  //           is_dirty = true;
+  //         }
+  //       } else {
+  //         rebuild_excuse(r, "%s is modified", pretty_path(r->inputs[i]->path));
+  //         is_dirty = true;
+  //       }
+  //     }
+  //   } else {
+  //     if (!r->inputs[i]->is_dir) {
+  //       /* In case of an input that is a directory, if it has no input
+  //          time, we conclude that it wasn't actually readdired, and
+  //          only needs to exist.  Otherwise, if there is no input time,
+  //          something is weird and we must need to rebuild. */
+  //       rebuild_excuse(r, "#%d %s has no input time",
+  //                      i, pretty_path(r->inputs[i]->path));
+  //       is_dirty = true;
+  //     }
+  //   }
+  // }
+  // if (is_dirty) rule_is_ready(all, r);
+  // for (int i=0;i<r->num_outputs;i++) {
+  //   if (r->output_stats[i].time) {
+  //     if (!create_target_with_stat(all, r->outputs[i]->path) ||
+  //         r->output_stats[i].time != r->outputs[i]->stat.time ||
+  //         r->output_stats[i].size != r->outputs[i]->stat.size) {
+  //       /* If the rule creates a directory, we want to ignore any
+  //          changes within that directory, there is no reason to
+  //          rebuild just because the directory contents changed. */
+  //       if (!r->outputs[i]->is_dir) {
+  //         rebuild_excuse(r, "%s has wrong output time",
+  //                        pretty_path(r->outputs[i]->path));
+  //         is_dirty = true;
+  //       }
+  //     }
+  //   } else {
+  //     rebuild_excuse(r, "%s has no output time", pretty_path(r->outputs[i]->path));
+  //     is_dirty = true;
+  //   }
+  // }
+  // if (is_dirty) {
+  //   rule_is_ready(all, r);
+  // } else {
+  //   set_status(all, r, clean);
+  //   if (old_status == unready) {
+  //     for (int i=0;i<r->num_outputs;i++) {
+  //       for (int j=0;j<r->outputs[i]->num_children;j++) {
+  //         if (r->outputs[i]->children[j]->status == unready)
+  //           check_cleanliness(all, r->outputs[i]->children[j]);
+  //       }
+  //     }
+  //   }
+  // }
+
     }
 
     /// Mark this rule as dirty, adjusting other rules to match.
