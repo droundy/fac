@@ -603,10 +603,6 @@ impl<'id> Build<'id> {
             self.set_status(r, Status::Unready);
             return;
         }
-          if (am_now_unready) {
-    set_status(all, r, unready);
-    return;
-  }
   // bool is_dirty = false;
   // if (env.abc.a != r->env.abc.a || env.abc.b != r->env.abc.b || env.abc.c != r->env.abc.c) {
   //   if (r->env.abc.a || r->env.abc.b || r->env.abc.c) {
