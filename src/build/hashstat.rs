@@ -143,20 +143,10 @@ pub fn stat(f: &std::path::Path) -> std::io::Result<HashStat> {
     })
 }
 
-/// hash a file
-fn hash(f: &std::path::Path) -> std::io::Result<u64> {
-    let mut file = std::fs::File::open(f)?;
-    let mut contents = Vec::new();
-    file.read_to_end(&mut contents)?;
-    let mut h = DefaultHasher::new();
-    h.write(&contents);
-    Ok(h.finish())
-}
-
 /// hash and stat a file
 pub fn hashstat(f: &std::path::Path) -> std::io::Result<HashStat> {
     let mut hs = stat(f)?;
-    hs.hash = hash(f)?;
+    hs.hash(f)?;
     Ok(hs)
 }
 
@@ -183,7 +173,7 @@ impl HashStat {
                 }
             };
         } else if self.hash == 0 {
-            self.hash = hash(f).unwrap_or(0);
+            self.hash(f).unwrap();
         }
     }
     /// try running sat
@@ -218,4 +208,46 @@ impl HashStat {
         }
         self.size == other.size && self.time == other.time && self.time_ns == other.time_ns
     }
+    /// hash a file
+    fn hash(&mut self, f: &std::path::Path) -> std::io::Result<()> {
+        let mut h = DefaultHasher::new();
+        match self.kind {
+            Some(FileKind::File) => {
+                let mut file = std::fs::File::open(f)?;
+                let mut contents = Vec::new();
+                file.read_to_end(&mut contents)?;
+                h.write(&contents);
+            },
+            Some(FileKind::Dir) => {
+                let mut entries = Vec::new();
+                for entry in std::fs::read_dir(f)? {
+                    entries.push(entry?.file_name());
+                }
+                entries.sort();
+                for s in entries {
+                    h.write(osstr_to_bytes(&s));
+                }
+            },
+            Some(FileKind::Symlink) => {
+                h.write(osstr_to_bytes(std::fs::read_link(f)?.as_os_str()));
+            },
+            None => (),
+        }
+        self.hash = h.finish();
+        Ok(())
+    }
+
+}
+
+use std::ffi::{OsStr};
+#[cfg(unix)]
+use std::os::unix::ffi::{OsStrExt};
+#[cfg(unix)]
+fn osstr_to_bytes(b: &OsStr) -> &[u8] {
+    OsStr::as_bytes(b)
+}
+
+#[cfg(not(unix))]
+fn osstr_to_bytes(b: &OsStr) -> &[u8] {
+    b.to_str().unwrap().as_bytes()
 }
