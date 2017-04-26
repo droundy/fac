@@ -12,6 +12,8 @@ use std::collections::hash_map::DefaultHasher;
 #[cfg(unix)]
 use std::os::unix::fs::{MetadataExt};
 
+use build::{FileKind};
+
 /// The stat information about a file
 #[derive(Copy, Clone, PartialEq, PartialOrd, Eq, Hash, Debug)]
 pub struct HashStat {
@@ -23,6 +25,8 @@ pub struct HashStat {
     pub size: u64,
     /// hash
     pub hash: u64,
+    /// kind of file
+    pub kind: Option<FileKind>,
 }
 
 #[cfg(test)]
@@ -33,6 +37,7 @@ impl quickcheck::Arbitrary for HashStat {
             time_ns: i64::arbitrary(g),
             size: u64::arbitrary(g),
             hash: u64::arbitrary(g),
+            kind: None,
         }
     }
 }
@@ -88,6 +93,7 @@ impl HashStat {
                 time: 0,
                 time_ns: 0,
                 hash: 0,
+                kind: None,
             };
         }
         HashStat {
@@ -95,7 +101,20 @@ impl HashStat {
             time: decode(&h[16..]) as i64,
             time_ns: decode(&h[32..]) as i64,
             hash: decode(&h[48..]),
+            kind: None,
         }
+    }
+}
+
+fn kind_of(m: &std::fs::Metadata) -> Option<FileKind> {
+    if m.file_type().is_symlink() {
+        Some(FileKind::Symlink)
+    } else if m.file_type().is_dir() {
+        Some(FileKind::Dir)
+    } else if m.file_type().is_file() {
+        Some(FileKind::File)
+    } else {
+        None
     }
 }
 
@@ -108,6 +127,7 @@ pub fn stat(f: &std::path::Path) -> std::io::Result<HashStat> {
         time_ns: 0,
         size: s.len(),
         hash: 0,
+        kind: kind_of(&s),
     })
 }
 /// stat a file
@@ -119,11 +139,12 @@ pub fn stat(f: &std::path::Path) -> std::io::Result<HashStat> {
         time_ns: s.mtime_nsec(),
         size: s.len(),
         hash: 0,
+        kind: kind_of(&s),
     })
 }
 
 /// hash a file
-pub fn hash(f: &std::path::Path) -> std::io::Result<u64> {
+fn hash(f: &std::path::Path) -> std::io::Result<u64> {
     let mut file = std::fs::File::open(f)?;
     let mut contents = Vec::new();
     file.read_to_end(&mut contents)?;
@@ -137,4 +158,64 @@ pub fn hashstat(f: &std::path::Path) -> std::io::Result<HashStat> {
     let mut hs = stat(f)?;
     hs.hash = hash(f)?;
     Ok(hs)
+}
+
+impl HashStat {
+    /// A HashStat that does not have any information.
+    pub fn empty() -> HashStat {
+        HashStat {
+            time: 0,
+            time_ns: 0,
+            size: 0,
+            hash: 0,
+            kind: None,
+        }
+    }
+    /// look up any bits of the hashstat that we do not yet know.
+    pub fn finish(&mut self, f: &std::path::Path) {
+        if self.size == 0 {
+            match hashstat(f) {
+                Ok(h) => {
+                    *self = h;
+                },
+                Err(_) => {
+                    // nothing to do
+                }
+            };
+        } else if self.hash == 0 {
+            self.hash = hash(f).unwrap_or(0);
+        }
+    }
+    /// try running sat
+    fn stat(&mut self, f: &std::path::Path) {
+        if let Ok(s) = stat(f) {
+            self.time = s.time;
+            self.time_ns = s.time_ns;
+            self.size = s.size;
+            self.kind = s.kind;
+        }
+    }
+    /// see if it matches
+    pub fn matches(&mut self, f: &std::path::Path, other: &HashStat) -> bool {
+        if self.size == 0 {
+            self.stat(f);
+        }
+        if self.size != other.size {
+            return false;
+        }
+        if self.time == other.time && self.time_ns == other.time_ns {
+            return true;
+        }
+        if self.hash == 0 {
+            self.finish(f);
+        }
+        self.hash == other.hash
+    }
+    /// see if it we know matches without doing any disk IO
+    pub fn cheap_matches(&mut self, other: &HashStat) -> bool {
+        if self.size == 0 {
+            return false;
+        }
+        self.size == other.size && self.time == other.time && self.time_ns == other.time_ns
+    }
 }

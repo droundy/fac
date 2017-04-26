@@ -64,6 +64,13 @@ pub enum Status {
     Dirty,
 }
 
+impl Status {
+    /// This thing has been built or found to be clean
+    pub fn is_done(self) -> bool {
+        self == Status::Clean || self == Status::Built
+    }
+}
+
 #[derive(PartialEq, Eq, Hash, Debug)]
 struct StatusMap<T>( [T;9] );
 
@@ -155,7 +162,7 @@ impl<T> std::ops::IndexMut<Status> for StatusMap<T>  {
 }
 
 /// Is the file a regular file, a symlink, or a directory?
-#[derive(PartialEq, Eq, Hash, Copy, Clone, Debug)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Copy, Clone, Debug)]
 pub enum FileKind {
     /// It is a regular file
     File,
@@ -184,7 +191,7 @@ pub struct File<'id> {
 
     rules_defined: HashSet<RuleRef<'id>>,
 
-    kind: Option<FileKind>,
+    hashstat: hashstat::HashStat,
     is_in_git: bool,
 }
 
@@ -199,17 +206,8 @@ impl<'id> File<'id> {
 
     /// Set file properties...
     pub fn stat(&mut self) -> std::io::Result<FileKind> {
-        let attr = self.path.symlink_metadata()?;
-        self.kind = if attr.file_type().is_symlink() {
-            Some(FileKind::Symlink)
-        } else if attr.file_type().is_dir() {
-            Some(FileKind::Dir)
-        } else if attr.file_type().is_file() {
-            Some(FileKind::File)
-        } else {
-            None
-        };
-        match self.kind {
+        self.hashstat = hashstat::stat(&self.path)?;
+        match self.hashstat.kind {
             Some(k) => Ok(k),
             None => Err(std::io::Error::new(std::io::ErrorKind::Other, "irregular file")),
         }
@@ -224,14 +222,6 @@ impl<'id> File<'id> {
     pub fn is_fac_file(&self) -> bool {
         self.path.as_os_str().to_string_lossy().ends_with(".fac")
     }
-
-    /// Formats the path nicely as a relative path if possible
-    pub fn pretty_path(&self, b: &Build<'id>) -> PathBuf {
-        match self.path.strip_prefix(&b.flags.root) {
-            Ok(p) => PathBuf::from(p),
-            Err(_) => self.path.clone(),
-        }
-    }
 }
 
 /// A reference to a Rule
@@ -245,6 +235,9 @@ pub struct Rule<'id> {
     id: Id<'id>,
     inputs: Vec<FileRef<'id>>,
     outputs: Vec<FileRef<'id>>,
+    all_inputs: HashSet<FileRef<'id>>,
+    all_outputs: HashSet<FileRef<'id>>,
+    hashstats: HashMap<FileRef<'id>, hashstat::HashStat>,
 
     status: Status,
     cache_prefixes: HashSet<OsString>,
@@ -367,11 +360,14 @@ impl<'id> Build<'id> {
             }
         }
         self.mark_fac_files();
-        let marked_rules: Vec<RuleRef<'id>> =
-            self.statuses[Status::Marked].iter().map(|&r| r).collect();
-        for r in marked_rules {
+        let rules: Vec<_> = self.statuses[Status::Marked].iter().map(|&r| r).collect();
+        for r in rules {
             self.check_cleanliness(r);
-            println!("I should run: {}", self.rule(r).command.to_string_lossy());
+            println!("I should see about: {}", self.pretty_rule(r));
+        }
+        let rules: Vec<_> = self.statuses[Status::Dirty].iter().map(|&r| r).collect();
+        for r in rules {
+            println!("I should run: {}", self.pretty_rule(r));
         }
     }
     fn filerefs(&self) -> Vec<FileRef<'id>> {
@@ -398,7 +394,7 @@ impl<'id> Build<'id> {
             path: PathBuf::from(path.as_ref()),
             children: HashSet::new(),
             rules_defined: HashSet::new(),
-            kind: None,
+            hashstat: hashstat::HashStat::empty(),
             is_in_git: is_in_git,
         });
         self.filemap.insert(PathBuf::from(path.as_ref()), f);
@@ -434,6 +430,9 @@ impl<'id> Build<'id> {
             id: self.id,
             inputs: Vec::new(),
             outputs: Vec::new(),
+            all_inputs: HashSet::new(),
+            all_outputs: HashSet::new(),
+            hashstats: HashMap::new(),
             status: Status::Unknown,
             cache_prefixes: cache_prefixes,
             cache_suffixes: cache_suffixes,
@@ -493,11 +492,11 @@ impl<'id> Build<'id> {
                 },
                 b'>' => {
                     let f = self.new_file(bytes_to_osstr(&line[2..]));
-                    self.add_output(get_rule(command, '>')?, f);
+                    self.add_explicit_output(get_rule(command, '>')?, f);
                 },
                 b'<' => {
                     let f = self.new_file(bytes_to_osstr(&line[2..]));
-                    self.add_input(get_rule(command, '<')?, f);
+                    self.add_explicit_input(get_rule(command, '<')?, f);
                 },
                 b'c' => {
                     self.rule_mut(get_rule(command, 'c')?).cache_prefixes
@@ -530,12 +529,25 @@ impl<'id> Build<'id> {
 
     /// Add a new File as an input to this rule.
     pub fn add_input(&mut self, r: RuleRef<'id>, input: FileRef<'id>) {
-        self.rule_mut(r).inputs.push(input);
+        self.rule_mut(r).all_inputs.insert(input);
         self[input].children.insert(r);
     }
     /// Add a new File as an output of this rule.
     pub fn add_output(&mut self, r: RuleRef<'id>, output: FileRef<'id>) {
+        self.rule_mut(r).all_outputs.insert(output);
+        self[output].rule = Some(r);
+    }
+
+    /// Add a new File as an explicit input to this rule.
+    fn add_explicit_input(&mut self, r: RuleRef<'id>, input: FileRef<'id>) {
+        self.rule_mut(r).inputs.push(input);
+        self.rule_mut(r).all_inputs.insert(input);
+        self[input].children.insert(r);
+    }
+    /// Add a new File as an explicit output of this rule.
+    fn add_explicit_output(&mut self, r: RuleRef<'id>, output: FileRef<'id>) {
         self.rule_mut(r).outputs.push(output);
+        self.rule_mut(r).all_outputs.insert(output);
         self[output].rule = Some(r);
     }
 
@@ -571,23 +583,26 @@ impl<'id> Build<'id> {
             // inputs are in git.
             self.set_status(r, Status::Unready); // FIXME should sort by latency...
         }
-        // let mut have_announced_rebuild_excuse = false;
+        let mut rebuild_excuse: Option<String> = None;
         self.set_status(r, Status::BeingDetermined);
         let mut am_now_unready = false;
         let r_inputs: Vec<FileRef<'id>> = self.rule(r).inputs.iter().map(|&i| i).collect();
-        for i in r_inputs {
+        let r_all_inputs: HashSet<FileRef<'id>> =
+            self.rule(r).all_inputs.iter().map(|&i| i).collect();
+        let r_other_inputs: HashSet<FileRef<'id>> = r_inputs.iter().map(|&i| i).collect();
+        let r_other_inputs = &r_all_inputs - &r_other_inputs;
+        for &i in r_all_inputs.iter() {
             if let Some(irule) = self[i].rule {
                 match self.rule(irule).status {
                     Status::Unknown | Status::Marked => {
                         self.check_cleanliness(irule);
                     },
                     Status::BeingDetermined => {
-                        // FIXME error cycle
-                        // error_at_line(1, 0, pretty_path(r->facfile_path), r->facfile_linenum,
-                        //               "error: cycle involving %s, %s and %s\n",
-                        //               pretty_rule(r),
-                        //               pretty_path(r->inputs[i]->path),
-                        //               pretty_rule(r->inputs[i]->rule));
+                        // FIXME: nicer error handling would be great here.
+                        println!("error: cycle involving {:?}, {:?}, and {:?}",
+                                 self.pretty_rule(r), self.pretty_path(i),
+                                 self.pretty_rule(irule));
+                        std::process::exit(1);
                     },
                     Status::Dirty | Status::Unready | Status::Building => {
                         am_now_unready = true;
@@ -603,109 +618,157 @@ impl<'id> Build<'id> {
             self.set_status(r, Status::Unready);
             return;
         }
-  // bool is_dirty = false;
-  // if (env.abc.a != r->env.abc.a || env.abc.b != r->env.abc.b || env.abc.c != r->env.abc.c) {
-  //   if (r->env.abc.a || r->env.abc.b || r->env.abc.c) {
-  //     rebuild_excuse(r, "the environment has changed");
-  //   } else {
-  //     rebuild_excuse(r, "we have never built it");
-  //   }
-  //   is_dirty = true;
-  // }
-  // for (int i=0;i<r->num_inputs;i++) {
-  //   if (!r->inputs[i]->is_in_git && !is_git_path(r->inputs[i]->path) &&
-  //       !r->inputs[i]->rule && is_in_root(r->inputs[i]->path)) {
-  //     if (i < r->num_explicit_inputs) {
-  //       set_status(all, r, unready);
-  //       return;
-  //     } else if (r->inputs[i]->is_file) {
-  //       rebuild_excuse(r, "input %s does not exist", pretty_path(r->inputs[i]->path));
-  //       rule_is_ready(all, r);
-  //       return;
-  //     }
-  //   }
-  //   if (is_dirty) continue; // no need to do the rest now
-  //   if (r->inputs[i]->rule && r->inputs[i]->rule->status == built) {
-  //     if (sha1_is_zero(r->inputs[i]->stat.hash)) find_target_sha1(r->inputs[i], "just built");
-  //     if (sha1_same(r->input_stats[i].hash, r->inputs[i]->stat.hash)) {
-  //       if (false) verbose_printf(" *** hashing saved us work on %s due to rebuild of %s\n",
-  //                                 pretty_rule(r), pretty_path(r->inputs[i]->path));
-  //       r->input_stats[i].time = r->inputs[i]->stat.time;
-  //       r->input_stats[i].size = r->inputs[i]->stat.size;
-  //       insert_to_listset(&facfiles_used, r->facfile_path);
-  //     } else {
-  //       rebuild_excuse(r, "%s has been rebuilt", pretty_path(r->inputs[i]->path));
-  //       is_dirty = true;
-  //     }
-  //   }
-  //   if (r->input_stats[i].time) {
-  //     if (!create_target_with_stat(all, r->inputs[i]->path) ||
-  //         r->input_stats[i].time != r->inputs[i]->stat.time ||
-  //         r->input_stats[i].size != r->inputs[i]->stat.size) {
-  //       if (!sha1_is_zero(r->input_stats[i].hash) && r->input_stats[i].size == r->inputs[i]->stat.size) {
-  //         if (sha1_is_zero(r->inputs[i]->stat.hash)) find_target_sha1(r->inputs[i],
-  //                                                                     "same size input, but zero input_stats");
-  //         if (sha1_same(r->input_stats[i].hash, r->inputs[i]->stat.hash)) {
-  //           if (false) verbose_printf(" *** hashing saved us work on %s due to %s\n",
-  //                                     pretty_rule(r), pretty_path(r->inputs[i]->path));
-  //           r->input_stats[i].time = r->inputs[i]->stat.time;
-  //           r->input_stats[i].size = r->inputs[i]->stat.size;
-  //           insert_to_listset(&facfiles_used, r->facfile_path);
-  //         } else {
-  //           rebuild_excuse(r, "%s is definitely modified", pretty_path(r->inputs[i]->path));
-  //           is_dirty = true;
-  //         }
-  //       } else {
-  //         rebuild_excuse(r, "%s is modified", pretty_path(r->inputs[i]->path));
-  //         is_dirty = true;
-  //       }
-  //     }
-  //   } else {
-  //     if (!r->inputs[i]->is_dir) {
-  //       /* In case of an input that is a directory, if it has no input
-  //          time, we conclude that it wasn't actually readdired, and
-  //          only needs to exist.  Otherwise, if there is no input time,
-  //          something is weird and we must need to rebuild. */
-  //       rebuild_excuse(r, "#%d %s has no input time",
-  //                      i, pretty_path(r->inputs[i]->path));
-  //       is_dirty = true;
-  //     }
-  //   }
-  // }
-  // if (is_dirty) rule_is_ready(all, r);
-  // for (int i=0;i<r->num_outputs;i++) {
-  //   if (r->output_stats[i].time) {
-  //     if (!create_target_with_stat(all, r->outputs[i]->path) ||
-  //         r->output_stats[i].time != r->outputs[i]->stat.time ||
-  //         r->output_stats[i].size != r->outputs[i]->stat.size) {
-  //       /* If the rule creates a directory, we want to ignore any
-  //          changes within that directory, there is no reason to
-  //          rebuild just because the directory contents changed. */
-  //       if (!r->outputs[i]->is_dir) {
-  //         rebuild_excuse(r, "%s has wrong output time",
-  //                        pretty_path(r->outputs[i]->path));
-  //         is_dirty = true;
-  //       }
-  //     }
-  //   } else {
-  //     rebuild_excuse(r, "%s has no output time", pretty_path(r->outputs[i]->path));
-  //     is_dirty = true;
-  //   }
-  // }
-  // if (is_dirty) {
-  //   rule_is_ready(all, r);
-  // } else {
-  //   set_status(all, r, clean);
-  //   if (old_status == unready) {
-  //     for (int i=0;i<r->num_outputs;i++) {
-  //       for (int j=0;j<r->outputs[i]->num_children;j++) {
-  //         if (r->outputs[i]->children[j]->status == unready)
-  //           check_cleanliness(all, r->outputs[i]->children[j]);
-  //       }
-  //     }
-  //   }
-  // }
+        let mut is_dirty = false;
 
+        // if (env.abc.a != r->env.abc.a || env.abc.b != r->env.abc.b || env.abc.c != r->env.abc.c) {
+        //   if (r->env.abc.a || r->env.abc.b || r->env.abc.c) {
+        //     rebuild_excuse(r, "the environment has changed");
+        //   } else {
+        //     rebuild_excuse(r, "we have never built it");
+        //   }
+        //   is_dirty = true;
+        // }
+        for &i in r_inputs.iter() {
+            if !self[i].in_git() &&
+                self[i].rule.is_none() &&
+                self[i].path.starts_with(&self.flags.root) &&
+                !is_git_path(self.pretty_path_peek(i)) {
+                    // One of our explicit inputs is not in git, and
+                    // we also do not know how to build it yet.  One
+                    // hopes that there is some rule that will produce
+                    // it!  :)
+                    self.set_status(r, Status::Unready);
+                    return;
+                }
+        }
+        for &i in r_other_inputs.iter() {
+            if !self[i].in_git() &&
+                self[i].rule.is_none() &&
+                self[i].path.starts_with(&self.flags.root) &&
+                !is_git_path(self.pretty_path_peek(i)) {
+                    // One of our explicit inputs is not in git, and
+                    // we also do not know how to build it.  But it
+                    // was previously present and built using this
+                    // input.  This should be rebuilt since it may
+                    // have "depended" on that input via something
+                    // like "cat *.input > foo", and now that it
+                    // doesn't exist we must rebuild.
+                    is_dirty = true;
+                }
+        }
+        if !is_dirty {
+            for &i in r_all_inputs.iter() {
+                if let Some(istat) = self.rule(r).hashstats.get(&i).map(|s| *s) {
+                    let path = self[i].path.clone();
+                    if let Some(irule) = self[i].rule {
+                        if self.rule(irule).status == Status::Built {
+                            println!("Input was rebuilt, but was it changed?");
+                            println!("FIXME this probably shouldn't be dealt with here...");
+                            self[i].hashstat.finish(&path);
+                            if self[i].hashstat.cheap_matches(&istat) {
+                                // nothing to do here
+                            } else if self[i].hashstat.matches(&path, &istat) {
+                                // the following handles updating the
+                                // file stats in the rule, so next
+                                // time a cheap match will be enough.
+                                let newstat = self[i].hashstat;
+                                self.rule_mut(r).hashstats.insert(i, newstat);
+                                let facfile = self.rule(r).facfile;
+                                self.facfiles_used.insert(facfile);
+                            } else {
+                                rebuild_excuse = rebuild_excuse.or(
+                                    Some(format!("{:?} has been rebuilt",
+                                                 self.pretty_path_peek(i))));
+                                is_dirty = true;
+                                break;
+                            }
+                            continue; // this input is fine
+                        }
+                    }
+                    // We did not just build it, so different excuses!
+                    if self[i].hashstat.cheap_matches(&istat) {
+                        // nothing to do here
+                    } else if self[i].hashstat.matches(&path, &istat) {
+                        // the following handles updating the file
+                        // stats in the rule, so next time a cheap
+                        // match will be enough.
+                        let newstat = self[i].hashstat;
+                        self.rule_mut(r).hashstats.insert(i, newstat);
+                        let facfile = self.rule(r).facfile;
+                        self.facfiles_used.insert(facfile);
+                    } else {
+                        rebuild_excuse = rebuild_excuse.or(
+                            Some(format!("{:?} has been modified",
+                                         self.pretty_path_peek(i))));
+                        is_dirty = true;
+                        break;
+                    }
+
+                } else {
+                    rebuild_excuse = rebuild_excuse.or(
+                        Some(format!("have no information on {:?}",
+                                     self.pretty_path_peek(i))));
+                    is_dirty = true;
+                    break;
+                }
+            }
+        }
+        if !is_dirty {
+            let r_all_outputs: HashSet<FileRef<'id>> =
+                self.rule(r).all_outputs.iter().map(|&o| o).collect();
+            if r_all_outputs.len() == 0 {
+                rebuild_excuse = rebuild_excuse.or(
+                    Some(format!("it has never been run")));
+                is_dirty = true;
+            }
+            for o in r_all_outputs {
+                if let Some(ostat) = self.rule(r).hashstats.get(&o).map(|s| *s) {
+                    let path = self[o].path.clone();
+                    if self[o].hashstat.cheap_matches(&ostat) {
+                        // nothing to do here
+                    } else if self[o].hashstat.matches(&path, &ostat) {
+                        // the following handles updating the file
+                        // stats in the rule, so next time a cheap
+                        // match will be enough.
+                        let newstat = self[o].hashstat;
+                        self.rule_mut(r).hashstats.insert(o, newstat);
+                        let facfile = self.rule(r).facfile;
+                        self.facfiles_used.insert(facfile);
+                    } else {
+                        rebuild_excuse = rebuild_excuse.or(
+                            Some(format!("output {:?} has been modified",
+                                         self.pretty_path_peek(o))));
+                        is_dirty = true;
+                        break;
+                    }
+                } else {
+                    rebuild_excuse = rebuild_excuse.or(
+                        Some(format!("have never built {:?}",
+                                     self.pretty_path_peek(o))));
+                    is_dirty = true;
+                    break;
+                }
+            }
+        }
+        if is_dirty {
+            println!(" *** Building {}\n     because {}",
+                     self.pretty_rule(r),
+                     rebuild_excuse.unwrap_or(String::from("I am confused?")));
+            self.dirty(r);
+        } else {
+            self.set_status(r, Status::Clean);
+            if old_status == Status::Unready {
+                // If we were previously unready, let us now check if
+                // any of our children are ready.  FIXME: check if
+                // this could end up resulting in building things we
+                // didn't want built!
+                let children: Vec<RuleRef<'id>> = self.rule(r).outputs.iter()
+                    .flat_map(|o| self[*o].children.iter()).map(|c| *c).collect();
+                for childr in children {
+                    self.check_cleanliness(childr);
+                }
+            }
+        }
     }
 
     /// Mark this rule as dirty, adjusting other rules to match.
@@ -742,6 +805,26 @@ impl<'id> Build<'id> {
         }
     }
 
+    /// Formats the path nicely as a relative path if possible
+    pub fn pretty_path(&self, p: FileRef<'id>) -> PathBuf {
+        match self[p].path.strip_prefix(&self.flags.root) {
+            Ok(p) => PathBuf::from(p),
+            Err(_) => self[p].path.clone(),
+        }
+    }
+    /// Formats the path nicely as a relative path if possible
+    pub fn pretty_path_peek(&self, p: FileRef<'id>) -> &Path {
+        match self[p].path.strip_prefix(&self.flags.root) {
+            Ok(p) => p,
+            Err(_) => &self[p].path,
+        }
+    }
+
+    /// Formats the rule nicely if possible
+    pub fn pretty_rule(&self, r: RuleRef<'id>) -> String {
+        self.rule(r).command.to_string_lossy().into_owned()
+    }
+
     /// Look up the rule
     pub fn rule_mut(&mut self, r: RuleRef<'id>) -> &mut Rule<'id> {
         &mut self.rules[r.0]
@@ -773,4 +856,10 @@ fn bytes_to_osstr(b: &[u8]) -> &OsStr {
 #[cfg(not(unix))]
 fn bytes_to_osstr(b: &[u8]) -> &OsStr {
     Path::new(std::str::from_utf8(b).unwrap()).as_os_str()
+}
+
+
+/// This is a path in the git repository that we should ignore
+pub fn is_git_path(path: &Path) -> bool {
+    path.starts_with(".git") && !path.starts_with(".git/hooks")
 }
