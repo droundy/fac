@@ -373,7 +373,6 @@ impl<'id> Build<'id> {
         let rules: Vec<_> = self.statuses[Status::Marked].iter().map(|&r| r).collect();
         for r in rules {
             self.check_cleanliness(r);
-            vprintln!("I should see about: {}", self.pretty_rule(r));
         }
         let rules: Vec<_> = self.statuses[Status::Dirty].iter().map(|&r| r).collect();
         for r in rules {
@@ -823,10 +822,22 @@ impl<'id> Build<'id> {
     pub fn run(&mut self, r: RuleRef<'id>) -> std::io::Result<()> {
         let wd = self.flags.root.join(&self.rule(r).working_directory);
         vprintln!("running {:?} in {:?}", &self.rule(r).command, &wd,);
-        bigbro::Command::new("/bin/sh").arg("-c")
+        let mut stat = bigbro::Command::new("/bin/sh")
+            .arg("-c")
             .arg(&self.rule(r).command)
             .current_dir(&wd)
+            .save_stdouterr()
             .status()?;
+        if stat.status().success() {
+            println!("[?/?]: {}", self.pretty_rule(r));
+        } else {
+            println!("build failed: {}", self.pretty_rule(r));
+            let f = stat.stdout()?;
+            let mut contents = String::new();
+            f.unwrap().read_to_string(&mut contents)?;
+            println!("{}", contents);
+            println!("end of output from failed build: {}", self.pretty_rule(r));
+        }
         let ff = self.rule(r).facfile;
         self.facfiles_used.insert(ff);
         Ok(())
