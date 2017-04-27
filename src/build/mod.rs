@@ -20,6 +20,23 @@ use git;
 pub mod hashstat;
 pub mod flags;
 
+/// VERBOSE is used to enable our vprintln macro to know the
+/// verbosity.  This is a bit ugly, but is needed due to rust macros
+/// being hygienic.
+static mut VERBOSE: bool = false;
+
+/// The `vprintln!` macro does a println! only if the --verbose flag
+/// is specified.  It is written as a macro because if it were a
+/// method or function then the arguments would be always evaluated
+/// regardless of the verbosity (thus slowing things down).
+/// Equivalently, we could write an if statement for each verbose
+/// print, but that would be tedious.
+macro_rules! vprintln {
+    () => {{ if unsafe { VERBOSE } { println!() } }};
+    ($fmt:expr) => {{ if unsafe { VERBOSE } { println!($fmt) } }};
+    ($fmt:expr, $($arg:tt)*) => {{ if unsafe { VERBOSE } { println!($fmt, $($arg)*) } }};
+}
+
 /// `Id<'id>` is invariant w.r.t `'id`
 ///
 /// This means that the inference engine is not allowed to shrink or
@@ -255,14 +272,6 @@ impl<'id> Rule<'id> {
         self.cache_suffixes.iter().any(|s| is_suffix(path, s)) ||
             self.cache_prefixes.iter().any(|s| is_prefix(path, s))
     }
-
-    /// Actually run the command FJIXME needs to move to impl Build,
-    /// and should deal with threads and store output etc.
-    pub fn run(&mut self, b: &mut Build<'id>) {
-        bigbro::Command::new("sh").arg("-c").arg(&self.command)
-            .current_dir(&self.working_directory).status().unwrap();
-        b.facfiles_used.insert(self.facfile);
-    }
 }
 
 #[cfg(unix)]
@@ -331,6 +340,7 @@ pub struct Build<'id> {
 pub fn build<F, Out>(fl: flags::Flags, f: F) -> Out
     where F: for<'id> FnOnce(Build<'id>) -> Out
 {
+    unsafe { VERBOSE = fl.verbose; }
     // This approach to type witnesses is taken from
     // https://github.com/bluss/indexing/blob/master/src/container.rs
     let mut b = Build {
@@ -363,11 +373,14 @@ impl<'id> Build<'id> {
         let rules: Vec<_> = self.statuses[Status::Marked].iter().map(|&r| r).collect();
         for r in rules {
             self.check_cleanliness(r);
-            println!("I should see about: {}", self.pretty_rule(r));
+            vprintln!("I should see about: {}", self.pretty_rule(r));
         }
         let rules: Vec<_> = self.statuses[Status::Dirty].iter().map(|&r| r).collect();
         for r in rules {
-            println!("I should run: {}", self.pretty_rule(r));
+            vprintln!("I shall run: {}", self.pretty_rule(r));
+            if let Err(e) = self.run(r) {
+                println!("I got err {}", e);
+            }
         }
     }
     fn filerefs(&self) -> Vec<FileRef<'id>> {
@@ -751,9 +764,9 @@ impl<'id> Build<'id> {
             }
         }
         if is_dirty {
-            println!(" *** Building {}\n     because {}",
-                     self.pretty_rule(r),
-                     rebuild_excuse.unwrap_or(String::from("I am confused?")));
+            vprintln!(" *** Building {}\n     because {}",
+                      self.pretty_rule(r),
+                      rebuild_excuse.unwrap_or(String::from("I am confused?")));
             self.dirty(r);
         } else {
             self.set_status(r, Status::Clean);
@@ -803,6 +816,20 @@ impl<'id> Build<'id> {
                 self.unready(*childr);
             }
         }
+    }
+
+    /// Actually run a command.  This needs to update the inputs and
+    /// outputs.  FIXME
+    pub fn run(&mut self, r: RuleRef<'id>) -> std::io::Result<()> {
+        let wd = self.flags.root.join(&self.rule(r).working_directory);
+        vprintln!("running {:?} in {:?}", &self.rule(r).command, &wd,);
+        bigbro::Command::new("/bin/sh").arg("-c")
+            .arg(&self.rule(r).command)
+            .current_dir(&wd)
+            .status()?;
+        let ff = self.rule(r).facfile;
+        self.facfiles_used.insert(ff);
+        Ok(())
     }
 
     /// Formats the path nicely as a relative path if possible
