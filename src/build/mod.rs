@@ -784,7 +784,7 @@ impl<'id> Build<'id> {
     }
 
     /// Mark this rule as dirty, adjusting other rules to match.
-    pub fn dirty(&mut self, r: RuleRef<'id>) {
+    fn dirty(&mut self, r: RuleRef<'id>) {
         let oldstat = self.rule(r).status;
         if oldstat != Status::Dirty {
             self.set_status(r, Status::Dirty);
@@ -800,7 +800,7 @@ impl<'id> Build<'id> {
         }
     }
     /// Make this rule (and any that depend on it) `Status::Unready`.
-    pub fn unready(&mut self, r: RuleRef<'id>) {
+    fn unready(&mut self, r: RuleRef<'id>) {
         if self.rule(r).status != Status::Unready {
             self.set_status(r, Status::Unready);
             // Need to inform child rules they are unready now
@@ -814,6 +814,30 @@ impl<'id> Build<'id> {
             for childr in children.iter() {
                 self.unready(*childr);
             }
+        }
+    }
+    fn failed(&mut self, r: RuleRef<'id>) {
+        if self.rule(r).status != Status::Failed {
+            self.set_status(r, Status::Failed);
+            // Need to inform child rules they are unready now
+            let children: Vec<RuleRef<'id>> = self.rule(r).outputs.iter()
+                .flat_map(|o| self[*o].children.iter()).map(|c| *c).collect();
+            // This is a separate loop to satisfy the borrow checker.
+            // It is somewhat less efficient to store this, but such
+            // is life.  I could have stored a HashSet rather than a
+            // Vec, but suspect the hash table overhead would make it
+            // less efficient.
+            for childr in children.iter() {
+                self.failed(*childr);
+            }
+        }
+    }
+    fn built(&mut self, r: RuleRef<'id>) {
+        self.set_status(r, Status::Built);
+        let children: Vec<RuleRef<'id>> = self.rule(r).outputs.iter()
+            .flat_map(|o| self[*o].children.iter()).map(|c| *c).collect();
+        for childr in children {
+            self.check_cleanliness(childr);
         }
     }
 
@@ -830,6 +854,17 @@ impl<'id> Build<'id> {
             .status()?;
         if stat.status().success() {
             println!("[?/?]: {}", self.pretty_rule(r));
+            for w in stat.written_to_files() {
+                let fw = self.new_file(&w);
+                self.add_output(r, fw); // FIXME filter on cache etc.
+                println!("wrote to {:?}", &w);
+            }
+            for rr in stat.read_from_files() {
+                let fr = self.new_file(&rr);
+                self.add_input(r, fr); // FIXME filter on cache etc.
+                println!("read from {:?}", &rr);
+            }
+            self.built(r);
         } else {
             println!("build failed: {}", self.pretty_rule(r));
             let f = stat.stdout()?;
@@ -837,6 +872,7 @@ impl<'id> Build<'id> {
             f.unwrap().read_to_string(&mut contents)?;
             println!("{}", contents);
             println!("end of output from failed build: {}", self.pretty_rule(r));
+            self.failed(r);
         }
         let ff = self.rule(r).facfile;
         self.facfiles_used.insert(ff);
