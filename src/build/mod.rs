@@ -855,7 +855,7 @@ impl<'id> Build<'id> {
         if stat.status().success() {
             println!("[?/?]: {}", self.pretty_rule(r));
             for w in stat.written_to_files() {
-                if !is_git_path(&w) && !self.rule(r).is_cache(&w) {
+                if w.starts_with(&self.flags.root) && !is_git_path(&w) && !self.rule(r).is_cache(&w) {
                     let fw = self.new_file(&w);
                     self.add_output(r, fw); // FIXME filter on cache etc.
                     println!("wrote to {:?}", &w);
