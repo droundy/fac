@@ -855,14 +855,18 @@ impl<'id> Build<'id> {
         if stat.status().success() {
             println!("[?/?]: {}", self.pretty_rule(r));
             for w in stat.written_to_files() {
-                let fw = self.new_file(&w);
-                self.add_output(r, fw); // FIXME filter on cache etc.
-                println!("wrote to {:?}", &w);
+                if !is_git_path(&w) && !self.rule(r).is_cache(&w) {
+                    let fw = self.new_file(&w);
+                    self.add_output(r, fw); // FIXME filter on cache etc.
+                    println!("wrote to {:?}", &w);
+                }
             }
             for rr in stat.read_from_files() {
-                let fr = self.new_file(&rr);
-                self.add_input(r, fr); // FIXME filter on cache etc.
-                println!("read from {:?}", &rr);
+                if !is_git_path(&rr) && !self.rule(r).is_cache(&rr) {
+                    let fr = self.new_file(&rr);
+                    self.add_input(r, fr); // FIXME filter on cache etc.
+                    println!("read from {:?}", &rr);
+                }
             }
             self.built(r);
         } else {
