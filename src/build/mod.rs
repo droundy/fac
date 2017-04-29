@@ -857,6 +857,7 @@ impl<'id> Build<'id> {
             for w in stat.written_to_files() {
                 if w.starts_with(&self.flags.root) && !is_git_path(&w) && !self.rule(r).is_cache(&w) {
                     let fw = self.new_file(&w);
+                    self[fw].hashstat.finish(&w);
                     self.add_output(r, fw); // FIXME filter on cache etc.
                     println!("wrote to {:?}", &w);
                 }
@@ -864,6 +865,7 @@ impl<'id> Build<'id> {
             for rr in stat.read_from_files() {
                 if !is_git_path(&rr) && !self.rule(r).is_cache(&rr) {
                     let fr = self.new_file(&rr);
+                    self[fr].hashstat.finish(&rr);
                     self.add_input(r, fr); // FIXME filter on cache etc.
                     println!("read from {:?}", &rr);
                 }
