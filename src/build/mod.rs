@@ -13,7 +13,7 @@ use std::path::{Path,PathBuf};
 
 use std::collections::{HashSet, HashMap};
 
-use std::io::{Read};
+use std::io::{Read, Write};
 
 use git;
 
@@ -381,6 +381,7 @@ impl<'id> Build<'id> {
                 println!("I got err {}", e);
             }
         }
+        self.save_factum_files().unwrap();
     }
     fn filerefs(&self) -> Vec<FileRef<'id>> {
         let mut out = Vec::new();
@@ -392,10 +393,11 @@ impl<'id> Build<'id> {
     fn new_file_private<P: AsRef<Path>>(&mut self, path: P,
                                         is_in_git: bool)
                                         -> FileRef<'id> {
+        let path = self.flags.root.join(path.as_ref());
         // If this file is already in our database, use the version
         // that we have.  It is an important invariant that we can
         // only have one file with a given path in the database.
-        match self.filemap.get(path.as_ref()) {
+        match self.filemap.get(&path) {
             Some(f) => return *f,
             None => ()
         }
@@ -403,13 +405,13 @@ impl<'id> Build<'id> {
         self.files.push(File {
             id: self.id,
             rule: None,
-            path: PathBuf::from(path.as_ref()),
+            path: PathBuf::from(&path),
             children: HashSet::new(),
             rules_defined: HashSet::new(),
             hashstat: hashstat::HashStat::empty(),
             is_in_git: is_in_git,
         });
-        self.filemap.insert(PathBuf::from(path.as_ref()), f);
+        self.filemap.insert(PathBuf::from(&path), f);
         f
     }
 
@@ -538,6 +540,39 @@ impl<'id> Build<'id> {
         }
         Ok(())
     }
+    /// Write factum files
+    pub fn save_factum_files(&mut self) -> std::io::Result<()> {
+        let facfiles: Vec<FileRef<'id>> = self.facfiles_used.drain().collect();
+        for f in facfiles {
+            self.save_factum_file(f).unwrap();
+        }
+        Ok(())
+    }
+    /// Write a fac.tum file
+    pub fn save_factum_file(&mut self, fileref: FileRef<'id>) -> std::io::Result<()> {
+        println!("saving to {:?}", &self[fileref].path.with_extension("factum"));
+        let mut f = std::fs::File::create(&self[fileref].path.with_extension("factum"))?;
+        for &r in self[fileref].rules_defined.iter() {
+            f.write(b"\n| ")?;
+            f.write(hashstat::osstr_to_bytes(&self.rule(r).command))?;
+            f.write(b"\n")?;
+            for &i in self.rule(r).all_inputs.iter() {
+                f.write(b"< ")?;
+                f.write(hashstat::osstr_to_bytes(self[i].path.as_os_str()))?;
+                f.write(b"\nH ")?;
+                f.write(&self[i].hashstat.encode())?;
+                f.write(b"\n")?;
+            }
+            for &o in self.rule(r).all_outputs.iter() {
+                f.write(b"> ")?;
+                f.write(hashstat::osstr_to_bytes(self[o].path.as_os_str()))?;
+                f.write(b"\nH ")?;
+                f.write(&self[o].hashstat.encode())?;
+                f.write(b"\n")?;
+            }
+        }
+        Ok(())
+    }
 
     /// Add a new File as an input to this rule.
     pub fn add_input(&mut self, r: RuleRef<'id>, input: FileRef<'id>) {
@@ -553,14 +588,12 @@ impl<'id> Build<'id> {
     /// Add a new File as an explicit input to this rule.
     fn add_explicit_input(&mut self, r: RuleRef<'id>, input: FileRef<'id>) {
         self.rule_mut(r).inputs.push(input);
-        self.rule_mut(r).all_inputs.insert(input);
-        self[input].children.insert(r);
+        self.add_input(r, input);
     }
     /// Add a new File as an explicit output of this rule.
     fn add_explicit_output(&mut self, r: RuleRef<'id>, output: FileRef<'id>) {
         self.rule_mut(r).outputs.push(output);
-        self.rule_mut(r).all_outputs.insert(output);
-        self[output].rule = Some(r);
+        self.add_output(r, output);
     }
 
     /// Adjust the status of this rule, making sure to keep our sets
@@ -863,11 +896,22 @@ impl<'id> Build<'id> {
                 }
             }
             for rr in stat.read_from_files() {
-                if !is_git_path(&rr) && !self.rule(r).is_cache(&rr) {
+                if !is_boring(&rr) && !self.rule(r).is_cache(&rr) {
                     let fr = self.new_file(&rr);
                     self[fr].hashstat.finish(&rr);
+                    println!("add_input {} < {:?}",
+                             self.pretty_rule(r), &self[fr].path);
                     self.add_input(r, fr); // FIXME filter on cache etc.
-                    println!("read from {:?}", &rr);
+                }
+            }
+            {
+                // let us fill in any hash info for outputs that were
+                // not touched in this build.
+                let v: Vec<FileRef<'id>> = self.rule(r).all_outputs.iter()
+                    .filter(|&w| self[*w].hashstat.unfinished()).map(|&w|w).collect();
+                for w in v {
+                    let p = self[w].path.clone();
+                    self[w].hashstat.finish(&p);
                 }
             }
             self.built(r);
@@ -942,4 +986,9 @@ fn bytes_to_osstr(b: &[u8]) -> &OsStr {
 /// This is a path in the git repository that we should ignore
 pub fn is_git_path(path: &Path) -> bool {
     path.starts_with(".git") && !path.starts_with(".git/hooks")
+}
+
+/// This path is inherently boring
+pub fn is_boring(path: &Path) -> bool {
+    path.starts_with("/proc") || path.starts_with("/dev") || is_git_path(path)
 }

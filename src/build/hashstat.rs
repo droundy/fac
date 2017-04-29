@@ -161,6 +161,10 @@ impl HashStat {
             kind: None,
         }
     }
+    /// is the hash known?
+    pub fn unfinished(&self) -> bool {
+        self.hash == 0 || self.size == 0
+    }
     /// look up any bits of the hashstat that we do not yet know.
     pub fn finish(&mut self, f: &std::path::Path) {
         if self.size == 0 {
@@ -242,12 +246,14 @@ impl HashStat {
 use std::ffi::{OsStr};
 #[cfg(unix)]
 use std::os::unix::ffi::{OsStrExt};
+/// Convert OsStr to bytes
 #[cfg(unix)]
-fn osstr_to_bytes(b: &OsStr) -> &[u8] {
+pub fn osstr_to_bytes(b: &OsStr) -> &[u8] {
     OsStr::as_bytes(b)
 }
 
+/// Convert OsStr to bytes
 #[cfg(not(unix))]
-fn osstr_to_bytes(b: &OsStr) -> &[u8] {
+pub fn osstr_to_bytes(b: &OsStr) -> &[u8] {
     b.to_str().unwrap().as_bytes()
 }
