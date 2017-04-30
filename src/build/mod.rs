@@ -320,6 +320,7 @@ pub struct Build<'id> {
     filerefs: Vec<FileRef<'id>>,
     rulerefs: Vec<RuleRef<'id>>,
     filemap: HashMap<PathBuf, FileRef<'id>>,
+    rulemap: HashMap<(OsString, PathBuf), RuleRef<'id>>,
     statuses: StatusMap<HashSet<RuleRef<'id>>>,
 
     facfiles_used: HashSet<FileRef<'id>>,
@@ -350,6 +351,7 @@ pub fn build<F, Out>(fl: flags::Flags, f: F) -> Out
         filerefs: Vec::new(),
         rulerefs: Vec::new(),
         filemap: HashMap::new(),
+        rulemap: HashMap::new(),
         statuses: StatusMap::new(|| HashSet::new()),
         facfiles_used: HashSet::new(),
         flags: fl,
@@ -366,7 +368,7 @@ impl<'id> Build<'id> {
         for f in self.filerefs() {
             if self[f].is_fac_file() && self[f].rules_defined.len() == 0 {
                 self.read_file(f).unwrap();
-                self.print_fac_file(f).unwrap();
+                // self.print_fac_file(f).unwrap();
             }
         }
         self.mark_fac_files();
@@ -376,7 +378,6 @@ impl<'id> Build<'id> {
         }
         let rules: Vec<_> = self.statuses[Status::Dirty].iter().map(|&r| r).collect();
         for r in rules {
-            vprintln!("I shall run: {}", self.pretty_rule(r));
             if let Err(e) = self.run(r) {
                 println!("I got err {}", e);
             }
@@ -440,6 +441,9 @@ impl<'id> Build<'id> {
                     is_default: bool)
                     -> RuleRef<'id> {
         let r = RuleRef(self.rules.len(), self.id);
+        let key = (OsString::from(command), PathBuf::from(working_directory));
+        assert!(!self.rulemap.contains_key(&key));
+        self.rulemap.insert(key, r);
         self.rules.push(Rule {
             id: self.id,
             inputs: Vec::new(),
@@ -524,6 +528,77 @@ impl<'id> Build<'id> {
                                         &format!("Invalid first character: {:?}", line[0])),
             }
         }
+        self.read_factum_file(fileref)
+    }
+    /// Read a factum file
+    fn read_factum_file(&mut self, fileref: FileRef<'id>) -> std::io::Result<()> {
+        let filepath = self[fileref].path.with_extension("factum.tum");
+        let mut f = if let Ok(f) = std::fs::File::open(&filepath) {
+            f
+        } else {
+            return Ok(()); // not an error for factum file to not exist!
+        };
+        let mut v = Vec::new();
+        f.read_to_end(&mut v)?;
+        let mut command: Option<RuleRef<'id>> = None;
+        let mut file: Option<FileRef<'id>> = None;
+        for (lineno_minus_one, line) in v.split(|c| *c == b'\n').enumerate() {
+            let lineno = lineno_minus_one + 1;
+            fn parse_error<T>(path: &Path, lineno: usize, msg: &str) -> std::io::Result<T> {
+                Err(std::io::Error::new(std::io::ErrorKind::Other,
+                                        format!("error: {:?}:{}: {}",
+                                                path, lineno, msg)))
+            }
+            if line.len() < 2 || line[0] == b'#' { continue };
+            if line[1] != b' ' {
+                return parse_error(&filepath, lineno,
+                                   "Second character of line should be a space.");
+            }
+            let get_rule = |r: Option<RuleRef<'id>>, c: char| -> std::io::Result<RuleRef<'id>> {
+                match r {
+                    None => parse_error(&filepath, lineno,
+                                        &format!("'{}' line must follow '|' or '?'",c)),
+                    Some(r) => Ok(r),
+                }
+            };
+            match line[0] {
+                b'|' => {
+                    let key = (bytes_to_osstr(&line[2..]).to_os_string(),
+                               PathBuf::from(filepath.parent().unwrap()));
+                    if let Some(r) = self.rulemap.get(&key) {
+                        if self[fileref].rules_defined.contains(r) {
+                            command = Some(*r);
+                            file = None;
+                        } else {
+                            println!("mystery rule moved to different fac file?!");
+                        }
+                    } else {
+                        println!("missing rule!");
+                    }
+                },
+                b'>' => {
+                    let f = self.new_file(bytes_to_osstr(&line[2..]));
+                    file = Some(f);
+                    self.add_explicit_output(get_rule(command, '>')?, f);
+                },
+                b'<' => {
+                    let f = self.new_file(bytes_to_osstr(&line[2..]));
+                    file = Some(f);
+                    self.add_explicit_input(get_rule(command, '<')?, f);
+                },
+                b'H' => {
+                    if let Some(ff) = file {
+                        self.rule_mut(get_rule(command, 'H')?)
+                            .hashstats.insert(ff, hashstat::HashStat::decode(&line[2..]));
+                    } else {
+                        return parse_error(&filepath, lineno,
+                                           &format!("H must be after a file!"));
+                    }
+                },
+                _ => return parse_error(&filepath, lineno,
+                                        &format!("Invalid first character: {:?}", line[0])),
+            }
+        }
         Ok(())
     }
 
@@ -550,8 +625,7 @@ impl<'id> Build<'id> {
     }
     /// Write a fac.tum file
     pub fn save_factum_file(&mut self, fileref: FileRef<'id>) -> std::io::Result<()> {
-        println!("saving to {:?}", &self[fileref].path.with_extension("factum"));
-        let mut f = std::fs::File::create(&self[fileref].path.with_extension("factum"))?;
+        let mut f = std::fs::File::create(&self[fileref].path.with_extension("factum.tum"))?;
         for &r in self[fileref].rules_defined.iter() {
             f.write(b"\n| ")?;
             f.write(hashstat::osstr_to_bytes(&self.rule(r).command))?;
@@ -796,8 +870,8 @@ impl<'id> Build<'id> {
             }
         }
         if is_dirty {
-            vprintln!(" *** Building {}\n     because {}",
-                      self.pretty_rule(r),
+            vprintln!(" *** Building {} in {:?}\n     because {}",
+                      self.pretty_rule(r), self.rule(r).working_directory,
                       rebuild_excuse.unwrap_or(String::from("I am confused?")));
             self.dirty(r);
         } else {
@@ -877,8 +951,19 @@ impl<'id> Build<'id> {
     /// Actually run a command.  This needs to update the inputs and
     /// outputs.  FIXME
     pub fn run(&mut self, r: RuleRef<'id>) -> std::io::Result<()> {
+        {
+            // Before running, let us fill in any hash info for
+            // inputs that we have not yet read about.
+            let v: Vec<FileRef<'id>> = self.rule(r).all_inputs.iter()
+                .filter(|&w| self[*w].hashstat.unfinished()).map(|&w|w).collect();
+            for w in v {
+                let p = self[w].path.clone();
+                self[w].hashstat.finish(&p);
+            }
+        }
         let wd = self.flags.root.join(&self.rule(r).working_directory);
-        vprintln!("running {:?} in {:?}", &self.rule(r).command, &wd,);
+        vprintln!("       running {:?} in {:?}", &self.rule(r).command,
+                  &self.rule(r).working_directory);
         let mut stat = bigbro::Command::new("/bin/sh")
             .arg("-c")
             .arg(&self.rule(r).command)
@@ -892,15 +977,12 @@ impl<'id> Build<'id> {
                     let fw = self.new_file(&w);
                     self[fw].hashstat.finish(&w);
                     self.add_output(r, fw); // FIXME filter on cache etc.
-                    println!("wrote to {:?}", &w);
                 }
             }
             for rr in stat.read_from_files() {
                 if !is_boring(&rr) && !self.rule(r).is_cache(&rr) {
                     let fr = self.new_file(&rr);
                     self[fr].hashstat.finish(&rr);
-                    println!("add_input {} < {:?}",
-                             self.pretty_rule(r), &self[fr].path);
                     self.add_input(r, fr); // FIXME filter on cache etc.
                 }
             }
@@ -946,7 +1028,14 @@ impl<'id> Build<'id> {
 
     /// Formats the rule nicely if possible
     pub fn pretty_rule(&self, r: RuleRef<'id>) -> String {
-        self.rule(r).command.to_string_lossy().into_owned()
+        if self.rule(r).working_directory == self.flags.root {
+            self.rule(r).command.to_string_lossy().into_owned()
+        } else {
+            format!("{}: {}",
+                    self.rule(r).working_directory
+                        .strip_prefix(&self.flags.root).unwrap().to_string_lossy(),
+                    self.rule(r).command.to_string_lossy())
+        }
     }
 
     /// Look up the rule
