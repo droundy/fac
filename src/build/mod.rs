@@ -365,21 +365,29 @@ pub fn build<F, Out>(fl: flags::Flags, f: F) -> Out
 impl<'id> Build<'id> {
     /// Run the actual build!
     pub fn build(&mut self) {
-        for f in self.filerefs() {
-            if self[f].is_fac_file() && self[f].rules_defined.len() == 0 {
-                self.read_file(f).unwrap();
-                // self.print_fac_file(f).unwrap();
+        let mut still_doing_facfiles = true;
+        while still_doing_facfiles {
+            still_doing_facfiles = false;
+            for f in self.filerefs() {
+                if self[f].is_fac_file() && self[f].rules_defined.len() == 0
+                    && self.is_file_done(f) {
+                        println!("reading file {:?}", self.pretty_path(f));
+                        self.read_file(f).unwrap();
+                        still_doing_facfiles = true;
+                    // self.print_fac_file(f).unwrap();
+                }
             }
-        }
-        self.mark_fac_files();
-        let rules: Vec<_> = self.statuses[Status::Marked].iter().map(|&r| r).collect();
-        for r in rules {
-            self.check_cleanliness(r);
-        }
-        let rules: Vec<_> = self.statuses[Status::Dirty].iter().map(|&r| r).collect();
-        for r in rules {
-            if let Err(e) = self.run(r) {
-                println!("I got err {}", e);
+            self.mark_fac_files();
+            let rules: Vec<_> = self.statuses[Status::Marked].iter().map(|&r| r).collect();
+            for r in rules {
+                self.check_cleanliness(r);
+            }
+            let rules: Vec<_> = self.statuses[Status::Dirty].iter().map(|&r| r).collect();
+            for r in rules {
+                still_doing_facfiles = true;
+                if let Err(e) = self.run(r) {
+                    println!("I got err {}", e);
+                }
             }
         }
         self.save_factum_files().unwrap();
@@ -688,6 +696,18 @@ impl<'id> Build<'id> {
         }
         for r in to_mark {
             self.set_status(r, Status::Marked);
+        }
+    }
+
+    fn is_file_done(&self, f: FileRef<'id>) -> bool {
+        if let Some(r) = self[f].rule {
+            match self.rule(r).status {
+                Status::Built | Status::Clean => true,
+                _ => false,
+            }
+        } else {
+            // No rule to build it, so it is inherently done!x
+            true
         }
     }
 
