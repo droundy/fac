@@ -87,15 +87,6 @@ def write_script_name(n, num=0, tot=0):
     sys.stdout.flush()
     sys.stdout.write(' '*(biggestname+extralen+3-len(n)))
 
-if system('cd bigbro && python3 run-tests.py'):
-    write_script_name('ran all bigbro tests')
-    print(build.FAIL, build.took(''))
-    numfailed += 1
-else:
-    write_script_name('ran all bigbro tests')
-    print(build.PASS, build.took(''))
-    numpassed += 1
-
 sh_tests = sorted(glob.glob('tests/*.sh'))
 num_sh = len(sh_tests);
 for i in range(num_sh):
