@@ -57,6 +57,11 @@ if os.getenv('MINIMAL') == None:
                             'linkflags': [os.getenv('LDFLAGS', ''), '-static'],
                             'os': platform.system().lower(),
                             'arch': platform.machine()},
+                '-coverage': {'cc': os.getenv('CC', 'gcc'),
+                              'flags': [os.getenv('CFLAGS', '') + ' -Ibigbro --coverage'],
+                              'linkflags': [os.getenv('LDFLAGS', ''), '--coverage'],
+                              'os': platform.system().lower(),
+                              'arch': platform.machine()},
                 '-afl': {'cc': 'afl-gcc',
                             'flags': [os.getenv('CFLAGS', '') + ' -Ibigbro'],
                             'linkflags': [os.getenv('LDFLAGS', ''), '-static'],
@@ -232,6 +237,7 @@ c .gcda
 c .gcov
 C tests
 C web
+c .pyc
 
 | cp -a target/doc web/
 > web/doc/fac/index.html

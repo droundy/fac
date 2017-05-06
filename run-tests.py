@@ -3,6 +3,9 @@ from __future__ import print_function
 
 import glob, os, subprocess, platform, sys
 
+import build
+build.elapsed_time()
+
 # the following is needed for some tests to run under vagrant, since
 # git complains about the default email setting.
 if 'GIT_AUTHOR_EMAIL' not in os.environ:
@@ -20,14 +23,6 @@ def system(cmd):
     # assert(x == 0)
     return x
 
-class bcolors:
-    HEADER = '\033[95m'
-    OKBLUE = '\033[94m'
-    OKGREEN = '\033[92m'
-    WARNING = '\033[93m'
-    FAIL = '\033[91m'
-    ENDC = '\033[0m'
-
 # this ensures that when fac calls git it already has index prepared:
 system('git status')
 
@@ -44,33 +39,39 @@ if platform.system() == 'Windows':
         print('Build failed!')
         exit(1)
 else:
+    print(build.blue("creating build script and tarball"))
     if system('MINIMAL=1 ./fac --script build/%s.sh -i version-identifier.h -i README.md -i COPYING --tar %s fac'
               % (platform.system().lower(), tarname)):
         print('Build failed!')
         exit(1)
+    print(build.took('creating tarball'))
 
+    print(build.blue("creating build script but not tarball"))
     if system('MINIMAL=1 ./fac --script build/%s.sh fac'
               % (platform.system().lower())):
         print('Build failed!')
         exit(1)
+    print(build.took('build script'))
 system('mv %s web/' % tarname)
 system('ln -sf %s web/fac.tar.gz' % tarname)
 system('echo rm -rf bigbro >> build/%s.sh' % platform.system().lower())
 system('chmod +x build/%s.sh' % platform.system().lower())
 
-if system('./fac'):
-    print('Build everything failed!')
+print(build.blue("building fac-coverage"))
+if system('./fac fac-coverage'):
+    print('Build fac-coverage failed!')
     exit(1)
+print(build.took('intial compiling'))
+
+print(build.blue("building everything else"))
+if system('./fac-coverage'):
+    print('Build everything while testing coverage failed!')
+    exit(1)
+print(build.took('compiling everything else'))
+
 if have_gcovr:
     os.system('rm -f *.gc* */*.gc*') # remove any preexisting coverage files
-    if system('COVERAGE=1 ./fac fac'):
-        print('Build with coverage failed!')
-        exit(1)
-    system('cp fac tests/fac-with-coverage')
-    system('COVERAGE=1 tests/fac-with-coverage -c')
-    system('rm -rf bigbro') # needed because -c doesn't remove cached files!  :(
-    system('COVERAGE=1 tests/fac-with-coverage')
-    system('rm tests/fac-with-coverage')
+    system('cp fac-coverage fac')
 
 numpassed = 0
 numfailed = 0
@@ -88,11 +89,11 @@ def write_script_name(n, num=0, tot=0):
 
 if system('cd bigbro && python3 run-tests.py'):
     write_script_name('ran all bigbro tests')
-    print(bcolors.FAIL+'FAIL', bcolors.ENDC)
+    print(build.FAIL, build.took(''))
     numfailed += 1
 else:
     write_script_name('ran all bigbro tests')
-    print(bcolors.OKGREEN+'PASS', bcolors.ENDC)
+    print(build.PASS, build.took(''))
     numpassed += 1
 
 sh_tests = sorted(glob.glob('tests/*.sh'))
@@ -103,29 +104,29 @@ for i in range(num_sh):
     cmdline = 'bash %s > %s.log 2>&1' % (sh, sh)
     exitval = system(cmdline)
     if exitval == 137:
-        print(bcolors.OKBLUE+'SKIP', bcolors.ENDC)
+        print(build.blue('SKIP'), build.took())
         if '-v' in sys.argv:
             os.system('cat %s.log' % sh)
         numskipped += 1
     elif exitval:
-        print(bcolors.FAIL+'FAIL', bcolors.ENDC)
+        print(build.FAIL, build.took())
         if '-v' in sys.argv:
             os.system('cat %s.log' % sh)
         numfailed += 1
     else:
-        print(bcolors.OKGREEN+'PASS', bcolors.ENDC)
+        print(build.PASS, build.took())
         numpassed += 1
 for sh in sorted(glob.glob('tests/*.test')):
     if 'assertion-fails' in sh:
         continue
     write_script_name(sh)
     if system('%s > %s.log 2>&1' % (sh, sh)):
-        print(bcolors.FAIL+'FAIL', bcolors.ENDC)
+        print(build.FAIL, build.took())
         if '-v' in sys.argv:
             os.system('cat %s.log' % sh)
         numfailed += 1
     else:
-        print(bcolors.OKGREEN+'PASS', bcolors.ENDC)
+        print(build.PASS, build.took())
         numpassed += 1
 
 expectedfailures = 0
@@ -134,20 +135,20 @@ unexpectedpasses = 0
 for sh in sorted(glob.glob('bugs/*.sh')):
     write_script_name(sh)
     if system('bash %s > %s.log 2>&1' % (sh, sh)):
-        print(bcolors.OKGREEN+'fail', bcolors.ENDC)
+        print(build.green('fail'), build.took())
         expectedfailures += 1
     else:
-        print(bcolors.FAIL+'pass', bcolors.ENDC, sh)
+        print(build.red('pass'), sh, build.took())
         if '-v' in sys.argv:
             os.system('cat %s.log' % sh)
         unexpectedpasses += 1
 for sh in sorted(glob.glob('bugs/*.test')):
     write_script_name(sh)
     if system('bash %s > %s.log 2>&1' % (sh, sh)):
-        print(bcolors.OKGREEN+'fail', bcolors.ENDC)
+        print(build.green('fail'), build.took())
         expectedfailures += 1
     else:
-        print(bcolors.FAIL+'pass', bcolors.ENDC, sh)
+        print(build.red('pass'), build.took())
         if '-v' in sys.argv:
             os.system('cat %s.log' % sh)
         unexpectedpasses += 1
@@ -174,7 +175,7 @@ else:
 
 print()
 if numfailed:
-    print(bcolors.FAIL+'Failed', str(numfailed)+'/'+str(numfailed+numpassed)+bcolors.ENDC)
+    print(build.red('Failed ' + str(numfailed)+'/'+str(numfailed+numpassed)))
 else:
     print('All', pluralize(numpassed, 'test'), 'passed!')
 
@@ -184,7 +185,7 @@ if numskipped:
     print(pluralize(numskipped, 'test'), 'skipped')
 
 if unexpectedpasses:
-    print(bcolors.FAIL+pluralize(unexpectedpasses, 'unexpected pass')+bcolors.ENDC)
+    print(build.red(pluralize(unexpectedpasses, 'unexpected pass')))
 
 if numfailed:
     exit(1)
