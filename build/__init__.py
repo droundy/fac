@@ -22,12 +22,18 @@ def warn(x):
 PASS = green('PASS')
 FAIL = red('FAIL')
 
+try:
+    time.perf_counter()
+    monotonic = time.perf_counter
+except:
+    monotonic = time.time
+
 def elapsed_time():
     global previous_time;
     if previous_time == 0:
-        previous_time = time.monotonic()
+        previous_time = monotonic()
         return 0
-    now = time.monotonic()
+    now = monotonic()
     elapsed = now - previous_time
     previous_time = now
     return elapsed
