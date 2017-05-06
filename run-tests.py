@@ -57,21 +57,23 @@ system('ln -sf %s web/fac.tar.gz' % tarname)
 system('echo rm -rf bigbro >> build/%s.sh' % platform.system().lower())
 system('chmod +x build/%s.sh' % platform.system().lower())
 
-print(build.blue("building fac-coverage"))
-if system('./fac fac-coverage'):
-    print('Build fac-coverage failed!')
+print(build.blue("building with fac"))
+if system('./fac'):
+    print('Build with fac failed!')
     exit(1)
 print(build.took('intial compiling'))
 
-print(build.blue("building everything else"))
-if system('./fac-coverage'):
-    print('Build everything while testing coverage failed!')
-    exit(1)
-print(build.took('compiling everything else'))
-
 if have_gcovr:
     os.system('rm -f *.gc* */*.gc*') # remove any preexisting coverage files
-    system('cp fac-coverage fac')
+    if system('COVERAGE=1 ./fac fac'):
+        print('Build with coverage failed!')
+        exit(1)
+    system('cp fac tests/fac-with-coverage')
+    system('COVERAGE=1 tests/fac-with-coverage -c')
+    system('rm -rf bigbro') # needed because -c doesn't remove cached files!  :(
+    system('COVERAGE=1 tests/fac-with-coverage')
+    system('rm tests/fac-with-coverage')
+    print(build.took('rebuilding with fac and coverage'))
 
 numpassed = 0
 numfailed = 0
