@@ -1011,7 +1011,14 @@ impl<'id> Build<'id> {
                 if !is_boring(&rr) && !self.rule(r).is_cache(&rr) {
                     let fr = self.new_file(&rr);
                     self[fr].hashstat.finish(&rr);
-                    self.add_input(r, fr); // FIXME filter on cache etc.
+                    self.add_input(r, fr);
+                }
+            }
+            for rr in stat.read_from_directories() {
+                if !is_boring(&rr) && !self.rule(r).is_cache(&rr) {
+                    let fr = self.new_file(&rr);
+                    self[fr].hashstat.finish(&rr);
+                    self.add_input(r, fr);
                 }
             }
             {
