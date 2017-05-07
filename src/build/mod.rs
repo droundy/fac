@@ -986,14 +986,24 @@ impl<'id> Build<'id> {
             .current_dir(&wd)
             .save_stdouterr()
             .status()?;
+
+        let num_built = 1 + self.statuses[Status::Failed].len()
+            + self.statuses[Status::Built].len();
+        let num_total = self.statuses[Status::Failed].len()
+            + self.statuses[Status::Built].len()
+            + self.statuses[Status::Building].len()
+            + self.statuses[Status::Dirty].len()
+            + self.statuses[Status::Unready].len();
         if stat.status().success() {
-            println!("[?/?]: {}", self.pretty_rule(r));
+            println!("[{}/{}]: {}", num_built, num_total, self.pretty_rule(r));
             for w in stat.written_to_files() {
-                if w.starts_with(&self.flags.root) && !is_git_path(&w) && !self.rule(r).is_cache(&w) {
-                    let fw = self.new_file(&w);
-                    self[fw].hashstat.finish(&w);
-                    self.add_output(r, fw); // FIXME filter on cache etc.
-                }
+                if w.starts_with(&self.flags.root)
+                    && !is_git_path(&w)
+                    && !self.rule(r).is_cache(&w) {
+                        let fw = self.new_file(&w);
+                        self[fw].hashstat.finish(&w);
+                        self.add_output(r, fw); // FIXME filter on cache etc.
+                    }
             }
             for rr in stat.read_from_files() {
                 if !is_boring(&rr) && !self.rule(r).is_cache(&rr) {
