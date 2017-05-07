@@ -239,6 +239,11 @@ impl<'id> File<'id> {
     pub fn is_fac_file(&self) -> bool {
         self.path.as_os_str().to_string_lossy().ends_with(".fac")
     }
+
+    /// Does this thing exist?
+    pub fn exists(&mut self) -> bool {
+        self.stat().is_ok()
+    }
 }
 
 /// A reference to a Rule
@@ -998,6 +1003,10 @@ impl<'id> Build<'id> {
         if stat.status().success() {
             message = self.pretty_rule(r);
             println!("[{}/{}]: {}", num_built, num_total, &message);
+            // First clear out the listing of inputs and outputs
+            self.rule_mut(r).all_inputs.clear();
+            let mut old_outputs: HashSet<FileRef<'id>> =
+                self.rule_mut(r).all_outputs.drain().collect();
             for w in stat.written_to_files() {
                 if w.starts_with(&self.flags.root)
                     && !is_git_path(&w)
@@ -1005,6 +1014,7 @@ impl<'id> Build<'id> {
                         let fw = self.new_file(&w);
                         self[fw].hashstat.finish(&w);
                         self.add_output(r, fw); // FIXME filter on cache etc.
+                        old_outputs.remove(&fw);
                     }
             }
             for rr in stat.read_from_files() {
@@ -1019,6 +1029,28 @@ impl<'id> Build<'id> {
                     let fr = self.new_file(&rr);
                     self[fr].hashstat.finish(&rr);
                     self.add_input(r, fr);
+                }
+            }
+            // Here we add in any explicit inputs our outputs that
+            // were not actually read or touched.
+            let explicit_inputs = self.rule(r).inputs.clone();
+            for i in explicit_inputs {
+                if !self.rule(r).all_inputs.contains(&i) {
+                    self.add_input(r, i);
+                }
+            }
+            let explicit_outputs = self.rule(r).outputs.clone();
+            for o in explicit_outputs {
+                if !self.rule(r).all_outputs.contains(&o) {
+                    self.add_output(r, o);
+                }
+            }
+            for o in old_outputs {
+                // Any previously created files that still exist
+                // should be treated as if they were created this time
+                // around.
+                if self[o].exists() {
+                    self.add_output(r, o);
                 }
             }
             {
