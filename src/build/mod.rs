@@ -994,8 +994,10 @@ impl<'id> Build<'id> {
             + self.statuses[Status::Building].len()
             + self.statuses[Status::Dirty].len()
             + self.statuses[Status::Unready].len();
+        let message: String;
         if stat.status().success() {
-            println!("[{}/{}]: {}", num_built, num_total, self.pretty_rule(r));
+            message = self.pretty_rule(r);
+            println!("[{}/{}]: {}", num_built, num_total, &message);
             for w in stat.written_to_files() {
                 if w.starts_with(&self.flags.root)
                     && !is_git_path(&w)
@@ -1024,13 +1026,19 @@ impl<'id> Build<'id> {
             }
             self.built(r);
         } else {
-            println!("build failed: {}", self.pretty_rule(r));
+            message = format!("build failed: {}", self.pretty_rule(r));
+            println!("!{}/{}!: {}",
+                     num_built, num_total, message);
+            self.failed(r);
+        }
+        if self.flags.show_output || !stat.status().success() {
             let f = stat.stdout()?;
             let mut contents = String::new();
             f.unwrap().read_to_string(&mut contents)?;
-            println!("{}", contents);
-            println!("end of output from failed build: {}", self.pretty_rule(r));
-            self.failed(r);
+            if contents.len() > 0 {
+                println!("{}", contents);
+                println!("end of output from: {}", &message);
+            }
         }
         let ff = self.rule(r).facfile;
         self.facfiles_used.insert(ff);

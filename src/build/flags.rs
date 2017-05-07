@@ -16,6 +16,8 @@ pub struct Flags {
     pub continual: bool,
     /// Print extra information
     pub verbose: bool,
+    /// Show command output even when they succeed
+    pub show_output: bool,
     /// Directory in which we were run
     pub run_from_directory: PathBuf,
     /// Git root
@@ -51,6 +53,10 @@ pub fn args<'a>() -> Flags {
              .long("verbose")
              .short("v")
              .help("show verbose output"))
+        .arg(clap::Arg::with_name("show-output")
+             .long("show-output")
+             .short("V")
+             .help("show command output"))
         .arg(clap::Arg::with_name("continual")
              .long("continual")
              .help("keep rebuilding"))
@@ -70,6 +76,7 @@ pub fn args<'a>() -> Flags {
     Flags {
         clean: m.is_present("clean"),
         verbose: m.is_present("verbose"),
+        show_output: m.is_present("show-output"),
         continual: m.is_present("continual"),
         run_from_directory: here,
         root: top,
