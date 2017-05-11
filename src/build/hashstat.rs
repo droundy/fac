@@ -166,7 +166,7 @@ impl HashStat {
         self.hash == 0 || self.size == 0
     }
     /// look up any bits of the hashstat that we do not yet know.
-    pub fn finish(&mut self, f: &std::path::Path) {
+    pub fn finish(&mut self, f: &std::path::Path) -> std::io::Result<()> {
         if self.size == 0 {
             match hashstat(f) {
                 Ok(h) => {
@@ -177,8 +177,9 @@ impl HashStat {
                 }
             };
         } else if self.hash == 0 {
-            self.hash(f).unwrap();
+            self.hash(f)?;
         }
+        Ok(())
     }
     /// try running sat
     fn stat(&mut self, f: &std::path::Path) {
@@ -201,7 +202,7 @@ impl HashStat {
             return true;
         }
         if self.hash == 0 {
-            self.finish(f);
+            self.finish(f).unwrap();
         }
         self.hash == other.hash
     }

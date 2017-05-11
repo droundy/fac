@@ -804,7 +804,7 @@ impl<'id> Build<'id> {
                         if self.rule(irule).status == Status::Built {
                             println!("Input was rebuilt, but was it changed?");
                             println!("FIXME this probably shouldn't be dealt with here...");
-                            self[i].hashstat.finish(&path);
+                            self[i].hashstat.finish(&path).unwrap();
                             if self[i].hashstat.cheap_matches(&istat) {
                                 // nothing to do here
                             } else if self[i].hashstat.matches(&path, &istat) {
@@ -978,8 +978,8 @@ impl<'id> Build<'id> {
             let v: Vec<FileRef<'id>> = self.rule(r).all_inputs.iter()
                 .filter(|&w| self[*w].hashstat.unfinished()).map(|&w|w).collect();
             for w in v {
-                let p = self[w].path.clone();
-                self[w].hashstat.finish(&p);
+                let p = self[w].path.clone(); // ugly workaround for borrow checker
+                self[w].hashstat.finish(&p).unwrap();
             }
         }
         let wd = self.flags.root.join(&self.rule(r).working_directory);
@@ -1012,23 +1012,26 @@ impl<'id> Build<'id> {
                     && !is_git_path(&w)
                     && !self.rule(r).is_cache(&w) {
                         let fw = self.new_file(&w);
-                        self[fw].hashstat.finish(&w);
-                        self.add_output(r, fw); // FIXME filter on cache etc.
-                        old_outputs.remove(&fw);
+                        if self[fw].hashstat.finish(&w).is_ok() {
+                            self.add_output(r, fw); // FIXME filter on cache etc.
+                            old_outputs.remove(&fw);
+                        }
                     }
             }
             for rr in stat.read_from_files() {
                 if !is_boring(&rr) && !self.rule(r).is_cache(&rr) {
                     let fr = self.new_file(&rr);
-                    self[fr].hashstat.finish(&rr);
-                    self.add_input(r, fr);
+                    if self[fr].hashstat.finish(&rr).is_ok() {
+                        self.add_input(r, fr);
+                    }
                 }
             }
             for rr in stat.read_from_directories() {
                 if !is_boring(&rr) && !self.rule(r).is_cache(&rr) {
                     let fr = self.new_file(&rr);
-                    self[fr].hashstat.finish(&rr);
-                    self.add_input(r, fr);
+                    if self[fr].hashstat.finish(&rr).is_ok() {
+                        self.add_input(r, fr);
+                    }
                 }
             }
             // Here we add in any explicit inputs our outputs that
@@ -1060,7 +1063,12 @@ impl<'id> Build<'id> {
                     .filter(|&w| self[*w].hashstat.unfinished()).map(|&w|w).collect();
                 for w in v {
                     let p = self[w].path.clone();
-                    self[w].hashstat.finish(&p);
+                    if self[w].hashstat.finish(&p).is_err() {
+                        // presumably this file no longer exists, so
+                        // we should remove it from the list of
+                        // outputs.
+                        self.rule_mut(r).all_outputs.remove(&w);
+                    }
                 }
             }
             self.built(r);
