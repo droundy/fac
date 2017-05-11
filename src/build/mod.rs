@@ -7,6 +7,7 @@ extern crate typed_arena;
 extern crate bigbro;
 
 use std;
+use std::io;
 
 use std::ffi::{OsString, OsStr};
 use std::path::{Path,PathBuf};
@@ -222,11 +223,11 @@ impl<'id> File<'id> {
     // }
 
     /// Set file properties...
-    pub fn stat(&mut self) -> std::io::Result<FileKind> {
+    pub fn stat(&mut self) -> io::Result<FileKind> {
         self.hashstat = hashstat::stat(&self.path)?;
         match self.hashstat.kind {
             Some(k) => Ok(k),
-            None => Err(std::io::Error::new(std::io::ErrorKind::Other, "irregular file")),
+            None => Err(io::Error::new(io::ErrorKind::Other, "irregular file")),
         }
     }
 
@@ -285,13 +286,13 @@ use std::os::unix::ffi::{OsStrExt};
 fn is_suffix(path: &Path, suff: &OsStr) -> bool {
     let l = suff.as_bytes().len();
     let pp = path.as_os_str().as_bytes().len();
-    path.as_os_str().as_bytes()[pp-l..] == suff.as_bytes()[..]
+    pp > l && path.as_os_str().as_bytes()[pp-l..] == suff.as_bytes()[..]
 }
 #[cfg(unix)]
 fn is_prefix(path: &Path, suff: &OsStr) -> bool {
     let l = suff.as_bytes().len();
     let p = path.as_os_str().as_bytes();
-    p[p.len()-l..] == suff.as_bytes()[..]
+    p.len() > l && p[p.len()-l..] == suff.as_bytes()[..]
 }
 
 #[cfg(not(unix))]
@@ -368,14 +369,20 @@ impl<'id> Build<'id> {
     pub fn build(&mut self) {
         let mut still_doing_facfiles = true;
         while still_doing_facfiles {
+            println!("\nhandling facfiles");
             still_doing_facfiles = false;
             for f in self.filerefs() {
-                if self[f].is_fac_file() && self[f].rules_defined.len() == 0
-                    && self.is_file_done(f) {
-                        println!("reading file {:?}", self.pretty_path(f));
-                        self.read_file(f).unwrap();
-                        still_doing_facfiles = true;
+                if self[f].is_fac_file() && self[f].rules_defined.len() == 0 && self.is_file_done(f) {
+                    println!("reading file {:?}", self.pretty_path(f));
+                    self.read_file(f).unwrap();
+                    still_doing_facfiles = true;
                     // self.print_fac_file(f).unwrap();
+                } else if self[f].is_fac_file() && !self.is_file_done(f) {
+                    println!("facfile {:?} is not done", self.pretty_path(f));
+                } else if self[f].is_fac_file() {
+                    println!("facfile {:?} already read with {} rules",
+                             self.pretty_path(f),
+                             self[f].rules_defined.len());
                 }
             }
             self.mark_fac_files();
@@ -386,6 +393,22 @@ impl<'id> Build<'id> {
             let rules: Vec<_> = self.statuses[Status::Dirty].iter().map(|&r| r).collect();
             for r in rules {
                 still_doing_facfiles = true;
+                if let Err(e) = self.run(r) {
+                    println!("I got err {}", e);
+                }
+            }
+        }
+        self.save_factum_files().unwrap();
+        println!("\nNow I am building everything?");
+        self.mark_all();
+        let rules: Vec<_> = self.statuses[Status::Marked].iter().map(|&r| r).collect();
+        for r in rules {
+            self.check_cleanliness(r);
+        }
+        while self.statuses[Status::Dirty].len() > 0 {
+            let rules: Vec<_> = self.statuses[Status::Dirty].iter().map(|&r| r).collect();
+            println!("\nhave {} dirty to build!", rules.len());
+            for r in rules {
                 if let Err(e) = self.run(r) {
                     println!("I got err {}", e);
                 }
@@ -473,7 +496,7 @@ impl<'id> Build<'id> {
     }
 
     /// Read a fac file
-    pub fn read_file(&mut self, fileref: FileRef<'id>) -> std::io::Result<()> {
+    pub fn read_file(&mut self, fileref: FileRef<'id>) -> io::Result<()> {
         let filepath = self[fileref].path.clone();
         let mut f = std::fs::File::open(&filepath)?;
         let mut v = Vec::new();
@@ -481,8 +504,8 @@ impl<'id> Build<'id> {
         let mut command: Option<RuleRef<'id>> = None;
         for (lineno_minus_one, line) in v.split(|c| *c == b'\n').enumerate() {
             let lineno = lineno_minus_one + 1;
-            fn parse_error<T>(path: &Path, lineno: usize, msg: &str) -> std::io::Result<T> {
-                Err(std::io::Error::new(std::io::ErrorKind::Other,
+            fn parse_error<T>(path: &Path, lineno: usize, msg: &str) -> io::Result<T> {
+                Err(io::Error::new(io::ErrorKind::Other,
                                         format!("error: {:?}:{}: {}",
                                                 path, lineno, msg)))
             }
@@ -491,7 +514,7 @@ impl<'id> Build<'id> {
                 return parse_error(&filepath, lineno,
                                    "Second character of line should be a space.");
             }
-            let get_rule = |r: Option<RuleRef<'id>>, c: char| -> std::io::Result<RuleRef<'id>> {
+            let get_rule = |r: Option<RuleRef<'id>>, c: char| -> io::Result<RuleRef<'id>> {
                 match r {
                     None => parse_error(&filepath, lineno,
                                         &format!("'{}' line must follow '|' or '?'",c)),
@@ -540,7 +563,7 @@ impl<'id> Build<'id> {
         self.read_factum_file(fileref)
     }
     /// Read a factum file
-    fn read_factum_file(&mut self, fileref: FileRef<'id>) -> std::io::Result<()> {
+    fn read_factum_file(&mut self, fileref: FileRef<'id>) -> io::Result<()> {
         let filepath = self[fileref].path.with_extension("factum.tum");
         let mut f = if let Ok(f) = std::fs::File::open(&filepath) {
             f
@@ -553,8 +576,8 @@ impl<'id> Build<'id> {
         let mut file: Option<FileRef<'id>> = None;
         for (lineno_minus_one, line) in v.split(|c| *c == b'\n').enumerate() {
             let lineno = lineno_minus_one + 1;
-            fn parse_error<T>(path: &Path, lineno: usize, msg: &str) -> std::io::Result<T> {
-                Err(std::io::Error::new(std::io::ErrorKind::Other,
+            fn parse_error<T>(path: &Path, lineno: usize, msg: &str) -> io::Result<T> {
+                Err(io::Error::new(io::ErrorKind::Other,
                                         format!("error: {:?}:{}: {}",
                                                 path, lineno, msg)))
             }
@@ -563,7 +586,7 @@ impl<'id> Build<'id> {
                 return parse_error(&filepath, lineno,
                                    "Second character of line should be a space.");
             }
-            let get_rule = |r: Option<RuleRef<'id>>, c: char| -> std::io::Result<RuleRef<'id>> {
+            let get_rule = |r: Option<RuleRef<'id>>, c: char| -> io::Result<RuleRef<'id>> {
                 match r {
                     None => parse_error(&filepath, lineno,
                                         &format!("'{}' line must follow '|' or '?'",c)),
@@ -588,12 +611,12 @@ impl<'id> Build<'id> {
                 b'>' => {
                     let f = self.new_file(bytes_to_osstr(&line[2..]));
                     file = Some(f);
-                    self.add_explicit_output(get_rule(command, '>')?, f);
+                    self.add_output(get_rule(command, '>')?, f);
                 },
                 b'<' => {
                     let f = self.new_file(bytes_to_osstr(&line[2..]));
                     file = Some(f);
-                    self.add_explicit_input(get_rule(command, '<')?, f);
+                    self.add_input(get_rule(command, '<')?, f);
                 },
                 b'H' => {
                     if let Some(ff) = file {
@@ -612,7 +635,7 @@ impl<'id> Build<'id> {
     }
 
     /// Write a fac file
-    pub fn print_fac_file(&mut self, fileref: FileRef<'id>) -> std::io::Result<()> {
+    pub fn print_fac_file(&mut self, fileref: FileRef<'id>) -> io::Result<()> {
         for &r in self[fileref].rules_defined.iter() {
             println!("| {}", self.rule(r).command.to_string_lossy());
             for &i in self.rule(r).inputs.iter() {
@@ -625,7 +648,7 @@ impl<'id> Build<'id> {
         Ok(())
     }
     /// Write factum files
-    pub fn save_factum_files(&mut self) -> std::io::Result<()> {
+    pub fn save_factum_files(&mut self) -> io::Result<()> {
         let facfiles: Vec<FileRef<'id>> = self.facfiles_used.drain().collect();
         for f in facfiles {
             self.save_factum_file(f).unwrap();
@@ -633,7 +656,7 @@ impl<'id> Build<'id> {
         Ok(())
     }
     /// Write a fac.tum file
-    pub fn save_factum_file(&mut self, fileref: FileRef<'id>) -> std::io::Result<()> {
+    pub fn save_factum_file(&mut self, fileref: FileRef<'id>) -> io::Result<()> {
         let mut f = std::fs::File::create(&self[fileref].path.with_extension("factum.tum"))?;
         for &r in self[fileref].rules_defined.iter() {
             f.write(b"\n| ")?;
@@ -700,6 +723,13 @@ impl<'id> Build<'id> {
         }
     }
 
+    fn mark_all(&mut self) {
+        let to_mark: Vec<_> = self.statuses[Status::Unknown].iter().map(|&r| r).collect();
+        for r in to_mark {
+            self.set_status(r, Status::Marked);
+        }
+    }
+
     fn is_file_done(&self, f: FileRef<'id>) -> bool {
         if let Some(r) = self[f].rule {
             match self.rule(r).status {
@@ -718,10 +748,10 @@ impl<'id> Build<'id> {
             old_status != Status::Marked {
                 return; // We already know if it is clean!
             }
-        if self.rule(r).inputs.len() == 0 && self.rule(r).outputs.len() == 0 {
+        if self.rule(r).all_inputs.len() == 0 && self.rule(r).all_outputs.len() == 0 {
             // Presumably this means we have never built this rule, and its
             // inputs are in git.
-            self.set_status(r, Status::Unready); // FIXME should sort by latency...
+            self.set_status(r, Status::Dirty); // FIXME should sort by latency...
         }
         let mut rebuild_excuse: Option<String> = None;
         self.set_status(r, Status::BeingDetermined);
@@ -782,17 +812,22 @@ impl<'id> Build<'id> {
                 }
         }
         for &i in r_other_inputs.iter() {
+            self[i].stat().unwrap(); // check if it is a directory!
             if !self[i].in_git() &&
                 self[i].rule.is_none() &&
                 self[i].path.starts_with(&self.flags.root) &&
-                !is_git_path(self.pretty_path_peek(i)) {
-                    // One of our explicit inputs is not in git, and
+                !is_git_path(self.pretty_path_peek(i)) &&
+                self[i].hashstat.kind != Some(FileKind::Dir) {
+                    // One of our implicit inputs is not in git, and
                     // we also do not know how to build it.  But it
-                    // was previously present and built using this
+                    // was previously present and observed as an
                     // input.  This should be rebuilt since it may
                     // have "depended" on that input via something
                     // like "cat *.input > foo", and now that it
                     // doesn't exist we must rebuild.
+                    rebuild_excuse = rebuild_excuse.or(
+                        Some(format!("input {:?} has no rule",
+                                     self.pretty_path_peek(i))));
                     is_dirty = true;
                 }
         }
@@ -971,7 +1006,7 @@ impl<'id> Build<'id> {
 
     /// Actually run a command.  This needs to update the inputs and
     /// outputs.  FIXME
-    pub fn run(&mut self, r: RuleRef<'id>) -> std::io::Result<()> {
+    pub fn run(&mut self, r: RuleRef<'id>) -> io::Result<()> {
         {
             // Before running, let us fill in any hash info for
             // inputs that we have not yet read about.
@@ -983,8 +1018,6 @@ impl<'id> Build<'id> {
             }
         }
         let wd = self.flags.root.join(&self.rule(r).working_directory);
-        vprintln!("       running {:?} in {:?}", &self.rule(r).command,
-                  &self.rule(r).working_directory);
         let mut stat = bigbro::Command::new("/bin/sh")
             .arg("-c")
             .arg(&self.rule(r).command)
@@ -1000,6 +1033,21 @@ impl<'id> Build<'id> {
             + self.statuses[Status::Dirty].len()
             + self.statuses[Status::Unready].len();
         let message: String;
+        let abort = |sel: &mut Build<'id>, stat: &bigbro::Status, errmsg: &str| -> io::Result<()> {
+            println!("error: {}", errmsg);
+            sel.failed(r);
+            // now remove the output of this rule
+            for w in stat.written_to_files() {
+                std::fs::remove_file(w).unwrap();
+            }
+            for d in stat.mkdir_directories() {
+                std::fs::remove_dir_all(d).unwrap();
+            }
+            let ff = sel.rule(r).facfile;
+            sel.facfiles_used.insert(ff);
+            Ok(())
+        };
+
         if stat.status().success() {
             message = self.pretty_rule(r);
             println!("[{}/{}]: {}", num_built, num_total, &message);
@@ -1013,6 +1061,15 @@ impl<'id> Build<'id> {
                     && !self.rule(r).is_cache(&w) {
                         let fw = self.new_file(&w);
                         if self[fw].hashstat.finish(&w).is_ok() {
+                            if let Some(fwr) = self[fw].rule {
+                                if fwr != r {
+                                    let mess = format!("two rules generate same output {:?}:\n\t{}\nand\n\t{}",
+                                                       self.pretty_path_peek(fw),
+                                                       self.pretty_rule(r),
+                                                       self.pretty_rule(fwr));
+                                    return abort(self, &stat, &mess);
+                                }
+                            }
                             self.add_output(r, fw); // FIXME filter on cache etc.
                             old_outputs.remove(&fw);
                         }
