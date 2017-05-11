@@ -13,11 +13,11 @@ EOF
 git init
 git add my.fac
 
-../../fac &
+${FAC:-../../fac} &
 
 sleep 1
 
-if ../../fac &> output; then
+if ${FAC:-../../fac} &> output; then
     echo should have failed due to lock
     cat output
     exit 1

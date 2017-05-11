@@ -24,7 +24,7 @@ EOF
 git init
 git add top.fac cmd.sh
 
-if ../../fac --log-ouput log > fac.out; then
+if ${FAC:-../../fac} --log-ouput log > fac.out; then
     cat fac.out
     echo this should have failed
     exit 1
@@ -41,7 +41,7 @@ if test ! -e hello; then echo hello > hello; fi
 exit 0
 EOF
 
-../../fac
+${FAC:-../../fac}
 
 grep hello hello
 

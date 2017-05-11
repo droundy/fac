@@ -41,7 +41,7 @@ git init
 git add top.fac README .gitignore
 git commit -am 'add files'
 
-../../fac
+${FAC:-../../fac}
 
 grep 'add files' thelog
 grep README thelogstat
@@ -49,14 +49,14 @@ cat thestatus
 
 # we may need to call this a second time to make the
 # status reflect all three output files.
-../../fac
+${FAC:-../../fac}
 
 cat thestatus
 grep thelog thestatus
 grep thelogstat thestatus
 grep thestatus thestatus
 
-../../fac --clean -v
+${FAC:-../../fac} --clean -v
 
 if test -e thelog; then
   echo file thelog should have been deleted
@@ -79,15 +79,15 @@ cat > junk <<EOF
 junk
 EOF
 
-../../fac -j1
-../../fac
+${FAC:-../../fac} -j1
+${FAC:-../../fac}
 
 grep junk thestatus
 grep thelog thestatus
 grep thelogstat thestatus
 grep thestatus thestatus
 
-../../fac -c
+${FAC:-../../fac} -c
 
 git diff
 

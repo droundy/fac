@@ -45,7 +45,7 @@ echo testing > subdir2/input
 git init
 git add top.fac subdir1/.fac subdir2/.fac subdir1/input input actual_input subdir3 subdir2/input
 
-../../fac
+${FAC:-../../fac}
 
 cat top.fac.tum
 
@@ -62,7 +62,7 @@ echo HELLO > new_input
 git add new_input
 ln -sf new_input input
 
-../../fac -v
+${FAC:-../../fac} -v
 
 grep goodbye noggin
 grep goodbye subdir3/foo
@@ -79,7 +79,7 @@ ln -s subdir2 subdir3
 ls -lh subdir3
 grep HELLO subdir3/foo
 
-../../fac -v
+${FAC:-../../fac} -v
 
 grep goodbye noggin
 grep HELLO subdir3/foo

@@ -19,10 +19,10 @@ git clone ../../bigbro
 
 cd bigbro
 
-SKIPSPARSE=1 valgrind --leak-check=full --errors-for-leak-kinds=definite --error-exitcode=1 ../../../fac
+SKIPSPARSE=1 valgrind --leak-check=full --errors-for-leak-kinds=definite --error-exitcode=1 ${FAC:-../../../fac}
 
-valgrind --leak-check=full --errors-for-leak-kinds=definite --error-exitcode=1 ../../../fac -c
+valgrind --leak-check=full --errors-for-leak-kinds=definite --error-exitcode=1 ${FAC:-../../../fac} -c
 
-valgrind --leak-check=full --errors-for-leak-kinds=definite --error-exitcode=1 ../../../fac bigbro
+valgrind --leak-check=full --errors-for-leak-kinds=definite --error-exitcode=1 ${FAC:-../../../fac} bigbro
 
 echo we passed!

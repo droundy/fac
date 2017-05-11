@@ -20,7 +20,7 @@ echo hello > bar
 git init
 git add top.fac bar
 
-../../fac foo
+${FAC:-../../fac} foo
 
 grep foo foo
 
@@ -29,21 +29,21 @@ if grep hello ugly; then
     exit 1
 fi
 
-../../fac
+${FAC:-../../fac}
 
 grep hello ugly
 
 echo wrong > foo
 echo goodbye > ugly # put wrong value in file
 
-../../fac foo
+${FAC:-../../fac} foo
 
 grep foo foo
 # verify the wrong value is still in the ugly file that we did not
 # rebuild
 grep goodbye ugly
 
-../../fac
+${FAC:-../../fac}
 
 grep foo foo
 grep hello ugly

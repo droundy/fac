@@ -94,8 +94,8 @@ EOF
 git init
 git add .
 
-../../fac
-../../fac
+${FAC:-../../fac}
+${FAC:-../../fac}
 
 cat >> inc/lib.h <<EOF
 extern int bar;
@@ -107,8 +107,8 @@ int bar = 2;
 EOF
 git add lib/bar.c
 
-../../fac
-../../fac
+${FAC:-../../fac}
+${FAC:-../../fac}
 
 main.out/main
 

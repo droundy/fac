@@ -16,14 +16,14 @@ echo hello > hello
 git init
 git add top.fac
 
-../../fac
+${FAC:-../../fac}
 
 cat foo
 
 grep hello foo
 grep top.fac foo
 
-../../fac
+${FAC:-../../fac}
 
 cat foo
 
@@ -35,7 +35,7 @@ sleep 1
 
 echo goodbye > goodbye
 
-../../fac -v
+${FAC:-../../fac} -v
 
 cat foo
 

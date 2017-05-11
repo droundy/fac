@@ -17,7 +17,7 @@ EOF
 git init --separate-git-dir ../git/repo.git
 git add top.fac
 
-../../../fac
+${FAC:-../../../fac}
 
 grep 'good stuff' foo
 

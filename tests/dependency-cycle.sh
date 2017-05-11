@@ -29,12 +29,12 @@ EOF
 git init
 git add top.fac
 
-if ../../fac foo; then
+if ${FAC:-../../fac} foo; then
   echo this should fail as a cycle
   exit 1
 fi
 
-if ../../fac; then
+if ${FAC:-../../fac}; then
   echo this should fail as a cycle
   exit 1
 fi

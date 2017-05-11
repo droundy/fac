@@ -17,7 +17,7 @@ EOF
 git init
 git add top.fac
 
-if ../../fac > fac.out 2>&1; then
+if ${FAC:-../../fac} > fac.out 2>&1; then
     cat fac.out
     echo This should not have passed
     exit 1

@@ -20,7 +20,7 @@ EOF
 git init
 git add top.fac
 
-if ../../fac --log-ouput log > fac.out; then
+if ${FAC:-../../fac} --log-ouput log > fac.out; then
     cat fac.out
     echo this should have failed
     exit 1

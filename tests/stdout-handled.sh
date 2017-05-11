@@ -24,7 +24,7 @@ echo done > message
 git init
 git add top.fac message
 
-if ../../fac > fac.out; then
+if ${FAC:-../../fac} > fac.out; then
     cat fac.out
     echo this should have failed
     exit 1

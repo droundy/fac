@@ -22,7 +22,7 @@ EOF
 git init
 git add top.fac
 
-../../fac
+${FAC:-../../fac}
 
 grep foo foo
 grep foo ugg

@@ -32,18 +32,18 @@ git add fac2.py
 
 git ls-files
 
-../../fac -v
+${FAC:-../../fac} -v
 
 grep foo foo
 
-../../fac --clean
+${FAC:-../../fac} --clean
 
 if test -e foo; then
   echo file foo should have been deleted
   exit 1
 fi
 
-../../fac
+${FAC:-../../fac}
 
 grep foo foo
 

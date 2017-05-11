@@ -17,7 +17,7 @@ mkdir subdir
 touch subdir/hello
 git add subdir/hello
 
-../../fac
+${FAC:-../../fac}
 
 cat top.fac.tum
 
@@ -27,7 +27,7 @@ sleep 2
 
 touch subdir/goodbye
 
-../../fac
+${FAC:-../../fac}
 
 ls -lhd .
 

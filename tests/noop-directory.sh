@@ -35,10 +35,10 @@ EOF
 git init
 git add top.fac
 
-../../fac
+${FAC:-../../fac}
 
 grep foo top.fac.tum
 
-../../fac -v -j 1
+${FAC:-../../fac} -v -j 1
 
 exit 0

@@ -23,7 +23,7 @@ git add top.fac
 git rev-parse --show-toplevel
 git rev-parse --git-dir
 
-../../../fac
+${FAC:-../../../fac}
 
 grep 'good stuff' foo
 

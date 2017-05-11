@@ -21,14 +21,14 @@ EOF
 git init
 git add top.fac script.sh foo bar
 
-../../fac
+${FAC:-../../fac}
 
 grep foo foobar
 grep bar foobar
 
 sleep 1
 echo baz > bar
-../../fac
+${FAC:-../../fac}
 
 grep foo foobar
 grep baz foobar
@@ -37,7 +37,7 @@ cat > script.sh <<EOF
 cat foo > foobar
 EOF
 
-../../fac
+${FAC:-../../fac}
 
 cat foobar
 grep foo foobar
@@ -48,7 +48,7 @@ else
     echo There is no baz
 fi
 
-../../fac > fac.out
+${FAC:-../../fac} > fac.out
 cat fac.out
 if grep dirty fac.out; then
     echo It is dirty, but should not be!!!
@@ -59,7 +59,7 @@ fi
 
 sleep 1
 touch bar
-../../fac > fac.out
+${FAC:-../../fac} > fac.out
 cat fac.out
 if grep dirty fac.out; then
     echo It is dirty, but should not be!!!

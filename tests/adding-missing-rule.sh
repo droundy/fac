@@ -24,7 +24,7 @@ git add top.fac
 
 echo hello > foo
 
-if ../../fac > fac.out; then
+if ${FAC:-../../fac} > fac.out; then
     cat fac.out
     echo this should have failed
     exit 1
@@ -38,7 +38,7 @@ cat >> top.fac <<EOF
 
 EOF
 
-../../fac
+${FAC:-../../fac}
 
 grep hello bar
 

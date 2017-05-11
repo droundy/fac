@@ -37,9 +37,9 @@ git add git-hook.fac my-commit-hook
 
 git commit -am 'initial version'
 
-../../fac || true
+${FAC:-../../fac} || true
 
-../../fac
+${FAC:-../../fac}
 
 ./my-commit-hook
 
@@ -56,7 +56,7 @@ EOF
 git add newfile
 
 rm .git/hooks/pre-commit
-../../fac
+${FAC:-../../fac}
 
 if git commit -m 'bad new file'; then
     echo should have failed due to bad whitespace

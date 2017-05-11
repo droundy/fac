@@ -24,14 +24,14 @@ echo good > input
 git init
 git add top.fac input
 
-../../fac -v
+${FAC:-../../fac} -v
 
 grep good foo
 grep good bar
 
 echo newer > input
 
-../../fac
+${FAC:-../../fac}
 
 grep newer foo
 grep newer bar

@@ -16,7 +16,7 @@ touch foo.message
 git init
 git add top.fac foo.message
 
-../../fac
+${FAC:-../../fac}
 
 ls -lhd .
 
@@ -25,7 +25,7 @@ sleep 2
 grep foo.message messages
 
 touch bar.message
-../../fac
+${FAC:-../../fac}
 
 ls -lhd .
 

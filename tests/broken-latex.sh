@@ -27,7 +27,7 @@ EOF
 git init
 git add top.fac foo.tex
 
-if ../../fac; then
+if ${FAC:-../../fac}; then
   echo it was a bad document and should have failed
   exit 1
 fi

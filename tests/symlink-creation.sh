@@ -19,7 +19,7 @@ echo foo > foo
 git init
 git add top.fac
 
-../../fac
+${FAC:-../../fac}
 
 cat top.fac.tum
 

@@ -26,7 +26,7 @@ git add fac.py
 
 git ls-files
 
-if ../../fac -v; then
+if ${FAC:-../../fac} -v; then
     echo fac should fail, because command fails
     exit 1
 fi
@@ -36,7 +36,7 @@ if grep bad bad-case; then
     exit 1
 fi
 
-../../fac -v > log 2>&1 || echo it failed as expected
+${FAC:-../../fac} -v > log 2>&1 || echo it failed as expected
 
 cat log
 

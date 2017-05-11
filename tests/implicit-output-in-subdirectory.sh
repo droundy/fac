@@ -21,7 +21,7 @@ EOF
 git init
 git add subdir/foo.fac
 
-../../fac
+${FAC:-../../fac}
 
 grep foo subdir/foo
 grep bar subdir/bar

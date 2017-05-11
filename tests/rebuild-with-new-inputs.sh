@@ -16,7 +16,7 @@ echo foo > foo
 git init
 git add my.fac foo
 
-../../fac
+${FAC:-../../fac}
 
 grep foo out
 if grep bar out; then
@@ -27,7 +27,7 @@ fi
 echo bar > bar
 git add bar
 
-../../fac
+${FAC:-../../fac}
 
 # we should not have just rebuilt it, because fac does not know that
 # bar could be an input, since we don't track attempts to open
@@ -44,9 +44,9 @@ cat > my.fac <<EOF
 < bar
 EOF
 
-../../fac --parse-only my.fac
+${FAC:-../../fac} --parse-only my.fac
 
-if ../../fac --parse-only=myfac &> fac.out; then
+if ${FAC:-../../fac} --parse-only=myfac &> fac.out; then
     echo should have failed because myfac does not exist
     cat fac.out
     exit 1
@@ -56,7 +56,7 @@ cat fac.out
 grep 'unable to open file' fac.out
 grep myfac fac.out
 
-../../fac
+${FAC:-../../fac}
 
 grep foo out
 grep bar out

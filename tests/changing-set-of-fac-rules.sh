@@ -35,7 +35,7 @@ EOF
 git init
 git add top.fac rules.py
 
-../../fac
+${FAC:-../../fac}
 
 cat generated.fac
 
@@ -43,13 +43,13 @@ grep 'echo foo' generated.fac
 grep 'echo foo' generated.fac.tum
 grep foo foo
 
-../../fac
+${FAC:-../../fac}
 
 grep 'echo foo' generated.fac
 grep 'echo foo' generated.fac.tum
 grep foo foo
 
-NOFOO=true ../../fac
+NOFOO=true ${FAC:-../../fac}
 
 cat generated.fac
 
@@ -60,7 +60,7 @@ fi
 grep 'No foo rule' generated.fac
 test ! -e foo # The output file foo should have been deleted
 
-../../fac
+${FAC:-../../fac}
 
 grep 'echo foo' generated.fac
 grep 'echo foo' generated.fac.tum

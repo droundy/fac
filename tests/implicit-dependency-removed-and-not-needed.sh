@@ -24,7 +24,7 @@ EOF
 git init
 git add top.fac script.sh
 
-../../../fac
+${FAC:-../../../fac}
 
 grep hello foobar
 
@@ -32,7 +32,7 @@ grep hello foobar
 mv ../input_file ../new_input_file
 echo goodbye > ../new_input_file
 
-if ../../../fac; then
+if ${FAC:-../../../fac}; then
   echo this should have failed
   exit 1
 fi
@@ -41,7 +41,7 @@ cat > script.sh <<EOF
 cat ../new_input_file
 EOF
 
-../../../fac
+${FAC:-../../../fac}
 
 grep goodbye foobar
 

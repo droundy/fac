@@ -75,6 +75,8 @@ if have_gcovr:
     system('rm tests/fac-with-coverage')
     print(build.took('rebuilding with fac and coverage'))
 
+os.environ['FAC'] = os.getcwd()+"/fac"
+
 numpassed = 0
 numfailed = 0
 numskipped = 0

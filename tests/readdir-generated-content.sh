@@ -22,7 +22,7 @@ EOF
 git init
 git add top.fac
 
-../../fac -v
+${FAC:-../../fac} -v
 
 grep hello foo/hello
 grep world foo/world
@@ -32,7 +32,7 @@ cat foo-listing
 
 sleep 1
 
-../../fac -v
+${FAC:-../../fac} -v
 
 grep hello foo/hello
 grep world foo/world
@@ -48,11 +48,11 @@ EOF
 
 sleep 1
 
-../../fac -v
+${FAC:-../../fac} -v
 
 # have to run twice because first time we modify the directory.  Should we make this build in just one rune?
 
-../../fac -v
+${FAC:-../../fac} -v
 
 grep wonderful foo/wonderful
 

@@ -17,7 +17,7 @@ EOF
 git init
 git add top.fac
 
-../../fac -v > fac.out
+${FAC:-../../fac} -v > fac.out
 cat fac.out
 if grep 'Building foo' fac.out; then
     echo It is dirty, as it should be.
@@ -28,7 +28,7 @@ fi
 
 cat top.fac.tum
 
-../../fac -v > fac.out
+${FAC:-../../fac} -v > fac.out
 cat fac.out
 if grep 'Building foo' fac.out; then
     echo It is dirty, but should not be!!!

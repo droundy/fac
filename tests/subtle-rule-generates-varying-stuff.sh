@@ -22,7 +22,7 @@ EOF
 git init
 git add top.fac subtle-rule.sh
 
-../../fac
+${FAC:-../../fac}
 
 grep foo foo
 
@@ -40,7 +40,7 @@ fi
 
 EOF
 
-../../fac
+${FAC:-../../fac}
 
 grep foo top.fac.tum | grep '>'
 grep bar top.fac.tum | grep '>'
@@ -62,7 +62,7 @@ fi
 
 EOF
 
-../../fac
+${FAC:-../../fac}
 
 grep foo top.fac.tum | grep '>'
 grep bar top.fac.tum | grep '>'
@@ -72,7 +72,7 @@ grep bar bar
 
 rm foo
 
-../../fac
+${FAC:-../../fac}
 
 grep foo top.fac.tum | grep '>'
 grep bar top.fac.tum | grep '>'
@@ -90,7 +90,7 @@ fi
 
 EOF
 
-../../fac --show-output
+${FAC:-../../fac} --show-output
 
 # Fac continues to believe that the rule will generate foo, so long as
 # foo still exists.
@@ -103,7 +103,7 @@ grep bar bar
 
 rm foo
 
-../../fac --show-output
+${FAC:-../../fac} --show-output
 
 # Once foo is deleted and the command does not regenerate it, fac
 # should remove it from the output list.

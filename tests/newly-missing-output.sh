@@ -19,7 +19,7 @@ EOF
 git init
 git add my.fac foo.sh
 
-../../fac
+${FAC:-../../fac}
 
 grep foo foo
 grep bar bar
@@ -30,7 +30,7 @@ cat > foo.sh <<EOF
 echo good > foo
 EOF
 
-../../fac
+${FAC:-../../fac}
 
 grep good foo
 grep bar bar
@@ -40,7 +40,7 @@ grep bar my.fac.tum
 rm bar
 echo foo.sh should be rerun to try to generate bar
 
-../../fac -v > fac.out
+${FAC:-../../fac} -v > fac.out
 cat fac.out
 
 grep 'bar has wrong' fac.out

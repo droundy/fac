@@ -13,19 +13,19 @@ EOF
 git init
 git add my.fac
 
-if ../../fac bar; then
+if ${FAC:-../../fac} bar; then
   echo build should fail no rule to build bar
   exit 1
 fi
 
-if ../../fac foo; then
+if ${FAC:-../../fac} foo; then
   echo build should fail no rule to build foo
   exit 1
 fi
 
-../../fac
+${FAC:-../../fac}
 
-../../fac foo
+${FAC:-../../fac} foo
 
 grep foo foo
 

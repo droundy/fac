@@ -15,7 +15,7 @@ C fac-testing/.git/ref/
 EOF
 git add git-cloning.fac
 
-../../fac
+${FAC:-../../fac}
 
 grep superheros-are-awesome fac-testing/tests/git-clone-rule.sh
 
@@ -23,7 +23,7 @@ grep fac-testing/configure.py git-cloning.fac.tum
 
 echo bad-news >> fac-testing/tests/git-clone-rule.sh
 
-../../fac
+${FAC:-../../fac}
 
 grep fac-testing/configure.py git-cloning.fac.tum
 
@@ -31,7 +31,7 @@ cd fac-testing
 git reset --hard HEAD~1
 cd ..
 
-../../fac
+${FAC:-../../fac}
 
 grep fac-testing/configure.py git-cloning.fac.tum
 

@@ -37,15 +37,15 @@ echo nice >> foo/dir/bar
 git init
 git add top.fac foo/foo.fac
 
-../../fac --git-add
+${FAC:-../../fac} --git-add
 
 grep bar baz
 grep nice foo/nice
 grep bar baz3
 
-../../fac baz3 foo/nice1
+${FAC:-../../fac} baz3 foo/nice1
 
-../../fac --tar fun.tar.gz --script build.sh --tupfile Tupfile --makefile Makefile
+${FAC:-../../fac} --tar fun.tar.gz --script build.sh --tupfile Tupfile --makefile Makefile
 
 tar zxvf fun.tar.gz
 
@@ -88,7 +88,7 @@ fi
 # the following is hokey, we wouldn't really do this
 touch Tupfile.ini
 
-../../fac -v --include-in-tar Tupfile.ini --tar fun.tar.gz --tupfile Tupfile --dotfile fun.dot
+${FAC:-../../fac} -v --include-in-tar Tupfile.ini --tar fun.tar.gz --tupfile Tupfile --dotfile fun.dot
 
 tar zxvf fun.tar.gz
 cd fun
@@ -119,11 +119,11 @@ cd ..
 rm -rf fun
 
 # now just test a few extensions:
-../../fac --tar fun.tgz
+${FAC:-../../fac} --tar fun.tgz
 tar ztf fun.tgz
-../../fac --tar fun.tar.bz2
+${FAC:-../../fac} --tar fun.tar.bz2
 tar jtf fun.tar.bz2
-../../fac --tar fun.tar
+${FAC:-../../fac} --tar fun.tar
 tar tf fun.tar
 
 exit 0

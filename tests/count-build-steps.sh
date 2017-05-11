@@ -33,7 +33,7 @@ EOF
 git init
 git add top.fac subdir/.fac
 
-../../fac > fac.out
+${FAC:-../../fac} > fac.out
 cat fac.out
 
 grep foo foobar

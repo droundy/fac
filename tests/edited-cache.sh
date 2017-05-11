@@ -20,17 +20,17 @@ git init
 git add top.fac
 git add foocache
 
-../../fac
+${FAC:-../../fac}
 
 sleep 1
 echo please say this > foocache
 
-../../fac --show-output > fac.out
+${FAC:-../../fac} --show-output > fac.out
 cat fac.out
 
 grep 'please say this' fac.out
 
-../../fac --show-output > fac.out
+${FAC:-../../fac} --show-output > fac.out
 cat fac.out
 
 if grep 'please say this' fac.out; then
@@ -46,7 +46,7 @@ EOF
 
 echo please do not say this > foocache
 
-../../fac --show-output > fac.out
+${FAC:-../../fac} --show-output > fac.out
 cat fac.out
 
 if grep 'please do not say this' fac.out; then

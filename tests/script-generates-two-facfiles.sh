@@ -28,7 +28,7 @@ EOME
 EOF
 git add fac.sh
 
-../../fac -v
+${FAC:-../../fac} -v
 
 grep foo foo
 
@@ -49,7 +49,7 @@ EOF
 
 cat top.fac.tum
 
-../../fac -v
+${FAC:-../../fac} -v
 
 grep one foo
 grep two bar

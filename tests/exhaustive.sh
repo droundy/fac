@@ -25,7 +25,7 @@ echo extra > extra
 git init
 git add top.fac extra
 
-if ../../fac --exhaustive &> fac.out; then
+if ${FAC:-../../fac} --exhaustive &> fac.out; then
     cat fac.out
     echo this should fail due to exhaustive strictness
     exit 1
@@ -45,7 +45,7 @@ cat > top.fac <<EOF
 < foo
 EOF
 
-if ../../fac --exhaustive &> fac.out; then
+if ${FAC:-../../fac} --exhaustive &> fac.out; then
     cat fac.out
     echo this should fail due to exhaustive strictness
     exit 1
@@ -65,7 +65,7 @@ cat > top.fac <<EOF
 < foo
 EOF
 
-if ../../fac --exhaustive &> fac.out; then
+if ${FAC:-../../fac} --exhaustive &> fac.out; then
     cat fac.out
     echo this should fail due to exhaustive strictness
     exit 1
@@ -86,7 +86,7 @@ cat > top.fac <<EOF
 < foo
 EOF
 
-../../fac --exhaustive
+${FAC:-../../fac} --exhaustive
 
 grep foo bar
 
@@ -94,6 +94,6 @@ grep foo bar
 
 rm bar foo baz
 
-../../fac --blind
+${FAC:-../../fac} --blind
 
 exit 0

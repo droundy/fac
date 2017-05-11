@@ -13,7 +13,7 @@ EOF
 git init
 git add top.fac
 
-../../fac
+${FAC:-../../fac}
 
 grep foo generated.fac
 
@@ -27,7 +27,7 @@ cat > top.fac <<EOF
 > generated.fac
 EOF
 
-../../fac
+${FAC:-../../fac}
 
 # now the generated rules should be run!
 grep foo foo

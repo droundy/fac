@@ -24,7 +24,7 @@ EOF
 git init
 git add top.fac
 
-if ../../fac --strict &> fac.out; then
+if ${FAC:-../../fac} --strict &> fac.out; then
     cat fac.out
     echo this should fail due to strictness
     exit 1
@@ -44,7 +44,7 @@ cat > top.fac <<EOF
 
 EOF
 
-../../fac --strict
+${FAC:-../../fac} --strict
 
 grep foo bar
 

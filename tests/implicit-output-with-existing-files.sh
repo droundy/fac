@@ -21,7 +21,7 @@ EOF
 git init
 git add foo.fac
 
-../../fac
+${FAC:-../../fac}
 
 grep foo foo
 grep bar bar
@@ -43,7 +43,7 @@ EOF
 echo hello > hello
 git add hello
 
-../../fac
+${FAC:-../../fac}
 
 grep foo foo
 grep bar bar

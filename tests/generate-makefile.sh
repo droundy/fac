@@ -27,7 +27,7 @@ EOF
 git init
 git add build.fac
 
-if ../../fac --makefile Makefile; then
+if ${FAC:-../../fac} --makefile Makefile; then
     echo this should have failed, since it has malformed output
 fi
 
@@ -41,7 +41,7 @@ cat > build.fac <<EOF
 
 EOF
 
-../../fac --makefile Makefile
+${FAC:-../../fac} --makefile Makefile
 
 grep awesome awesome
 grep foo foo
@@ -49,7 +49,7 @@ grep baz baz
 
 cat Makefile
 
-../../fac -c
+${FAC:-../../fac} -c
 
 make
 

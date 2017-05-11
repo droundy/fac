@@ -25,6 +25,6 @@ echo goodness > input
 git init
 git add top.fac input
 
-env - ../../fac
+env - ${FAC:-../../fac}
 
 exit 0

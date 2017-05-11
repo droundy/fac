@@ -14,7 +14,7 @@ cd bigbro
 
 echo this is a bug here >> bigbro.h
 
-../../../fac --continual > ../continual-output &
+${FAC:-../../../fac} --continual > ../continual-output &
 
 sleep 1
 while test -e .git/fac-lock; do

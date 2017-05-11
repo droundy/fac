@@ -24,7 +24,7 @@ EOF
 git init
 git add top.fac facfile
 
-../../fac --strict
+${FAC:-../../fac} --strict
 
 grep good good
 grep good excellent

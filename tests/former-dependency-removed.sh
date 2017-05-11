@@ -31,14 +31,14 @@ echo hello > input
 git init
 git add top.fac input script.sh
 
-../../fac
+${FAC:-../../fac}
 
 grep hello foo
 
 sleep 1
 echo goodbye > input
 
-../../fac
+${FAC:-../../fac}
 
 grep goodbye foo
 
@@ -53,7 +53,7 @@ EOF
 
 rm input
 
-../../fac
+${FAC:-../../fac}
 
 grep hello foo
 

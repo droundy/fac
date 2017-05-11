@@ -30,7 +30,7 @@ EOF
 git init
 git add top.fac
 
-../../fac
+${FAC:-../../fac}
 
 grep welcome foo/bar
 grep awesome foo/subdir/subsub/great
@@ -39,7 +39,7 @@ test -d foo
 
 cat top.fac.tum
 
-../../fac -c
+${FAC:-../../fac} -c
 
 if grep welcome foo/bar; then
   echo foo/bar should have been deleted

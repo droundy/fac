@@ -40,9 +40,9 @@ git add .
 # this will fail with:
 #   error: add dir2/../dir1/foo to git, which is required for dir2/foo
 #   error: add sym1/foo to git, which is required for foo
-../../fac
+${FAC:-../../fac}
 
 # subsequent attempt will work since directories are available
-../../fac
+${FAC:-../../fac}
 
 exit 0

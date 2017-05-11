@@ -20,7 +20,7 @@ cat > top.fac <<EOF
 EOF
 git add top.fac
 
-if ../../fac > fac.out; then
+if ${FAC:-../../fac} > fac.out; then
     cat fac.out
     echo This should not have passed
     exit 1
@@ -32,6 +32,6 @@ grep 'error: add bar to git, which is required for foobar' fac.out
 rm -f foobar
 git add bar
 
-../../fac
+${FAC:-../../fac}
 
 exit 0

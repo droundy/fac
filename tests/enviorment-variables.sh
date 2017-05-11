@@ -24,15 +24,15 @@ git add top.fac
 
 export CC=gcc
 
-../../fac
+${FAC:-../../fac}
 
 grep gcc compiler
 
-CC=clang ../../fac
+CC=clang ${FAC:-../../fac}
 
 grep clang compiler
 
-../../fac
+${FAC:-../../fac}
 
 grep gcc compiler
 

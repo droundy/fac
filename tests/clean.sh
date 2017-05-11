@@ -24,13 +24,13 @@ echo goodness > input
 git init
 git add top.fac input
 
-../../fac
+${FAC:-../../fac}
 
 grep foo baz
 grep foo foo
 grep goodness output
 
-../../fac --clean -v
+${FAC:-../../fac} --clean -v
 
 if test -e foo; then
   echo file foo should have been deleted

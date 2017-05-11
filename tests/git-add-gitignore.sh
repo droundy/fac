@@ -21,13 +21,13 @@ echo input > input.o
 git init
 git add top.fac .gitignore
 
-if ../../fac --git-add; then
+if ${FAC:-../../fac} --git-add; then
     echo this should have failed due to not adding input.o
     exit 1
 fi
 
 git add -f input.o
 
-../../fac
+${FAC:-../../fac}
 
 exit 0

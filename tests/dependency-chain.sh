@@ -21,7 +21,7 @@ EOF
 git init
 git add top.fac
 
-../../fac -v
+${FAC:-../../fac} -v
 
 grep foo foo
 grep foo bar
@@ -29,7 +29,7 @@ grep foo baz
 
 rm foo bar baz
 
-../../fac -v
+${FAC:-../../fac} -v
 
 grep foo foo
 grep foo bar
@@ -37,7 +37,7 @@ grep foo baz
 
 rm foo bar
 
-../../fac -v
+${FAC:-../../fac} -v
 
 grep foo foo
 grep foo bar

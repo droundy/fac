@@ -13,7 +13,7 @@ EOF
 git init
 git add top.fac
 
-../../fac
+${FAC:-../../fac}
 
 sleep 1
 
@@ -24,6 +24,6 @@ touch foo/bar
 # but that would just obscure the bug, which is that foo shouldn't be
 # rebuilt at all.
 
-../../fac -v
+${FAC:-../../fac} -v
 
 exit 0

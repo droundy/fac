@@ -18,7 +18,7 @@ EOF
 git init
 git add top.fac
 
-if ../../fac > fac.out 2>&1; then
+if ${FAC:-../../fac} > fac.out 2>&1; then
     cat fac.out
     echo Bilge was okay.  That is not good.
     exit 1

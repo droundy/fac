@@ -21,7 +21,7 @@ echo input > input
 git init
 git add top.fac input
 
-../../fac -v &
+${FAC:-../../fac} -v &
 ID=$!
 
 sleep 1
@@ -38,6 +38,6 @@ if grep input output; then
     exit 1
 fi
 
-../../fac
+${FAC:-../../fac}
 
 exit 0

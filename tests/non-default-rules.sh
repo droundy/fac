@@ -26,7 +26,7 @@ done
 git init
 git add top.fac
 
-../../fac
+${FAC:-../../fac}
 
 grep foo foo
 grep bar bar
@@ -41,7 +41,7 @@ test ! -e stupid
 test ! -e bad
 test ! -e horrible
 
-../../fac hello
+${FAC:-../../fac} hello
 
 grep hello hello
 test ! -e stupid

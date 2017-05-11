@@ -32,7 +32,7 @@ EOF
 git init
 git add my.fac
 
-if ../../fac > out; then
+if ${FAC:-../../fac} > out; then
   echo build should fail missing file f1
   exit 1
 fi
@@ -55,7 +55,7 @@ fi
 
 echo hello > f1
 
-if ../../fac > out; then
+if ${FAC:-../../fac} > out; then
   echo build should fail file f1 is not in git
   exit 1
 fi
@@ -78,6 +78,6 @@ fi
 
 git add f1
 
-../../fac -v
+${FAC:-../../fac} -v
 
 exit 0

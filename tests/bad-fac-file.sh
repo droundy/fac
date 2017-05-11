@@ -15,7 +15,7 @@ EOF
 git init
 git add my.fac
 
-if ../../fac 2> fac.err; then
+if ${FAC:-../../fac} 2> fac.err; then
   cat fac.err
   echo build should fail no rule to build bar
   exit 1
@@ -31,7 +31,7 @@ C cache
 | echo foo > foo
 EOF
 
-if ../../fac 2> fac.err; then
+if ${FAC:-../../fac} 2> fac.err; then
   cat fac.err
   echo build should fail
   exit 1
@@ -48,7 +48,7 @@ cat > my.fac <<EOF
 | echo foo > foo
 EOF
 
-if ../../fac 2> fac.err; then
+if ${FAC:-../../fac} 2> fac.err; then
   cat fac.err
   echo build should fail
   exit 1
@@ -65,7 +65,7 @@ cat > my.fac <<EOF
 | echo foo > foo
 EOF
 
-if ../../fac 2> fac.err; then
+if ${FAC:-../../fac} 2> fac.err; then
   cat fac.err
   echo build should fail
   exit 1
@@ -82,7 +82,7 @@ c cache
 | echo foo > foo
 EOF
 
-if ../../fac 2> fac.err; then
+if ${FAC:-../../fac} 2> fac.err; then
   cat fac.err
   echo build should fail
   exit 1
@@ -98,7 +98,7 @@ if wc my.fac; then
     echo we have some funky broken filesystem here
 else
 
-    if ../../fac 2> fac.err; then
+    if ${FAC:-../../fac} 2> fac.err; then
         cat fac.err
         echo build should fail
         exit 1

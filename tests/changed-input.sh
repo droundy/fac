@@ -20,7 +20,7 @@ echo foo > input
 git init
 git add top.fac input script.sh
 
-../../fac
+${FAC:-../../fac}
 
 grep foo foo
 
@@ -28,7 +28,7 @@ grep input top.fac.tum
 
 echo bars > input
 
-../../fac
+${FAC:-../../fac}
 
 grep bar foo
 
@@ -39,7 +39,7 @@ EOF
 git mv input input2
 echo baz > input2
 
-../../fac
+${FAC:-../../fac}
 
 grep baz foo
 

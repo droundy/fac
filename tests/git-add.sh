@@ -32,12 +32,12 @@ if git ls-files | grep input; then
     exit 1
 fi
 
-if ../../fac; then
+if ${FAC:-../../fac}; then
     echo fac should have failed
     exit 1
 fi
 
-../../fac --git-add
+${FAC:-../../fac} --git-add
 
 git ls-files
 git ls-files | grep foo

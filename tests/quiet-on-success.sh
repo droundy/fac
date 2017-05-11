@@ -16,7 +16,7 @@ echo I am loud > message
 git init
 git add top.fac message
 
-../../fac > fac.out 2>&1
+${FAC:-../../fac} > fac.out 2>&1
 cat fac.out
 
 if grep 'I am loud' fac.out; then
@@ -27,7 +27,7 @@ fi
 sleep 1
 touch message
 
-../../fac > fac.out 2>&1
+${FAC:-../../fac} > fac.out 2>&1
 cat fac.out
 
 if grep 'I am loud' fac.out; then
@@ -37,7 +37,7 @@ fi
 
 echo >> message
 
-../../fac --show-output > fac.out 2>&1
+${FAC:-../../fac} --show-output > fac.out 2>&1
 cat fac.out
 
 grep 'I am loud' fac.out

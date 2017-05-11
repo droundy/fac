@@ -26,7 +26,7 @@ EOF
 
 git add top.fac foo.sh
 
-../../../fac -v
+${FAC:-../../../fac} -v
 
 grep hello hello
 grep goodbye goodbye
@@ -44,7 +44,7 @@ cd silly-name
 
 echo foo > hello
 
-../../../fac -v
+${FAC:-../../../fac} -v
 
 grep hello hello
 grep goodbye goodbye

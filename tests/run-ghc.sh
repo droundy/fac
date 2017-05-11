@@ -51,6 +51,6 @@ EOF
 git init
 git add top.fac main.hs Foo.hs Bar.hs
 
-../../fac
+${FAC:-../../fac}
 
 exit 0

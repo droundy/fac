@@ -15,14 +15,14 @@ EOF
 git init
 git add top.fac
 
-../../fac
+${FAC:-../../fac}
 
 rm -rf foo
 
-../../fac foo/goodbye
+${FAC:-../../fac} foo/goodbye
 
 rm -rf foo
 
-../../fac foo/hello
+${FAC:-../../fac} foo/hello
 
 exit 0

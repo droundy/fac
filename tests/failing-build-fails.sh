@@ -17,7 +17,7 @@ EOF
 git init
 git add top.fac
 
-if ../../fac > fac.out; then
+if ${FAC:-../../fac} > fac.out; then
     cat fac.out
     echo This should not have passed
     exit 1
@@ -30,7 +30,7 @@ cat > top.fac <<EOF
 > foobar
 EOF
 
-if ../../fac > fac.out; then
+if ${FAC:-../../fac} > fac.out; then
     cat fac.out
     echo good
 else

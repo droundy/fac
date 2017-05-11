@@ -16,7 +16,7 @@ EOF
 git init
 git add top.fac
 
-../../fac --log-output log
+${FAC:-../../fac} --log-output log
 
 grep foo foo
 
@@ -32,7 +32,7 @@ EOF
 
 cat top.fac.tum
 
-../../fac --log-output log
+${FAC:-../../fac} --log-output log
 
 grep foo test/foo
 

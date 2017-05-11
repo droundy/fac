@@ -10,12 +10,12 @@ cd $0.dir
 
 git init
 
-if ../../fac -z; then
+if ${FAC:-../../fac} -z; then
     echo fac with an invalid argument should have failed.
     exit 1
 fi
 
-if ../../fac --z; then
+if ${FAC:-../../fac} --z; then
     echo fac with an invalid argument should have failed.
     exit 1
 fi

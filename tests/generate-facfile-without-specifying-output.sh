@@ -13,14 +13,14 @@ EOF
 git init
 git add my.fac
 
-../../fac
+${FAC:-../../fac}
 
 cat > my.fac <<EOF
 | echo foo bar > foo.fac
 > foo.fac
 EOF
 
-if ../../fac; then
+if ${FAC:-../../fac}; then
     echo should have crashed parsing foo.fac
     exit 1
 fi

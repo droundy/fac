@@ -31,7 +31,7 @@ EOF
 git init
 git add top.fac
 
-../../../fac
+${FAC:-../../../fac}
 
 grep baz baz
 grep foo ~/.cache/trash

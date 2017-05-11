@@ -15,7 +15,7 @@ EOF
 git init
 git add top.fac
 
-../../fac
+${FAC:-../../fac}
 
 ls -lh
 
@@ -30,14 +30,14 @@ cat > top.fac <<EOF
 | echo bar > bar
 EOF
 
-../../fac
+${FAC:-../../fac}
 
 ls -lh
 
 grep foo foo
 grep bar bar
 
-../../fac --clean -v
+${FAC:-../../fac} --clean -v
 
 if test -e foo; then
   echo file foo should have been deleted

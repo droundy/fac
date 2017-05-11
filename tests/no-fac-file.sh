@@ -8,7 +8,7 @@ cd $0.dir
 
 git init
 
-if ../../fac; then
+if ${FAC:-../../fac}; then
   echo build should fail with no fac file
   exit 1
 fi
@@ -17,7 +17,7 @@ cat > my.fac <<EOF
 | echo foo > foo
 EOF
 
-if ../../fac; then
+if ${FAC:-../../fac}; then
   echo build should fail with fac file not git added
   exit 1
 fi

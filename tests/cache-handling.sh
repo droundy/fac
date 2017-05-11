@@ -31,7 +31,7 @@ echo good > .cache-read
 git init
 git add top.fac
 
-../../fac
+${FAC:-../../fac}
 
 cat top.fac.tum
 
@@ -66,7 +66,7 @@ EOF
 
 rm foo
 
-../../fac
+${FAC:-../../fac}
 cat top.fac.tum
 
 
