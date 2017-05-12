@@ -75,7 +75,7 @@ int run_fac(int argc, const char **argv) {
   no_argument("strict", 0, (bool *)&am_strict,
               "require strict dependencies, so first build will succeed");
   no_argument("exhaustive", 0, (bool *)&am_exhaustive,
-              "require exhaustive dependencies (suitable for ...)");
+              "require exhaustive dependencies (makes --blind \"safe\")");
   no_argument("blind", 0, (bool *)&blind, "do not track dependencies");
   string_argument("dotfile", 0, &create_dotfile,
                   "create a dotfile to visualize dependencies", "DOTFILE");

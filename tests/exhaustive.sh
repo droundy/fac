@@ -86,6 +86,29 @@ cat > top.fac <<EOF
 < foo
 EOF
 
+if ${FAC:-../../fac} --exhaustive &> fac.out; then
+    cat fac.out
+    echo this should fail due to exhaustive strictness
+    exit 1
+fi
+
+cat fac.out
+grep 'missing output' fac.out
+grep 'builds foo' fac.out
+grep 'failed due to missing outputs' fac.out
+
+cat > top.fac <<EOF
+| echo foo > foo
+> foo
+
+| cat foo extra > bar
+< foo
+< extra
+
+| cp foo baz
+< foo
+EOF
+
 ${FAC:-../../fac} --exhaustive
 
 grep foo bar
@@ -95,5 +118,17 @@ grep foo bar
 rm bar foo baz
 
 ${FAC:-../../fac} --blind
+
+grep foo foo
+grep foo bar
+grep foo baz
+
+${FAC:-../../fac} --clean --blind
+
+${FAC:-../../fac} --blind
+
+grep foo foo
+grep foo bar
+grep foo baz
 
 exit 0

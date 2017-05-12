@@ -1224,7 +1224,7 @@ static void build_marked(struct all_targets *all, const char *log_directory,
 }
 
 static void summarize_build_results(struct all_targets *all, bool am_continual,
-                                    bool missing_dependencies) {
+                                    const char *missing_dependencies) {
   if (all->lists[failed] || all->num_with_status[failed]) {
     erase_and_printf("Build failed %d/%d failures\n", all->num_with_status[failed],
                      all->num_with_status[failed] + all->num_with_status[built]);
@@ -1240,7 +1240,7 @@ static void summarize_build_results(struct all_targets *all, bool am_continual,
   } else {
     find_elapsed_time();
     if (missing_dependencies) {
-      erase_and_printf("Build failed due to missing dependencies! %.0f:%05.2f\n",
+      erase_and_printf("Build failed due to %s! %.0f:%05.2f\n", missing_dependencies,
                        elapsed_minutes, elapsed_seconds);
       exit(1);
     } else {
@@ -1285,32 +1285,49 @@ static bool fac_is_already_running(void) {
   return true;
 }
 
-static bool require_exhaustive_dependencies(struct all_targets *all) {
+static const char *require_exhaustive_dependencies(struct all_targets *all) {
   // Here we just need to check that there are NO local inputs
   // (i.e. ones in our repository directory) for any rules that are
   // not explicit.
   erase_and_printf("Checking for exhaustive dependencies...\n");
-  bool fails = false;
+  const char *fails = NULL;
+  static const char *missing_deps = "missing dependencies";
+  static const char *missing_outs = "missing outputs";
+  static const char *missing_both = "missing dependencies and outputs";
   for (struct rule *r = (struct rule *)all->r.first; r; r = (struct rule *)r->e.next) {
     for (int i=r->num_explicit_inputs; i<r->num_inputs; i++) {
       const char *path = r->inputs[i]->path;
       if (is_in_root(path)) {
-        printf("num explicit = %d\n", r->num_explicit_inputs);
         erase_and_printf("missing dependency: \"%s\" requires %s\n",
                          easy_rule(r), pretty_path(r->inputs[i]->path));
-        fails = true;
+        if (fails == missing_outs) {
+          fails = missing_both;
+        } else if (!fails) {
+          fails = missing_deps;
+        }
+      }
+    }
+    for (int i=r->num_explicit_outputs; i<r->num_outputs; i++) {
+      if (r->outputs[i]->num_children) {
+        erase_and_printf("missing output: \"%s\" builds %s\n",
+                         easy_rule(r), pretty_path(r->outputs[i]->path));
+        if (fails == missing_deps) {
+          fails = missing_both;
+        } else if (!fails) {
+          fails = missing_outs;
+        }
       }
     }
   }
   return fails;
 }
-static bool require_strict_dependencies(struct all_targets *all) {
+static const char *require_strict_dependencies(struct all_targets *all) {
   // Checking for strict dependencies is harder than for exhaustive,
   // because we need to ensure that everything will be built prior to
   // being needed.  For each input there must be an explicit input
   // that has the same rule that generates that input.
   erase_and_printf("Checking for strict dependencies...\n");
-  bool fails = false;
+  const char *fails = NULL;
   for (struct rule *r = (struct rule *)all->r.first; r; r = (struct rule *)r->e.next) {
     for (int i=r->num_explicit_inputs; i<r->num_inputs; i++) {
       const char *path = r->inputs[i]->path;
@@ -1322,7 +1339,7 @@ static bool require_strict_dependencies(struct all_targets *all) {
         if (!have_rule) {
           erase_and_printf("missing dependency: \"%s\" requires %s\n",
                            easy_rule(r), pretty_path(r->inputs[i]->path));
-          fails = true;
+          fails = "missing dependencies";
         }
       }
     }
@@ -1410,7 +1427,7 @@ void do_actual_build(struct cmd_args *args) {
     build_marked(&all, args->log_directory, args->git_add_files, false, false,
                  args->blind, files_to_watch);
 
-    bool missing_dependencies = false;
+    const char *missing_dependencies = NULL;
     if (args->strictness == strict) {
       missing_dependencies = require_strict_dependencies(&all);
     } else if (args->strictness == exhaustive) {
