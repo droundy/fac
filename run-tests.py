@@ -75,14 +75,6 @@ if have_gcovr:
     system('rm tests/fac-with-coverage')
     print(build.took('rebuilding with fac and coverage'))
 
-os.environ['FAC'] = os.getcwd()+"/fac"
-
-numpassed = 0
-numfailed = 0
-numskipped = 0
-
-biggestname = max([len(f) for f in glob.glob('tests/*.sh') + glob.glob('tests/*.test')])
-
 def write_script_name(n, num=0, tot=0):
     if tot > 0:
         n += ' (%d/%d)' % (num, tot)
@@ -90,6 +82,14 @@ def write_script_name(n, num=0, tot=0):
     sys.stdout.write(n+':')
     sys.stdout.flush()
     sys.stdout.write(' '*(biggestname+extralen+3-len(n)))
+
+biggestname = max([len(f) for f in glob.glob('tests/*.sh') + glob.glob('tests/*.test')])
+
+os.environ['FAC'] = os.getcwd()+"/fac"
+
+numpassed = 0
+numfailed = 0
+numskipped = 0
 
 sh_tests = sorted(glob.glob('tests/*.sh'))
 num_sh = len(sh_tests);
@@ -156,6 +156,31 @@ def pluralize(num, noun):
             return str(num)+' '+noun+'es'
         return str(num)+' '+noun+'s'
 
+os.environ['FAC'] = os.getcwd()+"/target/debug/fac"
+
+rust_numpassed = 0
+rust_numfailed = 0
+rust_numskipped = 0
+
+for i in range(num_sh):
+    sh = sh_tests[i]
+    write_script_name(sh, i, num_sh)
+    cmdline = 'bash %s > %s.log 2>&1' % (sh, sh)
+    exitval = system(cmdline)
+    if exitval == 137:
+        print(build.blue('SKIP'), "(rust)", build.took())
+        if '-v' in sys.argv:
+            os.system('cat %s.log' % sh)
+        rust_numskipped += 1
+    elif exitval:
+        print(build.FAIL, "(rust)", build.took())
+        if '-v' in sys.argv:
+            os.system('cat %s.log' % sh)
+        rust_numfailed += 1
+    else:
+        print(build.PASS, "(rust)", build.took())
+        rust_numpassed += 1
+
 if have_gcovr:
     os.system('rm -f test.*') # generated while testing compiler flags
     os.system('rm -f *-win.gc* *-static.gc* *-afl.gc*') # generated for other builds than "standard"
@@ -169,6 +194,11 @@ else:
     print('not running gcovr')
 
 print()
+if rust_numfailed:
+    print(build.red('Rust failed ' + str(rust_numfailed)+'/'+str(rust_numfailed+rust_numpassed)))
+else:
+    print('All', pluralize(rust_numpassed, 'test'), 'passed using rust!')
+
 if numfailed:
     print(build.red('Failed ' + str(numfailed)+'/'+str(numfailed+numpassed)))
 else:

@@ -207,7 +207,7 @@ pub struct File<'id> {
     // children.  FIXME check this!
     children: HashSet<RuleRef<'id>>,
 
-    rules_defined: HashSet<RuleRef<'id>>,
+    rules_defined: Option<HashSet<RuleRef<'id>>>,
 
     hashstat: hashstat::HashStat,
     is_in_git: bool,
@@ -372,7 +372,7 @@ impl<'id> Build<'id> {
             println!("\nhandling facfiles");
             still_doing_facfiles = false;
             for f in self.filerefs() {
-                if self[f].is_fac_file() && self[f].rules_defined.len() == 0 && self.is_file_done(f) {
+                if self[f].is_fac_file() && self[f].rules_defined.is_none() && self.is_file_done(f) {
                     println!("reading file {:?}", self.pretty_path(f));
                     self.read_file(f).unwrap();
                     still_doing_facfiles = true;
@@ -382,7 +382,7 @@ impl<'id> Build<'id> {
                 } else if self[f].is_fac_file() {
                     println!("facfile {:?} already read with {} rules",
                              self.pretty_path(f),
-                             self[f].rules_defined.len());
+                             self[f].rules_defined.as_ref().unwrap().len());
                 }
             }
             self.mark_fac_files();
@@ -440,7 +440,7 @@ impl<'id> Build<'id> {
             rule: None,
             path: PathBuf::from(&path),
             children: HashSet::new(),
-            rules_defined: HashSet::new(),
+            rules_defined: None,
             hashstat: hashstat::HashStat::empty(),
             is_in_git: is_in_git,
         });
@@ -497,6 +497,7 @@ impl<'id> Build<'id> {
 
     /// Read a fac file
     pub fn read_file(&mut self, fileref: FileRef<'id>) -> io::Result<()> {
+        self[fileref].rules_defined = Some(HashSet::new());
         let filepath = self[fileref].path.clone();
         let mut f = std::fs::File::open(&filepath)?;
         let mut v = Vec::new();
@@ -529,7 +530,8 @@ impl<'id> Build<'id> {
                                           HashSet::new(),
                                           HashSet::new(),
                                           true);
-                    self[fileref].rules_defined.insert(r);
+                    self[fileref].rules_defined
+                        .as_mut().expect("rules_defined should be some!").insert(r);
                     command = Some(r);
                 },
                 b'?' => {
@@ -598,7 +600,9 @@ impl<'id> Build<'id> {
                     let key = (bytes_to_osstr(&line[2..]).to_os_string(),
                                PathBuf::from(filepath.parent().unwrap()));
                     if let Some(r) = self.rulemap.get(&key) {
-                        if self[fileref].rules_defined.contains(r) {
+                        if self[fileref].rules_defined
+                            .as_ref().expect("rules_defined should be some!").contains(r)
+                        {
                             command = Some(*r);
                             file = None;
                         } else {
@@ -636,13 +640,15 @@ impl<'id> Build<'id> {
 
     /// Write a fac file
     pub fn print_fac_file(&mut self, fileref: FileRef<'id>) -> io::Result<()> {
-        for &r in self[fileref].rules_defined.iter() {
-            println!("| {}", self.rule(r).command.to_string_lossy());
-            for &i in self.rule(r).inputs.iter() {
-                println!("< {}", self[i].path.to_string_lossy());
-            }
-            for &o in self.rule(r).outputs.iter() {
-                println!("> {}", self[o].path.to_string_lossy());
+        if let Some(ref rules_defined) = self[fileref].rules_defined {
+            for &r in rules_defined.iter() {
+                println!("| {}", self.rule(r).command.to_string_lossy());
+                for &i in self.rule(r).inputs.iter() {
+                    println!("< {}", self[i].path.to_string_lossy());
+                }
+                for &o in self.rule(r).outputs.iter() {
+                    println!("> {}", self[o].path.to_string_lossy());
+                }
             }
         }
         Ok(())
@@ -658,23 +664,25 @@ impl<'id> Build<'id> {
     /// Write a fac.tum file
     pub fn save_factum_file(&mut self, fileref: FileRef<'id>) -> io::Result<()> {
         let mut f = std::fs::File::create(&self[fileref].path.with_extension("factum.tum"))?;
-        for &r in self[fileref].rules_defined.iter() {
-            f.write(b"\n| ")?;
-            f.write(hashstat::osstr_to_bytes(&self.rule(r).command))?;
-            f.write(b"\n")?;
-            for &i in self.rule(r).all_inputs.iter() {
-                f.write(b"< ")?;
-                f.write(hashstat::osstr_to_bytes(self[i].path.as_os_str()))?;
-                f.write(b"\nH ")?;
-                f.write(&self[i].hashstat.encode())?;
+        if let Some(ref rules_defined) = self[fileref].rules_defined {
+            for &r in rules_defined.iter() {
+                f.write(b"\n| ")?;
+                f.write(hashstat::osstr_to_bytes(&self.rule(r).command))?;
                 f.write(b"\n")?;
-            }
-            for &o in self.rule(r).all_outputs.iter() {
-                f.write(b"> ")?;
-                f.write(hashstat::osstr_to_bytes(self[o].path.as_os_str()))?;
-                f.write(b"\nH ")?;
-                f.write(&self[o].hashstat.encode())?;
-                f.write(b"\n")?;
+                for &i in self.rule(r).all_inputs.iter() {
+                    f.write(b"< ")?;
+                    f.write(hashstat::osstr_to_bytes(self[i].path.as_os_str()))?;
+                    f.write(b"\nH ")?;
+                    f.write(&self[i].hashstat.encode())?;
+                    f.write(b"\n")?;
+                }
+                for &o in self.rule(r).all_outputs.iter() {
+                    f.write(b"> ")?;
+                    f.write(hashstat::osstr_to_bytes(self[o].path.as_os_str()))?;
+                    f.write(b"\nH ")?;
+                    f.write(&self[o].hashstat.encode())?;
+                    f.write(b"\n")?;
+                }
             }
         }
         Ok(())
@@ -1022,6 +1030,7 @@ impl<'id> Build<'id> {
             .arg("-c")
             .arg(&self.rule(r).command)
             .current_dir(&wd)
+            .stdin(bigbro::Stdio::null())
             .save_stdouterr()
             .status()?;
 
