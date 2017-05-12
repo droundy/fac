@@ -26,6 +26,14 @@ git add top.fac
 
 if ${FAC:-../../fac} --strict &> fac.out; then
     cat fac.out
+    echo this should fail for one reason or another
+    exit 1
+fi
+
+cat fac.out
+
+if ${FAC:-../../fac} --strict &> fac.out; then
+    cat fac.out
     echo this should fail due to strictness
     exit 1
 fi

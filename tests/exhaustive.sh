@@ -27,6 +27,13 @@ git add top.fac extra
 
 if ${FAC:-../../fac} --exhaustive &> fac.out; then
     cat fac.out
+    echo this should fail for one reason or another
+    exit 1
+fi
+cat fac.out
+
+if ${FAC:-../../fac} --exhaustive &> fac.out; then
+    cat fac.out
     echo this should fail due to exhaustive strictness
     exit 1
 fi
