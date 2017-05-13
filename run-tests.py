@@ -75,21 +75,31 @@ if have_gcovr:
     system('rm tests/fac-with-coverage')
     print(build.took('rebuilding with fac and coverage'))
 
+def shorten_name(n):
+    if '/' in n:
+        n = n.split('/')[1]
+    if '.sh' in n:
+        n = n[:-3]
+    return n
 def write_script_name(n, num=0, tot=0):
+    n = shorten_name(n)
     if tot > 0:
-        n += ' (%d/%d)' % (num, tot)
+        n += ' (%d/%d)' % (num+1, tot)
     extralen = 8 # len(' (%d/%d)' % (tot,tot))
     sys.stdout.write(n+':')
     sys.stdout.flush()
     sys.stdout.write(' '*(biggestname+extralen+3-len(n)))
 
-biggestname = max([len(f) for f in glob.glob('tests/*.sh') + glob.glob('tests/*.test')])
+biggestname = max([len(shorten_name(f))
+                   for f in glob.glob('tests/*.sh') + glob.glob('tests/*.test')])
 
 os.environ['FAC'] = os.getcwd()+"/fac"
 
 numpassed = 0
 numfailed = 0
 numskipped = 0
+
+failures = []
 
 sh_tests = sorted(glob.glob('tests/*.sh'))
 num_sh = len(sh_tests);
@@ -108,6 +118,7 @@ for i in range(num_sh):
         if '-v' in sys.argv:
             os.system('cat %s.log' % sh)
         numfailed += 1
+        failures.append(shorten_name(sh))
     else:
         print(build.PASS, build.took())
         numpassed += 1
@@ -120,6 +131,7 @@ for sh in sorted(glob.glob('tests/*.test')):
         if '-v' in sys.argv:
             os.system('cat %s.log' % sh)
         numfailed += 1
+        failures.append(shorten_name(sh))
     else:
         print(build.PASS, build.took())
         numpassed += 1
@@ -200,6 +212,8 @@ else:
     print('All', pluralize(rust_numpassed, 'test'), 'passed using rust!')
 
 if numfailed:
+    for f in failures:
+        print(build.red('    FAILED '+f))
     print(build.red('Failed ' + str(numfailed)+'/'+str(numfailed+numpassed)))
 else:
     print('All', pluralize(numpassed, 'test'), 'passed!')
