@@ -5,6 +5,7 @@ use clap;
 use std::env;
 use std::path::{PathBuf};
 
+use version;
 use git;
 
 /// The flags determining build
@@ -35,7 +36,7 @@ pub struct Flags {
 /// Parse command line arguments to determine what to do
 pub fn args<'a>() -> Flags {
     let m = clap::App::new("fac")
-        .version(env!("CARGO_PKG_VERSION"))
+        .version(version::VERSION)
         .about("build things")
         .arg(clap::Arg::with_name("jobs")
              .short("j")

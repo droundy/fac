@@ -10,6 +10,8 @@ extern crate quickcheck;
 #[macro_use]
 extern crate clap;
 
+/// A module with just the version in it.
+pub mod version;
 pub mod git;
 pub mod refset;
 

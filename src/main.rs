@@ -16,6 +16,7 @@ mod git;
 pub mod refset;
 
 pub mod build;
+mod version;
 
 fn main() {
     let flags = build::flags::args();

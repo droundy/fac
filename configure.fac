@@ -1,5 +1,6 @@
-| python generate-version-header.py > version-identifier.h
+| python generate-version-header.py
 > version-identifier.h
+> src/version.rs
 
 | python build/get-bigbro.py
 > bigbro/configure.fac
