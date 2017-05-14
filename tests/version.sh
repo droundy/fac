@@ -12,7 +12,7 @@ ${FAC:-../../fac} --version
 
 ${FAC:-../../fac} --version > version
 
-grep 'fac version' version
+grep 'fac' version
 
 git describe --dirty
 

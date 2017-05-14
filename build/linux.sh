@@ -16,7 +16,7 @@ set -ev
 
 (gcc ${CFLAGS} -Ibigbro -std=c99 -o environ.o -c environ.c)
 
-(python generate-version-header.py > version-identifier.h)
+(python generate-version-header.py)
 
 (gcc ${CFLAGS} -Ibigbro -std=c99 -o fac.o -c fac.c)
 

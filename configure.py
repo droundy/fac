@@ -247,6 +247,7 @@ try:
         print('''
 | cargo build --features strict --target x86_64-pc-windows-gnu
 < target/debug/fac
+< src/version.rs
 C bench
 C target/debug/build
 c -lock
@@ -258,6 +259,7 @@ c .gcda
 c .gcov
 C tests
 C web
+c .pyc
 ''')
 except:
     print('# no rust for windows')

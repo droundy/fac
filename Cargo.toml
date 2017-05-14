@@ -2,6 +2,7 @@
 name = "fac"
 version = "0.1.0"
 authors = ["daveroundy@gmail.com"]
+build = "build.rs"
 
 [lib]
 name = "fac"
@@ -21,9 +22,6 @@ clap = "~2.23.3"
 
 [dev-dependencies]
 quickcheck = "^0.4.1"
-
-[build-dependencies]
-gcc = "0.3"
 
 [features]
 # Treat warnings as a build error.
