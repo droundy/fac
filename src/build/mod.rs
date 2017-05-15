@@ -366,7 +366,7 @@ pub fn build<F, Out>(fl: flags::Flags, f: F) -> Out
 
 impl<'id> Build<'id> {
     /// Run the actual build!
-    pub fn build(&mut self) {
+    pub fn build(&mut self) -> i32 {
         let mut still_doing_facfiles = true;
         while still_doing_facfiles {
             println!("\nhandling facfiles");
@@ -415,6 +415,7 @@ impl<'id> Build<'id> {
             }
         }
         self.save_factum_files().unwrap();
+        self.statuses[Status::Failed].len() as i32
     }
     fn filerefs(&self) -> Vec<FileRef<'id>> {
         let mut out = Vec::new();
