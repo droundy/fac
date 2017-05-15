@@ -223,6 +223,7 @@ if can_run('cargo help'):
 # "cached" content.  :(
 | cargo build --features strict && cargo doc && cargo test --features strict
 < version-identifier.h
+> target/debug/fac
 C bench
 c ~
 C .nfs
@@ -231,6 +232,7 @@ c .gcno
 c .gcda
 c .gcov
 C tests
+C bugs
 C web
 c .pyc
 
@@ -258,6 +260,7 @@ c .gcno
 c .gcda
 c .gcov
 C tests
+C bugs
 C web
 c .pyc
 ''')
