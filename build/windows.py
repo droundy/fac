@@ -56,7 +56,7 @@ cfiles = ['arguments.c', 'build.c', 'clean-all.c', 'environ.c', 'main.c', 'fac.c
 
 ofiles = [f[:-1]+'obj' for f in cfiles]
 
-subprocess.run('python generate-version-header.py > version-identifier.h', shell=True, check=True)
+subprocess.run('python generate-version-header.py', shell=True, check=True)
 
 # use cc for doing the linking
 cmd = ['x86_64-w64-mingw32-gcc', '-g', '-Ibigbro', '-o', 'fac.exe'] + cfiles + ['bigbro/libbigbro-windows.a', '-lpthread']
