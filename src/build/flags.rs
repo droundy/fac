@@ -27,6 +27,9 @@ pub struct Flags {
     /// number of jobs to run simultaneously
     pub jobs: usize,
 
+    /// How strictly to check dependencies
+    pub strictness: Strictness,
+
     /// requested makefile
     pub makefile: Option<PathBuf>,
     /// requested tupfile
@@ -61,6 +64,16 @@ pub fn args<'a>() -> Flags {
         .arg(clap::Arg::with_name("continual")
              .long("continual")
              .help("keep rebuilding"))
+        .arg(clap::Arg::with_name("strict")
+             .long("strict")
+             .help("require strict dependencies, so first build will succeed"))
+        .arg(clap::Arg::with_name("exhaustive")
+             .long("exhaustive")
+             .help("require exhaustive dependencies (makes --blind \"safe\")"))
+        .group(clap::ArgGroup::with_name("strictness")
+               .arg("strict")
+               .arg("exhaustive")
+        )
         .arg(clap::Arg::with_name("makefile")
              .long("makefile")
              .takes_value(true)
@@ -74,6 +87,12 @@ pub fn args<'a>() -> Flags {
         .get_matches();
     let here = env::current_dir().unwrap();
     let top = git::go_to_top();
+    let strictness: Strictness;
+    if m.is_present("strict") {
+        strictness = Strictness::Strict;
+    } else {
+        strictness = Strictness::Normal;
+    }
     Flags {
         clean: m.is_present("clean"),
         verbose: m.is_present("verbose"),
@@ -82,7 +101,22 @@ pub fn args<'a>() -> Flags {
         run_from_directory: here,
         root: top,
         jobs: value_t_or_exit!(m, "jobs", usize),
+        strictness: strictness,
         makefile: m.value_of("makefile").map(|s| PathBuf::from(s)),
         tupfile: m.value_of("tupfile").map(|s| PathBuf::from(s)),
     }
+}
+
+/// Defines how strict we are about the facfile specifying all
+/// dependencies.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Strictness {
+    /// The usual lax default.  Users only specify what they care to.
+    Normal,
+    /// Users must specify at least one input to reflect any build
+    /// dependency.
+    Strict,
+    /// Users must specify *all* dependencies, including all outputs
+    /// that are also inputs.
+    Exhaustive,
 }
