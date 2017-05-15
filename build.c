@@ -1330,10 +1330,9 @@ static const char *require_strict_dependencies(struct all_targets *all) {
   const char *fails = NULL;
   for (struct rule *r = (struct rule *)all->r.first; r; r = (struct rule *)r->e.next) {
     for (int i=r->num_explicit_inputs; i<r->num_inputs; i++) {
-      const char *path = r->inputs[i]->path;
-      if (is_in_root(path)) {
+      if (r->inputs[i]->rule) {
         bool have_rule = false;
-        for (int j=0; j<r->num_explicit_outputs; j++) {
+        for (int j=0; j<r->num_explicit_inputs; j++) {
           have_rule = have_rule || (r->inputs[j]->rule == r->inputs[i]->rule);
         }
         if (!have_rule) {

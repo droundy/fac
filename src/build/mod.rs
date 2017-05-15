@@ -415,12 +415,19 @@ impl<'id> Build<'id> {
             }
         }
         self.save_factum_files().unwrap();
-        self.statuses[Status::Failed].len() as i32
+        self.summarize_build_results()
     }
     fn filerefs(&self) -> Vec<FileRef<'id>> {
         let mut out = Vec::new();
         for i in 0 .. self.files.len() {
             out.push(FileRef(i, self.id));
+        }
+        out
+    }
+    fn rulerefs(&self) -> Vec<RuleRef<'id>> {
+        let mut out = Vec::new();
+        for i in 0 .. self.rules.len() {
+            out.push(RuleRef(i, self.id));
         }
         out
     }
@@ -1010,6 +1017,62 @@ impl<'id> Build<'id> {
             .flat_map(|o| self[*o].children.iter()).map(|c| *c).collect();
         for childr in children {
             self.check_cleanliness(childr);
+        }
+    }
+
+    fn summarize_build_results(&self) -> i32 {
+        if self.statuses[Status::Failed].len() > 0 {
+            println!("Build failed {}/{} failures",
+                     self.statuses[Status::Failed].len(),
+                     self.statuses[Status::Failed].len()
+                     + self.statuses[Status::Built].len());
+            return self.statuses[Status::Failed].len() as i32;
+        }
+        if let Some(err) = self.check_strictness() {
+            println!("Build failed due to {}!", err);
+            1
+        } else {
+            println!("Build succeeded!");
+            0
+        }
+    }
+
+    fn check_strictness(&self) -> Option<String> {
+        match self.flags.strictness {
+            flags::Strictness::Strict => {
+                // Checking for strict dependencies is harder than for
+                // exhaustive, because we need to ensure that
+                // everything will be built prior to being needed.
+                // For each input there must be an explicit input that
+                // has the same rule that generates that input.
+                println!("Checking for strict dependencies...");
+                let mut fails = None;
+                for r in self.rulerefs() {
+                    for &i in self.rule(r).all_inputs.iter() {
+                        if !self.rule(r).inputs.contains(&i) {
+                            if self[i].rule.is_some() {
+                                let mut have_rule = false;
+                                for &j in self.rule(r).inputs.iter() {
+                                    have_rule = have_rule || (self[j].rule == self[i].rule)
+                                }
+                                if !have_rule {
+                                    println!("missing dependency: \"{}\" requires {}",
+                                             self.pretty_rule(r),
+                                             self.pretty_path(i).to_string_lossy());
+                                    fails = Some(String::from("missing dependencies"));
+                                }
+                            }
+                        }
+                    }
+                }
+                fails
+            },
+            flags::Strictness::Exhaustive => {
+                unimplemented!()
+            },
+            flags::Strictness::Normal => {
+                None
+            },
         }
     }
 
