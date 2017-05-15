@@ -2,6 +2,7 @@
 
 use clap;
 
+use std;
 use std::env;
 use std::path::{PathBuf};
 
@@ -29,6 +30,9 @@ pub struct Flags {
 
     /// How strictly to check dependencies
     pub strictness: Strictness,
+
+    /// What to build
+    pub targets: Vec<PathBuf>,
 
     /// requested makefile
     pub makefile: Option<PathBuf>,
@@ -97,6 +101,18 @@ pub fn args<'a>() -> Flags {
     } else {
         strictness = Strictness::Normal;
     }
+    let mut targets = Vec::new();
+    if let Some(ts) = m.values_of_os("target") {
+        for t in ts {
+            let p = here.join(t);
+            if let Ok(p) = p.strip_prefix(&top) {
+                targets.push(PathBuf::from(p));
+            } else {
+                println!("Invalid path for target: {:?}", t);
+                std::process::exit(1);
+            }
+        }
+    }
     Flags {
         clean: m.is_present("clean"),
         verbose: m.is_present("verbose"),
@@ -106,6 +122,7 @@ pub fn args<'a>() -> Flags {
         root: top,
         jobs: value_t_or_exit!(m, "jobs", usize),
         strictness: strictness,
+        targets: targets,
         makefile: m.value_of("makefile").map(|s| PathBuf::from(s)),
         tupfile: m.value_of("tupfile").map(|s| PathBuf::from(s)),
     }
