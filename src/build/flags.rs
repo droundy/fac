@@ -84,6 +84,10 @@ pub fn args<'a>() -> Flags {
              .takes_value(true)
              .value_name("TUPFILE")
              .help("create a tupfile"))
+        .arg(clap::Arg::with_name("target")
+             .index(1)
+             .multiple(true)
+             .help("names of files to build"))
         .get_matches();
     let here = env::current_dir().unwrap();
     let top = git::go_to_top();
