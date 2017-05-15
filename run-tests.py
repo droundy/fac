@@ -177,17 +177,17 @@ rust_numskipped = 0
 for i in range(num_sh):
     sh = sh_tests[i]
     write_script_name(sh, i, num_sh)
-    cmdline = 'bash %s > %s.log 2>&1' % (sh, sh)
+    cmdline = 'bash %s > %s.rust.log 2>&1' % (sh, sh)
     exitval = system(cmdline)
     if exitval == 137:
         print(build.blue('SKIP'), "(rust)", build.took())
         if '-v' in sys.argv:
-            os.system('cat %s.log' % sh)
+            os.system('cat %s.rust.log' % sh)
         rust_numskipped += 1
     elif exitval:
         print(build.FAIL, "(rust)", build.took())
         if '-v' in sys.argv:
-            os.system('cat %s.log' % sh)
+            os.system('cat %s.rust.log' % sh)
         rust_numfailed += 1
     else:
         print(build.PASS, "(rust)", build.took())
