@@ -121,7 +121,7 @@ fn kind_of(m: &std::fs::Metadata) -> Option<FileKind> {
 /// stat a file
 #[cfg(not(unix))]
 pub fn stat(f: &std::path::Path) -> std::io::Result<HashStat> {
-    let s = std::fs::metadata(f)?;
+    let s = std::fs::symlink_metadata(f)?;
     Ok(HashStat {
         time: 0,
         time_ns: 0,
@@ -133,7 +133,7 @@ pub fn stat(f: &std::path::Path) -> std::io::Result<HashStat> {
 /// stat a file
 #[cfg(unix)]
 pub fn stat(f: &std::path::Path) -> std::io::Result<HashStat> {
-    let s = std::fs::metadata(f)?;
+    let s = std::fs::symlink_metadata(f)?;
     Ok(HashStat {
         time: s.mtime(),
         time_ns: s.mtime_nsec(),

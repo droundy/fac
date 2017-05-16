@@ -17,7 +17,7 @@ pub struct Flags {
     /// Keep rebuilding
     pub continual: bool,
     /// Print extra information
-    pub verbose: bool,
+    pub verbosity: u64,
     /// Show command output even when they succeed
     pub show_output: bool,
     /// Directory in which we were run
@@ -60,6 +60,7 @@ pub fn args<'a>() -> Flags {
         .arg(clap::Arg::with_name("verbose")
              .long("verbose")
              .short("v")
+             .multiple(true)
              .help("show verbose output"))
         .arg(clap::Arg::with_name("show-output")
              .long("show-output")
@@ -115,7 +116,7 @@ pub fn args<'a>() -> Flags {
     }
     Flags {
         clean: m.is_present("clean"),
-        verbose: m.is_present("verbose"),
+        verbosity: m.occurrences_of("verbose"),
         show_output: m.is_present("show-output"),
         continual: m.is_present("continual"),
         run_from_directory: here,

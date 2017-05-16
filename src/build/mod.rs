@@ -21,10 +21,10 @@ use git;
 pub mod hashstat;
 pub mod flags;
 
-/// VERBOSE is used to enable our vprintln macro to know the
+/// VERBOSITY is used to enable our vprintln macro to know the
 /// verbosity.  This is a bit ugly, but is needed due to rust macros
 /// being hygienic.
-static mut VERBOSE: bool = false;
+static mut VERBOSITY: u64 = 0;
 
 /// The `vprintln!` macro does a println! only if the --verbose flag
 /// is specified.  It is written as a macro because if it were a
@@ -33,9 +33,21 @@ static mut VERBOSE: bool = false;
 /// Equivalently, we could write an if statement for each verbose
 /// print, but that would be tedious.
 macro_rules! vprintln {
-    () => {{ if unsafe { VERBOSE } { println!() } }};
-    ($fmt:expr) => {{ if unsafe { VERBOSE } { println!($fmt) } }};
-    ($fmt:expr, $($arg:tt)*) => {{ if unsafe { VERBOSE } { println!($fmt, $($arg)*) } }};
+    () => {{ if unsafe { VERBOSITY > 0 } { println!() } }};
+    ($fmt:expr) => {{ if unsafe { VERBOSITY > 0 } { println!($fmt) } }};
+    ($fmt:expr, $($arg:tt)*) => {{ if unsafe { VERBOSITY > 0 } { println!($fmt, $($arg)*) } }};
+}
+
+macro_rules! vvprintln {
+    () => {{ if unsafe { VERBOSITY > 1 } { println!() } }};
+    ($fmt:expr) => {{ if unsafe { VERBOSITY > 1 } { println!($fmt) } }};
+    ($fmt:expr, $($arg:tt)*) => {{ if unsafe { VERBOSITY > 1 } { println!($fmt, $($arg)*) } }};
+}
+
+macro_rules! vvvprintln {
+    () => {{ if unsafe { VERBOSITY > 2 } { println!() } }};
+    ($fmt:expr) => {{ if unsafe { VERBOSITY > 2 } { println!($fmt) } }};
+    ($fmt:expr, $($arg:tt)*) => {{ if unsafe { VERBOSITY > 2 } { println!($fmt, $($arg)*) } }};
 }
 
 /// `Id<'id>` is invariant w.r.t `'id`
@@ -345,7 +357,7 @@ pub struct Build<'id> {
 pub fn build<F, Out>(fl: flags::Flags, f: F) -> Out
     where F: for<'id> FnOnce(Build<'id>) -> Out
 {
-    unsafe { VERBOSE = fl.verbose; }
+    unsafe { VERBOSITY = fl.verbosity; }
     // This approach to type witnesses is taken from
     // https://github.com/bluss/indexing/blob/master/src/container.rs
     let mut b = Build {
@@ -399,7 +411,8 @@ impl<'id> Build<'id> {
             }
         }
         self.save_factum_files().unwrap();
-        println!("\nNow I am building everything?");
+
+        // Now we start building the actual targets.
         self.mark_all();
         let rules: Vec<_> = self.statuses[Status::Marked].iter().map(|&r| r).collect();
         for r in rules {
@@ -551,11 +564,13 @@ impl<'id> Build<'id> {
                                                  false));
                 },
                 b'>' => {
-                    let f = self.new_file(bytes_to_osstr(&line[2..]));
+                    let f = self.new_file( &normalize(&filepath.parent().unwrap()
+                                                      .join(bytes_to_osstr(&line[2..]))));
                     self.add_explicit_output(get_rule(command, '>')?, f);
                 },
                 b'<' => {
-                    let f = self.new_file(bytes_to_osstr(&line[2..]));
+                    let f = self.new_file( &normalize(&filepath.parent().unwrap()
+                                                      .join(bytes_to_osstr(&line[2..]))));
                     self.add_explicit_input(get_rule(command, '<')?, f);
                 },
                 b'c' => {
@@ -574,7 +589,7 @@ impl<'id> Build<'id> {
     }
     /// Read a factum file
     fn read_factum_file(&mut self, fileref: FileRef<'id>) -> io::Result<()> {
-        let filepath = self[fileref].path.with_extension("factum.tum");
+        let filepath = self[fileref].path.with_extension("fac.tum");
         let mut f = if let Ok(f) = std::fs::File::open(&filepath) {
             f
         } else {
@@ -671,7 +686,7 @@ impl<'id> Build<'id> {
     }
     /// Write a fac.tum file
     pub fn save_factum_file(&mut self, fileref: FileRef<'id>) -> io::Result<()> {
-        let mut f = std::fs::File::create(&self[fileref].path.with_extension("factum.tum"))?;
+        let mut f = std::fs::File::create(&self[fileref].path.with_extension("fac.tum"))?;
         if let Some(ref rules_defined) = self[fileref].rules_defined {
             for &r in rules_defined.iter() {
                 f.write(b"\n| ")?;
@@ -679,14 +694,14 @@ impl<'id> Build<'id> {
                 f.write(b"\n")?;
                 for &i in self.rule(r).all_inputs.iter() {
                     f.write(b"< ")?;
-                    f.write(hashstat::osstr_to_bytes(self[i].path.as_os_str()))?;
+                    f.write(hashstat::osstr_to_bytes(self.pretty_path(i).as_os_str()))?;
                     f.write(b"\nH ")?;
                     f.write(&self[i].hashstat.encode())?;
                     f.write(b"\n")?;
                 }
                 for &o in self.rule(r).all_outputs.iter() {
                     f.write(b"> ")?;
-                    f.write(hashstat::osstr_to_bytes(self[o].path.as_os_str()))?;
+                    f.write(hashstat::osstr_to_bytes(self.pretty_path(o).as_os_str()))?;
                     f.write(b"\nH ")?;
                     f.write(&self[o].hashstat.encode())?;
                     f.write(b"\n")?;
@@ -762,13 +777,16 @@ impl<'id> Build<'id> {
         let old_status = self.rule(r).status;
         if old_status != Status::Unknown && old_status != Status::Unready &&
             old_status != Status::Marked {
+                vvprintln!("     Already {:?}: {}", old_status, self.pretty_rule(r));
                 return; // We already know if it is clean!
             }
         if self.rule(r).all_inputs.len() == 0 && self.rule(r).all_outputs.len() == 0 {
             // Presumably this means we have never built this rule, and its
             // inputs are in git.
+            vvprintln!("     Never been built: {}", self.pretty_rule(r));
             self.set_status(r, Status::Dirty); // FIXME should sort by latency...
         }
+        vvprintln!(" ??? Considering cleanliness of {}", self.pretty_rule(r));
         let mut rebuild_excuse: Option<String> = None;
         self.set_status(r, Status::BeingDetermined);
         let mut am_now_unready = false;
@@ -782,6 +800,12 @@ impl<'id> Build<'id> {
                 match self.rule(irule).status {
                     Status::Unknown | Status::Marked => {
                         self.check_cleanliness(irule);
+                    },
+                    _ => (),
+                };
+                match self.rule(irule).status {
+                    Status::Unknown | Status::Marked => {
+                        panic!("This should not happen!?");
                     },
                     Status::BeingDetermined => {
                         // FIXME: nicer error handling would be great here.
@@ -801,6 +825,7 @@ impl<'id> Build<'id> {
         }
         self.set_status(r, old_status);
         if am_now_unready {
+            vvprintln!(" !!! Unready for {}", self.pretty_rule(r));
             self.set_status(r, Status::Unready);
             return;
         }
@@ -823,6 +848,9 @@ impl<'id> Build<'id> {
                     // we also do not know how to build it yet.  One
                     // hopes that there is some rule that will produce
                     // it!  :)
+                    vvprintln!(" !!! Explicit input {:?} (i.e. {:?} not in git for {}",
+                              self.pretty_path_peek(i), self[i].path,
+                              self.pretty_rule(r));
                     self.set_status(r, Status::Unready);
                     return;
                 }
@@ -942,11 +970,12 @@ impl<'id> Build<'id> {
             }
         }
         if is_dirty {
-            vprintln!(" *** Building {} in {:?}\n     because {}",
-                      self.pretty_rule(r), self.rule(r).working_directory,
+            vprintln!(" *** Building {}\n     because {}",
+                      self.pretty_rule(r),
                       rebuild_excuse.unwrap_or(String::from("I am confused?")));
             self.dirty(r);
         } else {
+            vvprintln!(" *** Clean: {}", self.pretty_rule(r));
             self.set_status(r, Status::Clean);
             if old_status == Status::Unready {
                 // If we were previously unready, let us now check if
@@ -1013,9 +1042,11 @@ impl<'id> Build<'id> {
     }
     fn built(&mut self, r: RuleRef<'id>) {
         self.set_status(r, Status::Built);
-        let children: Vec<RuleRef<'id>> = self.rule(r).outputs.iter()
+        let children: Vec<RuleRef<'id>> = self.rule(r).all_outputs.iter()
             .flat_map(|o| self[*o].children.iter()).map(|c| *c).collect();
+        vvprintln!(    " ^^^ Have built {}, looking at children", self.pretty_rule(r));
         for childr in children {
+            vvprintln!("     -> child: {}", self.pretty_rule(childr));
             self.check_cleanliness(childr);
         }
     }
@@ -1145,6 +1176,8 @@ impl<'id> Build<'id> {
                             }
                             self.add_output(r, fw); // FIXME filter on cache etc.
                             old_outputs.remove(&fw);
+                        } else {
+                            vprintln!("   Hash not okay?!");
                         }
                     }
             }
@@ -1291,4 +1324,19 @@ pub fn is_git_path(path: &Path) -> bool {
 /// This path is inherently boring
 pub fn is_boring(path: &Path) -> bool {
     path.starts_with("/proc") || path.starts_with("/dev") || is_git_path(path)
+}
+
+fn normalize(p: &Path) -> PathBuf {
+    let mut out = PathBuf::new();
+    for element in p.iter() {
+        if element == ".." {
+            out.pop();
+        } else {
+            out.push(element);
+        }
+        if let Ok(o) = out.canonicalize() {
+            out = o;
+        }
+    }
+    out
 }
