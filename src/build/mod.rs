@@ -611,13 +611,6 @@ impl<'id> Build<'id> {
                 return parse_error(&filepath, lineno,
                                    "Second character of line should be a space.");
             }
-            let get_rule = |r: Option<RuleRef<'id>>, c: char| -> io::Result<RuleRef<'id>> {
-                match r {
-                    None => parse_error(&filepath, lineno,
-                                        &format!("'{}' line must follow '|' or '?'",c)),
-                    Some(r) => Ok(r),
-                }
-            };
             match line[0] {
                 b'|' => {
                     let key = (bytes_to_osstr(&line[2..]).to_os_string(),
@@ -638,17 +631,23 @@ impl<'id> Build<'id> {
                 b'>' => {
                     let f = self.new_file(bytes_to_osstr(&line[2..]));
                     file = Some(f);
-                    self.add_output(get_rule(command, '>')?, f);
+                    if let Some(r) = command {
+                        self.add_output(r, f);
+                    }
                 },
                 b'<' => {
                     let f = self.new_file(bytes_to_osstr(&line[2..]));
                     file = Some(f);
-                    self.add_input(get_rule(command, '<')?, f);
+                    if let Some(r) = command {
+                        self.add_input(r, f);
+                    }
                 },
                 b'H' => {
                     if let Some(ff) = file {
-                        self.rule_mut(get_rule(command, 'H')?)
-                            .hashstats.insert(ff, hashstat::HashStat::decode(&line[2..]));
+                        if let Some(r) = command {
+                            self.rule_mut(r)
+                                .hashstats.insert(ff, hashstat::HashStat::decode(&line[2..]));
+                        }
                     } else {
                         return parse_error(&filepath, lineno,
                                            &format!("H must be after a file!"));
