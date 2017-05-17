@@ -1123,13 +1123,25 @@ impl<'id> Build<'id> {
             }
         }
         let wd = self.flags.root.join(&self.rule(r).working_directory);
-        let mut stat = bigbro::Command::new("/bin/sh")
-            .arg("-c")
-            .arg(&self.rule(r).command)
-            .current_dir(&wd)
-            .stdin(bigbro::Stdio::null())
-            .save_stdouterr()
-            .status()?;
+        let mut stat = if let Some(ref logdir) = self.flags.log_output {
+            std::fs::create_dir_all(logdir)?;
+            let d = self.flags.root.join(logdir).join(self.sanitize_rule(r));
+            bigbro::Command::new("/bin/sh")
+                .arg("-c")
+                .arg(&self.rule(r).command)
+                .current_dir(&wd)
+                .stdin(bigbro::Stdio::null())
+                .log_stdouterr(&d)
+                .status()?
+        } else {
+            bigbro::Command::new("/bin/sh")
+                .arg("-c")
+                .arg(&self.rule(r).command)
+                .current_dir(&wd)
+                .stdin(bigbro::Stdio::null())
+                .save_stdouterr()
+                .status()?
+        };
 
         let num_built = 1 + self.statuses[Status::Failed].len()
             + self.statuses[Status::Built].len();
@@ -1286,6 +1298,23 @@ impl<'id> Build<'id> {
                         .strip_prefix(&self.flags.root).unwrap().to_string_lossy(),
                     self.rule(r).command.to_string_lossy())
         }
+    }
+
+    /// Formats the rule as a sane filename
+    fn sanitize_rule(&self, r: RuleRef<'id>) -> PathBuf {
+        let rr = if self.rule(r).outputs.len() == 1 {
+            self.pretty_path(self.rule(r).outputs[0]).to_string_lossy().into_owned()
+        } else {
+            self.pretty_rule(r)
+        };
+        let mut buf = String::with_capacity(rr.len());
+        for c in rr.chars() {
+            match c {
+                'a' ... 'z' | 'A' ... 'Z' | '0' ... '9' | '_' | '-' | '.' => buf.push(c),
+                _ => buf.push('_'),
+            }
+        }
+        PathBuf::from(buf)
     }
 
     /// Look up the rule

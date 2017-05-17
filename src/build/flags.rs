@@ -20,6 +20,8 @@ pub struct Flags {
     pub verbosity: u64,
     /// Show command output even when they succeed
     pub show_output: bool,
+    /// Where to save output logs
+    pub log_output: Option<PathBuf>,
     /// Directory in which we were run
     pub run_from_directory: PathBuf,
     /// Git root
@@ -66,6 +68,16 @@ pub fn args<'a>() -> Flags {
              .long("show-output")
              .short("V")
              .help("show command output"))
+        .arg(clap::Arg::with_name("log-output")
+             .long("log-output")
+             .short("l")
+             .takes_value(true)
+             .value_name("LOG_DIRECTORY")
+             .help("log command output to directory"))
+        .group(clap::ArgGroup::with_name("command output")
+               .arg("log-output")
+               .arg("show-output")
+        )
         .arg(clap::Arg::with_name("continual")
              .long("continual")
              .help("keep rebuilding"))
@@ -118,6 +130,7 @@ pub fn args<'a>() -> Flags {
         clean: m.is_present("clean"),
         verbosity: m.occurrences_of("verbose"),
         show_output: m.is_present("show-output"),
+        log_output: m.value_of("log-output").map(|s| PathBuf::from(s)),
         continual: m.is_present("continual"),
         run_from_directory: here,
         root: top,
