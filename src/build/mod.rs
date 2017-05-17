@@ -795,6 +795,8 @@ impl<'id> Build<'id> {
             self.rule(r).all_inputs.iter().map(|&i| i).collect();
         let r_other_inputs: HashSet<FileRef<'id>> = r_inputs.iter().map(|&i| i).collect();
         let r_other_inputs = &r_all_inputs - &r_other_inputs;
+        vvprintln!("inputs are {:?}", self.rule(r).all_inputs);
+        vvprintln!("outputs are {:?}", self.rule(r).all_outputs);
         for &i in r_all_inputs.iter() {
             if let Some(irule) = self[i].rule {
                 match self.rule(irule).status {
@@ -1174,7 +1176,7 @@ impl<'id> Build<'id> {
                                     return abort(self, &stat, &mess);
                                 }
                             }
-                            self.add_output(r, fw); // FIXME filter on cache etc.
+                            self.add_output(r, fw);
                             old_outputs.remove(&fw);
                         } else {
                             vprintln!("   Hash not okay?!");
@@ -1184,7 +1186,11 @@ impl<'id> Build<'id> {
             for rr in stat.read_from_files() {
                 if !is_boring(&rr) && !self.rule(r).is_cache(&rr) {
                     let fr = self.new_file(&rr);
-                    if self[fr].hashstat.finish(&rr).is_ok() {
+                    if !old_outputs.contains(&fr)
+                        && self[fr].hashstat.finish(&rr).is_ok()
+                    {
+                        vvprintln!("adding as input {:?} aka {:?}\n   outputs {:?}",
+                                   rr, fr, self.rule(r).all_outputs);
                         self.add_input(r, fr);
                     }
                 }

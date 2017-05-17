@@ -40,7 +40,7 @@ fi
 
 EOF
 
-${FAC:-../../fac}
+${FAC:-../../fac} -vv
 
 grep foo top.fac.tum | grep '>'
 grep bar top.fac.tum | grep '>'
@@ -62,7 +62,7 @@ fi
 
 EOF
 
-${FAC:-../../fac}
+${FAC:-../../fac} -vv
 
 grep foo top.fac.tum | grep '>'
 grep bar top.fac.tum | grep '>'
