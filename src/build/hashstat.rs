@@ -167,7 +167,7 @@ impl HashStat {
     }
     /// look up any bits of the hashstat that we do not yet know.
     pub fn finish(&mut self, f: &std::path::Path) -> std::io::Result<()> {
-        if self.size == 0 {
+        if self.size == 0 && self.time == 0 {
             match hashstat(f) {
                 Ok(h) => {
                     *self = h;
@@ -182,19 +182,19 @@ impl HashStat {
         Ok(())
     }
     /// try running sat
-    fn stat(&mut self, f: &std::path::Path) {
-        if let Ok(s) = stat(f) {
-            self.time = s.time;
-            self.time_ns = s.time_ns;
-            self.size = s.size;
-            self.kind = s.kind;
+    pub fn stat(&mut self, f: &std::path::Path) {
+        if self.time == 0 && self.size == 0 {
+            if let Ok(s) = stat(f) {
+                self.time = s.time;
+                self.time_ns = s.time_ns;
+                self.size = s.size;
+                self.kind = s.kind;
+            }
         }
     }
     /// see if it matches
     pub fn matches(&mut self, f: &std::path::Path, other: &HashStat) -> bool {
-        if self.size == 0 {
-            self.stat(f);
-        }
+        self.stat(f);
         if self.size != other.size {
             return false;
         }

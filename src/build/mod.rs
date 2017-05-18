@@ -895,13 +895,13 @@ impl<'id> Build<'id> {
         }
         if !is_dirty {
             for &i in r_all_inputs.iter() {
+                let path = self[i].path.clone();
+                self[i].hashstat.stat(&path);
                 if let Some(istat) = self.rule(r).hashstats.get(&i).map(|s| *s) {
-                    let path = self[i].path.clone();
                     if let Some(irule) = self[i].rule {
                         if self.rule(irule).status == Status::Built {
                             println!("Input was rebuilt, but was it changed?");
                             println!("FIXME this probably shouldn't be dealt with here...");
-                            self[i].hashstat.finish(&path).unwrap();
                             if self[i].hashstat.cheap_matches(&istat) {
                                 // nothing to do here
                             } else if self[i].hashstat.matches(&path, &istat) {
@@ -933,7 +933,12 @@ impl<'id> Build<'id> {
                         self.rule_mut(r).hashstats.insert(i, newstat);
                         let facfile = self.rule(r).facfile;
                         self.facfiles_used.insert(facfile);
-                    } else {
+                    } else if self[i].hashstat.kind != Some(FileKind::Dir) {
+                        // In case of an input that is a directory, if it
+                        // has no input time, we conclude that it wasn't
+                        // actually readdired, and only needs to exist.
+                        // Otherwise, if there is no input time, something
+                        // is weird and we must need to rebuild.
                         rebuild_excuse = rebuild_excuse.or(
                             Some(format!("{:?} has been modified",
                                          self.pretty_path_peek(i))));
@@ -941,7 +946,12 @@ impl<'id> Build<'id> {
                         break;
                     }
 
-                } else {
+                } else if self[i].hashstat.kind != Some(FileKind::Dir) {
+                    // In case of an input that is a directory, if it
+                    // has no input time, we conclude that it wasn't
+                    // actually readdired, and only needs to exist.
+                    // Otherwise, if there is no input time, something
+                    // is weird and we must need to rebuild.
                     rebuild_excuse = rebuild_excuse.or(
                         Some(format!("have no information on {:?}",
                                      self.pretty_path_peek(i))));
@@ -971,6 +981,11 @@ impl<'id> Build<'id> {
                         self.rule_mut(r).hashstats.insert(o, newstat);
                         let facfile = self.rule(r).facfile;
                         self.facfiles_used.insert(facfile);
+                    } else if self[o].hashstat.kind == Some(FileKind::Dir) {
+                        // If the rule creates a directory, we want to
+                        // ignore any changes within that directory,
+                        // there is no reason to rebuild just because
+                        // the directory contents changed.
                     } else {
                         rebuild_excuse = rebuild_excuse.or(
                             Some(format!("output {:?} has been modified",
