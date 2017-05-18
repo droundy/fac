@@ -773,7 +773,23 @@ impl<'id> Build<'id> {
     }
 
     fn mark_all(&mut self) {
-        let to_mark: Vec<_> = self.statuses[Status::Unknown].iter().map(|&r| r).collect();
+        let to_mark: Vec<_> = if self.flags.targets.len() > 0 {
+            let mut m = Vec::new();
+            let targs = self.flags.targets.clone();
+            for p in targs {
+                let f = self.new_file(&p);
+                if let Some(r) = self[f].rule {
+                    m.push(r);
+                } else {
+                    println!("error: no rule to make target {:?}", &p);
+                    std::process::exit(1);
+                }
+            }
+            m
+        } else {
+            self.statuses[Status::Unknown].iter()
+                .map(|&r| r).filter(|&r| self.rule(r).is_default).collect()
+        };
         for r in to_mark {
             self.set_status(r, Status::Marked);
         }
@@ -900,11 +916,8 @@ impl<'id> Build<'id> {
                 let path = self[i].path.clone();
                 self[i].hashstat.stat(&path);
                 if let Some(istat) = self.rule(r).hashstats.get(&i).map(|s| *s) {
-                    println!("Input {:?} last time had {:?}", &path, istat);
                     if let Some(irule) = self[i].rule {
                         if self.rule(irule).status == Status::Built {
-                            println!("Input was rebuilt, but was it changed?");
-                            println!("FIXME this probably shouldn't be dealt with here...");
                             if self[i].hashstat.cheap_matches(&istat) {
                                 // nothing to do here
                             } else if self[i].hashstat.matches(&path, &istat) {
