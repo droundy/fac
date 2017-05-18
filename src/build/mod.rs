@@ -1218,15 +1218,10 @@ impl<'id> Build<'id> {
                 {
                     let fw = self.new_file(&d);
                     if self[fw].hashstat.finish(&d).is_ok() {
-                        if let Some(fwr) = self[fw].rule {
-                            if fwr != r {
-                                let mess = format!("two rules generate same directory {:?}:\n\t{}\nand\n\t{}",
-                                                   self.pretty_path_peek(fw),
-                                                   self.pretty_rule(r),
-                                                   self.pretty_rule(fwr));
-                                return abort(self, &stat, &mess);
-                            }
-                        }
+                        // We allow multiple rules to mkdir the same
+                        // directory.  This is fine, since we do not
+                        // apply strict ordering to the creation of a
+                        // directory.
                         self.add_output(r, fw);
                         old_outputs.remove(&fw);
                     }
