@@ -379,6 +379,17 @@ pub fn build<F, Out>(fl: flags::Flags, f: F) -> Out
 impl<'id> Build<'id> {
     /// Run the actual build!
     pub fn build(&mut self) -> i32 {
+        if self.flags.parse_only.is_some() {
+            let p = self.flags.run_from_directory.join(self.flags.parse_only
+                                                       .as_ref().unwrap());
+            let fr = self.new_file(&p);
+            if let Err(e) = self.read_file(fr) {
+                println!("Error: {}", e);
+                return 1;
+            }
+            println!("finished parsing file {:?}", self.pretty_path_peek(fr));
+            return 0;
+        }
         let mut still_doing_facfiles = true;
         while still_doing_facfiles {
             println!("\nhandling facfiles");
@@ -520,7 +531,13 @@ impl<'id> Build<'id> {
     pub fn read_file(&mut self, fileref: FileRef<'id>) -> io::Result<()> {
         self[fileref].rules_defined = Some(HashSet::new());
         let filepath = self[fileref].path.clone();
-        let mut f = std::fs::File::open(&filepath)?;
+        let mut f = match std::fs::File::open(&filepath) {
+            Ok(f) => f,
+            Err(e) =>
+                return Err(io::Error::new(io::ErrorKind::Other,
+                                          format!("unable to open file {:?}: {}",
+                                                  self.pretty_path_peek(fileref), e))),
+        };
         let mut v = Vec::new();
         f.read_to_end(&mut v)?;
         let mut command: Option<RuleRef<'id>> = None;

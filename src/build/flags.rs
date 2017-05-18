@@ -36,6 +36,8 @@ pub struct Flags {
     /// What to build
     pub targets: Vec<PathBuf>,
 
+    /// file to parse
+    pub parse_only: Option<PathBuf>,
     /// requested makefile
     pub makefile: Option<PathBuf>,
     /// requested tupfile
@@ -91,6 +93,11 @@ pub fn args<'a>() -> Flags {
                .arg("strict")
                .arg("exhaustive")
         )
+        .arg(clap::Arg::with_name("parse-only")
+             .long("parse-only")
+             .takes_value(true)
+             .value_name("FACFILENAME")
+             .help("just parse this .fac file"))
         .arg(clap::Arg::with_name("makefile")
              .long("makefile")
              .takes_value(true)
@@ -137,6 +144,7 @@ pub fn args<'a>() -> Flags {
         jobs: value_t_or_exit!(m, "jobs", usize),
         strictness: strictness,
         targets: targets,
+        parse_only: m.value_of("parse-only").map(|s| PathBuf::from(s)),
         makefile: m.value_of("makefile").map(|s| PathBuf::from(s)),
         tupfile: m.value_of("tupfile").map(|s| PathBuf::from(s)),
     }
