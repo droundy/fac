@@ -711,8 +711,10 @@ impl<'id> Build<'id> {
                 for &i in self.rule(r).all_inputs.iter() {
                     f.write(b"< ")?;
                     f.write(hashstat::osstr_to_bytes(self.pretty_path(i).as_os_str()))?;
-                    f.write(b"\nH ")?;
-                    f.write(&self[i].hashstat.encode())?;
+                    if let Some(st) = self.rule(r).hashstats.get(&i) {
+                        f.write(b"\nH ")?;
+                        f.write(&st.encode())?;
+                    }
                     f.write(b"\n")?;
                 }
                 for &o in self.rule(r).all_outputs.iter() {
@@ -898,6 +900,7 @@ impl<'id> Build<'id> {
                 let path = self[i].path.clone();
                 self[i].hashstat.stat(&path);
                 if let Some(istat) = self.rule(r).hashstats.get(&i).map(|s| *s) {
+                    println!("Input {:?} last time had {:?}", &path, istat);
                     if let Some(irule) = self[i].rule {
                         if self.rule(irule).status == Status::Built {
                             println!("Input was rebuilt, but was it changed?");
@@ -933,12 +936,7 @@ impl<'id> Build<'id> {
                         self.rule_mut(r).hashstats.insert(i, newstat);
                         let facfile = self.rule(r).facfile;
                         self.facfiles_used.insert(facfile);
-                    } else if self[i].hashstat.kind != Some(FileKind::Dir) {
-                        // In case of an input that is a directory, if it
-                        // has no input time, we conclude that it wasn't
-                        // actually readdired, and only needs to exist.
-                        // Otherwise, if there is no input time, something
-                        // is weird and we must need to rebuild.
+                    } else {
                         rebuild_excuse = rebuild_excuse.or(
                             Some(format!("{:?} has been modified",
                                          self.pretty_path_peek(i))));
@@ -1250,6 +1248,8 @@ impl<'id> Build<'id> {
                     {
                         vvprintln!("adding as input {:?} aka {:?}\n   outputs {:?}",
                                    rr, fr, self.rule(r).all_outputs);
+                        let hs = self[fr].hashstat;
+                        self.rule_mut(r).hashstats.insert(fr, hs);
                         self.add_input(r, fr);
                     }
                 }
@@ -1258,6 +1258,8 @@ impl<'id> Build<'id> {
                 if !is_boring(&rr) && !self.rule(r).is_cache(&rr) {
                     let fr = self.new_file(&rr);
                     if self[fr].hashstat.finish(&rr).is_ok() {
+                        let hs = self[fr].hashstat;
+                        self.rule_mut(r).hashstats.insert(fr, hs);
                         self.add_input(r, fr);
                     }
                 }

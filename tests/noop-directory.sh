@@ -39,6 +39,8 @@ ${FAC:-../../fac}
 
 grep foo top.fac.tum
 
+cat top.fac.tum
+
 ${FAC:-../../fac} -v -j 1
 
 exit 0
