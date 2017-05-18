@@ -643,6 +643,7 @@ impl<'id> Build<'id> {
                         }
                     } else {
                         println!("missing rule!");
+                        command = None;
                     }
                 },
                 b'>' => {
