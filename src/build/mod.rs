@@ -534,7 +534,7 @@ impl<'id> Build<'id> {
         let mut f = match std::fs::File::open(&filepath) {
             Ok(f) => f,
             Err(e) =>
-                return Err(io::Error::new(io::ErrorKind::Other,
+                return Err(io::Error::new(e.kind(),
                                           format!("unable to open file {:?}: {}",
                                                   self.pretty_path_peek(fileref), e))),
         };
@@ -1210,6 +1210,27 @@ impl<'id> Build<'id> {
                             vprintln!("   Hash not okay?!");
                         }
                     }
+            }
+            for d in stat.mkdir_directories() {
+                if d.starts_with(&self.flags.root)
+                    && !is_git_path(&d)
+                    && !self.rule(r).is_cache(&d)
+                {
+                    let fw = self.new_file(&d);
+                    if self[fw].hashstat.finish(&d).is_ok() {
+                        if let Some(fwr) = self[fw].rule {
+                            if fwr != r {
+                                let mess = format!("two rules generate same directory {:?}:\n\t{}\nand\n\t{}",
+                                                   self.pretty_path_peek(fw),
+                                                   self.pretty_rule(r),
+                                                   self.pretty_rule(fwr));
+                                return abort(self, &stat, &mess);
+                            }
+                        }
+                        self.add_output(r, fw);
+                        old_outputs.remove(&fw);
+                    }
+                }
             }
             for rr in stat.read_from_files() {
                 if !is_boring(&rr) && !self.rule(r).is_cache(&rr) {
