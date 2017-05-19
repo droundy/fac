@@ -433,12 +433,81 @@ impl<'id> Build<'id> {
         for r in rules {
             self.check_cleanliness(r);
         }
-        while self.statuses[Status::Dirty].len() > 0 {
+        while self.statuses[Status::Dirty].len() > 0
+            || self.statuses[Status::Unready].len() > 0
+        {
             let rules: Vec<_> = self.statuses[Status::Dirty].iter().map(|&r| r).collect();
             println!("\nhave {} dirty to build!", rules.len());
             for r in rules {
                 if let Err(e) = self.run(r) {
                     println!("I got err {}", e);
+                }
+            }
+
+            if self.statuses[Status::Dirty].len() == 0
+                && self.statuses[Status::Unready].len() > 0
+            {
+                // Looks like we failed to build everything! There are
+                // a few possibilities, including the possibility that
+                // one of these unready rules is actually ready after
+                // all.
+                let rules: Vec<_>
+                    = self.statuses[Status::Unready].iter().map(|&r| r).collect();
+                for r in rules {
+                    let mut need_to_try_again = false;
+                    // FIXME figure out ignore_missing_files,
+                    // happy_building_at_least_one, etc. from
+                    // build.c:1171
+                    let inputs: Vec<_> = self.rule(r).all_inputs.iter()
+                        .map(|&i| i).collect();
+                    for i in inputs {
+                        if self[i].rule.is_none() && !self[i].is_in_git &&
+                            !is_git_path(self.pretty_path_peek(i)) &&
+                            self[i].path.starts_with(&self.flags.root)
+                        {
+                            if self[i].path.exists() {
+                                let thepath = self[i].path.canonicalize().unwrap();
+                                if thepath != self[i].path {
+                                    // The canonicalization of the
+                                    // path has changed! See issue #17
+                                    // which this fixes. Presumably a
+                                    // directory has been created or a
+                                    // symlink modified, and the path
+                                    // is now different.
+                                    let t = self.new_file(thepath);
+                                    // There is a small memory leak
+                                    // here, since we don't free the
+                                    // old target.  The trouble is
+                                    // that we don't know if it is
+                                    // otherwise in use, e.g. as the
+                                    // output or input of a different
+                                    // rule.  This *shouldn't* be
+                                    // common, since once the path
+                                    // exists, future runs will not
+                                    // run into this leak.
+                                    self.rule_mut(r).all_inputs.remove(&i);
+                                    self.rule_mut(r).all_inputs.insert(t);
+                                    need_to_try_again = true;
+                                // } else if git_add_files {
+                                //     git_add(r->inputs[i]->path);
+                                //     need_to_try_again = true;
+                                } else {
+                                    println!("error: add {:?} to git, which is required for {}",
+                                             self.pretty_path_peek(i),
+                                             self.pretty_reason(r));
+                                }
+                            } else {
+                                println!("error: missing file {:?}, which is required for {}",
+                                         self.pretty_path_peek(i), self.pretty_reason(r));
+                            }
+                        }
+                    }
+                    if need_to_try_again {
+                        self.check_cleanliness(r);
+                        break;
+                    } else {
+                        self.failed(r);
+                    }
                 }
             }
         }
@@ -1379,6 +1448,28 @@ impl<'id> Build<'id> {
                     self.rule(r).command.to_string_lossy())
         }
     }
+
+    /// pretty_reason is a way of describing a rule in terms of why it
+    /// needs to be built.  If the rule is always built by default, it
+    /// gives the same output that pretty_rule does.  However, if it
+    /// is a non-default rule, it selects an output which is actually
+    /// needed to describe why it needs to be built.
+    pub fn pretty_reason(&self, r: RuleRef<'id>) -> String {
+        if self.rule(r).is_default {
+            return self.pretty_rule(r);
+        }
+        for &o in self.rule(r).outputs.iter() {
+            for &c in self[o].children.iter() {
+                if self.rule(c).status == Status::Unready
+                    || self.rule(c).status == Status::Failed
+                {
+                    return self.pretty_path_peek(o).to_string_lossy().into_owned();
+                }
+            }
+        }
+        self.pretty_rule(r) // ?!
+    }
+
 
     /// Formats the rule as a sane filename
     fn sanitize_rule(&self, r: RuleRef<'id>) -> PathBuf {

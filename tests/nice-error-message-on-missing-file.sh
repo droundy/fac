@@ -33,6 +33,7 @@ git init
 git add my.fac
 
 if ${FAC:-../../fac} > out; then
+  cat out
   echo build should fail missing file f1
   exit 1
 fi
