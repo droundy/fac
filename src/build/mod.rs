@@ -422,6 +422,10 @@ impl<'id> Build<'id> {
             }
         }
         self.save_factum_files().unwrap();
+        if self.rulerefs().len() == 0 {
+            println!("Please git add a .fac file containing rules!");
+            std::process::exit(1);
+        }
 
         // Now we start building the actual targets.
         self.mark_all();
