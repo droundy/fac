@@ -19,7 +19,7 @@ git add top.fac
 
 ${FAC:-../../fac} -v > fac.out
 cat fac.out
-if grep 'Building foo' fac.out; then
+if grep 'Building.* foo' fac.out; then
     echo It is dirty, as it should be.
 else
     echo It should not be clean!!!
@@ -30,7 +30,7 @@ cat top.fac.tum
 
 ${FAC:-../../fac} -v > fac.out
 cat fac.out
-if grep 'Building foo' fac.out; then
+if grep 'Building.* foo' fac.out; then
     echo It is dirty, but should not be!!!
     exit 1
 else
