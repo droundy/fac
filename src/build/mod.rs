@@ -808,7 +808,16 @@ impl<'id> Build<'id> {
         }
     }
 
+    /// For debugging show all rules and their current status.
+    pub fn show_rules_status(&self) {
+        for r in self.rulerefs() {
+            println!(">>> {} is {:?}", self.pretty_rule(r), self.rule(r).status);
+        }
+    }
+
     fn check_cleanliness(&mut self, r: RuleRef<'id>) {
+        vvvprintln!("check_cleanliness {} (currently {:?})",
+                    self.pretty_rule(r), self.rule(r).status);
         let old_status = self.rule(r).status;
         if old_status != Status::Unknown && old_status != Status::Unready &&
             old_status != Status::Marked {
@@ -830,8 +839,6 @@ impl<'id> Build<'id> {
             self.rule(r).all_inputs.iter().map(|&i| i).collect();
         let r_other_inputs: HashSet<FileRef<'id>> = r_inputs.iter().map(|&i| i).collect();
         let r_other_inputs = &r_all_inputs - &r_other_inputs;
-        vvprintln!("inputs are {:?}", self.rule(r).all_inputs);
-        vvprintln!("outputs are {:?}", self.rule(r).all_outputs);
         for &i in r_all_inputs.iter() {
             if let Some(irule) = self[i].rule {
                 match self.rule(irule).status {
@@ -1024,11 +1031,10 @@ impl<'id> Build<'id> {
             self.set_status(r, Status::Clean);
             if old_status == Status::Unready {
                 // If we were previously unready, let us now check if
-                // any of our children are ready.  FIXME: check if
-                // this could end up resulting in building things we
-                // didn't want built!
+                // any of our unready children are now ready.
                 let children: Vec<RuleRef<'id>> = self.rule(r).outputs.iter()
-                    .flat_map(|o| self[*o].children.iter()).map(|c| *c).collect();
+                    .flat_map(|o| self[*o].children.iter()).map(|c| *c)
+                    .filter(|&c| self.rule(c).status == Status::Unready).collect();
                 for childr in children {
                     self.check_cleanliness(childr);
                 }
@@ -1042,9 +1048,10 @@ impl<'id> Build<'id> {
         if oldstat != Status::Dirty {
             self.set_status(r, Status::Dirty);
             if oldstat != Status::Unready {
-                // Need to inform child rules they are unready now
+                // Need to inform marked child rules they are unready now
                 let children: Vec<RuleRef<'id>> = self.rule(r).outputs.iter()
-                    .flat_map(|o| self[*o].children.iter()).map(|c| *c).collect();
+                    .flat_map(|o| self[*o].children.iter()).map(|c| *c)
+                    .filter(|&c| self.rule(c).status == Status::Marked).collect();
                 // This is a separate loop to satisfy the borrow checker.
                 for childr in children.iter() {
                     self.unready(*childr);
@@ -1056,9 +1063,10 @@ impl<'id> Build<'id> {
     fn unready(&mut self, r: RuleRef<'id>) {
         if self.rule(r).status != Status::Unready {
             self.set_status(r, Status::Unready);
-            // Need to inform child rules they are unready now
+            // Need to inform marked child rules they are unready now
             let children: Vec<RuleRef<'id>> = self.rule(r).outputs.iter()
-                .flat_map(|o| self[*o].children.iter()).map(|c| *c).collect();
+                .flat_map(|o| self[*o].children.iter()).map(|c| *c)
+                .filter(|&c| self.rule(c).status == Status::Marked).collect();
             // This is a separate loop to satisfy the borrow checker.
             // It is somewhat less efficient to store this, but such
             // is life.  I could have stored a HashSet rather than a
@@ -1087,12 +1095,19 @@ impl<'id> Build<'id> {
     }
     fn built(&mut self, r: RuleRef<'id>) {
         self.set_status(r, Status::Built);
+        // Only check "unready" children to see if they might now be
+        // ready to be built.  Other children might not be desired as
+        // part of our build, either because they are non-default, or
+        // because the user requested specific targets.
         let children: Vec<RuleRef<'id>> = self.rule(r).all_outputs.iter()
-            .flat_map(|o| self[*o].children.iter()).map(|c| *c).collect();
-        vvprintln!(    " ^^^ Have built {}, looking at children", self.pretty_rule(r));
-        for childr in children {
-            vvprintln!("     -> child: {}", self.pretty_rule(childr));
-            self.check_cleanliness(childr);
+            .flat_map(|o| self[*o].children.iter()).map(|c| *c)
+            .filter(|&c| self.rule(c).status == Status::Unready).collect();
+        if children.len() > 0 {
+            vvprintln!(    " ^^^ Have built {}, looking at children", self.pretty_rule(r));
+            for childr in children {
+                vvprintln!("     -> child: {}", self.pretty_rule(childr));
+                self.check_cleanliness(childr);
+            }
         }
     }
 
@@ -1260,8 +1275,6 @@ impl<'id> Build<'id> {
                     if !old_outputs.contains(&fr)
                         && self[fr].hashstat.finish(&rr).is_ok()
                     {
-                        vvprintln!("adding as input {:?} aka {:?}\n   outputs {:?}",
-                                   rr, fr, self.rule(r).all_outputs);
                         let hs = self[fr].hashstat;
                         self.rule_mut(r).hashstats.insert(fr, hs);
                         self.add_input(r, fr);
