@@ -398,7 +398,7 @@ impl<'id> Build<'id> {
                                                        .as_ref().unwrap());
             let fr = self.new_file(&p);
             if let Err(e) = self.read_file(fr) {
-                println!("Error: {}", e);
+                println!("{}", e);
                 return 1;
             }
             println!("finished parsing file {:?}", self.pretty_path_peek(fr));
@@ -411,7 +411,10 @@ impl<'id> Build<'id> {
             for f in self.filerefs() {
                 if self[f].is_fac_file() && self[f].rules_defined.is_none() && self.is_file_done(f) {
                     println!("reading file {:?}", self.pretty_path(f));
-                    self.read_file(f).unwrap();
+                    if let Err(e) = self.read_file(f) {
+                        println!("{}", e);
+                        return 1;
+                    }
                     still_doing_facfiles = true;
                     // self.print_fac_file(f).unwrap();
                 } else if self[f].is_fac_file() && !self.is_file_done(f) {
@@ -645,11 +648,12 @@ impl<'id> Build<'id> {
     pub fn read_file(&mut self, fileref: FileRef<'id>) -> io::Result<()> {
         self[fileref].rules_defined = Some(HashSet::new());
         let filepath = self[fileref].path.clone();
+        let fp = self.pretty_path_peek(fileref).to_string_lossy().into_owned();
         let mut f = match std::fs::File::open(&filepath) {
             Ok(f) => f,
             Err(e) =>
                 return Err(io::Error::new(e.kind(),
-                                          format!("unable to open file {:?}: {}",
+                                          format!("error: unable to open file {:?}: {}",
                                                   self.pretty_path_peek(fileref), e))),
         };
         let mut v = Vec::new();
@@ -657,20 +661,21 @@ impl<'id> Build<'id> {
         let mut command: Option<RuleRef<'id>> = None;
         for (lineno_minus_one, line) in v.split(|c| *c == b'\n').enumerate() {
             let lineno = lineno_minus_one + 1;
-            fn parse_error<T>(path: &Path, lineno: usize, msg: &str) -> io::Result<T> {
-                Err(io::Error::new(io::ErrorKind::Other,
-                                        format!("error: {:?}:{}: {}",
-                                                path, lineno, msg)))
-            }
             if line.len() < 2 || line[0] == b'#' { continue };
             if line[1] != b' ' {
-                return parse_error(&filepath, lineno,
-                                   "Second character of line should be a space.");
+                return Err(
+                    io::Error::new(io::ErrorKind::Other,
+                                   format!("error: {}:{}: {}", &fp, lineno,
+                                           "Second character of line should be a space.")));
             }
             let get_rule = |r: Option<RuleRef<'id>>, c: char| -> io::Result<RuleRef<'id>> {
                 match r {
-                    None => parse_error(&filepath, lineno,
-                                        &format!("'{}' line must follow '|' or '?'",c)),
+                    None =>
+                        return Err(
+                            io::Error::new(
+                                io::ErrorKind::Other,
+                                format!("error: {}:{}: {}", &fp, lineno,
+                                        &format!("'{}' line must follow '|' or '?'",c)))),
                     Some(r) => Ok(r),
                 }
             };
@@ -712,8 +717,13 @@ impl<'id> Build<'id> {
                     self.rule_mut(get_rule(command, 'C')?).cache_suffixes
                         .insert(bytes_to_osstr(&line[2..]).to_os_string());
                 },
-                _ => return parse_error(&filepath, lineno,
-                                        &format!("Invalid first character: {:?}", line[0])),
+                _ => {
+                    return Err(
+                        io::Error::new(
+                            io::ErrorKind::Other,
+                            format!("error: {}:{}: {}", &fp, lineno,
+                                    &format!("Invalid first character: {:?}", line[0]))))
+                },
             }
         }
         self.read_factum_file(fileref)
