@@ -258,6 +258,15 @@ impl<'id> File<'id> {
         self.stat().is_ok()
     }
 
+    fn is_file(&mut self) -> bool {
+        self.stat().ok();
+        self.hashstat.kind == Some(FileKind::File)
+    }
+    fn is_dir(&mut self) -> bool {
+        self.stat().ok();
+        self.hashstat.kind == Some(FileKind::Dir)
+    }
+
     /// Remove it if it exists.
     fn unlink(&self) {
         std::fs::remove_file(&self.path).ok();
@@ -430,6 +439,25 @@ impl<'id> Build<'id> {
         if self.rulerefs().len() == 0 {
             println!("Please git add a .fac file containing rules!");
             std::process::exit(1);
+        }
+        if self.flags.clean {
+            for o in self.filerefs() {
+                if !self[o].is_in_git && self[o].is_file() && self[o].rule.is_some() {
+                    vprintln!("rm {:?}", self.pretty_path_peek(o));
+                    self[o].unlink();
+                }
+            }
+            // The following bit is a hokey and inefficient bit of code to
+            // ensure that we will rmdir subdirectories prior to their
+            // superdirectories.  I don't bother checking if anything is a
+            // directory or not, and I recompute depths many times.
+            let mut dirs: Vec<FileRef<'id>> = self.filerefs().iter()
+                .map(|&o| o).filter(|&o| self[o].is_dir()).collect();
+            dirs.sort_by_key(|&d| - (self[d].path.to_string_lossy().len() as i32));
+            for d in dirs {
+                std::fs::remove_dir_all(&self[d].path).ok();
+            }
+            std::process::exit(0);
         }
 
         // Now we start building the actual targets.
