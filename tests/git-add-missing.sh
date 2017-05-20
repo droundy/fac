@@ -27,7 +27,7 @@ if ${FAC:-../../fac} > fac.out; then
 fi
 cat fac.out
 
-grep 'error: add bar to git, which is required for foobar' fac.out
+grep 'error: add .*bar.* to git, which is required for .*foobar' fac.out
 
 rm -f foobar
 git add bar
