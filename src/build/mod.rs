@@ -1401,9 +1401,14 @@ impl<'id> Build<'id> {
                             && !self[fr].rule.is_some()
                             && !self[fr].is_in_git
                         {
-                            rule_actually_failed = true;
-                            println!("error: {:?} should be in git for {}",
-                                     self.pretty_path_peek(fr), self.pretty_reason(r));
+                            if self.flags.git_add {
+                                git::add(&self[fr].path);
+                                self[fr].is_in_git = true;
+                            } else {
+                                rule_actually_failed = true;
+                                println!("error: {:?} should be in git for {}",
+                                         self.pretty_path_peek(fr), self.pretty_reason(r));
+                            }
                         }
                         self.add_input(r, fr);
                     }

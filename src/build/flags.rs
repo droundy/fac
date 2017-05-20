@@ -16,6 +16,8 @@ pub struct Flags {
     pub clean: bool,
     /// Keep rebuilding
     pub continual: bool,
+    /// git add any files that need it
+    pub git_add: bool,
     /// Print extra information
     pub verbosity: u64,
     /// Show command output even when they succeed
@@ -80,6 +82,9 @@ pub fn args<'a>() -> Flags {
                .arg("log-output")
                .arg("show-output")
         )
+        .arg(clap::Arg::with_name("git-add")
+             .long("git-add")
+             .help("git add needed files"))
         .arg(clap::Arg::with_name("continual")
              .long("continual")
              .help("keep rebuilding"))
@@ -139,6 +144,7 @@ pub fn args<'a>() -> Flags {
         show_output: m.is_present("show-output"),
         log_output: m.value_of("log-output").map(|s| PathBuf::from(s)),
         continual: m.is_present("continual"),
+        git_add: m.is_present("git-add"),
         run_from_directory: here,
         root: top,
         jobs: value_t_or_exit!(m, "jobs", usize),

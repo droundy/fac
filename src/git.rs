@@ -41,6 +41,15 @@ pub fn ls_files() -> std::collections::HashSet<std::path::PathBuf> {
     fs
 }
 
+/// git add a file or more
+pub fn add(p: &std::path::Path) {
+    std::process::Command::new("git")
+        .arg("add")
+        .arg(p)
+        .output()
+        .expect("Error calling git add");
+}
+
 #[test]
 fn ls_files_works() {
     let x = ls_files();
