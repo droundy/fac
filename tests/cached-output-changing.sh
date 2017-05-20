@@ -31,10 +31,11 @@ if ${FAC:-../../fac}; then
     echo This should fail because foo exists
 fi
 
+ls -l
 grep hello foo
-grep bar bar
+echo bar should ideally not exist, because command failed
 
-rm foo bar
+rm -f foo bar
 
 ${FAC:-../../fac}
 
