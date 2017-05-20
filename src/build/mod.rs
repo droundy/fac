@@ -318,7 +318,7 @@ fn is_suffix(path: &Path, suff: &OsStr) -> bool {
 fn is_prefix(path: &Path, suff: &OsStr) -> bool {
     let l = suff.as_bytes().len();
     let p = path.as_os_str().as_bytes();
-    p.len() > l && p[p.len()-l..] == suff.as_bytes()[..]
+    p.len() > l && p[..l] == suff.as_bytes()[..]
 }
 
 #[cfg(not(unix))]
@@ -332,6 +332,22 @@ fn is_prefix(path: &Path, suff: &OsStr) -> bool {
     let pathstring: String = path.as_os_str().to_string_lossy().into_owned();
     let suffstring: String = suff.to_string_lossy().into_owned();
     pathstring.starts_with(&suffstring)
+}
+
+#[test]
+fn test_is_prefix() {
+    assert!(is_prefix(std::path::Path::new("/the/world/is"),
+                      std::ffi::OsStr::new("/the/world")));
+    assert!(!is_prefix(std::path::Path::new("/the/world/is"),
+                       std::ffi::OsStr::new("/the/world/other")));
+}
+
+#[test]
+fn test_is_suffix() {
+    assert!(is_suffix(std::path::Path::new("/the/world/is.awesome"),
+                      std::ffi::OsStr::new("awesome")));
+    assert!(!is_suffix(std::path::Path::new("/the/world/is"),
+                       std::ffi::OsStr::new("/the/world")));
 }
 
 /// A struct that holds all the information needed to build.  You can
@@ -710,12 +726,18 @@ impl<'id> Build<'id> {
                     self.add_explicit_input(get_rule(command, '<')?, f);
                 },
                 b'c' => {
-                    self.rule_mut(get_rule(command, 'c')?).cache_prefixes
+                    self.rule_mut(get_rule(command, 'c')?).cache_suffixes
                         .insert(bytes_to_osstr(&line[2..]).to_os_string());
                 },
                 b'C' => {
-                    self.rule_mut(get_rule(command, 'C')?).cache_suffixes
-                        .insert(bytes_to_osstr(&line[2..]).to_os_string());
+                    let prefix = bytes_to_osstr(&line[2..]).to_os_string();
+                    let prefix = if PathBuf::from(&prefix).is_absolute() {
+                        prefix
+                    } else {
+                        self.flags.root.join(&prefix).into_os_string()
+                    };
+                    self.rule_mut(get_rule(command, 'C')?).cache_prefixes
+                        .insert(prefix);
                 },
                 _ => {
                     return Err(
@@ -1463,7 +1485,7 @@ impl<'id> Build<'id> {
                 // Any previously created files that still exist
                 // should be treated as if they were created this time
                 // around.
-                if self[o].exists() {
+                if self[o].exists() && !self.rule(r).is_cache(&self[o].path) {
                     self.add_output(r, o);
                 }
             }
