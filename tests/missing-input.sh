@@ -27,8 +27,8 @@ else
     echo Bilge failed as it ought.
 fi
 
-grep 'missing file bar' fac.out
-grep 'missing file bar' fac.out | grep baz
+grep 'missing file .*bar' fac.out
+grep 'missing file .*bar' fac.out | grep baz
 
 if grep 'cat: bar' fac.out; then
     echo we should not have attempted this build in the first place
