@@ -487,6 +487,13 @@ impl<'id> Build<'id> {
                                     // run into this leak.
                                     self.rule_mut(r).all_inputs.remove(&i);
                                     self.rule_mut(r).all_inputs.insert(t);
+                                    // Now replace the target in the
+                                    // vec of explicit inputs.
+                                    for ii in self.rule_mut(r).inputs.iter_mut() {
+                                        if *ii == i {
+                                            *ii = t;
+                                        }
+                                    }
                                     need_to_try_again = true;
                                 // } else if git_add_files {
                                 //     git_add(r->inputs[i]->path);
