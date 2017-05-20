@@ -257,6 +257,11 @@ impl<'id> File<'id> {
     pub fn exists(&mut self) -> bool {
         self.stat().is_ok()
     }
+
+    /// Remove it if it exists.
+    fn unlink(&self) {
+        std::fs::remove_file(&self.path).ok();
+    }
 }
 
 /// A reference to a Rule
@@ -465,7 +470,7 @@ impl<'id> Build<'id> {
                             !is_git_path(self.pretty_path_peek(i)) &&
                             self[i].path.starts_with(&self.flags.root)
                         {
-                            if self[i].path.exists() {
+                            if self[i].exists() {
                                 let thepath = self[i].path.canonicalize().unwrap();
                                 if thepath != self[i].path {
                                     // The canonicalization of the
@@ -1171,6 +1176,14 @@ impl<'id> Build<'id> {
             for childr in children.iter() {
                 self.failed(*childr);
             }
+
+            // Delete any files that were created, so that they will
+            // be properly re-created next time this command is run.
+            for &o in self.rule(r).all_outputs.iter() {
+                if !self[o].is_in_git {
+                    self[o].unlink();
+                }
+            }
         }
     }
     fn built(&mut self, r: RuleRef<'id>) {
@@ -1294,10 +1307,10 @@ impl<'id> Build<'id> {
             sel.failed(r);
             // now remove the output of this rule
             for w in stat.written_to_files() {
-                std::fs::remove_file(w).unwrap();
+                std::fs::remove_file(w).ok();
             }
             for d in stat.mkdir_directories() {
-                std::fs::remove_dir_all(d).unwrap();
+                std::fs::remove_dir_all(d).ok();
             }
             let ff = sel.rule(r).facfile;
             sel.facfiles_used.insert(ff);
@@ -1305,8 +1318,6 @@ impl<'id> Build<'id> {
         };
 
         if stat.status().success() {
-            message = self.pretty_rule(r);
-            println!("[{}/{}]: {}", num_built, num_total, &message);
             // First clear out the listing of inputs and outputs
             self.rule_mut(r).all_inputs.clear();
             let mut old_outputs: HashSet<FileRef<'id>> =
@@ -1379,10 +1390,16 @@ impl<'id> Build<'id> {
                     self.add_input(r, i);
                 }
             }
+            let mut failed_to_produce_output = false;
             let explicit_outputs = self.rule(r).outputs.clone();
             for o in explicit_outputs {
                 if !self.rule(r).all_outputs.contains(&o) {
                     self.add_output(r, o);
+                    if !self[o].exists() {
+                        println!("build failed to create: {:?}",
+                                 self.pretty_path_peek(o));
+                        failed_to_produce_output = true;
+                    }
                 }
             }
             for o in old_outputs {
@@ -1408,7 +1425,16 @@ impl<'id> Build<'id> {
                     }
                 }
             }
-            self.built(r);
+            if failed_to_produce_output {
+                message = format!("build failed: {}", self.pretty_rule(r));
+                println!("!{}/{}!: {}",
+                         num_built, num_total, message);
+                self.failed(r);
+            } else {
+                message = self.pretty_rule(r);
+                println!("[{}/{}]: {}", num_built, num_total, &message);
+                self.built(r);
+            }
         } else {
             message = format!("build failed: {}", self.pretty_rule(r));
             println!("!{}/{}!: {}",
