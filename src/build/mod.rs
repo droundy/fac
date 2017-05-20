@@ -294,6 +294,7 @@ pub struct Rule<'id> {
 
     working_directory: PathBuf,
     facfile: FileRef<'id>,
+    linenum: usize,
     command: OsString,
     is_default: bool,
 }
@@ -633,13 +634,16 @@ impl<'id> Build<'id> {
                     command: &OsStr,
                     working_directory: &Path,
                     facfile: FileRef<'id>,
+                    linenum: usize,
                     cache_suffixes: HashSet<OsString>,
                     cache_prefixes: HashSet<OsString>,
                     is_default: bool)
-                    -> RuleRef<'id> {
+                    -> Result<RuleRef<'id>, RuleRef<'id>> {
         let r = RuleRef(self.rules.len(), self.id);
         let key = (OsString::from(command), PathBuf::from(working_directory));
-        assert!(!self.rulemap.contains_key(&key));
+        if self.rulemap.contains_key(&key) {
+            return Err(self.rulemap[&key]);
+        }
         self.rulemap.insert(key, r);
         self.rules.push(Rule {
             id: self.id,
@@ -653,11 +657,12 @@ impl<'id> Build<'id> {
             cache_suffixes: cache_suffixes,
             working_directory: PathBuf::from(working_directory),
             facfile: facfile,
+            linenum: linenum,
             command: OsString::from(command),
             is_default: is_default,
         });
         self.statuses[Status::Unknown].insert(r);
-        r
+        Ok(r)
     }
 
     /// Read a fac file
@@ -697,23 +702,52 @@ impl<'id> Build<'id> {
             };
             match line[0] {
                 b'|' => {
-                    let r = self.new_rule(bytes_to_osstr(&line[2..]),
-                                          filepath.parent().unwrap(),
-                                          fileref,
-                                          HashSet::new(),
-                                          HashSet::new(),
-                                          true);
-                    self[fileref].rules_defined
-                        .as_mut().expect("rules_defined should be some!").insert(r);
-                    command = Some(r);
+                    match self.new_rule(bytes_to_osstr(&line[2..]),
+                                        filepath.parent().unwrap(),
+                                        fileref,
+                                        lineno,
+                                        HashSet::new(),
+                                        HashSet::new(),
+                                        true) {
+                        Ok(r) => {
+                            self[fileref].rules_defined
+                                .as_mut().expect("rules_defined should be some!").insert(r);
+                            command = Some(r);
+                        },
+                        Err(e) => {
+                            return Err(
+                                io::Error::new(
+                                    io::ErrorKind::Other,
+                                    format!("error: {}:{} duplicate rule: {}\n\talso defined in {}:{}",
+                                            &fp, lineno, self.pretty_rule(e),
+                                            self.pretty_path_peek(self.rule(e).facfile).to_string_lossy(),
+                                            self.rule(e).linenum)));
+                        },
+                    }
                 },
                 b'?' => {
-                    command = Some(self.new_rule(bytes_to_osstr(&line[2..]),
-                                                 filepath.parent().unwrap(),
-                                                 fileref,
-                                                 HashSet::new(),
-                                                 HashSet::new(),
-                                                 false));
+                    match self.new_rule(bytes_to_osstr(&line[2..]),
+                                        filepath.parent().unwrap(),
+                                        fileref,
+                                        lineno,
+                                        HashSet::new(),
+                                        HashSet::new(),
+                                        false) {
+                        Ok(r) => {
+                            self[fileref].rules_defined
+                                .as_mut().expect("rules_defined should be some!").insert(r);
+                            command = Some(r);
+                        },
+                        Err(e) => {
+                            return Err(
+                                io::Error::new(
+                                    io::ErrorKind::Other,
+                                    format!("error: {}:{} duplicate rule: {}\n\talso defined in {}:{}",
+                                            &fp, lineno, self.pretty_rule(e),
+                                            self.pretty_path_peek(self.rule(e).facfile).to_string_lossy(),
+                                            self.rule(e).linenum)));
+                        },
+                    }
                 },
                 b'>' => {
                     let f = self.new_file( &normalize(&filepath.parent().unwrap()
