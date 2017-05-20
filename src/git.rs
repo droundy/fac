@@ -42,12 +42,17 @@ pub fn ls_files() -> std::collections::HashSet<std::path::PathBuf> {
 }
 
 /// git add a file or more
-pub fn add(p: &std::path::Path) {
-    std::process::Command::new("git")
+pub fn add(p: &std::path::Path) -> std::io::Result<()> {
+    let s = std::process::Command::new("git")
         .arg("add")
         .arg(p)
-        .output()
-        .expect("Error calling git add");
+        .output()?;
+    if s.status.success() {
+        Ok(())
+    } else {
+        Err(std::io::Error::new(std::io::ErrorKind::Other,
+                                String::from_utf8_lossy(&s.stderr).into_owned()))
+    }
 }
 
 #[test]

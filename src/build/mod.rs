@@ -1402,8 +1402,14 @@ impl<'id> Build<'id> {
                             && !self[fr].is_in_git
                         {
                             if self.flags.git_add {
-                                git::add(&self[fr].path);
-                                self[fr].is_in_git = true;
+                                if let Err(e) = git::add(&self[fr].path) {
+                                    rule_actually_failed = true;
+                                    println!("error: unable to git add {:?} successfully:",
+                                             self.pretty_path_peek(fr));
+                                    println!("{}", e);
+                                } else {
+                                    self[fr].is_in_git = true;
+                                }
                             } else {
                                 rule_actually_failed = true;
                                 println!("error: {:?} should be in git for {}",
