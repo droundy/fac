@@ -30,11 +30,11 @@ else
     echo Bilge failed as it ought.
 fi
 
-if grep 'build failed' fac.out | grep bar; then
+if grep 'build failed.*bar' fac.out; then
     echo we should not have attempted to build bar in the first place
     exit 1
 fi
 
-grep 'build failed' fac.out | grep baz
+egrep 'build failed.*(baz|false)' fac.out
 
 exit 0
