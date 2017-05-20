@@ -31,7 +31,7 @@ if ${FAC:-../../fac} > fac.out; then
 fi
 cat fac.out
 
-grep 'add foo to git' fac.out
+grep 'add .*foo.* to git' fac.out
 
 cat >> top.fac <<EOF
 | echo hello > foo
