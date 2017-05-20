@@ -455,6 +455,7 @@ impl<'id> Build<'id> {
                 .map(|&o| o).filter(|&o| self[o].is_dir()).collect();
             dirs.sort_by_key(|&d| - (self[d].path.to_string_lossy().len() as i32));
             for d in dirs {
+                vprintln!("rmdir {:?}", self.pretty_path_peek(d));
                 std::fs::remove_dir_all(&self[d].path).ok();
             }
             std::process::exit(0);
