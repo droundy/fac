@@ -756,8 +756,7 @@ impl<'id> Build<'id> {
                                            &format!("H must be after a file!"));
                     }
                 },
-                _ => return parse_error(&filepath, lineno,
-                                        &format!("Invalid first character: {:?}", line[0])),
+                _ => (),
             }
         }
         Ok(())
@@ -985,7 +984,7 @@ impl<'id> Build<'id> {
                 }
         }
         for &i in r_other_inputs.iter() {
-            self[i].stat().unwrap(); // check if it is a directory!
+            self[i].stat().ok(); // check if it is a directory!
             if !self[i].in_git() &&
                 self[i].rule.is_none() &&
                 self[i].path.starts_with(&self.flags.root) &&
