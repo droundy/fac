@@ -28,7 +28,7 @@ fi
 cat fac.out
 
 # check that it prints the right file names
-grep 'error: bar should be in git for foobar' fac.out
+grep 'error: .*bar.* should be in git for .*foobar' fac.out
 
 rm -f foobar
 git add bar

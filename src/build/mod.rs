@@ -1346,6 +1346,7 @@ impl<'id> Build<'id> {
         };
 
         if stat.status().success() {
+            let mut rule_actually_failed = false;
             // First clear out the listing of inputs and outputs
             self.rule_mut(r).all_inputs.clear();
             let mut old_outputs: HashSet<FileRef<'id>> =
@@ -1396,6 +1397,14 @@ impl<'id> Build<'id> {
                     {
                         let hs = self[fr].hashstat;
                         self.rule_mut(r).hashstats.insert(fr, hs);
+                        if rr.starts_with(&self.flags.root)
+                            && !self[fr].rule.is_some()
+                            && !self[fr].is_in_git
+                        {
+                            rule_actually_failed = true;
+                            println!("error: {:?} should be in git for {}",
+                                     self.pretty_path_peek(fr), self.pretty_reason(r));
+                        }
                         self.add_input(r, fr);
                     }
                 }
@@ -1418,7 +1427,6 @@ impl<'id> Build<'id> {
                     self.add_input(r, i);
                 }
             }
-            let mut failed_to_produce_output = false;
             let explicit_outputs = self.rule(r).outputs.clone();
             for o in explicit_outputs {
                 if !self.rule(r).all_outputs.contains(&o) {
@@ -1426,7 +1434,7 @@ impl<'id> Build<'id> {
                     if !self[o].exists() {
                         println!("build failed to create: {:?}",
                                  self.pretty_path_peek(o));
-                        failed_to_produce_output = true;
+                        rule_actually_failed = true;
                     }
                 }
             }
@@ -1453,7 +1461,7 @@ impl<'id> Build<'id> {
                     }
                 }
             }
-            if failed_to_produce_output {
+            if rule_actually_failed {
                 message = format!("build failed: {}", self.pretty_rule(r));
                 println!("!{}/{}!: {}",
                          num_built, num_total, message);
