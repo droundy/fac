@@ -79,6 +79,7 @@ else:
     if system('./fac target/debug/fac'):
         print('Build with fac failed!')
         exit(1)
+    print(build.took('building fac using rust'))
 
 
 def shorten_name(n):
