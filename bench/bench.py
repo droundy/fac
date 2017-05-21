@@ -14,6 +14,9 @@ time_limit = 6*day
 
 tools = [cmd+' -j4' for cmd in ['make', 'fac', 'fac --blind', 'tup', 'scons']] # + ['sh build.sh']
 
+if os.system('rust-fac --version') == 0:
+    tools.append('rust-fac')
+
 # The variable "date" actually contains the date and short hash of the
 # commit information.  This could lead to confusion and incorrectness
 # if we run benchmarking without actually committing, but if used

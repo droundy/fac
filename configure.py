@@ -221,7 +221,7 @@ if can_run('cargo help'):
 # cargo is annoying in that it calls stat on every file in the repository, making
 # it near impossible to discern its inputs.  So we have to list everything as
 # "cached" content.  :(
-| cargo build --features strict && cargo doc --no-deps && cargo test --features strict
+| cargo build --features strict && cargo build --release && cargo doc --no-deps && cargo test --features strict
 < version-identifier.h
 > target/debug/fac
 C bench
