@@ -1139,6 +1139,11 @@ impl<'id> Build<'id> {
                         self.rule_mut(r).hashstats.insert(i, newstat);
                         let facfile = self.rule(r).facfile;
                         self.facfiles_used.insert(facfile);
+                    } else if !self[i].hashstat.env_matches(&istat) {
+                        rebuild_excuse = rebuild_excuse.or(
+                            Some(format!("the environment has changed")));
+                        is_dirty = true;
+                        break;
                     } else {
                         rebuild_excuse = rebuild_excuse.or(
                             Some(format!("{:?} has been modified",
