@@ -43,7 +43,7 @@ echo foo.sh should be rerun to try to generate bar
 ${FAC:-../../fac} -v > fac.out
 cat fac.out
 
-grep 'because .*bar.* has ' fac.out
+grep 'because .*bar.* ' fac.out
 
 grep good foo
 grep foo my.fac.tum
