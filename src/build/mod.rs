@@ -1172,7 +1172,13 @@ impl<'id> Build<'id> {
             for o in r_all_outputs {
                 if let Some(ostat) = self.rule(r).hashstats.get(&o).map(|s| *s) {
                     let path = self[o].path.clone();
-                    if self[o].hashstat.cheap_matches(&ostat) {
+                    if !self[o].exists() {
+                        rebuild_excuse = rebuild_excuse.or(
+                            Some(format!("output {:?} does not exist",
+                                         self.pretty_path_peek(o))));
+                        is_dirty = true;
+                        break;
+                    } else if self[o].hashstat.cheap_matches(&ostat) {
                         // nothing to do here
                     } else if self.rule(r).is_cache(&path) {
                         // it is now treated as cache, so ignore it!
