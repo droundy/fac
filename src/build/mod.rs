@@ -823,7 +823,6 @@ impl<'id> Build<'id> {
                             println!("mystery rule moved to different fac file?!");
                         }
                     } else {
-                        println!("missing rule!");
                         command = None;
                     }
                 },
@@ -832,6 +831,13 @@ impl<'id> Build<'id> {
                     file = Some(f);
                     if let Some(r) = command {
                         self.add_output(r, f);
+                    } else {
+                        if !self[f].is_in_git {
+                            // looks like a stray output that deserves
+                            // to be cleaned up before we forget about
+                            // it!
+                            self[f].unlink();
+                        }
                     }
                 },
                 b'<' => {
