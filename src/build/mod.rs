@@ -721,7 +721,7 @@ impl<'id> Build<'id> {
                                     io::ErrorKind::Other,
                                     format!("error: {}:{} duplicate rule: {}\n\talso defined in {}:{}",
                                             &fp, lineno, self.pretty_rule(e),
-                                            self.pretty_path_peek(self.rule(e).facfile).to_string_lossy(),
+                                            self.pretty_path_peek(self.rule(e).facfile).display(),
                                             self.rule(e).linenum)));
                         },
                     }
@@ -864,10 +864,10 @@ impl<'id> Build<'id> {
             for &r in rules_defined.iter() {
                 println!("| {}", self.rule(r).command.to_string_lossy());
                 for &i in self.rule(r).inputs.iter() {
-                    println!("< {}", self[i].path.to_string_lossy());
+                    println!("< {}", self[i].path.display());
                 }
                 for &o in self.rule(r).outputs.iter() {
-                    println!("> {}", self[o].path.to_string_lossy());
+                    println!("> {}", self[o].path.display());
                 }
             }
         }
@@ -1346,7 +1346,7 @@ impl<'id> Build<'id> {
                                 if !have_rule {
                                     println!("missing dependency: \"{}\" requires {}",
                                              self.pretty_rule(r),
-                                             self.pretty_path(i).to_string_lossy());
+                                             self.pretty_path_peek(i).display());
                                     fails = Some(String::from("missing dependencies"));
                                 }
                             }
@@ -1600,7 +1600,7 @@ impl<'id> Build<'id> {
         } else {
             format!("{}: {}",
                     self.rule(r).working_directory
-                        .strip_prefix(&self.flags.root).unwrap().to_string_lossy(),
+                        .strip_prefix(&self.flags.root).unwrap().display(),
                     self.rule(r).command.to_string_lossy())
         }
     }
@@ -1619,7 +1619,7 @@ impl<'id> Build<'id> {
                 if self.rule(c).status == Status::Unready
                     || self.rule(c).status == Status::Failed
                 {
-                    return self.pretty_path_peek(o).to_string_lossy().into_owned();
+                    return format!("{}", self.pretty_path_peek(o).display());
                 }
             }
         }
@@ -1630,7 +1630,7 @@ impl<'id> Build<'id> {
     /// Formats the rule as a sane filename
     fn sanitize_rule(&self, r: RuleRef<'id>) -> PathBuf {
         let rr = if self.rule(r).outputs.len() == 1 {
-            self.pretty_path(self.rule(r).outputs[0]).to_string_lossy().into_owned()
+            format!("{}", self.pretty_path_peek(self.rule(r).outputs[0]).display())
         } else {
             self.pretty_rule(r)
         };
