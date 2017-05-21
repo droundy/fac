@@ -11,6 +11,8 @@ rm -rf $0.dir
 mkdir $0.dir
 cd $0.dir
 
+# expect rust failure
+
 cat > top.fac <<EOF
 | echo foo > foo
 

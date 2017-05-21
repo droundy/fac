@@ -7,6 +7,8 @@ echo $0
 # This test ensures that the getting-started tutorial actually works
 # right.
 
+# expect rust failure
+
 rm -rf $0.dir
 mkdir $0.dir
 cd $0.dir

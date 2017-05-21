@@ -6,6 +6,8 @@ rm -rf $0.dir
 mkdir $0.dir
 cd $0.dir
 
+# expect rust failure
+
 git init
 
 cat > git-cloning.fac <<EOF
