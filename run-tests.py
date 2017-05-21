@@ -198,7 +198,7 @@ for i in range(num_sh):
                 os.system('cat %s.rust.log' % sh)
             rust_numskipped += 1
         elif exitval:
-            print(build.yellow('fail'), "(rust)", build.took())
+            print(build.warn('fail'), "(rust)", build.took())
             if '-v' in sys.argv:
                 os.system('cat %s.rust.log' % sh)
             rust_numexpectedfailed += 1
