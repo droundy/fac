@@ -16,6 +16,7 @@ if 'GIT_AUTHOR_EMAIL' not in os.environ:
 
 # we always run with test coverage if gcovr is present!
 have_gcovr = os.system('gcovr -h') == 0
+have_cargo = os.system('cargo --version') == 0
 
 def system(cmd):
     # print("running:", cmd)
@@ -234,17 +235,20 @@ else:
     print('not running gcovr')
 
 print()
-if rust_numfailed:
-    print(build.red('Rust failed ' + str(rust_numfailed)+'/'+str(rust_numfailed+rust_numpassed)))
-else:
-    print('All', pluralize(rust_numpassed, 'test'), 'passed using rust!')
+if have_cargo:
+    if rust_numfailed:
+        print(build.red('Rust failed ' + str(rust_numfailed)+'/'+str(rust_numfailed+rust_numpassed)))
+    else:
+        print('All', pluralize(rust_numpassed, 'test'), 'passed using rust!')
 
-if rust_numunexpectedpassed:
-    print(build.red('Rust unexpectedly passed ' + str(rust_numunexpectedpassed)
-                    +'/'+str(rust_numunexpectedpassed+rust_numexpectedfailed)
-                    +' expected failures'))
+    if rust_numunexpectedpassed:
+        print(build.red('Rust unexpectedly passed ' + str(rust_numunexpectedpassed)
+                        +'/'+str(rust_numunexpectedpassed+rust_numexpectedfailed)
+                        +' expected failures'))
+    else:
+        print('All', pluralize(rust_numexpectedfailed, 'test'), 'exected failures failed using rust!')
 else:
-    print('All', pluralize(rust_numexpectedfailed, 'test'), 'exected failures failed using rust!')
+    rust_numfailed = 0
 
 if numfailed:
     for f in failures:
