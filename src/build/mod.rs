@@ -20,6 +20,7 @@ use git;
 
 pub mod hashstat;
 pub mod flags;
+pub mod env;
 
 /// VERBOSITY is used to enable our vprintln macro to know the
 /// verbosity.  This is a bit ugly, but is needed due to rust macros
@@ -1128,6 +1129,8 @@ impl<'id> Build<'id> {
                     // We did not just build it, so different excuses!
                     if self[i].hashstat.cheap_matches(&istat) {
                         // nothing to do here
+                    } else if self.rule(r).is_cache(&path) {
+                        // it is now treated as cache, so ignore it!
                     } else if self[i].hashstat.matches(&path, &istat) {
                         // the following handles updating the file
                         // stats in the rule, so next time a cheap
@@ -1171,6 +1174,8 @@ impl<'id> Build<'id> {
                     let path = self[o].path.clone();
                     if self[o].hashstat.cheap_matches(&ostat) {
                         // nothing to do here
+                    } else if self.rule(r).is_cache(&path) {
+                        // it is now treated as cache, so ignore it!
                     } else if self[o].hashstat.matches(&path, &ostat) {
                         // the following handles updating the file
                         // stats in the rule, so next time a cheap
@@ -1179,6 +1184,11 @@ impl<'id> Build<'id> {
                         self.rule_mut(r).hashstats.insert(o, newstat);
                         let facfile = self.rule(r).facfile;
                         self.facfiles_used.insert(facfile);
+                    } else if !self[o].hashstat.env_matches(&ostat) {
+                        rebuild_excuse = rebuild_excuse.or(
+                            Some(format!("the environment has changed")));
+                        is_dirty = true;
+                        break;
                     } else if self[o].hashstat.kind == Some(FileKind::Dir) {
                         // If the rule creates a directory, we want to
                         // ignore any changes within that directory,
