@@ -6,33 +6,33 @@ rm -rf $0.dir
 mkdir $0.dir
 cd $0.dir
 
-# expect rust failure
-
 git init
 
 cat > git-cloning.fac <<EOF
-| if cd fac-testing; then git pull; else git clone --depth 3 git://github.com/droundy/bigbro.git fac-testing; fi
-> fac-testing/configure.fac
-C fac-testing/.git/ref/
+| if cd bigbro; then git pull; else git clone --depth 3 git://github.com/droundy/bigbro.git bigbro; fi
+> bigbro/configure.fac
+C bigbro/.git/ref/
 EOF
 git add git-cloning.fac
 
-${FAC:-../../fac}
-
-grep fac-testing/configure.py git-cloning.fac.tum
-
-echo bad-news >> fac-testing/README.md
+export RUST_BACKTRACE=1
 
 ${FAC:-../../fac}
 
-grep fac-testing/configure.py git-cloning.fac.tum
+grep bigbro/configure.py git-cloning.fac.tum
 
-cd fac-testing
+echo bad-news >> bigbro/README.md
+
+${FAC:-../../fac}
+
+grep bigbro/configure.py git-cloning.fac.tum
+
+cd bigbro
 git reset --hard HEAD~1
 cd ..
 
 ${FAC:-../../fac}
 
-grep fac-testing/configure.py git-cloning.fac.tum
+grep bigbro/configure.py git-cloning.fac.tum
 
 exit 0

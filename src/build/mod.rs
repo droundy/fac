@@ -492,7 +492,6 @@ impl<'id> Build<'id> {
             || self.statuses[Status::Unready].len() > 0
         {
             let rules: Vec<_> = self.statuses[Status::Dirty].iter().map(|&r| r).collect();
-            println!("\nhave {} dirty to build!", rules.len());
             for r in rules {
                 if let Err(e) = self.run(r) {
                     println!("I got err {}", e);
@@ -918,11 +917,25 @@ impl<'id> Build<'id> {
 
     /// Add a new File as an input to this rule.
     pub fn add_input(&mut self, r: RuleRef<'id>, input: FileRef<'id>) {
+        // It is a bug to call this on an input that is listed as an
+        // output.  This bug would lead to an apparent dependency
+        // cycle.  We crash rather than simply removing it from the
+        // other set, because we can't tell in this function which set
+        // it *should* be in.  Plus better to fix the bug than to hide
+        // it with a runtime check.
+        assert!(!self.rule(r).all_outputs.contains(&input));
         self.rule_mut(r).all_inputs.insert(input);
         self[input].children.insert(r);
     }
     /// Add a new File as an output of this rule.
     pub fn add_output(&mut self, r: RuleRef<'id>, output: FileRef<'id>) {
+        // It is a bug to call this on an output that is listed as an
+        // input.  This bug would lead to an apparent dependency
+        // cycle.  We crash rather than simply removing it from the
+        // other set, because we can't tell in this function which set
+        // it *should* be in.  Plus better to fix the bug than to hide
+        // it with a runtime check.
+        assert!(!self.rule(r).all_inputs.contains(&output));
         self.rule_mut(r).all_outputs.insert(output);
         self[output].rule = Some(r);
     }
@@ -1039,7 +1052,7 @@ impl<'id> Build<'id> {
                     },
                     Status::BeingDetermined => {
                         // FIXME: nicer error handling would be great here.
-                        println!("error: cycle involving {:?}, {:?}, and {:?}",
+                        println!("error: cycle involving:\n\t{}\n\t{:?}\n\t{}",
                                  self.pretty_rule(r), self.pretty_path(i),
                                  self.pretty_rule(irule));
                         std::process::exit(1);
@@ -1516,7 +1529,7 @@ impl<'id> Build<'id> {
             for rr in stat.read_from_directories() {
                 if !self.is_boring(&rr) && !self.rule(r).is_cache(&rr) {
                     let fr = self.new_file(&rr);
-                    if self[fr].hashstat.finish(&rr).is_ok() {
+                    if self[fr].hashstat.finish(&rr).is_ok() && !old_outputs.contains(&fr) {
                         let hs = self[fr].hashstat;
                         self.rule_mut(r).hashstats.insert(fr, hs);
                         self.add_input(r, fr);
@@ -1707,18 +1720,29 @@ fn bytes_to_osstr(b: &[u8]) -> &OsStr {
     Path::new(std::str::from_utf8(b).unwrap()).as_os_str()
 }
 
-
 fn normalize(p: &Path) -> PathBuf {
-    let mut out = PathBuf::new();
-    for element in p.iter() {
-        if element == ".." {
-            out.pop();
+    // This should give the symlink-resolved path that corresponds to
+    // what symlink_metadata would see, i.e. it does not resolve the
+    // last componenet of the path.
+    if let Some(parent) = p.parent() {
+        let mut out = PathBuf::new();
+        for element in parent.iter() {
+            if element == ".." {
+                out.pop();
+            } else {
+                out.push(element);
+            }
+            if let Ok(o) = out.canonicalize() {
+                out = o;
+            }
+        }
+        if let Some(filename) = p.file_name() {
+            out.push(filename);
         } else {
-            out.push(element);
+            out.pop();
         }
-        if let Ok(o) = out.canonicalize() {
-            out = o;
-        }
+        out
+    } else {
+        PathBuf::from(p)
     }
-    out
 }
