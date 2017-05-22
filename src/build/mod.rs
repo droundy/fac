@@ -517,7 +517,7 @@ impl<'id> Build<'id> {
                         .map(|&i| i).collect();
                     for i in inputs {
                         if self[i].rule.is_none() && !self[i].is_in_git &&
-                            !is_git_path(self.pretty_path_peek(i)) &&
+                            !self.is_git_path(&self[i].path) &&
                             self[i].path.starts_with(&self.flags.root)
                         {
                             if self[i].exists() {
@@ -1073,7 +1073,7 @@ impl<'id> Build<'id> {
             if !self[i].in_git() &&
                 self[i].rule.is_none() &&
                 self[i].path.starts_with(&self.flags.root) &&
-                !is_git_path(self.pretty_path_peek(i)) {
+                !self.is_git_path(&self[i].path) {
                     // One of our explicit inputs is not in git, and
                     // we also do not know how to build it yet.  One
                     // hopes that there is some rule that will produce
@@ -1090,7 +1090,7 @@ impl<'id> Build<'id> {
             if !self[i].in_git() &&
                 self[i].rule.is_none() &&
                 self[i].path.starts_with(&self.flags.root) &&
-                !is_git_path(self.pretty_path_peek(i)) &&
+                !self.is_git_path(&self[i].path) &&
                 self[i].hashstat.kind != Some(FileKind::Dir) {
                     // One of our implicit inputs is not in git, and
                     // we also do not know how to build it.  But it
@@ -1446,7 +1446,7 @@ impl<'id> Build<'id> {
                 self.rule_mut(r).all_outputs.drain().collect();
             for w in stat.written_to_files() {
                 if w.starts_with(&self.flags.root)
-                    && !is_git_path(&w)
+                    && !self.is_git_path(&w)
                     && !self.rule(r).is_cache(&w) {
                         let fw = self.new_file(&w);
                         if self[fw].hashstat.finish(&w).is_ok() {
@@ -1468,7 +1468,7 @@ impl<'id> Build<'id> {
             }
             for d in stat.mkdir_directories() {
                 if d.starts_with(&self.flags.root)
-                    && !is_git_path(&d)
+                    && !self.is_git_path(&d)
                     && !self.rule(r).is_cache(&d)
                 {
                     let fw = self.new_file(&d);
@@ -1483,7 +1483,7 @@ impl<'id> Build<'id> {
                 }
             }
             for rr in stat.read_from_files() {
-                if !is_boring(&rr) && !self.rule(r).is_cache(&rr) {
+                if !self.is_boring(&rr) && !self.rule(r).is_cache(&rr) {
                     let fr = self.new_file(&rr);
                     if !old_outputs.contains(&fr)
                         && self[fr].hashstat.finish(&rr).is_ok()
@@ -1514,7 +1514,7 @@ impl<'id> Build<'id> {
                 }
             }
             for rr in stat.read_from_directories() {
-                if !is_boring(&rr) && !self.rule(r).is_cache(&rr) {
+                if !self.is_boring(&rr) && !self.rule(r).is_cache(&rr) {
                     let fr = self.new_file(&rr);
                     if self[fr].hashstat.finish(&rr).is_ok() {
                         let hs = self[fr].hashstat;
@@ -1670,6 +1670,19 @@ impl<'id> Build<'id> {
         &self.rules[r.0]
     }
 
+
+    /// This is a path in the git repository that we should ignore
+    pub fn is_git_path(&self, path: &Path) -> bool {
+        if let Ok(path) = path.strip_prefix(&self.flags.root) {
+            return path.starts_with(".git") && !path.starts_with(".git/hooks")
+        }
+        false
+    }
+
+    /// This path is inherently boring
+    pub fn is_boring(&self, path: &Path) -> bool {
+        path.starts_with("/proc") || path.starts_with("/dev") || self.is_git_path(path)
+    }
 }
 
 impl<'id> std::ops::Index<FileRef<'id>> for Build<'id>  {
@@ -1694,16 +1707,6 @@ fn bytes_to_osstr(b: &[u8]) -> &OsStr {
     Path::new(std::str::from_utf8(b).unwrap()).as_os_str()
 }
 
-
-/// This is a path in the git repository that we should ignore
-pub fn is_git_path(path: &Path) -> bool {
-    path.starts_with(".git") && !path.starts_with(".git/hooks")
-}
-
-/// This path is inherently boring
-pub fn is_boring(path: &Path) -> bool {
-    path.starts_with("/proc") || path.starts_with("/dev") || is_git_path(path)
-}
 
 fn normalize(p: &Path) -> PathBuf {
     let mut out = PathBuf::new();
