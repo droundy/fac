@@ -473,11 +473,13 @@ impl<'id> Build<'id> {
             // superdirectories.  I don't bother checking if anything is a
             // directory or not, and I recompute depths many times.
             let mut dirs: Vec<FileRef<'id>> = self.filerefs().iter()
-                .map(|&o| o).filter(|&o| self[o].is_dir()).collect();
+                .map(|&o| o)
+                .filter(|&o| self[o].is_dir()//  && self[o].rule.is_some()
+                ).collect();
             dirs.sort_by_key(|&d| - (self[d].path.to_string_lossy().len() as i32));
             for d in dirs {
                 vprintln!("rmdir {:?}", self.pretty_path_peek(d));
-                std::fs::remove_dir_all(&self[d].path).ok();
+                std::fs::remove_dir(&self[d].path).ok();
             }
             std::process::exit(0);
         }
