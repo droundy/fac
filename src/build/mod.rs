@@ -237,7 +237,8 @@ impl<'id> File<'id> {
 
     /// Set file properties...
     pub fn stat(&mut self) -> io::Result<FileKind> {
-        self.hashstat = hashstat::stat(&self.path)?;
+        let p = self.path.clone(); // FIXME UGLY workaround for borrow checker!
+        self.hashstat.stat(&p)?;
         match self.hashstat.kind {
             Some(k) => Ok(k),
             None => Err(io::Error::new(io::ErrorKind::Other, "irregular file")),
@@ -256,7 +257,14 @@ impl<'id> File<'id> {
 
     /// Does this thing exist?
     pub fn exists(&mut self) -> bool {
-        self.stat().is_ok()
+        if let Ok(h) = hashstat::stat(&self.path) {
+            if h.size != self.hashstat.size || h.time != self.hashstat.time {
+                self.hashstat = h;
+            }
+            true
+        } else {
+            false
+        }
     }
 
     fn is_file(&mut self) -> bool {
@@ -1137,7 +1145,7 @@ impl<'id> Build<'id> {
         if !is_dirty {
             for &i in r_all_inputs.iter() {
                 let path = self[i].path.clone();
-                self[i].hashstat.stat(&path);
+                self[i].hashstat.stat(&path).ok();
                 if let Some(istat) = self.rule(r).hashstats.get(&i).map(|s| *s) {
                     if let Some(irule) = self[i].rule {
                         if self.rule(irule).status == Status::Built {

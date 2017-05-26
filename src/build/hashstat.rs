@@ -173,7 +173,7 @@ impl HashStat {
     }
     /// is the hash known?
     pub fn unfinished(&self) -> bool {
-        self.hash == 0 || self.size == 0
+        self.hash == 0 || self.size == 0 || self.time == 0
     }
     /// look up any bits of the hashstat that we do not yet know.
     pub fn finish(&mut self, f: &std::path::Path) -> std::io::Result<()> {
@@ -192,16 +192,15 @@ impl HashStat {
         Ok(())
     }
     /// try running sat
-    pub fn stat(&mut self, f: &std::path::Path) {
+    pub fn stat(&mut self, f: &std::path::Path) -> std::io::Result<()> {
         if self.time == 0 && self.size == 0 {
-            if let Ok(s) = stat(f) {
-                *self = s;
-            }
+            *self = stat(f)?;
         }
+        Ok(())
     }
     /// see if it matches
     pub fn matches(&mut self, f: &std::path::Path, other: &HashStat) -> bool {
-        self.stat(f);
+        self.stat(f).ok();
         if self.size != other.size || self.env != other.env {
             return false;
         }
