@@ -85,3 +85,6 @@ def prepare():
     return {'rebuilding': 'rm -f *.exe',
             'modifying-header': 'echo >> %s-generated.h' % hashid(0),
             'modifying-c': 'echo >> final.c'}
+
+if __name__ == "__main__":
+    create_bench(10)

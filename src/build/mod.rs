@@ -1566,6 +1566,13 @@ impl<'id> Build<'id> {
             for i in explicit_inputs {
                 if !self.rule(r).all_inputs.contains(&i) {
                     self.add_input(r, i);
+                    let hs = self[i].hashstat;
+                    if hs.kind != Some(FileKind::Dir) {
+                        // for files and symlinks that were not read,
+                        // we still want to know what their hash was,
+                        // so we won't rebuild on their behalf.
+                        self.rule_mut(r).hashstats.insert(i, hs);
+                    }
                 }
             }
             let explicit_outputs = self.rule(r).outputs.clone();
