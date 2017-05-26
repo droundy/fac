@@ -613,6 +613,15 @@ impl<'id> Build<'id> {
             is_in_git: is_in_git,
         });
         self.filemap.insert(PathBuf::from(&path), f);
+        if is_in_git {
+            if let Some(parent) = path.parent() {
+                if parent.starts_with(&self.flags.root) {
+                    // if child is in git, then parent must also be in
+                    // git!
+                    self.new_file_private(parent, is_in_git);
+                }
+            }
+        }
         f
     }
 
