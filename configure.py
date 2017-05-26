@@ -226,6 +226,7 @@ if can_run('cargo help'):
 > target/debug/fac
 C bench
 c ~
+c #
 C .nfs
 c .tum
 c .gcno
@@ -254,6 +255,7 @@ C bench
 C target/debug/build
 c -lock
 c ~
+c #
 C .nfs
 c .tum
 c .gcno
