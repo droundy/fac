@@ -11,8 +11,6 @@ rm -rf $0.dir
 mkdir $0.dir
 cd $0.dir
 
-# expect rust failure
-
 cat > top.fac <<EOF
 # without the sleep 2 below, we may run into a time-stamp race
 # condition, where the output files are not included in "thestatus",

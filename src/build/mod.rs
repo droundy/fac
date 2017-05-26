@@ -467,6 +467,11 @@ impl<'id> Build<'id> {
                     vprintln!("rm {:?}", self.pretty_path_peek(o));
                     self[o].unlink();
                 }
+                if self[o].is_fac_file() {
+                    let factum = self[o].path.with_extension("fac.tum");
+                    std::fs::remove_file(&factum).ok();
+                    vprintln!("rm {:?}", &factum);
+                }
             }
             // The following bit is a hokey and inefficient bit of code to
             // ensure that we will rmdir subdirectories prior to their
