@@ -11,6 +11,7 @@ extern crate quickcheck;
 extern crate clap;
 
 extern crate libc;
+extern crate ctrlc;
 
 mod git;
 pub mod refset;

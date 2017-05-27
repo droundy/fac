@@ -9,6 +9,7 @@ extern crate quickcheck;
 
 #[macro_use]
 extern crate clap;
+extern crate ctrlc;
 
 /// A module with just the version in it.
 pub mod version;

@@ -20,6 +20,8 @@ typed-arena = "1.2.0"
 bigbro = "^0.3.4"
 clap = "~2.23.3"
 
+ctrlc = "^3.0"
+
 [dev-dependencies]
 quickcheck = "^0.4.1"
 

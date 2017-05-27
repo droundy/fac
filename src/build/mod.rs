@@ -3,7 +3,6 @@
 #[cfg(test)]
 extern crate quickcheck;
 
-extern crate typed_arena;
 extern crate bigbro;
 
 use std;
@@ -17,6 +16,7 @@ use std::collections::{HashSet, HashMap};
 use std::io::{Read, Write};
 
 use git;
+use ctrlc;
 
 pub mod hashstat;
 pub mod flags;
@@ -430,9 +430,18 @@ impl<'id> Build<'id> {
             println!("finished parsing file {:?}", self.pretty_path_peek(fr));
             return 0;
         }
+        let (tx, rx) = std::sync::mpsc::channel();
+        ctrlc::set_handler(move || {
+            tx.send(()).expect("Error reporting Ctrl-C");
+            print!("... ");
+        }).expect("Error setting Ctrl-C handler");
         self.lock_repository();
         let mut still_doing_facfiles = true;
         while still_doing_facfiles {
+            if rx.try_recv().is_ok() {
+                println!("Interrupted!");
+                self.unlock_repository_and_exit(1);
+            }
             println!("\nhandling facfiles");
             still_doing_facfiles = false;
             for f in self.filerefs() {
@@ -472,6 +481,11 @@ impl<'id> Build<'id> {
         }
         if self.flags.clean {
             for o in self.filerefs() {
+                if rx.try_recv().is_ok() {
+                    println!("Interrupted!");
+                    self.emergency_unlock_repository().expect("trouble removing lock file");
+                    std::process::exit(1);
+                }
                 if !self[o].is_in_git && self[o].is_file() && self[o].rule.is_some() {
                     vprintln!("rm {:?}", self.pretty_path_peek(o));
                     self[o].unlink();
@@ -509,6 +523,11 @@ impl<'id> Build<'id> {
         {
             let rules: Vec<_> = self.statuses[Status::Dirty].iter().map(|&r| r).collect();
             for r in rules {
+                if rx.try_recv().is_ok() {
+                    println!("Interrupted!");
+                    self.emergency_unlock_repository().expect("trouble removing lock file");
+                    std::process::exit(1);
+                }
                 if let Err(e) = self.run(r) {
                     println!("I got err {}", e);
                 }
@@ -616,12 +635,17 @@ impl<'id> Build<'id> {
     /// lock file.
     fn unlock_repository(&mut self) -> std::io::Result<()> {
         let e1 = self.save_factum_files();
-        let e2 = std::fs::remove_file(self.lock_path());
+        let e2 = self.emergency_unlock_repository();
         if e1.is_err() {
             e1
         } else {
             e2
         }
+    }
+    /// remove the lock file without doing anything else (e.g. saving
+    /// facfiles, or killing child processes)!
+    fn emergency_unlock_repository(&mut self) -> std::io::Result<()> {
+        std::fs::remove_file(self.lock_path())
     }
     fn unlock_repository_and_exit(&mut self, exitcode: i32) {
         self.unlock_repository().ok();
