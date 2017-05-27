@@ -25,6 +25,26 @@ pub fn go_to_top() -> std::path::PathBuf {
     p
 }
 
+/// Location of the .git directory
+pub fn git_dir() -> std::path::PathBuf {
+    let mut output = std::process::Command::new("git")
+        .args(&["rev-parse", "--git-dir"])
+        .output()
+        .expect("Error calling git rev-parse --git-dir");
+// #ifdef _WIN32
+//   if (strlen(buf) > 2 && buf[0] == '/' && buf[2] == '/') {
+// 	  // this is a workaround for a broken git included in msys2
+// 	  // which returns paths like /c/Users/username...
+// 	  buf[0] = buf[1];
+// 	  buf[1] = ':';
+//   }
+// #endif
+
+    let newlen = output.stdout.len()-1;
+    output.stdout.truncate(newlen);
+    bytes_to_path(&output.stdout)
+}
+
 /// Find out what files are in git.
 pub fn ls_files() -> std::collections::HashSet<std::path::PathBuf> {
     let output = std::process::Command::new("git")

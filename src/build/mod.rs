@@ -430,6 +430,7 @@ impl<'id> Build<'id> {
             println!("finished parsing file {:?}", self.pretty_path_peek(fr));
             return 0;
         }
+        self.lock_repository();
         let mut still_doing_facfiles = true;
         while still_doing_facfiles {
             println!("\nhandling facfiles");
@@ -439,6 +440,7 @@ impl<'id> Build<'id> {
                     println!("reading file {:?}", self.pretty_path(f));
                     if let Err(e) = self.read_file(f) {
                         println!("{}", e);
+                        self.unlock_repository().ok();
                         return 1;
                     }
                     still_doing_facfiles = true;
@@ -464,10 +466,9 @@ impl<'id> Build<'id> {
                 }
             }
         }
-        self.save_factum_files().unwrap();
         if self.rulerefs().len() == 0 {
             println!("Please git add a .fac file containing rules!");
-            std::process::exit(1);
+            self.unlock_repository_and_exit(1);
         }
         if self.flags.clean {
             for o in self.filerefs() {
@@ -494,7 +495,7 @@ impl<'id> Build<'id> {
                 vprintln!("rmdir {:?}", self.pretty_path_peek(d));
                 std::fs::remove_dir(&self[d].path).ok();
             }
-            std::process::exit(0);
+            self.unlock_repository_and_exit(0);
         }
 
         // Now we start building the actual targets.
@@ -587,8 +588,44 @@ impl<'id> Build<'id> {
                 }
             }
         }
-        self.save_factum_files().unwrap();
+        self.unlock_repository().unwrap();
         self.summarize_build_results()
+    }
+    /// either take a lock on the repository, or exit
+    fn lock_path(&self) -> PathBuf {
+        git::git_dir().join(".fac-lock")
+    }
+    /// either take a lock on the repository, or exit
+    fn lock_repository(&self) {
+        let fname = self.lock_path();
+        if std::fs::OpenOptions::new().write(true).create_new(true).open(&fname).is_err() {
+            for _ in [0..10].iter() {
+                println!("fac is already running... sleeping a bit");
+                std::thread::sleep(std::time::Duration::from_secs(1));
+                if std::fs::OpenOptions::new().write(true).create_new(true)
+                    .open(&fname).is_ok()
+                {
+                    return;
+                }
+            }
+            println!("Giving up after 10 seconds... remove .git/fac-lock?");
+            std::process::exit(1);
+        }
+    }
+    /// unlock_repository saves any factum files and also removes the
+    /// lock file.
+    fn unlock_repository(&mut self) -> std::io::Result<()> {
+        let e1 = self.save_factum_files();
+        let e2 = std::fs::remove_file(self.lock_path());
+        if e1.is_err() {
+            e1
+        } else {
+            e2
+        }
+    }
+    fn unlock_repository_and_exit(&mut self, exitcode: i32) {
+        self.unlock_repository().ok();
+        std::process::exit(exitcode);
     }
     fn filerefs(&self) -> Vec<FileRef<'id>> {
         let mut out = Vec::new();
@@ -1006,7 +1043,7 @@ impl<'id> Build<'id> {
                     m.push(r);
                 } else {
                     println!("error: no rule to make target {:?}", &p);
-                    std::process::exit(1);
+                    self.unlock_repository_and_exit(1);
                 }
             }
             m
@@ -1079,7 +1116,7 @@ impl<'id> Build<'id> {
                         println!("error: cycle involving:\n\t{}\n\t{:?}\n\t{}",
                                  self.pretty_rule(r), self.pretty_path(i),
                                  self.pretty_rule(irule));
-                        std::process::exit(1);
+                        self.unlock_repository_and_exit(1);
                     },
                     Status::Dirty | Status::Unready | Status::Building => {
                         am_now_unready = true;
