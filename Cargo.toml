@@ -17,7 +17,7 @@ doc = false
 
 libc = "^0.2"
 typed-arena = "1.2.0"
-bigbro = "^0.3.3"
+bigbro = "^0.3.4"
 clap = "~2.23.3"
 
 [dev-dependencies]
