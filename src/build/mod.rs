@@ -381,6 +381,8 @@ pub struct Build<'id> {
 
     facfiles_used: HashSet<FileRef<'id>>,
 
+    recv_rule_status: std::sync::mpsc::Receiver<io::Result<bigbro::Status>>,
+    send_rule_status: std::sync::mpsc::Sender<io::Result<bigbro::Status>>,
     flags: flags::Flags,
 }
 
@@ -397,6 +399,7 @@ pub struct Build<'id> {
 pub fn build<F, Out>(fl: flags::Flags, f: F) -> Out
     where F: for<'id> FnOnce(Build<'id>) -> Out
 {
+    let (tx,rx) = std::sync::mpsc::channel();
     unsafe { VERBOSITY = fl.verbosity; }
     // This approach to type witnesses is taken from
     // https://github.com/bluss/indexing/blob/master/src/container.rs
@@ -408,6 +411,8 @@ pub fn build<F, Out>(fl: flags::Flags, f: F) -> Out
         rulemap: HashMap::new(),
         statuses: StatusMap::new(|| HashSet::new()),
         facfiles_used: HashSet::new(),
+        recv_rule_status: rx,
+        send_rule_status: tx,
         flags: fl,
     };
     for ref f in git::ls_files() {
@@ -470,9 +475,16 @@ impl<'id> Build<'id> {
             let rules: Vec<_> = self.statuses[Status::Dirty].iter().map(|&r| r).collect();
             for r in rules {
                 still_doing_facfiles = true;
-                if let Err(e) = self.run(r) {
+                if let Err(e) = self.spawn(r) {
                     println!("I got err {}", e);
                 }
+                match self.recv_rule_status.recv() {
+                    Ok(Ok(stat)) => if let Err(e) = self.finish_rule(r, stat) {
+                        println!("error finishing rule? {}", e);
+                    },
+                    Ok(Err(e)) => println!("error running rule: {}", e),
+                    Err(e) => println!("error receiving status: {}", e),
+                };
             }
         }
         if self.rulerefs().len() == 0 {
@@ -528,9 +540,16 @@ impl<'id> Build<'id> {
                     self.emergency_unlock_repository().expect("trouble removing lock file");
                     std::process::exit(1);
                 }
-                if let Err(e) = self.run(r) {
+                if let Err(e) = self.spawn(r) {
                     println!("I got err {}", e);
                 }
+                match self.recv_rule_status.recv() {
+                    Ok(Ok(stat)) => if let Err(e) = self.finish_rule(r, stat) {
+                        println!("error finishing rule? {}", e);
+                    },
+                    Ok(Err(e)) => println!("error running rule: {}", e),
+                    Err(e) => println!("error receiving status: {}", e),
+                };
             }
 
             if self.statuses[Status::Dirty].len() == 0
@@ -1481,7 +1500,7 @@ impl<'id> Build<'id> {
 
     /// Actually run a command.  This needs to update the inputs and
     /// outputs.  FIXME
-    pub fn run(&mut self, r: RuleRef<'id>) -> io::Result<()> {
+    pub fn spawn(&mut self, r: RuleRef<'id>) -> io::Result<()> {
         {
             // Before running, let us fill in any hash info for
             // inputs that we have not yet read about.
@@ -1493,7 +1512,6 @@ impl<'id> Build<'id> {
             }
         }
         let wd = self.flags.root.join(&self.rule(r).working_directory);
-        let (tx,rx) = std::sync::mpsc::channel();
         let mut cmd = bigbro::Command::new("/bin/sh");
         cmd.arg("-c")
             .arg(&self.rule(r).command)
@@ -1506,12 +1524,11 @@ impl<'id> Build<'id> {
         } else {
             cmd.save_stdouterr();
         }
-        let _kill_child = cmd.spawn_to_chan(tx)?;
-        let mut stat = match rx.recv() {
-            Ok(v) => v?,
-            Err(e) => return Err(io::Error::new(io::ErrorKind::Other, e)),
-        };
-
+        let _kill_child = cmd.spawn_to_chan(self.send_rule_status.clone())?;
+        Ok(())
+    }
+    /// Handle a rule finishing.
+    pub fn finish_rule(&mut self, r: RuleRef<'id>, mut stat: bigbro::Status) -> io::Result<()> {
         let num_built = 1 + self.statuses[Status::Failed].len()
             + self.statuses[Status::Built].len();
         let num_total = self.statuses[Status::Failed].len()
