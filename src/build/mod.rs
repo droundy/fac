@@ -51,22 +51,28 @@ macro_rules! vvvprintln {
     ($fmt:expr, $($arg:tt)*) => {{ if unsafe { VERBOSITY > 2 } { println!($fmt, $($arg)*) } }};
 }
 
-/// `Id<'id>` is invariant w.r.t `'id`
+/// `Id` is a type that should be unique to each Build.  This was
+/// originally enforced by the type system using a unique lifetime,
+/// but that ran me into trouble (and was verbose), so I dropped it.
+/// Safety is now on the honor system, or rather based on the idea
+/// that
 ///
-/// This means that the inference engine is not allowed to shrink or
-/// grow 'id to solve the borrow system.  This implementation is taken
-/// from https://github.com/bluss/indexing/blob/master/src/lib.rs
+/// 1. We must be very careful never to create an invalid RuleRef or
+///    FileRef.
+///
+/// 2. We must never use a FileRef or RuleRef generated for one Build
+///    in a different Build.
 #[derive(Copy, Clone, PartialEq, PartialOrd, Eq, Hash)]
-struct Id<'id> { id: std::marker::PhantomData<*mut &'id ()>, }
-impl<'id> Default for Id<'id> {
+struct Id { id: std::marker::PhantomData<()>, }
+impl Default for Id {
     #[inline]
     fn default() -> Self {
         Id { id: std::marker::PhantomData }
     }
 }
-impl<'id> std::fmt::Debug for Id<'id> {
+impl std::fmt::Debug for Id {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        f.write_str("Id<'id>")
+        f.write_str("Id")
     }
 }
 
@@ -205,28 +211,28 @@ pub enum FileKind {
 
 /// A reference to a File
 #[derive(PartialEq, Eq, Hash, Copy, Clone, Debug)]
-pub struct FileRef<'id>(usize, Id<'id>);
+pub struct FileRef(usize, Id);
 
 /// A file (or directory) that is either an input or an output for
 /// some rule.
 #[derive(Debug)]
-pub struct File<'id> {
+pub struct File {
     #[allow(dead_code)]
-    id: Id<'id>,
-    rule: Option<RuleRef<'id>>,
+    id: Id,
+    rule: Option<RuleRef>,
     path: PathBuf,
     // Question: could Vec be more efficient than RefSet here? It
     // depends if we add a rule multiple times to the same set of
     // children.  FIXME check this!
-    children: HashSet<RuleRef<'id>>,
+    children: HashSet<RuleRef>,
 
-    rules_defined: Option<HashSet<RuleRef<'id>>>,
+    rules_defined: Option<HashSet<RuleRef>>,
 
     hashstat: hashstat::HashStat,
     is_in_git: bool,
 }
 
-impl<'id> File<'id> {
+impl File {
     // /// Declare that this File is dirty (i.e. has been modified since
     // /// the last build).
     // pub fn dirty(&self) {
@@ -284,31 +290,32 @@ impl<'id> File<'id> {
 
 /// A reference to a Rule
 #[derive(PartialEq, Eq, Hash, Copy, Clone, Debug)]
-pub struct RuleRef<'id>(usize, Id<'id>);
+pub struct RuleRef(usize, Id);
+unsafe impl Send for RuleRef {}
 
 /// A rule for building something.
 #[derive(Debug)]
-pub struct Rule<'id> {
+pub struct Rule {
     #[allow(dead_code)]
-    id: Id<'id>,
-    inputs: Vec<FileRef<'id>>,
-    outputs: Vec<FileRef<'id>>,
-    all_inputs: HashSet<FileRef<'id>>,
-    all_outputs: HashSet<FileRef<'id>>,
-    hashstats: HashMap<FileRef<'id>, hashstat::HashStat>,
+    id: Id,
+    inputs: Vec<FileRef>,
+    outputs: Vec<FileRef>,
+    all_inputs: HashSet<FileRef>,
+    all_outputs: HashSet<FileRef>,
+    hashstats: HashMap<FileRef, hashstat::HashStat>,
 
     status: Status,
     cache_prefixes: HashSet<OsString>,
     cache_suffixes: HashSet<OsString>,
 
     working_directory: PathBuf,
-    facfile: FileRef<'id>,
+    facfile: FileRef,
     linenum: usize,
     command: OsString,
     is_default: bool,
 }
 
-impl<'id> Rule<'id> {
+impl Rule {
     /// Identifies whether a given path is "cache"
     pub fn is_cache(&self, path: &Path) -> bool {
         self.cache_suffixes.iter().any(|s| is_suffix(path, s)) ||
@@ -360,33 +367,42 @@ fn test_is_suffix() {
                        std::ffi::OsStr::new("/the/world")));
 }
 
+#[derive(Debug)]
+enum Event {
+    Finished(RuleRef, io::Result<bigbro::Status>),
+    CtrlC,
+}
+unsafe impl Send for Event {}
+
 /// A struct that holds all the information needed to build.  You can
 /// think of this as behaving like a set of global variables, but we
 /// can drop the whole thing.
 ///
-/// Build is implmented using a type witness `'id`, which makes it
+/// Build is implmented using a type witness `ID`, which makes it
 /// impossible to create RuleRefs and FileRefs that are out of bounds.
 /// I really should put some of these things in a "private" module so
 /// that I can provide stronger guarantees of correctness in the main
 /// build module.
 #[derive(Debug)]
-pub struct Build<'id> {
+pub struct Build {
     #[allow(dead_code)]
-    id: Id<'id>,
-    files: Vec<File<'id>>,
-    rules: Vec<Rule<'id>>,
-    filemap: HashMap<PathBuf, FileRef<'id>>,
-    rulemap: HashMap<(OsString, PathBuf), RuleRef<'id>>,
-    statuses: StatusMap<HashSet<RuleRef<'id>>>,
+    id: Id,
+    files: Vec<File>,
+    rules: Vec<Rule>,
+    filemap: HashMap<PathBuf, FileRef>,
+    rulemap: HashMap<(OsString, PathBuf), RuleRef>,
+    statuses: StatusMap<HashSet<RuleRef>>,
 
-    facfiles_used: HashSet<FileRef<'id>>,
+    facfiles_used: HashSet<FileRef>,
 
-    recv_rule_status: std::sync::mpsc::Receiver<io::Result<bigbro::Status>>,
-    send_rule_status: std::sync::mpsc::Sender<io::Result<bigbro::Status>>,
+    recv_rule_status: std::sync::mpsc::Receiver<Event>,
+    send_rule_status: std::sync::mpsc::Sender<Event>,
+    process_killers: HashMap<RuleRef, bigbro::Killer>,
+
     flags: flags::Flags,
 }
 
-/// Construct a new `Build<'id>` and use it to do some computation.
+/// Construct a new `Build` and use it to do some computation.
 ///
 /// # Examples
 ///
@@ -397,7 +413,7 @@ pub struct Build<'id> {
 /// });
 /// ```
 pub fn build<F, Out>(fl: flags::Flags, f: F) -> Out
-    where F: for<'id> FnOnce(Build<'id>) -> Out
+    where F: FnOnce(Build) -> Out
 {
     let (tx,rx) = std::sync::mpsc::channel();
     unsafe { VERBOSITY = fl.verbosity; }
@@ -413,6 +429,7 @@ pub fn build<F, Out>(fl: flags::Flags, f: F) -> Out
         facfiles_used: HashSet::new(),
         recv_rule_status: rx,
         send_rule_status: tx,
+        process_killers: HashMap::new(),
         flags: fl,
     };
     for ref f in git::ls_files() {
@@ -421,7 +438,7 @@ pub fn build<F, Out>(fl: flags::Flags, f: F) -> Out
     f(b)
 }
 
-impl<'id> Build<'id> {
+impl Build {
     /// Run the actual build!
     pub fn build(&mut self) -> i32 {
         if self.flags.parse_only.is_some() {
@@ -435,18 +452,14 @@ impl<'id> Build<'id> {
             println!("finished parsing file {:?}", self.pretty_path_peek(fr));
             return 0;
         }
-        let (tx, rx) = std::sync::mpsc::channel();
+        let ctrl_c_sender = self.send_rule_status.clone();
         ctrlc::set_handler(move || {
-            tx.send(()).expect("Error reporting Ctrl-C");
+            ctrl_c_sender.send(Event::CtrlC).expect("Error reporting Ctrl-C");
             print!("... ");
         }).expect("Error setting Ctrl-C handler");
         self.lock_repository();
         let mut still_doing_facfiles = true;
         while still_doing_facfiles {
-            if rx.try_recv().is_ok() {
-                println!("Interrupted!");
-                self.unlock_repository_and_exit(1);
-            }
             println!("\nhandling facfiles");
             still_doing_facfiles = false;
             for f in self.filerefs() {
@@ -479,11 +492,17 @@ impl<'id> Build<'id> {
                     println!("I got err {}", e);
                 }
                 match self.recv_rule_status.recv() {
-                    Ok(Ok(stat)) => if let Err(e) = self.finish_rule(r, stat) {
-                        println!("error finishing rule? {}", e);
-                    },
-                    Ok(Err(e)) => println!("error running rule: {}", e),
+                    Ok(Event::Finished(rr,Ok(stat))) =>
+                        if let Err(e) = self.finish_rule(rr, stat) {
+                            println!("error finishing rule? {}", e);
+                        },
+                    Ok(Event::Finished(rr,Err(e))) =>
+                        println!("error running rule: {} {}", self.pretty_rule(rr), e),
                     Err(e) => println!("error receiving status: {}", e),
+                    Ok(Event::CtrlC) => {
+                        println!("Interrupted!");
+                        self.unlock_repository_and_exit(1);
+                    },
                 };
             }
         }
@@ -493,7 +512,7 @@ impl<'id> Build<'id> {
         }
         if self.flags.clean {
             for o in self.filerefs() {
-                if rx.try_recv().is_ok() {
+                if self.recv_rule_status.try_recv().is_ok() {
                     println!("Interrupted!");
                     self.emergency_unlock_repository().expect("trouble removing lock file");
                     std::process::exit(1);
@@ -512,7 +531,7 @@ impl<'id> Build<'id> {
             // ensure that we will rmdir subdirectories prior to their
             // superdirectories.  I don't bother checking if anything is a
             // directory or not, and I recompute depths many times.
-            let mut dirs: Vec<FileRef<'id>> = self.filerefs().iter()
+            let mut dirs: Vec<FileRef> = self.filerefs().iter()
                 .map(|&o| o)
                 .filter(|&o| self[o].is_dir()//  && self[o].rule.is_some()
                 ).collect();
@@ -535,20 +554,21 @@ impl<'id> Build<'id> {
         {
             let rules: Vec<_> = self.statuses[Status::Dirty].iter().map(|&r| r).collect();
             for r in rules {
-                if rx.try_recv().is_ok() {
-                    println!("Interrupted!");
-                    self.emergency_unlock_repository().expect("trouble removing lock file");
-                    std::process::exit(1);
-                }
                 if let Err(e) = self.spawn(r) {
                     println!("I got err {}", e);
                 }
                 match self.recv_rule_status.recv() {
-                    Ok(Ok(stat)) => if let Err(e) = self.finish_rule(r, stat) {
-                        println!("error finishing rule? {}", e);
-                    },
-                    Ok(Err(e)) => println!("error running rule: {}", e),
+                    Ok(Event::Finished(rr,Ok(stat))) =>
+                        if let Err(e) = self.finish_rule(rr, stat) {
+                            println!("error finishing rule? {}", e);
+                        },
+                    Ok(Event::Finished(rr,Err(e))) =>
+                        println!("error running rule: {} {}", self.pretty_rule(rr), e),
                     Err(e) => println!("error receiving status: {}", e),
+                    Ok(Event::CtrlC) => {
+                        println!("Interrupted!");
+                        self.unlock_repository_and_exit(1);
+                    },
                 };
             }
 
@@ -670,14 +690,14 @@ impl<'id> Build<'id> {
         self.unlock_repository().ok();
         std::process::exit(exitcode);
     }
-    fn filerefs(&self) -> Vec<FileRef<'id>> {
+    fn filerefs(&self) -> Vec<FileRef> {
         let mut out = Vec::new();
         for i in 0 .. self.files.len() {
             out.push(FileRef(i, self.id));
         }
         out
     }
-    fn rulerefs(&self) -> Vec<RuleRef<'id>> {
+    fn rulerefs(&self) -> Vec<RuleRef> {
         let mut out = Vec::new();
         for i in 0 .. self.rules.len() {
             out.push(RuleRef(i, self.id));
@@ -686,7 +706,7 @@ impl<'id> Build<'id> {
     }
     fn new_file_private<P: AsRef<Path>>(&mut self, path: P,
                                         is_in_git: bool)
-                                        -> FileRef<'id> {
+                                        -> FileRef {
         let path = self.flags.root.join(path.as_ref());
         // If this file is already in our database, use the version
         // that we have.  It is an important invariant that we can
@@ -729,7 +749,7 @@ impl<'id> Build<'id> {
     ///   let t = b.new_file("test");
     /// })
     /// ```
-    pub fn new_file<P: AsRef<Path>>(&mut self, path: P) -> FileRef<'id> {
+    pub fn new_file<P: AsRef<Path>>(&mut self, path: P) -> FileRef {
         self.new_file_private(path, false)
     }
 
@@ -737,12 +757,12 @@ impl<'id> Build<'id> {
     pub fn new_rule(&mut self,
                     command: &OsStr,
                     working_directory: &Path,
-                    facfile: FileRef<'id>,
+                    facfile: FileRef,
                     linenum: usize,
                     cache_suffixes: HashSet<OsString>,
                     cache_prefixes: HashSet<OsString>,
                     is_default: bool)
-                    -> Result<RuleRef<'id>, RuleRef<'id>> {
+                    -> Result<RuleRef, RuleRef> {
         let r = RuleRef(self.rules.len(), self.id);
         let key = (OsString::from(command), PathBuf::from(working_directory));
         if self.rulemap.contains_key(&key) {
@@ -770,7 +790,7 @@ impl<'id> Build<'id> {
     }
 
     /// Read a fac file
-    pub fn read_file(&mut self, fileref: FileRef<'id>) -> io::Result<()> {
+    pub fn read_file(&mut self, fileref: FileRef) -> io::Result<()> {
         self[fileref].rules_defined = Some(HashSet::new());
         let filepath = self[fileref].path.clone();
         let fp = self.pretty_path_peek(fileref).to_string_lossy().into_owned();
@@ -783,7 +803,7 @@ impl<'id> Build<'id> {
         };
         let mut v = Vec::new();
         f.read_to_end(&mut v)?;
-        let mut command: Option<RuleRef<'id>> = None;
+        let mut command: Option<RuleRef> = None;
         for (lineno_minus_one, line) in v.split(|c| *c == b'\n').enumerate() {
             let lineno = lineno_minus_one + 1;
             if line.len() < 2 || line[0] == b'#' { continue };
@@ -793,7 +813,7 @@ impl<'id> Build<'id> {
                                    format!("error: {}:{}: {}", &fp, lineno,
                                            "Second character of line should be a space.")));
             }
-            let get_rule = |r: Option<RuleRef<'id>>, c: char| -> io::Result<RuleRef<'id>> {
+            let get_rule = |r: Option<RuleRef>, c: char| -> io::Result<RuleRef> {
                 match r {
                     None =>
                         return Err(
@@ -889,7 +909,7 @@ impl<'id> Build<'id> {
         self.read_factum_file(fileref)
     }
     /// Read a factum file
-    fn read_factum_file(&mut self, fileref: FileRef<'id>) -> io::Result<()> {
+    fn read_factum_file(&mut self, fileref: FileRef) -> io::Result<()> {
         let filepath = self[fileref].path.with_extension("fac.tum");
         let mut f = if let Ok(f) = std::fs::File::open(&filepath) {
             f
@@ -898,8 +918,8 @@ impl<'id> Build<'id> {
         };
         let mut v = Vec::new();
         f.read_to_end(&mut v)?;
-        let mut command: Option<RuleRef<'id>> = None;
-        let mut file: Option<FileRef<'id>> = None;
+        let mut command: Option<RuleRef> = None;
+        let mut file: Option<FileRef> = None;
         for (lineno_minus_one, line) in v.split(|c| *c == b'\n').enumerate() {
             let lineno = lineno_minus_one + 1;
             fn parse_error<T>(path: &Path, lineno: usize, msg: &str) -> io::Result<T> {
@@ -968,7 +988,7 @@ impl<'id> Build<'id> {
     }
 
     /// Write a fac file
-    pub fn print_fac_file(&mut self, fileref: FileRef<'id>) -> io::Result<()> {
+    pub fn print_fac_file(&mut self, fileref: FileRef) -> io::Result<()> {
         if let Some(ref rules_defined) = self[fileref].rules_defined {
             for &r in rules_defined.iter() {
                 println!("| {}", self.rule(r).command.to_string_lossy());
@@ -984,14 +1004,14 @@ impl<'id> Build<'id> {
     }
     /// Write factum files
     pub fn save_factum_files(&mut self) -> io::Result<()> {
-        let facfiles: Vec<FileRef<'id>> = self.facfiles_used.drain().collect();
+        let facfiles: Vec<FileRef> = self.facfiles_used.drain().collect();
         for f in facfiles {
             self.save_factum_file(f).unwrap();
         }
         Ok(())
     }
     /// Write a fac.tum file
-    pub fn save_factum_file(&mut self, fileref: FileRef<'id>) -> io::Result<()> {
+    pub fn save_factum_file(&mut self, fileref: FileRef) -> io::Result<()> {
         let mut f = std::fs::File::create(&self[fileref].path.with_extension("fac.tum"))?;
         if let Some(ref rules_defined) = self[fileref].rules_defined {
             for &r in rules_defined.iter() {
@@ -1020,7 +1040,7 @@ impl<'id> Build<'id> {
     }
 
     /// Add a new File as an input to this rule.
-    pub fn add_input(&mut self, r: RuleRef<'id>, input: FileRef<'id>) {
+    pub fn add_input(&mut self, r: RuleRef, input: FileRef) {
         // It is a bug to call this on an input that is listed as an
         // output.  This bug would lead to an apparent dependency
         // cycle.  We crash rather than simply removing it from the
@@ -1032,7 +1052,7 @@ impl<'id> Build<'id> {
         self[input].children.insert(r);
     }
     /// Add a new File as an output of this rule.
-    pub fn add_output(&mut self, r: RuleRef<'id>, output: FileRef<'id>) {
+    pub fn add_output(&mut self, r: RuleRef, output: FileRef) {
         // It is a bug to call this on an output that is listed as an
         // input.  This bug would lead to an apparent dependency
         // cycle.  We crash rather than simply removing it from the
@@ -1045,19 +1065,19 @@ impl<'id> Build<'id> {
     }
 
     /// Add a new File as an explicit input to this rule.
-    fn add_explicit_input(&mut self, r: RuleRef<'id>, input: FileRef<'id>) {
+    fn add_explicit_input(&mut self, r: RuleRef, input: FileRef) {
         self.rule_mut(r).inputs.push(input);
         self.add_input(r, input);
     }
     /// Add a new File as an explicit output of this rule.
-    fn add_explicit_output(&mut self, r: RuleRef<'id>, output: FileRef<'id>) {
+    fn add_explicit_output(&mut self, r: RuleRef, output: FileRef) {
         self.rule_mut(r).outputs.push(output);
         self.add_output(r, output);
     }
 
     /// Adjust the status of this rule, making sure to keep our sets
     /// up to date.
-    pub fn set_status(&mut self, r: RuleRef<'id>, s: Status) {
+    pub fn set_status(&mut self, r: RuleRef, s: Status) {
         let oldstatus = self.rule(r).status;
         self.statuses[oldstatus].remove(&r);
         self.statuses[s].insert(r);
@@ -1099,7 +1119,7 @@ impl<'id> Build<'id> {
         }
     }
 
-    fn is_file_done(&self, f: FileRef<'id>) -> bool {
+    fn is_file_done(&self, f: FileRef) -> bool {
         if let Some(r) = self[f].rule {
             match self.rule(r).status {
                 Status::Built | Status::Clean => true,
@@ -1118,7 +1138,7 @@ impl<'id> Build<'id> {
         }
     }
 
-    fn check_cleanliness(&mut self, r: RuleRef<'id>) {
+    fn check_cleanliness(&mut self, r: RuleRef) {
         vvvprintln!("check_cleanliness {} (currently {:?})",
                     self.pretty_rule(r), self.rule(r).status);
         let old_status = self.rule(r).status;
@@ -1137,10 +1157,10 @@ impl<'id> Build<'id> {
         let mut rebuild_excuse: Option<String> = None;
         self.set_status(r, Status::BeingDetermined);
         let mut am_now_unready = false;
-        let r_inputs: Vec<FileRef<'id>> = self.rule(r).inputs.iter().map(|&i| i).collect();
-        let r_all_inputs: HashSet<FileRef<'id>> =
+        let r_inputs: Vec<FileRef> = self.rule(r).inputs.iter().map(|&i| i).collect();
+        let r_all_inputs: HashSet<FileRef> =
             self.rule(r).all_inputs.iter().map(|&i| i).collect();
-        let r_other_inputs: HashSet<FileRef<'id>> = r_inputs.iter().map(|&i| i).collect();
+        let r_other_inputs: HashSet<FileRef> = r_inputs.iter().map(|&i| i).collect();
         let r_other_inputs = &r_all_inputs - &r_other_inputs;
         for &i in r_all_inputs.iter() {
             if let Some(irule) = self[i].rule {
@@ -1290,7 +1310,7 @@ impl<'id> Build<'id> {
             }
         }
         if !is_dirty {
-            let r_all_outputs: HashSet<FileRef<'id>> =
+            let r_all_outputs: HashSet<FileRef> =
                 self.rule(r).all_outputs.iter().map(|&o| o).collect();
             if r_all_outputs.len() == 0 {
                 rebuild_excuse = rebuild_excuse.or(
@@ -1355,7 +1375,7 @@ impl<'id> Build<'id> {
             if old_status == Status::Unready {
                 // If we were previously unready, let us now check if
                 // any of our unready children are now ready.
-                let children: Vec<RuleRef<'id>> = self.rule(r).outputs.iter()
+                let children: Vec<RuleRef> = self.rule(r).outputs.iter()
                     .flat_map(|o| self[*o].children.iter()).map(|c| *c)
                     .filter(|&c| self.rule(c).status == Status::Unready).collect();
                 for childr in children {
@@ -1366,13 +1386,13 @@ impl<'id> Build<'id> {
     }
 
     /// Mark this rule as dirty, adjusting other rules to match.
-    fn dirty(&mut self, r: RuleRef<'id>) {
+    fn dirty(&mut self, r: RuleRef) {
         let oldstat = self.rule(r).status;
         if oldstat != Status::Dirty {
             self.set_status(r, Status::Dirty);
             if oldstat != Status::Unready {
                 // Need to inform marked child rules they are unready now
-                let children: Vec<RuleRef<'id>> = self.rule(r).outputs.iter()
+                let children: Vec<RuleRef> = self.rule(r).outputs.iter()
                     .flat_map(|o| self[*o].children.iter()).map(|c| *c)
                     .filter(|&c| self.rule(c).status == Status::Marked).collect();
                 // This is a separate loop to satisfy the borrow checker.
@@ -1383,11 +1403,11 @@ impl<'id> Build<'id> {
         }
     }
     /// Make this rule (and any that depend on it) `Status::Unready`.
-    fn unready(&mut self, r: RuleRef<'id>) {
+    fn unready(&mut self, r: RuleRef) {
         if self.rule(r).status != Status::Unready {
             self.set_status(r, Status::Unready);
             // Need to inform marked child rules they are unready now
-            let children: Vec<RuleRef<'id>> = self.rule(r).outputs.iter()
+            let children: Vec<RuleRef> = self.rule(r).outputs.iter()
                 .flat_map(|o| self[*o].children.iter()).map(|c| *c)
                 .filter(|&c| self.rule(c).status == Status::Marked).collect();
             // This is a separate loop to satisfy the borrow checker.
@@ -1400,11 +1420,11 @@ impl<'id> Build<'id> {
             }
         }
     }
-    fn failed(&mut self, r: RuleRef<'id>) {
+    fn failed(&mut self, r: RuleRef) {
         if self.rule(r).status != Status::Failed {
             self.set_status(r, Status::Failed);
             // Need to inform child rules they are unready now
-            let children: Vec<RuleRef<'id>> = self.rule(r).outputs.iter()
+            let children: Vec<RuleRef> = self.rule(r).outputs.iter()
                 .flat_map(|o| self[*o].children.iter()).map(|c| *c).collect();
             // This is a separate loop to satisfy the borrow checker.
             // It is somewhat less efficient to store this, but such
@@ -1424,13 +1444,13 @@ impl<'id> Build<'id> {
             }
         }
     }
-    fn built(&mut self, r: RuleRef<'id>) {
+    fn built(&mut self, r: RuleRef) {
         self.set_status(r, Status::Built);
         // Only check "unready" children to see if they might now be
         // ready to be built.  Other children might not be desired as
         // part of our build, either because they are non-default, or
         // because the user requested specific targets.
-        let children: Vec<RuleRef<'id>> = self.rule(r).all_outputs.iter()
+        let children: Vec<RuleRef> = self.rule(r).all_outputs.iter()
             .flat_map(|o| self[*o].children.iter()).map(|c| *c)
             .filter(|&c| self.rule(c).status == Status::Unready).collect();
         if children.len() > 0 {
@@ -1500,11 +1520,11 @@ impl<'id> Build<'id> {
 
     /// Actually run a command.  This needs to update the inputs and
     /// outputs.  FIXME
-    pub fn spawn(&mut self, r: RuleRef<'id>) -> io::Result<()> {
+    pub fn spawn(&mut self, r: RuleRef) -> io::Result<()> {
         {
             // Before running, let us fill in any hash info for
             // inputs that we have not yet read about.
-            let v: Vec<FileRef<'id>> = self.rule(r).all_inputs.iter()
+            let v: Vec<FileRef> = self.rule(r).all_inputs.iter()
                 .filter(|&w| self[*w].hashstat.unfinished()).map(|&w|w).collect();
             for w in v {
                 let p = self[w].path.clone(); // ugly workaround for borrow checker
@@ -1525,11 +1545,15 @@ impl<'id> Build<'id> {
             cmd.save_stdouterr();
         }
         let srs = self.send_rule_status.clone();
-        let _kill_child = cmd.spawn_and_hook(move |s| { srs.send(s).ok(); })?;
+        let kill_child = cmd.spawn_and_hook(move |s| {
+            srs.send(Event::Finished(r, s)).ok();
+        })?;
+        self.process_killers.insert(r, kill_child);
         Ok(())
     }
     /// Handle a rule finishing.
-    pub fn finish_rule(&mut self, r: RuleRef<'id>, mut stat: bigbro::Status) -> io::Result<()> {
+    pub fn finish_rule(&mut self, r: RuleRef, mut stat: bigbro::Status) -> io::Result<()> {
+        self.process_killers.remove(&r);
         let num_built = 1 + self.statuses[Status::Failed].len()
             + self.statuses[Status::Built].len();
         let num_total = self.statuses[Status::Failed].len()
@@ -1538,7 +1562,7 @@ impl<'id> Build<'id> {
             + self.statuses[Status::Dirty].len()
             + self.statuses[Status::Unready].len();
         let message: String;
-        let abort = |sel: &mut Build<'id>, stat: &bigbro::Status, errmsg: &str| -> io::Result<()> {
+        let abort = |sel: &mut Build, stat: &bigbro::Status, errmsg: &str| -> io::Result<()> {
             println!("error: {}", errmsg);
             sel.failed(r);
             // now remove the output of this rule
@@ -1557,7 +1581,7 @@ impl<'id> Build<'id> {
             let mut rule_actually_failed = false;
             // First clear out the listing of inputs and outputs
             self.rule_mut(r).all_inputs.clear();
-            let mut old_outputs: HashSet<FileRef<'id>> =
+            let mut old_outputs: HashSet<FileRef> =
                 self.rule_mut(r).all_outputs.drain().collect();
             for w in stat.written_to_files() {
                 if w.starts_with(&self.flags.root)
@@ -1675,7 +1699,7 @@ impl<'id> Build<'id> {
             {
                 // let us fill in any hash info for outputs that were
                 // not touched in this build.
-                let v: Vec<FileRef<'id>> = self.rule(r).all_outputs.iter()
+                let v: Vec<FileRef> = self.rule(r).all_outputs.iter()
                     .filter(|&w| self[*w].hashstat.unfinished()).map(|&w|w).collect();
                 for w in v {
                     let p = self[w].path.clone();
@@ -1718,14 +1742,14 @@ impl<'id> Build<'id> {
     }
 
     /// Formats the path nicely as a relative path if possible
-    pub fn pretty_path(&self, p: FileRef<'id>) -> PathBuf {
+    pub fn pretty_path(&self, p: FileRef) -> PathBuf {
         match self[p].path.strip_prefix(&self.flags.root) {
             Ok(p) => PathBuf::from(p),
             Err(_) => self[p].path.clone(),
         }
     }
     /// Formats the path nicely as a relative path if possible
-    pub fn pretty_path_peek(&self, p: FileRef<'id>) -> &Path {
+    pub fn pretty_path_peek(&self, p: FileRef) -> &Path {
         match self[p].path.strip_prefix(&self.flags.root) {
             Ok(p) => p,
             Err(_) => &self[p].path,
@@ -1733,7 +1757,7 @@ impl<'id> Build<'id> {
     }
 
     /// Formats the rule nicely if possible
-    pub fn pretty_rule(&self, r: RuleRef<'id>) -> String {
+    pub fn pretty_rule(&self, r: RuleRef) -> String {
         if self.rule(r).working_directory == self.flags.root {
             self.rule(r).command.to_string_lossy().into_owned()
         } else {
@@ -1749,7 +1773,7 @@ impl<'id> Build<'id> {
     /// gives the same output that pretty_rule does.  However, if it
     /// is a non-default rule, it selects an output which is actually
     /// needed to describe why it needs to be built.
-    pub fn pretty_reason(&self, r: RuleRef<'id>) -> String {
+    pub fn pretty_reason(&self, r: RuleRef) -> String {
         if self.rule(r).is_default {
             return self.pretty_rule(r);
         }
@@ -1767,7 +1791,7 @@ impl<'id> Build<'id> {
 
 
     /// Formats the rule as a sane filename
-    fn sanitize_rule(&self, r: RuleRef<'id>) -> PathBuf {
+    fn sanitize_rule(&self, r: RuleRef) -> PathBuf {
         let rr = if self.rule(r).outputs.len() == 1 {
             format!("{}", self.pretty_path_peek(self.rule(r).outputs[0]).display())
         } else {
@@ -1784,11 +1808,11 @@ impl<'id> Build<'id> {
     }
 
     /// Look up the rule
-    pub fn rule_mut(&mut self, r: RuleRef<'id>) -> &mut Rule<'id> {
+    pub fn rule_mut(&mut self, r: RuleRef) -> &mut Rule {
         &mut self.rules[r.0]
     }
     /// Look up the rule
-    pub fn rule(&self, r: RuleRef<'id>) -> &Rule<'id> {
+    pub fn rule(&self, r: RuleRef) -> &Rule {
         &self.rules[r.0]
     }
 
@@ -1807,14 +1831,14 @@ impl<'id> Build<'id> {
     }
 }
 
-impl<'id> std::ops::Index<FileRef<'id>> for Build<'id>  {
-    type Output = File<'id>;
-    fn index(&self, r: FileRef<'id>) -> &File<'id> {
+impl std::ops::Index<FileRef> for Build  {
+    type Output = File;
+    fn index(&self, r: FileRef) -> &File {
         &self.files[r.0]
     }
 }
-impl<'id> std::ops::IndexMut<FileRef<'id>> for Build<'id>  {
-    fn index_mut(&mut self, r: FileRef<'id>) -> &mut File<'id> {
+impl std::ops::IndexMut<FileRef> for Build  {
+    fn index_mut(&mut self, r: FileRef) -> &mut File {
         &mut self.files[r.0]
     }
 }
