@@ -398,6 +398,7 @@ pub struct Build {
     recv_rule_status: std::sync::mpsc::Receiver<Event>,
     send_rule_status: std::sync::mpsc::Sender<Event>,
     process_killers: HashMap<RuleRef, bigbro::Killer>,
+    am_interrupted: bool,
 
     flags: flags::Flags,
 }
@@ -430,6 +431,7 @@ pub fn build<F, Out>(fl: flags::Flags, f: F) -> Out
         recv_rule_status: rx,
         send_rule_status: tx,
         process_killers: HashMap::new(),
+        am_interrupted: false,
         flags: fl,
     };
     for ref f in git::ls_files() {
@@ -491,19 +493,7 @@ impl Build {
                 if let Err(e) = self.spawn(r) {
                     println!("I got err {}", e);
                 }
-                match self.recv_rule_status.recv() {
-                    Ok(Event::Finished(rr,Ok(stat))) =>
-                        if let Err(e) = self.finish_rule(rr, stat) {
-                            println!("error finishing rule? {}", e);
-                        },
-                    Ok(Event::Finished(rr,Err(e))) =>
-                        println!("error running rule: {} {}", self.pretty_rule(rr), e),
-                    Err(e) => println!("error receiving status: {}", e),
-                    Ok(Event::CtrlC) => {
-                        println!("Interrupted!");
-                        self.unlock_repository_and_exit(1);
-                    },
-                };
+                self.wait_for_a_rule();
             }
         }
         if self.rulerefs().len() == 0 {
@@ -557,19 +547,7 @@ impl Build {
                 if let Err(e) = self.spawn(r) {
                     println!("I got err {}", e);
                 }
-                match self.recv_rule_status.recv() {
-                    Ok(Event::Finished(rr,Ok(stat))) =>
-                        if let Err(e) = self.finish_rule(rr, stat) {
-                            println!("error finishing rule? {}", e);
-                        },
-                    Ok(Event::Finished(rr,Err(e))) =>
-                        println!("error running rule: {} {}", self.pretty_rule(rr), e),
-                    Err(e) => println!("error receiving status: {}", e),
-                    Ok(Event::CtrlC) => {
-                        println!("Interrupted!");
-                        self.unlock_repository_and_exit(1);
-                    },
-                };
+                self.wait_for_a_rule();
             }
 
             if self.statuses[Status::Dirty].len() == 0
@@ -673,6 +651,27 @@ impl Build {
     /// unlock_repository saves any factum files and also removes the
     /// lock file.
     fn unlock_repository(&mut self) -> std::io::Result<()> {
+        while self.process_killers.len() > 0 {
+            println!("I have {} processes to halt...", self.process_killers.len());
+            for mut k in self.process_killers.values_mut() {
+                k.terminate().ok();
+            }
+            // give processes a second to die...
+            std::thread::sleep(std::time::Duration::from_secs(1));
+            while self.check_for_a_rule() {
+                // nothing to do here?
+            }
+            println!("I have {} processes that were stubborn and need more force...",
+                     self.process_killers.len());
+            for mut k in self.process_killers.values_mut() {
+                k.kill().ok();
+            }
+            // give processes a second to die...
+            std::thread::sleep(std::time::Duration::from_secs(1));
+            while self.check_for_a_rule() {
+                // nothing to do here?
+            }
+        }
         let e1 = self.save_factum_files();
         let e2 = self.emergency_unlock_repository();
         if e1.is_err() {
@@ -1551,6 +1550,62 @@ impl Build {
         self.process_killers.insert(r, kill_child);
         Ok(())
     }
+    fn wait_for_a_rule(&mut self) {
+        match self.recv_rule_status.recv() {
+            Ok(Event::Finished(rr,Ok(stat))) =>
+                if let Err(e) = self.finish_rule(rr, stat) {
+                    println!("error finishing rule? {}", e);
+                },
+            Ok(Event::Finished(rr,Err(e))) => {
+                println!("error running rule: {} {}", self.pretty_rule(rr), e);
+                self.process_killers.remove(&rr);
+            },
+            Err(e) => {
+                println!("error receiving status: {}", e);
+                self.am_interrupted = true;
+                self.unlock_repository_and_exit(1);
+            },
+            Ok(Event::CtrlC) => {
+                if !self.am_interrupted {
+                    self.am_interrupted = true;
+                    println!("Interrupted!");
+                    self.unlock_repository_and_exit(1);
+                }
+            },
+        };
+    }
+    fn check_for_a_rule(&mut self) -> bool {
+        match self.recv_rule_status.try_recv() {
+            Ok(Event::Finished(rr,Ok(stat))) => {
+                if let Err(e) = self.finish_rule(rr, stat) {
+                    println!("error finishing rule? {}", e);
+                }
+                true
+            },
+            Ok(Event::Finished(rr,Err(e))) => {
+                println!("error running rule: {} {}", self.pretty_rule(rr), e);
+                self.process_killers.remove(&rr);
+                true
+            },
+            Err(e) => {
+                if !self.am_interrupted {
+                    println!("error receiving status: {}", e);
+                    self.am_interrupted = true;
+                    self.unlock_repository_and_exit(1);
+                }
+                false
+            },
+            Ok(Event::CtrlC) => {
+                if !self.am_interrupted {
+                    self.am_interrupted = true;
+                    println!("Interrupted!");
+                    self.unlock_repository_and_exit(1);
+                }
+                true
+            },
+        }
+    }
+
     /// Handle a rule finishing.
     pub fn finish_rule(&mut self, r: RuleRef, mut stat: bigbro::Status) -> io::Result<()> {
         self.process_killers.remove(&r);

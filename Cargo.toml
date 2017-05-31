@@ -17,7 +17,7 @@ doc = false
 
 libc = "^0.2"
 typed-arena = "1.2.0"
-bigbro = "^0.3.7"
+bigbro = "^0.3.8"
 clap = "~2.23.3"
 
 ctrlc = "^3.0"
