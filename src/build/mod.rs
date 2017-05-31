@@ -1493,26 +1493,24 @@ impl<'id> Build<'id> {
             }
         }
         let wd = self.flags.root.join(&self.rule(r).working_directory);
-        let mut child = if let Some(ref logdir) = self.flags.log_output {
+        let (tx,rx) = std::sync::mpsc::channel();
+        let mut cmd = bigbro::Command::new("/bin/sh");
+        cmd.arg("-c")
+            .arg(&self.rule(r).command)
+            .current_dir(&wd)
+            .stdin(bigbro::Stdio::null());
+        if let Some(ref logdir) = self.flags.log_output {
             std::fs::create_dir_all(logdir)?;
             let d = self.flags.root.join(logdir).join(self.sanitize_rule(r));
-            bigbro::Command::new("/bin/sh")
-                .arg("-c")
-                .arg(&self.rule(r).command)
-                .current_dir(&wd)
-                .stdin(bigbro::Stdio::null())
-                .log_stdouterr(&d)
-                .spawn()?
+            cmd.log_stdouterr(&d);
         } else {
-            bigbro::Command::new("/bin/sh")
-                .arg("-c")
-                .arg(&self.rule(r).command)
-                .current_dir(&wd)
-                .stdin(bigbro::Stdio::null())
-                .save_stdouterr()
-                .spawn()?
+            cmd.save_stdouterr();
+        }
+        let _kill_child = cmd.spawn_to_chan(tx)?;
+        let mut stat = match rx.recv() {
+            Ok(v) => v?,
+            Err(e) => return Err(io::Error::new(io::ErrorKind::Other, e)),
         };
-        let mut stat = child.wait()?;
 
         let num_built = 1 + self.statuses[Status::Failed].len()
             + self.statuses[Status::Built].len();
