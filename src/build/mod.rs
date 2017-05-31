@@ -1524,7 +1524,8 @@ impl<'id> Build<'id> {
         } else {
             cmd.save_stdouterr();
         }
-        let _kill_child = cmd.spawn_to_chan(self.send_rule_status.clone())?;
+        let srs = self.send_rule_status.clone();
+        let _kill_child = cmd.spawn_and_hook(move |s| { srs.send(s).ok(); })?;
         Ok(())
     }
     /// Handle a rule finishing.
