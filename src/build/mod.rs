@@ -403,19 +403,8 @@ pub struct Build {
     flags: flags::Flags,
 }
 
-/// Construct a new `Build` and use it to do some computation.
-///
-/// # Examples
-///
-/// ```
-/// extern crate fac;
-/// fac::build::build(fac::build::flags::args(), |b| {
-///   println!("I am building {:?}", b)
-/// });
-/// ```
-pub fn build<F, Out>(fl: flags::Flags, f: F) -> Out
-    where F: FnOnce(Build) -> Out
-{
+/// Construct a new `Build` and use it to build.
+pub fn build(fl: flags::Flags) -> i32 {
     let (tx,rx) = std::sync::mpsc::channel();
     unsafe { VERBOSITY = fl.verbosity; }
     // This approach to type witnesses is taken from
@@ -437,7 +426,7 @@ pub fn build<F, Out>(fl: flags::Flags, f: F) -> Out
     for ref f in git::ls_files() {
         b.new_file_private(f, true);
     }
-    f(b)
+    b.build()
 }
 
 impl Build {
@@ -739,15 +728,6 @@ impl Build {
 
     /// Look up a `File` corresponding to a path, or if it doesn't
     /// exist, allocate space for a new `File`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use fac::build;
-    /// build::build(build::flags::args(), |mut b| {
-    ///   let t = b.new_file("test");
-    /// })
-    /// ```
     pub fn new_file<P: AsRef<Path>>(&mut self, path: P) -> FileRef {
         self.new_file_private(path, false)
     }

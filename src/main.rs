@@ -21,8 +21,6 @@ mod version;
 
 fn main() {
     let flags = build::flags::args();
-    let exitcode = build::build(flags.clone(), |mut b| {
-        b.build()
-    });
+    let exitcode = build::build(flags);
     std::process::exit(exitcode);
 }
