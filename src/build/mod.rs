@@ -2,7 +2,7 @@
 
 #[cfg(test)]
 extern crate quickcheck;
-
+extern crate num_cpus;
 extern crate bigbro;
 
 use std;
@@ -443,6 +443,10 @@ impl Build {
             println!("finished parsing file {:?}", self.pretty_path_peek(fr));
             return 0;
         }
+        if self.flags.jobs == 0 {
+            self.flags.jobs = num_cpus::get();
+            vprintln!("Using {} jobs", self.flags.jobs);
+        }
         let ctrl_c_sender = self.send_rule_status.clone();
         ctrlc::set_handler(move || {
             ctrl_c_sender.send(Event::CtrlC).expect("Error reporting Ctrl-C");
@@ -450,7 +454,7 @@ impl Build {
         }).expect("Error setting Ctrl-C handler");
         self.lock_repository();
         let mut still_doing_facfiles = true;
-        while still_doing_facfiles {
+        while still_doing_facfiles || self.num_building() > 0 {
             println!("\nhandling facfiles");
             still_doing_facfiles = false;
             for f in self.filerefs() {
@@ -476,12 +480,18 @@ impl Build {
             for r in rules {
                 self.check_cleanliness(r);
             }
-            let rules: Vec<_> = self.statuses[Status::Dirty].iter().map(|&r| r).collect();
-            for r in rules {
-                still_doing_facfiles = true;
-                if let Err(e) = self.spawn(r) {
-                    println!("I got err {}", e);
+            if self.num_building() < self.flags.jobs {
+                let rules: Vec<_> = self.statuses[Status::Dirty].iter()
+                    .take(self.flags.jobs - self.num_building())
+                    .map(|&r| r).collect();
+                for r in rules {
+                    still_doing_facfiles = true;
+                    if let Err(e) = self.spawn(r) {
+                        println!("I got err {}", e);
+                    }
                 }
+            }
+            if self.num_building() > 0 {
                 self.wait_for_a_rule();
             }
         }
@@ -530,16 +540,24 @@ impl Build {
         }
         while self.statuses[Status::Dirty].len() > 0
             || self.statuses[Status::Unready].len() > 0
+            || self.num_building() > 0
         {
-            let rules: Vec<_> = self.statuses[Status::Dirty].iter().map(|&r| r).collect();
-            for r in rules {
-                if let Err(e) = self.spawn(r) {
-                    println!("I got err {}", e);
+            if self.num_building() < self.flags.jobs {
+                let rules: Vec<_> = self.statuses[Status::Dirty].iter()
+                    .take(self.flags.jobs - self.num_building())
+                    .map(|&r| r).collect();
+                for r in rules {
+                     if let Err(e) = self.spawn(r) {
+                        println!("I got err {}", e);
+                    }
                 }
+            }
+            if self.num_building() > 0 {
                 self.wait_for_a_rule();
             }
 
             if self.statuses[Status::Dirty].len() == 0
+                && self.num_building() == 0
                 && self.statuses[Status::Unready].len() > 0
             {
                 // Looks like we failed to build everything! There are
@@ -640,8 +658,8 @@ impl Build {
     /// unlock_repository saves any factum files and also removes the
     /// lock file.
     fn unlock_repository(&mut self) -> std::io::Result<()> {
-        while self.process_killers.len() > 0 {
-            println!("I have {} processes to halt...", self.process_killers.len());
+        while self.num_building() > 0 {
+            println!("I have {} processes to halt...", self.num_building());
             for mut k in self.process_killers.values_mut() {
                 k.terminate().ok();
             }
@@ -651,7 +669,7 @@ impl Build {
                 // nothing to do here?
             }
             println!("I have {} processes that were stubborn and need more force...",
-                     self.process_killers.len());
+                     self.num_building());
             for mut k in self.process_killers.values_mut() {
                 k.kill().ok();
             }
@@ -1497,6 +1515,10 @@ impl Build {
         }
     }
 
+    fn num_building(&self) -> usize {
+        assert_eq!(self.process_killers.len(), self.statuses[Status::Building].len());
+        self.process_killers.len()
+    }
     /// Actually run a command.  This needs to update the inputs and
     /// outputs.  FIXME
     pub fn spawn(&mut self, r: RuleRef) -> io::Result<()> {
@@ -1528,6 +1550,7 @@ impl Build {
             srs.send(Event::Finished(r, s)).ok();
         })?;
         self.process_killers.insert(r, kill_child);
+        self.set_status(r, Status::Building);
         Ok(())
     }
     fn wait_for_a_rule(&mut self) {
@@ -1751,6 +1774,13 @@ impl Build {
                 println!("!{}/{}!: {}",
                          num_built, num_total, message);
                 self.failed(r);
+                // now remove the output of this rule
+                for w in stat.written_to_files() {
+                    std::fs::remove_file(w).ok();
+                }
+                for d in stat.mkdir_directories() {
+                    std::fs::remove_dir_all(d).ok();
+                }
             } else {
                 message = self.pretty_rule(r);
                 println!("[{}/{}]: {}", num_built, num_total, &message);
@@ -1761,6 +1791,13 @@ impl Build {
             println!("!{}/{}!: {}",
                      num_built, num_total, message);
             self.failed(r);
+            // now remove the output of this rule
+            for w in stat.written_to_files() {
+                std::fs::remove_file(w).ok();
+            }
+            for d in stat.mkdir_directories() {
+                std::fs::remove_dir_all(d).ok();
+            }
         }
         if self.flags.show_output || !stat.status().success() {
             let f = stat.stdout()?;
