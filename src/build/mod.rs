@@ -1609,6 +1609,20 @@ impl Build {
         }
     }
 
+    /// Remove the output of a failed rule
+    fn clean_output(&self, stat: &bigbro::Status) {
+        for w in stat.written_to_files() {
+            if self.filemap.get(&w).map(|&f| self[f].is_in_git) != Some(true) {
+                std::fs::remove_file(w).ok(); // output is not in git, so we can delete
+            }
+        }
+        let mut dirs: Vec<_> = stat.mkdir_directories().iter().map(|d| d.clone()).collect();
+        dirs.sort_by_key(|d| - (d.to_string_lossy().len() as i32));
+        for d in dirs {
+            std::fs::remove_dir(&d).ok();
+        }
+    }
+
     /// Handle a rule finishing.
     pub fn finish_rule(&mut self, r: RuleRef, mut stat: bigbro::Status) -> io::Result<()> {
         self.process_killers.remove(&r);
@@ -1623,13 +1637,7 @@ impl Build {
         let abort = |sel: &mut Build, stat: &bigbro::Status, errmsg: &str| -> io::Result<()> {
             println!("error: {}", errmsg);
             sel.failed(r);
-            // now remove the output of this rule
-            for w in stat.written_to_files() {
-                std::fs::remove_file(w).ok();
-            }
-            for d in stat.mkdir_directories() {
-                std::fs::remove_dir_all(d).ok();
-            }
+            sel.clean_output(stat);
             let ff = sel.rule(r).facfile;
             sel.facfiles_used.insert(ff);
             Ok(())
@@ -1774,13 +1782,7 @@ impl Build {
                 println!("!{}/{}!: {}",
                          num_built, num_total, message);
                 self.failed(r);
-                // now remove the output of this rule
-                for w in stat.written_to_files() {
-                    std::fs::remove_file(w).ok();
-                }
-                for d in stat.mkdir_directories() {
-                    std::fs::remove_dir_all(d).ok();
-                }
+                self.clean_output(&stat);
             } else {
                 message = self.pretty_rule(r);
                 println!("[{}/{}]: {}", num_built, num_total, &message);
@@ -1791,13 +1793,7 @@ impl Build {
             println!("!{}/{}!: {}",
                      num_built, num_total, message);
             self.failed(r);
-            // now remove the output of this rule
-            for w in stat.written_to_files() {
-                std::fs::remove_file(w).ok();
-            }
-            for d in stat.mkdir_directories() {
-                std::fs::remove_dir_all(d).ok();
-            }
+            self.clean_output(&stat);
         }
         if self.flags.show_output || !stat.status().success() {
             let f = stat.stdout()?;
