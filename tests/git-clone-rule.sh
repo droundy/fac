@@ -15,9 +15,9 @@ C bigbro/.git/ref/
 EOF
 git add git-cloning.fac
 
-export RUST_BACKTRACE=1
+# export RUST_BACKTRACE=1
 
-${FAC:-../../fac}
+${FAC:-../../fac} -vvv
 
 grep bigbro/configure.py git-cloning.fac.tum
 

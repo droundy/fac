@@ -87,4 +87,8 @@ def prepare():
             'modifying-c': 'echo >> final.c'}
 
 if __name__ == "__main__":
-    create_bench(10)
+    import sys
+    size = 10
+    if len(sys.argv) > 1:
+        size = int(sys.argv[1])
+    create_bench(size)

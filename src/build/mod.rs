@@ -392,6 +392,11 @@ pub struct Build {
     filemap: HashMap<PathBuf, FileRef>,
     rulemap: HashMap<(OsString, PathBuf), RuleRef>,
     statuses: StatusMap<HashSet<RuleRef>>,
+    /// The set of rules with Status::Marked, topologically sorted
+    /// such that we could build them in this order.  We use this to
+    /// avoid a stack overflow when checking for cleanliness, in case
+    /// where there is a long dependency chain (> 1k long).
+    marked_rules: Vec<RuleRef>,
 
     facfiles_used: HashSet<FileRef>,
 
@@ -416,6 +421,7 @@ pub fn build(fl: flags::Flags) -> i32 {
         filemap: HashMap::new(),
         rulemap: HashMap::new(),
         statuses: StatusMap::new(|| HashSet::new()),
+        marked_rules: Vec::new(),
         facfiles_used: HashSet::new(),
         recv_rule_status: rx,
         send_rule_status: tx,
@@ -476,10 +482,12 @@ impl Build {
                 }
             }
             self.mark_fac_files();
-            let rules: Vec<_> = self.statuses[Status::Marked].iter().map(|&r| r).collect();
+            assert_eq!(self.statuses[Status::Marked].len(), self.marked_rules.len());
+            let rules: Vec<_> = std::mem::replace(&mut self.marked_rules, Vec::new());
             for r in rules {
                 self.check_cleanliness(r);
             }
+            assert_eq!(self.statuses[Status::Marked].len(), 0);
             if self.num_building() < self.flags.jobs {
                 let rules: Vec<_> = self.statuses[Status::Dirty].iter()
                     .take(self.flags.jobs - self.num_building())
@@ -534,10 +542,12 @@ impl Build {
 
         // Now we start building the actual targets.
         self.mark_all();
-        let rules: Vec<_> = self.statuses[Status::Marked].iter().map(|&r| r).collect();
+        assert_eq!(self.statuses[Status::Marked].len(), self.marked_rules.len());
+        let rules: Vec<_> = std::mem::replace(&mut self.marked_rules, Vec::new());
         for r in rules {
             self.check_cleanliness(r);
         }
+        assert_eq!(self.statuses[Status::Marked].len(), 0);
         while self.statuses[Status::Dirty].len() > 0
             || self.statuses[Status::Unready].len() > 0
             || self.num_building() > 0
@@ -568,6 +578,7 @@ impl Build {
                     = self.statuses[Status::Unready].iter().map(|&r| r).collect();
                 for r in rules {
                     let mut need_to_try_again = false;
+                    let mut have_explained_failure = false;
                     // FIXME figure out ignore_missing_files,
                     // happy_building_at_least_one, etc. from
                     // build.c:1171
@@ -612,11 +623,13 @@ impl Build {
                                 //     git_add(r->inputs[i]->path);
                                 //     need_to_try_again = true;
                                 } else {
+                                    have_explained_failure = true;
                                     println!("error: add {:?} to git, which is required for {}",
                                              self.pretty_path_peek(i),
                                              self.pretty_reason(r));
                                 }
                             } else {
+                                have_explained_failure = true;
                                 println!("error: missing file {:?}, which is required for {}",
                                          self.pretty_path_peek(i), self.pretty_reason(r));
                             }
@@ -625,7 +638,15 @@ impl Build {
                     if need_to_try_again {
                         self.check_cleanliness(r);
                         break;
+                    } else if have_explained_failure {
+                        self.failed(r);
                     } else {
+                        println!("weird failure: {} {:?}", self.pretty_rule(r),
+                                 self.rule(r).status);
+                        self.set_status(r, Status::Unknown);
+                        self.check_cleanliness(r);
+                        println!("    actual cleanliness of {} is {:?}", self.pretty_rule(r),
+                                 self.rule(r).status);
                         self.failed(r);
                     }
                 }
@@ -668,13 +689,15 @@ impl Build {
             while self.check_for_a_rule() {
                 // nothing to do here?
             }
-            println!("I have {} processes that were stubborn and need more force...",
-                     self.num_building());
-            for mut k in self.process_killers.values_mut() {
-                k.kill().ok();
+            if self.num_building() > 0 {
+                println!("I have {} processes that were stubborn and need more force...",
+                         self.num_building());
+                for mut k in self.process_killers.values_mut() {
+                    k.kill().ok();
+                }
+                // give processes a second to die...
+                std::thread::sleep(std::time::Duration::from_secs(1));
             }
-            // give processes a second to die...
-            std::thread::sleep(std::time::Duration::from_secs(1));
             while self.check_for_a_rule() {
                 // nothing to do here?
             }
@@ -1081,6 +1104,31 @@ impl Build {
         self.rule_mut(r).status = s;
     }
 
+    fn mark(&mut self, r: RuleRef) {
+        if self.rule(r).status == Status::Unknown {
+            self.set_status(r, Status::Marked);
+            let mut to_mark = vec![r];
+            while to_mark.len() > 0 {
+                let oldlen = to_mark.len();
+                let r = *to_mark.last().unwrap();
+                let input_rules: Vec<_> = self.rule(r).all_inputs.iter()
+                    .flat_map(|&i| self[i].rule)
+                    .filter(|&rr| self.rule(rr).status == Status::Unknown)
+                    .collect();
+                for rr in input_rules {
+                    if self.rule(rr).status == Status::Unknown {
+                        to_mark.push(rr);
+                        self.set_status(rr, Status::Marked);
+                    }
+                }
+                if to_mark.len() == oldlen {
+                    to_mark.pop();
+                    self.marked_rules.push(r);
+                }
+            }
+        }
+    }
+
     fn mark_fac_files(&mut self) {
         let mut to_mark = Vec::new();
         for &r in self.statuses[Status::Unknown].iter() {
@@ -1089,7 +1137,7 @@ impl Build {
             }
         }
         for r in to_mark {
-            self.set_status(r, Status::Marked);
+            self.mark(r);
         }
     }
 
@@ -1112,7 +1160,7 @@ impl Build {
                 .map(|&r| r).filter(|&r| self.rule(r).is_default).collect()
         };
         for r in to_mark {
-            self.set_status(r, Status::Marked);
+            self.mark(r);
         }
     }
 
@@ -1402,36 +1450,36 @@ impl Build {
     /// Make this rule (and any that depend on it) `Status::Unready`.
     fn unready(&mut self, r: RuleRef) {
         if self.rule(r).status != Status::Unready {
-            self.set_status(r, Status::Unready);
-            // Need to inform marked child rules they are unready now
-            let children: Vec<RuleRef> = self.rule(r).outputs.iter()
-                .flat_map(|o| self[*o].children.iter()).map(|c| *c)
-                .filter(|&c| self.rule(c).status == Status::Marked).collect();
-            // This is a separate loop to satisfy the borrow checker.
-            // It is somewhat less efficient to store this, but such
-            // is life.  I could have stored a HashSet rather than a
-            // Vec, but suspect the hash table overhead would make it
-            // less efficient.
-            for childr in children.iter() {
-                self.unready(*childr);
+            let mut children = vec![r];
+
+            while children.len() > 0 {
+                let mut grandchildren = Vec::new();
+                for r in children {
+                    self.set_status(r, Status::Unready);
+                    // Need to inform marked child rules they are unready now
+                    grandchildren.extend(self.rule(r).outputs.iter()
+                                         .flat_map(|o| self[*o].children.iter()).map(|c| *c)
+                                         .filter(|&c| self.rule(c).status != Status::Unknown));
+                }
+                children = grandchildren;
             }
         }
     }
     fn failed(&mut self, r: RuleRef) {
         if self.rule(r).status != Status::Failed {
-            self.set_status(r, Status::Failed);
-            // Need to inform child rules they are unready now
-            let children: Vec<RuleRef> = self.rule(r).outputs.iter()
-                .flat_map(|o| self[*o].children.iter()).map(|c| *c).collect();
-            // This is a separate loop to satisfy the borrow checker.
-            // It is somewhat less efficient to store this, but such
-            // is life.  I could have stored a HashSet rather than a
-            // Vec, but suspect the hash table overhead would make it
-            // less efficient.
-            for childr in children.iter() {
-                self.failed(*childr);
-            }
+            let mut children = vec![r];
 
+            while children.len() > 0 {
+                let mut grandchildren = Vec::new();
+                for r in children {
+                    self.set_status(r, Status::Failed);
+                    // Need to inform marked child rules they are unready now
+                    grandchildren.extend(self.rule(r).outputs.iter()
+                                         .flat_map(|o| self[*o].children.iter()).map(|c| *c)
+                                         .filter(|&c| self.rule(c).status == Status::Unready));
+                }
+                children = grandchildren;
+            }
             // Delete any files that were created, so that they will
             // be properly re-created next time this command is run.
             for &o in self.rule(r).all_outputs.iter() {
