@@ -1465,6 +1465,10 @@ impl Build {
                      self.statuses[Status::Failed].len(),
                      self.statuses[Status::Failed].len()
                      + self.statuses[Status::Built].len());
+            if self.flags.dry_run {
+                println!("But it is only a dry run, so it's all cool!");
+                return 0;
+            }
             return self.statuses[Status::Failed].len() as i32;
         }
         if let Some(err) = self.check_strictness() {
@@ -1516,8 +1520,10 @@ impl Build {
     }
 
     fn num_building(&self) -> usize {
-        assert_eq!(self.process_killers.len(), self.statuses[Status::Building].len());
-        self.process_killers.len()
+        if !self.flags.dry_run {
+            assert_eq!(self.process_killers.len(), self.statuses[Status::Building].len());
+        }
+        self.statuses[Status::Building].len()
     }
     /// Actually run a command.  This needs to update the inputs and
     /// outputs.  FIXME
@@ -1532,6 +1538,17 @@ impl Build {
                 self[w].hashstat.finish(&p).unwrap();
             }
         }
+        let srs = self.send_rule_status.clone();
+        if self.flags.dry_run {
+            // We do not actually want to run anything! Just treat the
+            // command as failed.
+            std::thread::spawn(move || {
+                let e = Err(io::Error::new(io::ErrorKind::Other, "dry run"));
+                srs.send(Event::Finished(r, e)).ok();
+            });
+            self.set_status(r, Status::Building);
+            return Ok(());
+        }
         let wd = self.flags.root.join(&self.rule(r).working_directory);
         let mut cmd = bigbro::Command::new("/bin/sh");
         cmd.arg("-c")
@@ -1545,12 +1562,11 @@ impl Build {
         } else {
             cmd.save_stdouterr();
         }
-        let srs = self.send_rule_status.clone();
         let kill_child = cmd.spawn_and_hook(move |s| {
             srs.send(Event::Finished(r, s)).ok();
         })?;
-        self.process_killers.insert(r, kill_child);
         self.set_status(r, Status::Building);
+        self.process_killers.insert(r, kill_child);
         Ok(())
     }
     fn wait_for_a_rule(&mut self) {
@@ -1560,7 +1576,15 @@ impl Build {
                     println!("error finishing rule? {}", e);
                 },
             Ok(Event::Finished(rr,Err(e))) => {
-                println!("error running rule: {} {}", self.pretty_rule(rr), e);
+                let num_built = 1 + self.statuses[Status::Failed].len()
+                    + self.statuses[Status::Built].len();
+                let num_total = self.statuses[Status::Failed].len()
+                    + self.statuses[Status::Built].len()
+                    + self.statuses[Status::Building].len()
+                    + self.statuses[Status::Dirty].len()
+                    + self.statuses[Status::Unready].len();
+                println!("!{}/{}! {}: {}", num_built, num_total, e, self.pretty_rule(rr));
+                self.failed(rr);
                 self.process_killers.remove(&rr);
             },
             Err(e) => {

@@ -14,6 +14,8 @@ use git;
 pub struct Flags {
     /// We are asked to clean rather than build!
     pub clean: bool,
+    /// Just show what we would do, do not actually do it.
+    pub dry_run: bool,
     /// Keep rebuilding
     pub continual: bool,
     /// git add any files that need it
@@ -63,6 +65,9 @@ pub fn args<'a>() -> Flags {
              .short("c")
              .long("clean")
              .help("remove all traces of built files"))
+        .arg(clap::Arg::with_name("dry")
+             .long("dry")
+             .help("dry run (don't do any building!)"))
         .arg(clap::Arg::with_name("verbose")
              .long("verbose")
              .short("v")
@@ -140,6 +145,7 @@ pub fn args<'a>() -> Flags {
     }
     Flags {
         clean: m.is_present("clean"),
+        dry_run: m.is_present("dry"),
         verbosity: m.occurrences_of("verbose"),
         show_output: m.is_present("show-output"),
         log_output: m.value_of("log-output").map(|s| PathBuf::from(s)),
