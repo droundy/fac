@@ -653,7 +653,21 @@ impl Build {
             }
         }
         self.unlock_repository().unwrap();
-        self.summarize_build_results()
+        let result = self.summarize_build_results();
+        if result != 0 {
+            return result;
+        }
+        if self.flags.makefile.is_some() {
+            for r in self.rulerefs() {
+                self.set_status(r, Status::Unknown);
+            }
+            self.mark_all();
+            if let Some(ref mf) = self.flags.makefile {
+                let mut f = std::fs::File::create(mf).unwrap();
+                self.write_makefile(&mut f).unwrap();
+            }
+        }
+        0
     }
     /// either take a lock on the repository, or exit
     fn lock_path(&self) -> PathBuf {
@@ -1054,6 +1068,68 @@ impl Build {
                     f.write(&self[o].hashstat.encode())?;
                     f.write(b"\n")?;
                 }
+            }
+        }
+        Ok(())
+    }
+
+    /// Output a makefile to do the build
+    pub fn write_makefile<F: Write>(&self, f: &mut F) -> io::Result<()> {
+        write!(f, "all:")?;
+        let mut targets: Vec<_> = self.statuses[Status::Marked].iter()
+            .filter(|&&r| self.rule(r).all_outputs.len() > 0
+                    && self.rule(r).all_outputs.iter().all(|&o| self[o].children.len() == 0))
+            .map(|&r| self.pretty_rule_output(r)).collect();
+        targets.sort();
+        for t in targets {
+            write!(f, " {:?}", t)?;
+        }
+        writeln!(f, "\n")?;
+        let mut rules: Vec<_> = self.statuses[Status::Marked].iter().map(|&r| r).collect();
+        rules.sort_by_key(|&r| self.pretty_rule(r));
+
+        write!(f, "clean:\n\trm -f")?;
+        let mut clean_files: HashSet<PathBuf> = HashSet::new();
+        for &r in rules.iter() {
+            clean_files.extend(self.rule(r).all_outputs.iter()
+                               .filter(|&o| self[*o].path.starts_with(&self.flags.root))
+                               .filter(|&o| self[*o].hashstat.kind == Some(FileKind::File))
+                               .map(|&o| self.pretty_path(o)));
+        }
+        let mut clean_files: Vec<_> = clean_files.iter().collect();
+        clean_files.sort();
+        for c in clean_files {
+            write!(f, " {:?}", c)?;
+        }
+        writeln!(f)?;
+
+        for r in rules {
+            let mut inps: Vec<_> = self.rule(r).all_inputs.iter()
+                .map(|&i| i)
+                .filter(|&i| self[i].path.starts_with(&self.flags.root))
+                .map(|i| self.pretty_path(i))
+                .collect();
+            let mut outs: Vec<_> = self.rule(r).all_outputs.iter()
+                .map(|&i| i)
+                .filter(|&i| self[i].path.starts_with(&self.flags.root))
+                .map(|i| self.pretty_path(i))
+                .collect();
+            inps.sort();
+            outs.sort();
+            for o in outs {
+                write!(f, "{:?} ", o)?;
+            }
+            write!(f, ":")?;
+            for i in inps {
+                write!(f, " {:?}", i)?;
+            }
+            if self.rule(r).working_directory == self.flags.root {
+                writeln!(f, "\n\t{}", self.rule(r).command.to_string_lossy())?;
+            } else {
+                writeln!(f, "\n\tcd {:?} && {}",
+                         self.rule(r).working_directory
+                              .strip_prefix(&self.flags.root).unwrap(),
+                         self.rule(r).command.to_string_lossy())?;
             }
         }
         Ok(())
@@ -1927,6 +2003,20 @@ impl Build {
             }
         }
         self.pretty_rule(r) // ?!
+    }
+
+    /// pretty_rule_output gives a filepath that would be built by the
+    /// rule.
+    pub fn pretty_rule_output(&self, r: RuleRef) -> PathBuf {
+        if self.rule(r).outputs.len() > 0 {
+            self.pretty_path(self.rule(r).outputs[0])
+        } else {
+            let mut paths: Vec<_> = self.rule(r).all_outputs.iter()
+                .map(|&o| self.pretty_path(o)).collect();
+            paths.sort();
+            paths.sort_by_key(|p| p.to_string_lossy().len());
+            paths[0].clone()
+        }
     }
 
 
