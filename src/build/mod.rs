@@ -1493,16 +1493,6 @@ impl Build {
         } else {
             vvprintln!(" *** Clean: {}", self.pretty_rule(r));
             self.set_status(r, Status::Clean);
-            if old_status == Status::Unready {
-                // If we were previously unready, let us now check if
-                // any of our unready children are now ready.
-                let children: Vec<RuleRef> = self.rule(r).outputs.iter()
-                    .flat_map(|o| self[*o].children.iter()).map(|c| *c)
-                    .filter(|&c| self.rule(c).status == Status::Unready).collect();
-                for childr in children {
-                    self.check_cleanliness(childr);
-                }
-            }
         }
     }
 
@@ -1571,15 +1561,22 @@ impl Build {
         // ready to be built.  Other children might not be desired as
         // part of our build, either because they are non-default, or
         // because the user requested specific targets.
-        let children: Vec<RuleRef> = self.rule(r).all_outputs.iter()
+        let mut children: Vec<RuleRef> = self.rule(r).all_outputs.iter()
             .flat_map(|o| self[*o].children.iter()).map(|c| *c)
             .filter(|&c| self.rule(c).status == Status::Unready).collect();
-        if children.len() > 0 {
-            vvprintln!(    " ^^^ Have built {}, looking at children", self.pretty_rule(r));
-            for childr in children {
-                vvprintln!("     -> child: {}", self.pretty_rule(childr));
-                self.check_cleanliness(childr);
+
+        while children.len() > 0 {
+            let mut grandchildren = Vec::new();
+            for r in children {
+                self.check_cleanliness(r);
+                if self.rule(r).status == Status::Clean {
+                    // Need to inform marked child rules they might be ready
+                    grandchildren.extend(self.rule(r).outputs.iter()
+                                         .flat_map(|o| self[*o].children.iter()).map(|c| *c)
+                                         .filter(|&c| self.rule(c).status == Status::Unready));
+                }
             }
+            children = grandchildren;
         }
     }
 

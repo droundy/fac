@@ -92,3 +92,5 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         size = int(sys.argv[1])
     create_bench(size)
+    with open("modifying-header.sh", "w") as f:
+        f.write(prepare()["modifying-header"])
