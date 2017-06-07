@@ -22,7 +22,7 @@ EOF
 git init
 git add top.fac
 
-${FAC:-../../fac} -v
+${FAC:-../../fac} -vvv
 
 grep hello foo/hello
 grep world foo/world
@@ -32,7 +32,7 @@ cat foo-listing
 
 sleep 1
 
-${FAC:-../../fac} -v
+${FAC:-../../fac} -vvv
 
 grep hello foo/hello
 grep world foo/world
