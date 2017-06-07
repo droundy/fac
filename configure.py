@@ -24,6 +24,9 @@ os.system('rm -rf testing-flags')
 os.mkdir('testing-flags');
 with open('testing-flags/test.c', 'w') as f:
     f.write("""
+#define _XOPEN_SOURCE 500
+#include <ftw.h> /* If we can't use ftw.h, then we've got a problem (e.g. old mingw) */
+
 int main() {
   return 0;
 }
