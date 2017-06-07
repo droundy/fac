@@ -48,12 +48,12 @@ EOF
 
 sleep 1
 
-${FAC:-../../fac} -v
+${FAC:-../../fac} -vvv
 
 # have to run twice because first time we modify the directory.
 # Should we make this build in just one rule?
 
-${FAC:-../../fac} -v
+${FAC:-../../fac} -vvv
 
 grep wonderful foo/wonderful
 
