@@ -48,6 +48,8 @@ pub struct Flags {
     pub makefile: Option<PathBuf>,
     /// requested tupfile
     pub tupfile: Option<PathBuf>,
+    /// requested build.ninja file
+    pub ninja: Option<PathBuf>,
 }
 
 /// Parse command line arguments to determine what to do
@@ -123,6 +125,11 @@ pub fn args<'a>() -> Flags {
              .takes_value(true)
              .value_name("TUPFILE")
              .help("create a tupfile"))
+        .arg(clap::Arg::with_name("ninja")
+             .long("ninja")
+             .takes_value(true)
+             .value_name("BUILD.NINJA")
+             .help("create a build.ninja file"))
         .arg(clap::Arg::with_name("target")
              .index(1)
              .multiple(true)
@@ -165,6 +172,7 @@ pub fn args<'a>() -> Flags {
         blind: m.is_present("blind"),
         makefile: m.value_of("makefile").map(|s| PathBuf::from(s)),
         tupfile: m.value_of("tupfile").map(|s| PathBuf::from(s)),
+        ninja: m.value_of("ninja").map(|s| PathBuf::from(s)),
     }
 }
 

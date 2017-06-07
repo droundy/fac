@@ -15,8 +15,9 @@ time_limit = 6*day
 tools = [cmd+' -j4' for cmd in ['make', 'fac', 'fac --blind', 'tup', 'scons']] # + ['sh build.sh']
 
 if os.system('rust-fac --version') == 0:
-    tools.append('rust-fac')
-    tools.append('rust-fac --blind')
+    tools.append('rust-fac -j4')
+    tools.append('rust-fac --blind -j4')
+    tools.append('ninja -j4')
     tools = sorted(tools)
 
 # The variable "date" actually contains the date and short hash of the
@@ -104,6 +105,8 @@ while time.time() < start_benchmarking + time_limit:
             assert(not os.system('git init'))
             mod.create_bench(N)
             assert(not os.system('fac --makefile Makefile --script build.sh --tupfile Tupfile > /dev/null && fac -c > /dev/null'))
+            if 'rust-fac -j4' in tools:
+                assert(not os.system('rust-fac --ninja build.ninja > /dev/null && rust-fac -c > /dev/null'))
             os.chdir('..')
             for tool in tools:
                 print('')

@@ -657,7 +657,7 @@ impl Build {
         if result != 0 {
             return result;
         }
-        if self.flags.makefile.is_some() {
+        if self.flags.makefile.is_some() || self.flags.ninja.is_some() {
             for r in self.rulerefs() {
                 self.set_status(r, Status::Unknown);
             }
@@ -665,6 +665,10 @@ impl Build {
             if let Some(ref mf) = self.flags.makefile {
                 let mut f = std::fs::File::create(mf).unwrap();
                 self.write_makefile(&mut f).unwrap();
+            }
+            if let Some(ref f) = self.flags.ninja {
+                let mut f = std::fs::File::create(f).unwrap();
+                self.write_ninja(&mut f).unwrap();
             }
         }
         0
@@ -1158,12 +1162,13 @@ impl Build {
                 .collect();
             inps.sort();
             outs.sort();
-            for i in inps {
-                write!(f, " {:?}", i)?;
-            }
-            write!(f, ":")?;
+            write!(f, "build ")?;
             for o in outs {
-                write!(f, "{:?} ", o)?;
+                write!(f, "{} ", o.display())?;
+            }
+            write!(f, ": sh")?;
+            for i in inps {
+                write!(f, " {}", i.display())?;
             }
             if self.rule(r).working_directory == self.flags.root {
                 writeln!(f, "\n  commandline = {}", self.rule(r).command.to_string_lossy())?;
