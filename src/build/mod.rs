@@ -657,7 +657,7 @@ impl Build {
         if result != 0 {
             return result;
         }
-        if self.flags.makefile.is_some() || self.flags.ninja.is_some() {
+        if self.flags.makefile.is_some() || self.flags.ninja.is_some() || self.flags.tupfile.is_some() {
             for r in self.rulerefs() {
                 self.set_status(r, Status::Unknown);
             }
@@ -669,6 +669,10 @@ impl Build {
             if let Some(ref f) = self.flags.ninja {
                 let mut f = std::fs::File::create(f).unwrap();
                 self.write_ninja(&mut f).unwrap();
+            }
+            if let Some(ref f) = self.flags.tupfile {
+                let mut f = std::fs::File::create(f).unwrap();
+                self.write_tupfile(&mut f).unwrap();
             }
         }
         0
@@ -1139,7 +1143,7 @@ impl Build {
         Ok(())
     }
 
-    /// Output a makefile to do the build
+    /// Output a .ninja file to do the build
     pub fn write_ninja<F: Write>(&self, f: &mut F) -> io::Result<()> {
         writeln!(f, "commandline = echo replace me")?;
         writeln!(f, "rule sh")?;
@@ -1178,6 +1182,70 @@ impl Build {
                               .strip_prefix(&self.flags.root).unwrap(),
                          self.rule(r).command.to_string_lossy())?;
             }
+        }
+        Ok(())
+    }
+
+    /// Output a tupfile to do the build
+    pub fn write_tupfile<F: Write>(&self, f: &mut F) -> io::Result<()> {
+        let mut rules: Vec<_> = self.statuses[Status::Marked].iter().map(|&r| r).collect();
+        rules.sort_by_key(|&r| self.pretty_rule(r));
+
+        let mut rules_in_order = Vec::new();
+        let mut shown: HashSet<RuleRef> = HashSet::new();
+        for r in rules {
+            if !shown.contains(&r) {
+                let mut to_mark = vec![r];
+                while to_mark.len() > 0 {
+                    let oldlen = to_mark.len();
+                    let r = *to_mark.last().unwrap();
+                    let mut input_rules: Vec<_> = self.rule(r).all_inputs.iter()
+                        .flat_map(|&i| self[i].rule)
+                        .filter(|rr| !shown.contains(rr))
+                        .collect();
+                    input_rules.sort_by_key(|&r| self.pretty_rule(r));
+                    for rr in input_rules {
+                        to_mark.push(rr);
+                        shown.insert(rr);
+                    }
+                    if to_mark.len() == oldlen {
+                        to_mark.pop();
+                        rules_in_order.push(r);
+                    }
+                }
+            }
+        }
+        for r in rules_in_order {
+            let mut inps: Vec<_> = self.rule(r).all_inputs.iter()
+                .map(|&i| i)
+                .filter(|&i| self[i].path.starts_with(&self.flags.root))
+                .map(|i| self.pretty_path(i))
+                .collect();
+            let mut outs: Vec<_> = self.rule(r).all_outputs.iter()
+                .map(|&i| i)
+                .filter(|&i| self[i].path.starts_with(&self.flags.root))
+                .map(|i| self.pretty_path(i))
+                .collect();
+            inps.sort();
+            outs.sort();
+            write!(f, ": ")?;
+            for i in inps {
+                write!(f, "{} ", i.display())?;
+            }
+            write!(f, "|> ")?;
+            if self.rule(r).working_directory == self.flags.root {
+                write!(f, "{}", self.rule(r).command.to_string_lossy())?;
+            } else {
+                write!(f, "cd {:?} && {}",
+                       self.rule(r).working_directory
+                       .strip_prefix(&self.flags.root).unwrap(),
+                       self.rule(r).command.to_string_lossy())?;
+            }
+            write!(f, " |>")?;
+            for o in outs {
+                write!(f, " {}", o.display())?;
+            }
+            writeln!(f)?;
         }
         Ok(())
     }
