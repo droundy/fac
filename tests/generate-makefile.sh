@@ -2,7 +2,7 @@
 
 set -ev
 
-if ! which ghc; then
+if ! which make; then
     echo there is no make
     exit 137
 fi
