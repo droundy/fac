@@ -16,6 +16,8 @@ tools = [cmd+' -j4' for cmd in ['make', 'fac', 'fac --blind', 'tup', 'scons']] #
 
 if os.system('rust-fac --version') == 0:
     tools.append('rust-fac')
+    tools.append('rust-fac --blind')
+    tools = sorted(tools)
 
 # The variable "date" actually contains the date and short hash of the
 # commit information.  This could lead to confusion and incorrectness

@@ -42,6 +42,8 @@ pub struct Flags {
 
     /// file to parse
     pub parse_only: Option<PathBuf>,
+    /// run blind
+    pub blind: bool,
     /// requested makefile
     pub makefile: Option<PathBuf>,
     /// requested tupfile
@@ -108,6 +110,9 @@ pub fn args<'a>() -> Flags {
              .takes_value(true)
              .value_name("FACFILENAME")
              .help("just parse this .fac file"))
+        .arg(clap::Arg::with_name("blind")
+             .long("blind")
+             .help("do not track dependencies"))
         .arg(clap::Arg::with_name("makefile")
              .long("makefile")
              .takes_value(true)
@@ -157,6 +162,7 @@ pub fn args<'a>() -> Flags {
         strictness: strictness,
         targets: targets,
         parse_only: m.value_of("parse-only").map(|s| PathBuf::from(s)),
+        blind: m.is_present("blind"),
         makefile: m.value_of("makefile").map(|s| PathBuf::from(s)),
         tupfile: m.value_of("tupfile").map(|s| PathBuf::from(s)),
     }

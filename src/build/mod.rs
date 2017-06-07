@@ -1135,6 +1135,48 @@ impl Build {
         Ok(())
     }
 
+    /// Output a makefile to do the build
+    pub fn write_ninja<F: Write>(&self, f: &mut F) -> io::Result<()> {
+        writeln!(f, "commandline = echo replace me")?;
+        writeln!(f, "rule sh")?;
+        writeln!(f, "  command = $commandline")?;
+        writeln!(f)?;
+
+        let mut rules: Vec<_> = self.statuses[Status::Marked].iter().map(|&r| r).collect();
+        rules.sort_by_key(|&r| self.pretty_rule(r));
+
+        for r in rules {
+            let mut inps: Vec<_> = self.rule(r).all_inputs.iter()
+                .map(|&i| i)
+                .filter(|&i| self[i].path.starts_with(&self.flags.root))
+                .map(|i| self.pretty_path(i))
+                .collect();
+            let mut outs: Vec<_> = self.rule(r).all_outputs.iter()
+                .map(|&i| i)
+                .filter(|&i| self[i].path.starts_with(&self.flags.root))
+                .map(|i| self.pretty_path(i))
+                .collect();
+            inps.sort();
+            outs.sort();
+            for i in inps {
+                write!(f, " {:?}", i)?;
+            }
+            write!(f, ":")?;
+            for o in outs {
+                write!(f, "{:?} ", o)?;
+            }
+            if self.rule(r).working_directory == self.flags.root {
+                writeln!(f, "\n  commandline = {}", self.rule(r).command.to_string_lossy())?;
+            } else {
+                writeln!(f, "\n  commandline = cd {:?} && {}",
+                         self.rule(r).working_directory
+                              .strip_prefix(&self.flags.root).unwrap(),
+                         self.rule(r).command.to_string_lossy())?;
+            }
+        }
+        Ok(())
+    }
+
     /// Add a new File as an input to this rule.
     pub fn add_input(&mut self, r: RuleRef, input: FileRef) {
         // It is a bug to call this on an input that is listed as an
@@ -1674,6 +1716,7 @@ impl Build {
         let mut cmd = bigbro::Command::new("/bin/sh");
         cmd.arg("-c")
             .arg(&self.rule(r).command)
+            .blind(self.flags.blind)
             .current_dir(&wd)
             .stdin(bigbro::Stdio::null());
         if let Some(ref logdir) = self.flags.log_output {
