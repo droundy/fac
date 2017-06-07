@@ -55,4 +55,4 @@ env.Command('%s.txt', '%s.txt', 'cat $SOURCE > $TARGET')
 verbs = ['building', 'rebuilding', 'doing-nothing']
 
 def prepare():
-    return {'rebuilding': 'echo silly > %s.txt' % hashid(0)}
+    return {'rebuilding': 'sleep 1 && echo silly > %s.txt' % hashid(0)}
