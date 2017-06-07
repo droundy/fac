@@ -18,7 +18,7 @@ import sleepy
 datadir = os.getcwd()+'/data/'
 modules = [dependentchains, cats, hierarchy, sleepy]
 
-allcolors = ['r','b','g','k','c','y']
+allcolors = ['r','b','g','k','c','y','m', 'r']
 allpatterns = ['o-', 's:', '*-.', 'x--', '.-', '<-', '>-', 'v-']
 
 tool_patterns = {}
