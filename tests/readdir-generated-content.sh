@@ -50,7 +50,8 @@ sleep 1
 
 ${FAC:-../../fac} -v
 
-# have to run twice because first time we modify the directory.  Should we make this build in just one rune?
+# have to run twice because first time we modify the directory.
+# Should we make this build in just one rule?
 
 ${FAC:-../../fac} -v
 
