@@ -11,8 +11,9 @@ import cats
 import hierarchy
 import dependentchains
 import sleepy
+import independent
 
-modules = [dependentchains, cats, hierarchy, sleepy]
+modules = [dependentchains, cats, hierarchy, sleepy, independent]
 
 for mod in modules:
     for verb in mod.verbs:

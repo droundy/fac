@@ -195,3 +195,21 @@ At this stage we should be able to finish rebuilding in $N-9$ seconds,
 which is faster than the initial build, if we pay attention to how
 much time the builds took the first time around.  Fac does this, and
 manages to beat the competition on this test.
+
+## Independent C files
+
+A bunch of C files with no interdependencies.  A sort of polar
+opposite of the linearly dependent tests.
+
+<a href="independent-building.svg"><img
+src="independent-building.svg" alt="build times"/></a>
+
+
+<a href="independent-rebuilding.svg"><img
+src="independent-rebuilding.svg" alt="build times"/></a>
+
+<a href="independent-modifying-c.svg"><img
+src="independent-modifying-c.svg" alt="build times"/></a>
+
+<a href="independent-doing-nothing.svg"><img
+src="independent-doing-nothing.svg" alt="build times"/></a>

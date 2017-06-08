@@ -6,6 +6,7 @@ import cats
 import hierarchy
 import dependentchains
 import sleepy
+import independent
 
 minute = 60
 hour = 60*minute
@@ -35,7 +36,7 @@ date += subprocess.check_output(['git', 'log', '--pretty=%h', '-n',  '1'], stder
 
 datadir = os.getcwd()+'/bench/data/'
 os.makedirs(datadir, exist_ok=True)
-modules = [sleepy, dependentchains, hierarchy, cats]
+modules = [sleepy, dependentchains, hierarchy, cats, independent]
 
 rootdirnames = ['tmp', 'home' , 'vartmp']
 rootdirs = {'home': os.getcwd()+'/bench/temp',
@@ -76,6 +77,7 @@ def time_command(mod, builder):
         if verb in mod.prepare():
             assert(not os.system(mod.prepare()[verb]))
         start = time.time()
+        print("attempting", cmd)
         assert(not os.system(cmd))
         stop = time.time()
         print('%s %s took %g seconds.' % (verb, builder, stop - start))
