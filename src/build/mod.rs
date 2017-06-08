@@ -2170,7 +2170,17 @@ impl Build {
 
     /// This path is inherently boring
     pub fn is_boring(&self, path: &Path) -> bool {
-        path.starts_with("/proc") || path.starts_with("/dev") || self.is_git_path(path)
+        path.starts_with("/proc") || path.starts_with("/dev") ||
+            // the following is intended for /etc/ld.so.cache, but I
+            // think any path outside of your repository that ends
+            // with ".cache" can be assumed to be a cache.
+            (path.is_absolute() && path.extension() == Some(OsStr::new("cache"))) ||
+            // the following is intended for ~/.cache/, but presumably
+            // any directory named ".cache" can be assumed to be a
+            // cache.
+            (path.is_absolute()
+             && path.components().any(|c| c.as_ref() == OsStr::new(".cache"))) ||
+            self.is_git_path(path)
     }
 }
 
