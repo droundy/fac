@@ -12,11 +12,12 @@ import cats
 import hierarchy
 import dependentchains
 import sleepy
+import independent
 
 #matplotlib.rc('font', size='16.0')
 
 datadir = os.getcwd()+'/data/'
-modules = [dependentchains, cats, hierarchy, sleepy]
+modules = [dependentchains, cats, hierarchy, sleepy, independent]
 
 allcolors = ['r','b','g','k','c','y','m', 'r']
 allpatterns = ['o-', 's:', '*-.', 'x--', '.-', '<-', '>-', 'v-']

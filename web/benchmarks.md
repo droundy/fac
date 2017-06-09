@@ -204,12 +204,40 @@ opposite of the linearly dependent tests.
 <a href="independent-building.svg"><img
 src="independent-building.svg" alt="build times"/></a>
 
+### Initial build of independent C files
+
+This is quite clearly a linear scaling as with all initial builds,
+although it demonstrates that fac has an unusually high constant
+term, due presumably to hashing the information for all the input
+files that are outside the repository (compiler, header files,
+libraries, etc.).
 
 <a href="independent-rebuilding.svg"><img
 src="independent-rebuilding.svg" alt="build times"/></a>
 
+### Re-build of independent C files
+
+Here we delete all the output and rerun the build.  It looks similar
+to the initial build to me.
+
 <a href="independent-modifying-c.svg"><img
 src="independent-modifying-c.svg" alt="build times"/></a>
 
+### Modifying a single independent C file
+
+We modify a single C file.  We would like this build to be $O(1)$, and
+it looks pretty good, even though we need to check $O(N)$ input files
+to see if they have been modified.  Tup, of course, scales beautifully
+here, although it doesn't catch up with ninja, make, or a blind fac at
+less than about 10,000 files.
+
 <a href="independent-doing-nothing.svg"><img
 src="independent-doing-nothing.svg" alt="build times"/></a>
+
+### Nochanges to the independent C files
+
+Here with no changes, again we would dream of $O(1)$ time, but that
+can only be acheived if you have a daemon running to tell you that no
+files were touched.  Or I suppose if you could use the modification
+time of the directory to determine that no changes were made, but I
+don't think that's correct.  Ninja is the clear winner here.
