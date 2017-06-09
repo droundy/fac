@@ -77,11 +77,13 @@ def time_command(mod, builder):
         if verb in mod.prepare():
             assert(not os.system(mod.prepare()[verb]))
         start = time.time()
-        print("attempting", cmd)
-        assert(not os.system(cmd))
-        stop = time.time()
-        print('%s %s took %g seconds.' % (verb, builder, stop - start))
-        the_time[verb] = stop - start
+        if not os.system(cmd):
+            stop = time.time()
+            print('%s %s took %g seconds.' % (verb, builder, stop - start))
+            the_time[verb] = stop - start
+        else:
+            stop = time.time()
+            print('%s %s failed in %g seconds.' % (verb, builder, stop - start))
     return the_time
 
 Ns = []
@@ -119,6 +121,6 @@ while time.time() < start_benchmarking + time_limit:
                 os.chdir('..')
                 datadirname = datadir+'/%s/%s/%s/%s/' % (date, mod.name, tool, filesystems[rootdirname])
                 os.makedirs(datadirname, exist_ok=True)
-                for verb in mod.verbs:
+                for verb in times.keys():
                     with open(datadirname+verb+'.txt', 'a') as f:
                         f.write('%d\t%g\n' % (N, times[verb]))
