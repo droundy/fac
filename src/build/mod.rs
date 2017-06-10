@@ -769,13 +769,12 @@ impl Build {
         self.files.push(File {
             id: self.id,
             rule: None,
-            path: PathBuf::from(&path),
+            path: path.clone(),
             children: HashSet::new(),
             rules_defined: None,
             hashstat: hashstat::HashStat::empty(),
             is_in_git: is_in_git,
         });
-        self.filemap.insert(PathBuf::from(&path), f);
         if is_in_git {
             if let Some(parent) = path.parent() {
                 if parent.starts_with(&self.flags.root) {
@@ -785,6 +784,7 @@ impl Build {
                 }
             }
         }
+        self.filemap.insert(path, f);
         f
     }
 
