@@ -761,9 +761,8 @@ impl Build {
         // If this file is already in our database, use the version
         // that we have.  It is an important invariant that we can
         // only have one file with a given path in the database.
-        match self.filemap.get(&path) {
-            Some(f) => return *f,
-            None => ()
+        if let Some(&f) = self.filemap.get(&path) {
+            return f;
         }
         let f = FileRef(self.files.len(), self.id);
         self.files.push(File {
