@@ -468,8 +468,7 @@ impl Build {
                     println!("reading file {:?}", self.pretty_path(f));
                     if let Err(e) = self.read_file(f) {
                         println!("{}", e);
-                        self.unlock_repository().ok();
-                        return 1;
+                        self.unlock_repository_and_exit(1);
                     }
                     still_doing_facfiles = true;
                     // self.print_fac_file(f).unwrap();
@@ -1054,7 +1053,8 @@ impl Build {
     }
     /// Write a fac.tum file
     pub fn save_factum_file(&mut self, fileref: FileRef) -> io::Result<()> {
-        let mut f = std::fs::File::create(&self[fileref].path.with_extension("fac.tum"))?;
+        let f = std::fs::File::create(&self[fileref].path.with_extension("fac.tum"))?;
+        let mut f = std::io::BufWriter::new(f);
         if let Some(ref rules_defined) = self[fileref].rules_defined {
             for &r in rules_defined.iter() {
                 f.write(b"\n| ")?;
