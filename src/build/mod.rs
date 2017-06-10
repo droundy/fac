@@ -2211,27 +2211,37 @@ fn normalize(p: &Path) -> PathBuf {
     // what symlink_metadata would see, i.e. it does not resolve the
     // last componenet of the path.
     if let Some(parent) = p.parent() {
-        let mut out = PathBuf::new();
-        for element in parent.iter() {
-            if element == ".." {
-                out.pop();
-            } else {
-                out.push(element);
-            }
-            // The following call to read_link checks if the last
-            // element of out is a symlink.  If that is the case, we
-            // need to canonicalize.  This saves some time, since
-            // canonicalize is much slower than read_link, as it must
-            // examine every element of the path (most of which we
-            // have already examined).  Note that this slows down the
-            // unusual case in which we have a symlink, in order to
-            // speed up the common case.
-            if out.read_link().is_ok() {
-                if let Ok(o) = out.canonicalize() {
-                    out = o;
+        let mut out = if let Ok(pp) = parent.canonicalize() {
+            // The parent exists, so we can just use a single call to
+            // canonicalize, which is faster than the below case.
+            pp
+        } else {
+            // The parent doesn't exist, so we need to use our manual
+            // version of canonicalize, which canonicalizes what it
+            // can, and ignores a case where the path does not exist.
+            let mut out = PathBuf::new();
+            for element in parent.iter() {
+                if element == ".." {
+                    out.pop();
+                } else {
+                    out.push(element);
+                }
+                // The following call to read_link checks if the last
+                // element of out is a symlink.  If that is the case, we
+                // need to canonicalize.  This saves some time, since
+                // canonicalize is much slower than read_link, as it must
+                // examine every element of the path (most of which we
+                // have already examined).  Note that this slows down the
+                // unusual case in which we have a symlink, in order to
+                // speed up the common case.
+                if out.read_link().is_ok() {
+                    if let Ok(o) = out.canonicalize() {
+                        out = o;
+                    }
                 }
             }
-        }
+            out
+        };
         if let Some(filename) = p.file_name() {
             out.push(filename);
         } else {
