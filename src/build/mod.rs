@@ -2218,8 +2218,18 @@ fn normalize(p: &Path) -> PathBuf {
             } else {
                 out.push(element);
             }
-            if let Ok(o) = out.canonicalize() {
-                out = o;
+            // The following call to read_link checks if the last
+            // element of out is a symlink.  If that is the case, we
+            // need to canonicalize.  This saves some time, since
+            // canonicalize is much slower than read_link, as it must
+            // examine every element of the path (most of which we
+            // have already examined).  Note that this slows down the
+            // unusual case in which we have a symlink, in order to
+            // speed up the common case.
+            if out.read_link().is_ok() {
+                if let Ok(o) = out.canonicalize() {
+                    out = o;
+                }
             }
         }
         if let Some(filename) = p.file_name() {
