@@ -17,11 +17,13 @@ doc = false
 
 libc = "^0.2"
 typed-arena = "1.2.0"
-bigbro = "^0.3.10"
+bigbro = "^0.3.11"
 clap = "~2.23.3"
 num_cpus = "^1.5.0"
 
 ctrlc = "^3.0"
+
+cpuprofiler = { version = "^0.0.3", optional = true}
 
 [dev-dependencies]
 quickcheck = "^0.4.1"
@@ -29,3 +31,6 @@ quickcheck = "^0.4.1"
 [features]
 # Treat warnings as a build error.
 strict = []
+
+# Use profiling , "bigbro/noprofile"
+profile = ["cpuprofiler"]
