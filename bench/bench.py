@@ -88,6 +88,8 @@ def time_command(mod, builder):
 
 Ns = []
 Nfloat = 10.0
+if len(sys.argv) > 1:
+    Nfloat = float(sys.argv[1])
 start_benchmarking = time.time()
 while time.time() < start_benchmarking + time_limit:
     N = int(Nfloat)
