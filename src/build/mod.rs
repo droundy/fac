@@ -337,6 +337,21 @@ fn is_prefix(path: &Path, suff: &OsStr) -> bool {
     let p = path.as_os_str().as_bytes();
     p.len() > l && p[..l] == suff.as_bytes()[..]
 }
+#[cfg(unix)]
+fn cut_suffix(path: &Path, suff: &OsStr) -> Option<PathBuf> {
+    let l = suff.as_bytes().len();
+    if let Some(fname) = path.file_name() {
+        let fname = fname.as_bytes();
+        let pp = fname.len();
+        if pp > l && fname[pp-l..] == suff.as_bytes()[..] {
+            Some(path.with_file_name(bytes_to_osstr(&fname[..pp-l])))
+        } else {
+            None
+        }
+    } else {
+        None
+    }
+}
 
 #[cfg(not(unix))]
 fn is_suffix(path: &Path, suff: &OsStr) -> bool {
@@ -349,6 +364,20 @@ fn is_prefix(path: &Path, suff: &OsStr) -> bool {
     let pathstring: String = path.as_os_str().to_string_lossy().into_owned();
     let suffstring: String = suff.to_string_lossy().into_owned();
     pathstring.starts_with(&suffstring)
+}
+#[cfg(not(unix))]
+fn cut_suffix(path: &Path, suff: &OsStr) -> Option<PathBuf> {
+    if let Some(fname) = path.file_name() {
+        let fnamestring: String = fname.to_string_lossy().into_owned();
+        let suffstring: String = suff.to_string_lossy().into_owned();
+        if fnamestring.ends_with(&suffstring) {
+            Some(path.with_file_name(OsStr::new(fnamestring.trim_right_matches(&suffstring))))
+        } else {
+            None
+        }
+    } else {
+        None
+    }
 }
 
 #[test]
@@ -656,11 +685,18 @@ impl Build {
         if result != 0 {
             return result;
         }
-        if self.flags.makefile.is_some() || self.flags.ninja.is_some() || self.flags.tupfile.is_some() {
+        if self.flags.makefile.is_some() || self.flags.ninja.is_some()
+            || self.flags.tupfile.is_some() || self.flags.script.is_some()
+            || self.flags.tar.is_some()
+        {
             for r in self.rulerefs() {
                 self.set_status(r, Status::Unknown);
             }
             self.mark_all();
+            if let Some(ref f) = self.flags.script {
+                let mut f = std::fs::File::create(f).unwrap();
+                self.write_script(&mut f).unwrap();
+            }
             if let Some(ref mf) = self.flags.makefile {
                 let mut f = std::fs::File::create(mf).unwrap();
                 self.write_makefile(&mut f).unwrap();
@@ -672,6 +708,9 @@ impl Build {
             if let Some(ref f) = self.flags.tupfile {
                 let mut f = std::fs::File::create(f).unwrap();
                 self.write_tupfile(&mut f).unwrap();
+            }
+            if let Some(ref f) = self.flags.tar {
+                self.create_tarball(f).unwrap();
             }
         }
         0
@@ -1080,6 +1119,55 @@ impl Build {
         Ok(())
     }
 
+    fn create_tarball(&self, tarname: &PathBuf) -> io::Result<()> {
+        let (dirname, flags) =
+            if let Some(dirname) = cut_suffix(tarname, OsStr::new(".tgz")) {
+                (dirname, "czf")
+            } else if let Some(dirname) = cut_suffix(tarname, OsStr::new(".tar.gz")) {
+                (dirname, "czf")
+            } else if let Some(dirname) = cut_suffix(tarname, OsStr::new(".tar.bz2")) {
+                (dirname, "cjf")
+            } else if let Some(dirname) = cut_suffix(tarname, OsStr::new(".tar")) {
+                (dirname, "cf")
+            } else {
+                return Err(io::Error::new(io::ErrorKind::Other,
+                                          format!("invalid tar filename: {:?}", tarname)));
+            };
+        vprintln!("removing {:?}", &dirname);
+        std::fs::remove_dir_all(&dirname).ok(); // ignore errors, which are probably does-not-exist
+        std::fs::create_dir(&dirname)?;
+
+        for &r in self.marked_rules.iter() {
+            for i in self.rule(r).all_inputs.iter()
+                .map(|&i| i)
+                .filter(|&i| self[i].rule.is_none())
+                .filter(|&i| self[i].path.starts_with(&self.flags.root))
+            {
+                cp_to_dir(self.pretty_path_peek(i), &dirname).ok();
+            }
+        }
+        for &option_path in &[&self.flags.script, &self.flags.makefile,
+                              &self.flags.tupfile, &self.flags.ninja]
+        {
+            if let Some(ref f) = *option_path {
+                cp_to_dir(f, &dirname)?;
+            }
+        }
+        for p in self.flags.include_in_tar.iter() {
+            cp_to_dir(p, &dirname)?;
+        }
+        let status = std::process::Command::new("tar")
+            .arg(flags).arg(tarname).arg(&dirname).status()?;
+        vprintln!("removing {:?} again", &dirname);
+        std::fs::remove_dir_all(&dirname).ok();
+        if !status.success() {
+            Err(io::Error::new(io::ErrorKind::Other, format!("Error running tar!")))
+        } else {
+            Ok(())
+        }
+    }
+
+
     /// Output a makefile to do the build
     pub fn write_makefile<F: Write>(&self, f: &mut F) -> io::Result<()> {
         write!(f, "all:")?;
@@ -1089,7 +1177,7 @@ impl Build {
             .map(|&r| self.pretty_rule_output(r)).collect();
         targets.sort();
         for t in targets {
-            write!(f, " {:?}", t)?;
+            write!(f, " {}", t.display())?;
         }
         writeln!(f, "\n")?;
         let mut rules: Vec<_> = self.statuses[Status::Marked].iter().map(|&r| r).collect();
@@ -1124,11 +1212,11 @@ impl Build {
             inps.sort();
             outs.sort();
             for o in outs {
-                write!(f, "{:?} ", o)?;
+                write!(f, "{} ", o.display())?;
             }
             write!(f, ":")?;
             for i in inps {
-                write!(f, " {:?}", i)?;
+                write!(f, " {}", i.display())?;
             }
             if self.rule(r).working_directory == self.flags.root {
                 writeln!(f, "\n\t{}", self.rule(r).command.to_string_lossy())?;
@@ -1137,6 +1225,22 @@ impl Build {
                          self.rule(r).working_directory
                               .strip_prefix(&self.flags.root).unwrap(),
                          self.rule(r).command.to_string_lossy())?;
+            }
+        }
+        Ok(())
+    }
+
+    /// Output a script to do the build
+    pub fn write_script<F: Write>(&self, f: &mut F) -> io::Result<()> {
+        f.write(b"#!/bin/sh\n\nset -ev\n\n")?;
+        for &r in &self.marked_rules {
+            if self.rule(r).working_directory != self.flags.root {
+                writeln!(f, "(cd {:?} && {})",
+                         self.rule(r).working_directory
+                              .strip_prefix(&self.flags.root).unwrap(),
+                         self.rule(r).command.to_string_lossy())?;
+            } else {
+                writeln!(f, "({})", self.rule(r).command.to_string_lossy())?;
             }
         }
         Ok(())
@@ -1187,34 +1291,7 @@ impl Build {
 
     /// Output a tupfile to do the build
     pub fn write_tupfile<F: Write>(&self, f: &mut F) -> io::Result<()> {
-        let mut rules: Vec<_> = self.statuses[Status::Marked].iter().map(|&r| r).collect();
-        rules.sort_by_key(|&r| self.pretty_rule(r));
-
-        let mut rules_in_order = Vec::new();
-        let mut shown: HashSet<RuleRef> = HashSet::new();
-        for r in rules {
-            if !shown.contains(&r) {
-                let mut to_mark = vec![r];
-                while to_mark.len() > 0 {
-                    let oldlen = to_mark.len();
-                    let r = *to_mark.last().unwrap();
-                    let mut input_rules: Vec<_> = self.rule(r).all_inputs.iter()
-                        .flat_map(|&i| self[i].rule)
-                        .filter(|rr| !shown.contains(rr))
-                        .collect();
-                    input_rules.sort_by_key(|&r| self.pretty_rule(r));
-                    for rr in input_rules {
-                        to_mark.push(rr);
-                        shown.insert(rr);
-                    }
-                    if to_mark.len() == oldlen {
-                        to_mark.pop();
-                        rules_in_order.push(r);
-                    }
-                }
-            }
-        }
-        for r in rules_in_order {
+        for &r in self.marked_rules.iter() {
             let mut inps: Vec<_> = self.rule(r).all_inputs.iter()
                 .map(|&i| i)
                 .filter(|&i| self[i].path.starts_with(&self.flags.root))
@@ -2250,4 +2327,16 @@ fn normalize(p: &Path) -> PathBuf {
     } else {
         PathBuf::from(p)
     }
+}
+
+fn cp_to_dir(x: &Path, dir: &Path) -> std::io::Result<()> {
+    assert!(!x.is_absolute());
+    let newfile = dir.join(x);
+    if let Some(d) = newfile.parent() {
+        vprintln!("mkdir -p {:?}", &d);
+        std::fs::create_dir_all(d)?;
+    }
+    vprintln!("cp {:?} {:?}", &x, &newfile);
+    std::fs::copy(x, newfile)?;
+    Ok(())
 }

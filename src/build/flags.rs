@@ -50,6 +50,14 @@ pub struct Flags {
     pub tupfile: Option<PathBuf>,
     /// requested build.ninja file
     pub ninja: Option<PathBuf>,
+    /// requested graphviz file
+    pub dotfile: Option<PathBuf>,
+    /// requested script
+    pub script: Option<PathBuf>,
+    /// requested tarball
+    pub tar: Option<PathBuf>,
+    /// Extra files to stick in the tarball
+    pub include_in_tar: Vec<PathBuf>,
 }
 
 /// Parse command line arguments to determine what to do
@@ -130,6 +138,29 @@ pub fn args<'a>() -> Flags {
              .takes_value(true)
              .value_name("BUILD.NINJA")
              .help("create a build.ninja file"))
+        .arg(clap::Arg::with_name("dotfile")
+             .long("dotfile")
+             .takes_value(true)
+             .value_name("DOTFILE")
+             .help("create a graphviz file to visualize dependencies"))
+        .arg(clap::Arg::with_name("script")
+             .long("script")
+             .takes_value(true)
+             .value_name("SCRIPTFILE")
+             .help("create a build script"))
+        .arg(clap::Arg::with_name("tar")
+             .long("tar")
+             .takes_value(true)
+             .value_name("TARNAME.tar[.gz]")
+             .help("create a tar archive"))
+        .arg(clap::Arg::with_name("include-in-tar")
+             .long("include-in-tar")
+             .short("i")
+             .takes_value(true)
+             .value_name("FILENAME")
+             .multiple(true)
+             .number_of_values(1)
+             .help("include in tarball"))
         .arg(clap::Arg::with_name("target")
              .index(1)
              .multiple(true)
@@ -155,6 +186,18 @@ pub fn args<'a>() -> Flags {
             }
         }
     }
+    let mut include_in_tar = Vec::new();
+    if let Some(fs) = m.values_of_os("include-in-tar") {
+        for f in fs {
+            let p = here.join(f);
+            if let Ok(p) = p.strip_prefix(&top) {
+                include_in_tar.push(PathBuf::from(p));
+            } else {
+                println!("Invalid path for including in tar: {:?}", f);
+                std::process::exit(1);
+            }
+        }
+    }
     Flags {
         clean: m.is_present("clean"),
         dry_run: m.is_present("dry"),
@@ -173,6 +216,10 @@ pub fn args<'a>() -> Flags {
         makefile: m.value_of("makefile").map(|s| PathBuf::from(s)),
         tupfile: m.value_of("tupfile").map(|s| PathBuf::from(s)),
         ninja: m.value_of("ninja").map(|s| PathBuf::from(s)),
+        dotfile: m.value_of("dotfile").map(|s| PathBuf::from(s)),
+        script: m.value_of("script").map(|s| PathBuf::from(s)),
+        tar: m.value_of("tar").map(|s| PathBuf::from(s)),
+        include_in_tar: include_in_tar,
     }
 }
 
