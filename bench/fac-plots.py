@@ -13,7 +13,7 @@ import dependentchains
 import sleepy
 import independent
 
-modules = [dependentchains, cats, hierarchy, sleepy, independent]
+modules = [dependentchains, cats, hierarchy, independent]
 
 for mod in modules:
     for verb in mod.verbs:

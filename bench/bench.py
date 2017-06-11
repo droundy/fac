@@ -36,7 +36,7 @@ date += subprocess.check_output(['git', 'log', '--pretty=%h', '-n',  '1'], stder
 
 datadir = os.getcwd()+'/bench/data/'
 os.makedirs(datadir, exist_ok=True)
-modules = [sleepy, dependentchains, hierarchy, cats, independent]
+modules = [dependentchains, hierarchy, cats, independent]
 
 rootdirnames = ['tmp', 'home' , 'vartmp']
 rootdirs = {'home': os.getcwd()+'/bench/temp',
