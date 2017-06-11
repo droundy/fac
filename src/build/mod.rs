@@ -1823,7 +1823,34 @@ impl Build {
                 fails
             },
             flags::Strictness::Exhaustive => {
-                unimplemented!()
+                // Here we just need to check that there are NO local
+                // inputs (i.e. ones in our repository directory) for
+                // any rules that are not explicit.
+                println!("Checking for exhaustive dependencies...");
+                let mut fails = None;
+                for r in self.rulerefs() {
+                    for i in self.rule(r).all_inputs.iter()
+                        .map(|&i| i)
+                        .filter(|&i| self[i].path.starts_with(&self.flags.root))
+                        .filter(|&i| !self.rule(r).inputs.contains(&i))
+                    {
+                        println!("missing dependency: \"{}\" requires {}",
+                                 self.pretty_rule(r),
+                                 self.pretty_path_peek(i).display());
+                        fails = Some(String::from("missing dependencies"));
+                    }
+                    for i in self.rule(r).all_outputs.iter()
+                        .map(|&i| i)
+                        .filter(|&i| !self.rule(r).outputs.contains(&i))
+                        .filter(|&i| self[i].children.len() > 0)
+                    {
+                        println!("missing output: \"{}\" builds {}",
+                                 self.pretty_rule(r),
+                                 self.pretty_path_peek(i).display());
+                        fails = Some(String::from("missing outputs"));
+                    }
+                }
+                fails
             },
             flags::Strictness::Normal => {
                 None

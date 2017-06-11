@@ -171,6 +171,8 @@ pub fn args<'a>() -> Flags {
     let strictness: Strictness;
     if m.is_present("strict") {
         strictness = Strictness::Strict;
+    } else if m.is_present("exhaustive") {
+        strictness = Strictness::Exhaustive;
     } else {
         strictness = Strictness::Normal;
     }
