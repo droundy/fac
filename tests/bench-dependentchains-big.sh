@@ -18,6 +18,12 @@ python3 ../../bench/dependentchains.py 562 #  1778
 
 ls .git
 
+time ${FAC:-../../fac} --dry
+
+exit 0
+
+# Uncomment the above to have a more thorough test for more stack overflows.
+
 time ${FAC:-../../fac}
 
 ${FAC:-../../fac} -v > fac.out
