@@ -708,7 +708,7 @@ impl Build {
     }
     /// either take a lock on the repository, or exit
     fn lock_path(&self) -> PathBuf {
-        git::git_dir().join(".fac-lock")
+        git::git_dir().join("fac-lock")
     }
     /// either take a lock on the repository, or exit
     fn lock_repository(&self) {
