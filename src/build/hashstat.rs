@@ -7,7 +7,7 @@ extern crate quickcheck;
 use std;
 use std::io::{Read};
 use std::hash::{Hasher};
-use std::collections::hash_map::DefaultHasher;
+use metrohash::MetroHash64;
 
 #[cfg(unix)]
 use std::os::unix::fs::{MetadataExt};
@@ -231,7 +231,7 @@ impl HashStat {
     }
     /// hash a file
     fn hash(&mut self, f: &std::path::Path) -> std::io::Result<()> {
-        let mut h = DefaultHasher::new();
+        let mut h = MetroHash64::new();
         match self.kind {
             Some(FileKind::File) => {
                 let mut file = std::fs::File::open(f)?;

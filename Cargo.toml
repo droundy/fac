@@ -20,6 +20,7 @@ typed-arena = "1.2.0"
 bigbro = "^0.3.11"
 clap = "~2.23.3"
 num_cpus = "^1.5.0"
+metrohash = "^1.0.1"
 
 ctrlc = "^3.0"
 

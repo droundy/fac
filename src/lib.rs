@@ -10,6 +10,7 @@ extern crate quickcheck;
 #[macro_use]
 extern crate clap;
 extern crate ctrlc;
+extern crate metrohash;
 
 /// A module with just the version in it.
 pub mod version;
