@@ -2166,6 +2166,9 @@ impl Build {
 
     /// Formats the path nicely as a relative path if possible
     pub fn pretty_path(&self, p: FileRef) -> PathBuf {
+        if self[p].path == self.flags.root {
+            return PathBuf::from(".")
+        }
         match self[p].path.strip_prefix(&self.flags.root) {
             Ok(p) => PathBuf::from(p),
             Err(_) => self[p].path.clone(),
@@ -2173,6 +2176,9 @@ impl Build {
     }
     /// Formats the path nicely as a relative path if possible
     pub fn pretty_path_peek(&self, p: FileRef) -> &Path {
+        if self[p].path == self.flags.root {
+            return &Path::new(".")
+        }
         match self[p].path.strip_prefix(&self.flags.root) {
             Ok(p) => p,
             Err(_) => &self[p].path,
