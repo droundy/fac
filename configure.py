@@ -240,6 +240,7 @@ C bugs
 C web
 c .pyc
 c -fac
+C doc-pak
 
 | cp -a target/doc web/
 > web/doc/fac/index.html
@@ -281,6 +282,7 @@ C bugs
 C web
 c .pyc
 c -fac
+C doc-pak
 ''')
 except:
     print('# no rust for windows')
