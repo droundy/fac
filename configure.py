@@ -239,6 +239,7 @@ C tests
 C bugs
 C web
 c .pyc
+c -fac
 
 | cp -a target/doc web/
 > web/doc/fac/index.html
@@ -247,11 +248,11 @@ c .pyc
 # make copies of the executables, so that if cargo fails we will still
 # have an old version of the executable, since cargo deletes output on
 # failure.
-| cp target/debug/fac debug-fac
+| cp target/debug/fac debug-fac~ && mv debug-fac~ debug-fac
 < target/debug/fac
 > debug-fac
 
-| cp target/release/fac rust-fac
+| cp target/release/fac rust-fac~ && mv rust-fac~ rust-fac
 < target/release/fac
 > rust-fac
 ''')
@@ -279,6 +280,7 @@ C tests
 C bugs
 C web
 c .pyc
+c -fac
 ''')
 except:
     print('# no rust for windows')

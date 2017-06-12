@@ -46,3 +46,4 @@ bench/data/
 bench/data.tar.bz2
 web/doc/
 src/version.rs
+*-fac
