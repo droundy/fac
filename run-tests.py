@@ -77,7 +77,7 @@ if 'rust' not in sys.argv:
         system('rm tests/fac-with-coverage')
         print(build.took('rebuilding with fac and coverage'))
 else:
-    if system('./fac target/debug/fac'):
+    if system('./debug-fac target/debug/fac'):
         print('Build with fac failed!')
         exit(1)
     print(build.took('building fac using rust'))
