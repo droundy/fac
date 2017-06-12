@@ -243,6 +243,17 @@ c .pyc
 | cp -a target/doc web/
 > web/doc/fac/index.html
 < target/doc/fac/index.html
+
+# make copies of the executables, so that if cargo fails we will still
+# have an old version of the executable, since cargo deletes output on
+# failure.
+| cp target/debug/fac debug-fac
+< target/debug/fac
+> debug-fac
+
+| cp target/release/fac rust-fac
+< target/release/fac
+> rust-fac
 ''')
 else:
     print('# no cargo, so cannot build using rust')
