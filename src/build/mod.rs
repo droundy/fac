@@ -490,23 +490,14 @@ impl Build {
         self.lock_repository();
         let mut still_doing_facfiles = true;
         while still_doing_facfiles || self.num_building() > 0 {
-            println!("\nhandling facfiles");
             still_doing_facfiles = false;
             for f in self.filerefs() {
                 if self[f].is_fac_file() && self[f].rules_defined.is_none() && self.is_file_done(f) {
-                    println!("reading file {:?}", self.pretty_path(f));
                     if let Err(e) = self.read_file(f) {
                         println!("{}", e);
                         self.unlock_repository_and_exit(1);
                     }
                     still_doing_facfiles = true;
-                    // self.print_fac_file(f).unwrap();
-                } else if self[f].is_fac_file() && !self.is_file_done(f) {
-                    println!("facfile {:?} is not done", self.pretty_path(f));
-                } else if self[f].is_fac_file() {
-                    println!("facfile {:?} already read with {} rules",
-                             self.pretty_path(f),
-                             self[f].rules_defined.as_ref().unwrap().len());
                 }
             }
             self.mark_fac_files();
