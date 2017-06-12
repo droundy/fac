@@ -1501,14 +1501,6 @@ impl Build {
         }
         let mut is_dirty = false;
 
-        // if (env.abc.a != r->env.abc.a || env.abc.b != r->env.abc.b || env.abc.c != r->env.abc.c) {
-        //   if (r->env.abc.a || r->env.abc.b || r->env.abc.c) {
-        //     rebuild_excuse(r, "the environment has changed");
-        //   } else {
-        //     rebuild_excuse(r, "we have never built it");
-        //   }
-        //   is_dirty = true;
-        // }
         for &i in r_inputs.iter() {
             if !self[i].in_git() &&
                 self[i].rule.is_none() &&
@@ -1703,11 +1695,14 @@ impl Build {
             while children.len() > 0 {
                 let mut grandchildren = Vec::new();
                 for r in children {
+                    vvvprintln!("child unready (was {:?}):  {}",
+                                self.rule(r).status, self.pretty_rule(r));
                     self.set_status(r, Status::Unready);
                     // Need to inform marked child rules they are unready now
                     grandchildren.extend(self.rule(r).outputs.iter()
                                          .flat_map(|o| self[*o].children.iter()).map(|c| *c)
-                                         .filter(|&c| self.rule(c).status != Status::Unknown));
+                                         .filter(|&c| self.rule(c).status != Status::Unready
+                                                 && self.rule(c).status != Status::Unknown));
                 }
                 children = grandchildren;
             }
@@ -1999,12 +1994,30 @@ impl Build {
         };
 
         if stat.status().success() {
+            let mut written_to_files = stat.written_to_files();
+            let mut read_from_files = stat.read_from_files();
             let mut rule_actually_failed = false;
             // First clear out the listing of inputs and outputs
             self.rule_mut(r).all_inputs.clear();
             let mut old_outputs: HashSet<FileRef> =
                 self.rule_mut(r).all_outputs.drain().collect();
-            for w in stat.written_to_files() {
+            // First we add in our explicit inputs.  This is done
+            // first, because we want to ensure that we don't count an
+            // explicit input as an output.
+            let explicit_inputs = self.rule(r).inputs.clone();
+            for i in explicit_inputs {
+                self.add_input(r, i);
+                let hs = self[i].hashstat;
+                if hs.kind != Some(FileKind::Dir) {
+                    // for files and symlinks that were not read, we
+                    // want to know what their hash was, so we won't
+                    // rebuild on their behalf.
+                    self.rule_mut(r).hashstats.insert(i, hs);
+                }
+                written_to_files.remove(&self[i].path);
+                read_from_files.remove(&self[i].path);
+            }
+            for w in written_to_files {
                 if w.starts_with(&self.flags.root)
                     && !self.is_git_path(&w)
                     && !self.rule(r).is_cache(&w) {
@@ -2042,7 +2055,7 @@ impl Build {
                     }
                 }
             }
-            for rr in stat.read_from_files() {
+            for rr in read_from_files {
                 if !self.is_boring(&rr) && !self.rule(r).is_cache(&rr) {
                     let fr = self.new_file(&rr);
                     if !old_outputs.contains(&fr)
@@ -2083,21 +2096,8 @@ impl Build {
                     }
                 }
             }
-            // Here we add in any explicit inputs our outputs that
-            // were not actually read or touched.
-            let explicit_inputs = self.rule(r).inputs.clone();
-            for i in explicit_inputs {
-                if !self.rule(r).all_inputs.contains(&i) {
-                    self.add_input(r, i);
-                    let hs = self[i].hashstat;
-                    if hs.kind != Some(FileKind::Dir) {
-                        // for files and symlinks that were not read,
-                        // we still want to know what their hash was,
-                        // so we won't rebuild on their behalf.
-                        self.rule_mut(r).hashstats.insert(i, hs);
-                    }
-                }
-            }
+            // Here we add in any explicit outputs that were not
+            // actually touched.
             let explicit_outputs = self.rule(r).outputs.clone();
             for o in explicit_outputs {
                 if !self.rule(r).all_outputs.contains(&o) {
