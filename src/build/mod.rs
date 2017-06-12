@@ -528,6 +528,9 @@ impl Build {
         }
         if self.flags.clean {
             for o in self.filerefs() {
+                if self.is_git_path(&self[o].path) {
+                    continue; // do not want to clean git paths!
+                }
                 if self.recv_rule_status.try_recv().is_ok() {
                     println!("Interrupted!");
                     self.emergency_unlock_repository().expect("trouble removing lock file");
@@ -553,6 +556,9 @@ impl Build {
                 ).collect();
             dirs.sort_by_key(|&d| - (self[d].path.to_string_lossy().len() as i32));
             for d in dirs {
+                if self.is_git_path(&self[d].path) {
+                    continue; // do not want to clean git paths!
+                }
                 vprintln!("rmdir {:?}", self.pretty_path_peek(d));
                 std::fs::remove_dir(&self[d].path).ok();
             }
@@ -2066,6 +2072,7 @@ impl Build {
                         if rr.starts_with(&self.flags.root)
                             && !self[fr].rule.is_some()
                             && !self[fr].is_in_git
+                            && !self.is_git_path(&rr)
                         {
                             if self.flags.git_add {
                                 if let Err(e) = git::add(&self[fr].path) {
@@ -2279,8 +2286,7 @@ impl Build {
             // any directory named ".cache" can be assumed to be a
             // cache.
             (path.is_absolute()
-             && path.components().any(|c| c.as_ref() == OsStr::new(".cache"))) ||
-            self.is_git_path(path)
+             && path.components().any(|c| c.as_ref() == OsStr::new(".cache")))
     }
 }
 

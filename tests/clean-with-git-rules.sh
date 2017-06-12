@@ -89,6 +89,9 @@ grep thestatus thestatus
 
 ${FAC:-../../fac} -c
 
+# verify that the .git directory still exists!
+ls .git
+
 git diff
 
 if test -e thelog; then

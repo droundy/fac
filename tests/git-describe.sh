@@ -25,5 +25,19 @@ ${FAC:-../../fac}
 cat version
 grep 0.0 version
 
+grep git top.fac.tum
+
+cat > AUTHOR <<EOF
+David Roundy
+EOF
+git add AUTHOR
+git commit -am 'add AUTHOR file'
+
+${FAC:-../../fac}
+
+git describe
+cat version
+grep 0.0-1 version
+
 exit 0
 
