@@ -3,6 +3,8 @@
 
 | python build/get-bigbro.py
 > bigbro/configure.fac
+c pyc
+c __init__
 
 | python configure.py > .fac
 > .fac

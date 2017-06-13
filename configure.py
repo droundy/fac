@@ -239,6 +239,7 @@ C tests
 C bugs
 C web
 c .pyc
+c __init__
 c -fac
 C doc-pak
 c -pak
@@ -282,6 +283,7 @@ C tests
 C bugs
 C web
 c .pyc
+c __init__
 c -fac
 C doc-pak
 c -pak
