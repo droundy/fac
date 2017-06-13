@@ -18,6 +18,13 @@ pub fn go_to_top() -> std::path::PathBuf {
 //   }
 // #endif
 
+    if !output.status.success() {
+        println!("Error identifying git top.");
+        let newlen = output.stderr.len()-1;
+        output.stderr.truncate(newlen);
+        println!("    {}", bytes_to_path(&output.stderr).display());
+        std::process::exit(1);
+    }
     let newlen = output.stdout.len()-1;
     output.stdout.truncate(newlen);
     let p = bytes_to_path(&output.stdout);
