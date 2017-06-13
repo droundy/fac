@@ -233,14 +233,6 @@ pub struct File {
 }
 
 impl File {
-    // /// Declare that this File is dirty (i.e. has been modified since
-    // /// the last build).
-    // pub fn dirty(&self) {
-    //     for r in self.children.borrow().iter() {
-    //         r.dirty();
-    //     }
-    // }
-
     /// Set file properties...
     pub fn stat(&mut self) -> io::Result<FileKind> {
         let p = self.path.clone(); // FIXME UGLY workaround for borrow checker!
@@ -1738,24 +1730,43 @@ impl Build {
             }
         }
     }
+
     fn built(&mut self, r: RuleRef) {
         self.set_status(r, Status::Built);
         // Only check "unready" children to see if they might now be
         // ready to be built.  Other children might not be desired as
         // part of our build, either because they are non-default, or
         // because the user requested specific targets.
-        let mut children: Vec<RuleRef> = self.rule(r).all_outputs.iter()
-            .flat_map(|o| self[*o].children.iter()).map(|c| *c)
-            .filter(|&c| self.rule(c).status == Status::Unready).collect();
+        let outputs: Vec<FileRef> = self.rule(r).all_outputs.iter().map(|&o| o).collect();
+        for o in outputs {
+            self.modified_file(o);
+        }
+    }
 
+    /// We have modified this file.  Either the user changed it, or we
+    /// have built it.  Either way, we need to respond by marking its
+    /// children as possibly ready.
+    fn modified_file(&mut self, f: FileRef) {
+        let mut children: Vec<RuleRef> = self[f].children.iter()
+            .map(|&c| c)
+            .filter(|&c| self.rule(c).status == Status::Unready
+                    || self.rule(c).status == Status::Built).collect();
         while children.len() > 0 {
             let mut grandchildren = Vec::new();
             for r in children {
+                let oldstatus = self.rule(r).status;
+                if oldstatus == Status::Built {
+                    // Ensure that check_cleanliness won't assume it's
+                    // already done.
+                    self.set_status(r, Status::Marked);
+                }
                 self.check_cleanliness(r);
-                if self.rule(r).status == Status::Clean {
-                    // Need to inform marked child rules they might be ready
+                if oldstatus == Status::Unready && self.rule(r).status == Status::Clean {
+                    // Need to inform marked child rules they might be
+                    // ready, since they might have been waiting to
+                    // build this one.
                     grandchildren.extend(self.rule(r).outputs.iter()
-                                         .flat_map(|o| self[*o].children.iter()).map(|c| *c)
+                                         .flat_map(|o| self[*o].children.iter()).map(|&c| c)
                                          .filter(|&c| self.rule(c).status == Status::Unready));
                 }
             }
@@ -2039,6 +2050,9 @@ impl Build {
                                 }
                             }
                             self.add_output(r, fw);
+                            // update the hashstat for the output that changed
+                            let hs = self[fw].hashstat;
+                            self.rule_mut(r).hashstats.insert(fw, hs);
                             old_outputs.remove(&fw);
                         } else {
                             vprintln!("   Hash not okay?!");
