@@ -466,7 +466,7 @@ impl Build {
             let p = self.flags.run_from_directory.join(self.flags.parse_only
                                                        .as_ref().unwrap());
             let fr = self.new_file(&p);
-            if let Err(e) = self.read_file(fr) {
+            if let Err(e) = self.read_facfile(fr) {
                 println!("{}", e);
                 return 1;
             }
@@ -492,15 +492,13 @@ impl Build {
                 still_doing_facfiles = false;
                 for f in self.filerefs() {
                     if self[f].is_fac_file() && self[f].rules_defined.is_none() && self.is_file_done(f) {
-                        if let Err(e) = self.read_file(f) {
+                        if let Err(e) = self.read_facfile(f) {
                             println!("{}", e);
                             self.unlock_repository_and_exit(1);
                         }
                         still_doing_facfiles = true;
                     }
                 }
-                self.mark_fac_files();
-                assert_eq!(self.statuses[Status::Marked].len(), self.marked_rules.len());
                 let rules: Vec<_> = std::mem::replace(&mut self.marked_rules, Vec::new());
                 for r in rules {
                     self.check_cleanliness(r);
@@ -714,9 +712,15 @@ impl Build {
             if self.flags.continual {
                 println!("I am going to do a continual thingy");
                 let rules: Vec<_> =
-                    self.statuses[Status::Clean].iter().map(|&r| r).collect();
+                    self.statuses[Status::Built].iter().map(|&r| r).collect();
                 for r in rules {
-                    self.set_status(r, Status::Built);
+                    self.set_status(r, Status::Clean);
+                }
+                let rules: Vec<_> =
+                    self.statuses[Status::Failed].iter().map(|&r| r).collect();
+                for r in rules {
+                    // set failed rules as unready.
+                    self.unready(r);
                 }
                 let (notify_tx, notify_rx) = std::sync::mpsc::channel();
                 let mut watcher =
@@ -968,7 +972,7 @@ impl Build {
     }
 
     /// Read a fac file
-    pub fn read_file(&mut self, fileref: FileRef) -> io::Result<()> {
+    pub fn read_facfile(&mut self, fileref: FileRef) -> io::Result<()> {
         self[fileref].rules_defined = Some(HashSet::new());
         let filepath = self[fileref].path.clone();
         let fp = self.pretty_path_peek(fileref).to_string_lossy().into_owned();
@@ -1054,7 +1058,12 @@ impl Build {
                 b'>' => {
                     let f = self.new_file( &normalize(&filepath.parent().unwrap()
                                                       .join(bytes_to_osstr(&line[2..]))));
-                    self.add_explicit_output(get_rule(command, '>')?, f);
+                    let r = get_rule(command, '>')?;
+                    self.add_explicit_output(r, f);
+                    if self[f].is_fac_file() {
+                        // always mark any rules that generate explicit fac files
+                        self.mark(r);
+                    }
                 },
                 b'<' => {
                     let f = self.new_file( &normalize(&filepath.parent().unwrap()
@@ -1492,18 +1501,6 @@ impl Build {
                     self.marked_rules.push(r);
                 }
             }
-        }
-    }
-
-    fn mark_fac_files(&mut self) {
-        let mut to_mark = Vec::new();
-        for &r in self.statuses[Status::Unknown].iter() {
-            if self.rule(r).outputs.iter().any(|&f| self[f].is_fac_file()) {
-                to_mark.push(r)
-            }
-        }
-        for r in to_mark {
-            self.mark(r);
         }
     }
 
