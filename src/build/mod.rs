@@ -1532,10 +1532,7 @@ impl Build {
 
     fn is_file_done(&self, f: FileRef) -> bool {
         if let Some(r) = self[f].rule {
-            match self.rule(r).status {
-                Status::Built | Status::Clean => true,
-                _ => false,
-            }
+            self.rule(r).status.is_done()
         } else {
             // No rule to build it, so it is inherently done!x
             true
