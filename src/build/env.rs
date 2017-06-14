@@ -21,7 +21,6 @@ pub fn hash() -> u64 {
                 v.hash(&mut hasher);
             }
         }
-        env.hash(&mut hasher);
         unsafe { ENVHASH = hasher.finish(); }
     };
     unsafe { ENVHASH }

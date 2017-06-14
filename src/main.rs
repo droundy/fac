@@ -16,6 +16,7 @@ extern crate cpuprofiler;
 extern crate libc;
 extern crate ctrlc;
 extern crate metrohash;
+extern crate notify;
 
 mod git;
 pub mod refset;

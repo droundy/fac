@@ -17,6 +17,8 @@ use std::io::{Read, Write};
 
 use git;
 use ctrlc;
+use notify;
+use notify::{Watcher};
 
 pub mod hashstat;
 pub mod flags;
@@ -391,6 +393,7 @@ fn test_is_suffix() {
 #[derive(Debug)]
 enum Event {
     Finished(RuleRef, io::Result<bigbro::Status>),
+    NotifyChange(PathBuf),
     CtrlC,
 }
 unsafe impl Send for Event {}
@@ -479,227 +482,334 @@ impl Build {
             ctrl_c_sender.send(Event::CtrlC).expect("Error reporting Ctrl-C");
             print!("... ");
         }).expect("Error setting Ctrl-C handler");
-        self.lock_repository();
-        let mut still_doing_facfiles = true;
-        while still_doing_facfiles || self.num_building() > 0 {
-            still_doing_facfiles = false;
-            for f in self.filerefs() {
-                if self[f].is_fac_file() && self[f].rules_defined.is_none() && self.is_file_done(f) {
-                    if let Err(e) = self.read_file(f) {
-                        println!("{}", e);
-                        self.unlock_repository_and_exit(1);
+
+        let mut first_time_through = true;
+        while first_time_through || self.flags.continual {
+            first_time_through = false;
+            self.lock_repository();
+            let mut still_doing_facfiles = true;
+            while still_doing_facfiles || self.num_building() > 0 {
+                still_doing_facfiles = false;
+                for f in self.filerefs() {
+                    if self[f].is_fac_file() && self[f].rules_defined.is_none() && self.is_file_done(f) {
+                        if let Err(e) = self.read_file(f) {
+                            println!("{}", e);
+                            self.unlock_repository_and_exit(1);
+                        }
+                        still_doing_facfiles = true;
                     }
-                    still_doing_facfiles = true;
+                }
+                self.mark_fac_files();
+                assert_eq!(self.statuses[Status::Marked].len(), self.marked_rules.len());
+                let rules: Vec<_> = std::mem::replace(&mut self.marked_rules, Vec::new());
+                for r in rules {
+                    self.check_cleanliness(r);
+                }
+                assert_eq!(self.statuses[Status::Marked].len(), 0);
+                if self.num_building() < self.flags.jobs {
+                    let rules: Vec<_> = self.statuses[Status::Dirty].iter()
+                        .take(self.flags.jobs - self.num_building())
+                        .map(|&r| r).collect();
+                    for r in rules {
+                        still_doing_facfiles = true;
+                        if let Err(e) = self.spawn(r) {
+                            println!("I got err {}", e);
+                        }
+                    }
+                }
+                if self.num_building() > 0 {
+                    self.wait_for_a_rule();
                 }
             }
-            self.mark_fac_files();
+            if self.rulerefs().len() == 0 {
+                println!("Please git add a .fac file containing rules!");
+                self.unlock_repository_and_exit(1);
+            }
+            if self.flags.clean {
+                for o in self.filerefs() {
+                    if self.is_git_path(&self[o].path) {
+                        continue; // do not want to clean git paths!
+                    }
+                    if self.recv_rule_status.try_recv().is_ok() {
+                        println!("Interrupted!");
+                        self.emergency_unlock_repository().expect("trouble removing lock file");
+                        std::process::exit(1);
+                    }
+                    if !self[o].is_in_git && self[o].is_file() && self[o].rule.is_some() {
+                        vprintln!("rm {:?}", self.pretty_path_peek(o));
+                        self[o].unlink();
+                    }
+                    if self[o].is_fac_file() {
+                        let factum = self[o].path.with_extension("fac.tum");
+                        std::fs::remove_file(&factum).ok();
+                        vprintln!("rm {:?}", &factum);
+                    }
+                }
+                // The following bit is a hokey and inefficient bit of
+                // code to ensure that we will rmdir subdirectories
+                // prior to their superdirectories.  I don't bother
+                // checking if anything is a directory or not, and I
+                // recompute depths many times.
+                let mut dirs: Vec<FileRef> = self.filerefs().iter()
+                    .map(|&o| o)
+                    .filter(|&o| self[o].is_dir()//  && self[o].rule.is_some()
+                    ).collect();
+                dirs.sort_by_key(|&d| - (self[d].path.to_string_lossy().len() as i32));
+                for d in dirs {
+                    if self.is_git_path(&self[d].path) {
+                        continue; // do not want to clean git paths!
+                    }
+                    vprintln!("rmdir {:?}", self.pretty_path_peek(d));
+                    std::fs::remove_dir(&self[d].path).ok();
+                }
+                self.unlock_repository_and_exit(0);
+            }
+
+            // Now we start building the actual targets.
+            self.mark_all();
             assert_eq!(self.statuses[Status::Marked].len(), self.marked_rules.len());
             let rules: Vec<_> = std::mem::replace(&mut self.marked_rules, Vec::new());
             for r in rules {
                 self.check_cleanliness(r);
             }
             assert_eq!(self.statuses[Status::Marked].len(), 0);
-            if self.num_building() < self.flags.jobs {
-                let rules: Vec<_> = self.statuses[Status::Dirty].iter()
-                    .take(self.flags.jobs - self.num_building())
-                    .map(|&r| r).collect();
-                for r in rules {
-                    still_doing_facfiles = true;
-                    if let Err(e) = self.spawn(r) {
-                        println!("I got err {}", e);
-                    }
-                }
-            }
-            if self.num_building() > 0 {
-                self.wait_for_a_rule();
-            }
-        }
-        if self.rulerefs().len() == 0 {
-            println!("Please git add a .fac file containing rules!");
-            self.unlock_repository_and_exit(1);
-        }
-        if self.flags.clean {
-            for o in self.filerefs() {
-                if self.is_git_path(&self[o].path) {
-                    continue; // do not want to clean git paths!
-                }
-                if self.recv_rule_status.try_recv().is_ok() {
-                    println!("Interrupted!");
-                    self.emergency_unlock_repository().expect("trouble removing lock file");
-                    std::process::exit(1);
-                }
-                if !self[o].is_in_git && self[o].is_file() && self[o].rule.is_some() {
-                    vprintln!("rm {:?}", self.pretty_path_peek(o));
-                    self[o].unlink();
-                }
-                if self[o].is_fac_file() {
-                    let factum = self[o].path.with_extension("fac.tum");
-                    std::fs::remove_file(&factum).ok();
-                    vprintln!("rm {:?}", &factum);
-                }
-            }
-            // The following bit is a hokey and inefficient bit of code to
-            // ensure that we will rmdir subdirectories prior to their
-            // superdirectories.  I don't bother checking if anything is a
-            // directory or not, and I recompute depths many times.
-            let mut dirs: Vec<FileRef> = self.filerefs().iter()
-                .map(|&o| o)
-                .filter(|&o| self[o].is_dir()//  && self[o].rule.is_some()
-                ).collect();
-            dirs.sort_by_key(|&d| - (self[d].path.to_string_lossy().len() as i32));
-            for d in dirs {
-                if self.is_git_path(&self[d].path) {
-                    continue; // do not want to clean git paths!
-                }
-                vprintln!("rmdir {:?}", self.pretty_path_peek(d));
-                std::fs::remove_dir(&self[d].path).ok();
-            }
-            self.unlock_repository_and_exit(0);
-        }
-
-        // Now we start building the actual targets.
-        self.mark_all();
-        assert_eq!(self.statuses[Status::Marked].len(), self.marked_rules.len());
-        let rules: Vec<_> = std::mem::replace(&mut self.marked_rules, Vec::new());
-        for r in rules {
-            self.check_cleanliness(r);
-        }
-        assert_eq!(self.statuses[Status::Marked].len(), 0);
-        while self.statuses[Status::Dirty].len() > 0
-            || self.statuses[Status::Unready].len() > 0
-            || self.num_building() > 0
-        {
-            if self.num_building() < self.flags.jobs {
-                let rules: Vec<_> = self.statuses[Status::Dirty].iter()
-                    .take(self.flags.jobs - self.num_building())
-                    .map(|&r| r).collect();
-                for r in rules {
-                     if let Err(e) = self.spawn(r) {
-                        println!("I got err {}", e);
-                    }
-                }
-            }
-            if self.num_building() > 0 {
-                self.wait_for_a_rule();
-            }
-
-            if self.statuses[Status::Dirty].len() == 0
-                && self.num_building() == 0
-                && self.statuses[Status::Unready].len() > 0
+            while self.statuses[Status::Dirty].len() > 0
+                || self.statuses[Status::Unready].len() > 0
+                || self.num_building() > 0
             {
-                // Looks like we failed to build everything! There are
-                // a few possibilities, including the possibility that
-                // one of these unready rules is actually ready after
-                // all.
-                let rules: Vec<_>
-                    = self.statuses[Status::Unready].iter().map(|&r| r).collect();
-                for r in rules {
-                    let mut need_to_try_again = false;
-                    let mut have_explained_failure = false;
-                    // FIXME figure out ignore_missing_files,
-                    // happy_building_at_least_one, etc. from
-                    // build.c:1171
-                    let inputs: Vec<_> = self.rule(r).all_inputs.iter()
-                        .map(|&i| i).collect();
-                    for i in inputs {
-                        if self[i].rule.is_none() && !self[i].is_in_git &&
-                            !self.is_git_path(&self[i].path) &&
-                            self[i].path.starts_with(&self.flags.root)
-                        {
-                            if self[i].exists() {
-                                let thepath = self[i].path.canonicalize().unwrap();
-                                if thepath != self[i].path {
-                                    // The canonicalization of the
-                                    // path has changed! See issue #17
-                                    // which this fixes. Presumably a
-                                    // directory has been created or a
-                                    // symlink modified, and the path
-                                    // is now different.
-                                    let t = self.new_file(thepath);
-                                    // There is a small memory leak
-                                    // here, since we don't free the
-                                    // old target.  The trouble is
-                                    // that we don't know if it is
-                                    // otherwise in use, e.g. as the
-                                    // output or input of a different
-                                    // rule.  This *shouldn't* be
-                                    // common, since once the path
-                                    // exists, future runs will not
-                                    // run into this leak.
-                                    self.rule_mut(r).all_inputs.remove(&i);
-                                    self.rule_mut(r).all_inputs.insert(t);
-                                    // Now replace the target in the
-                                    // vec of explicit inputs.
-                                    for ii in self.rule_mut(r).inputs.iter_mut() {
-                                        if *ii == i {
-                                            *ii = t;
-                                        }
-                                    }
-                                    need_to_try_again = true;
-                                // } else if git_add_files {
-                                //     git_add(r->inputs[i]->path);
-                                //     need_to_try_again = true;
-                                } else {
-                                    have_explained_failure = true;
-                                    println!("error: add {:?} to git, which is required for {}",
-                                             self.pretty_path_peek(i),
-                                             self.pretty_reason(r));
-                                }
-                            } else {
-                                have_explained_failure = true;
-                                println!("error: missing file {:?}, which is required for {}",
-                                         self.pretty_path_peek(i), self.pretty_reason(r));
-                            }
+                if self.num_building() < self.flags.jobs {
+                    let rules: Vec<_> = self.statuses[Status::Dirty].iter()
+                        .take(self.flags.jobs - self.num_building())
+                        .map(|&r| r).collect();
+                    for r in rules {
+                        if let Err(e) = self.spawn(r) {
+                            println!("I got err {}", e);
                         }
                     }
-                    if need_to_try_again {
-                        self.check_cleanliness(r);
-                        break;
-                    } else if have_explained_failure {
-                        self.failed(r);
-                    } else {
-                        println!("weird failure: {} {:?}", self.pretty_rule(r),
-                                 self.rule(r).status);
-                        self.set_status(r, Status::Unknown);
-                        self.check_cleanliness(r);
-                        println!("    actual cleanliness of {} is {:?}", self.pretty_rule(r),
-                                 self.rule(r).status);
-                        self.failed(r);
+                }
+                if self.num_building() > 0 {
+                    self.wait_for_a_rule();
+                }
+
+                if self.statuses[Status::Dirty].len() == 0
+                    && self.num_building() == 0
+                    && self.statuses[Status::Unready].len() > 0
+                {
+                    // Looks like we failed to build everything! There are
+                    // a few possibilities, including the possibility that
+                    // one of these unready rules is actually ready after
+                    // all.
+                    let rules: Vec<_>
+                        = self.statuses[Status::Unready].iter().map(|&r| r).collect();
+                    for r in rules {
+                        let mut need_to_try_again = false;
+                        let mut have_explained_failure = false;
+                        // FIXME figure out ignore_missing_files,
+                        // happy_building_at_least_one, etc. from
+                        // build.c:1171
+                        let inputs: Vec<_> = self.rule(r).all_inputs.iter()
+                            .map(|&i| i).collect();
+                        for i in inputs {
+                            if self[i].rule.is_none() && !self[i].is_in_git &&
+                                !self.is_git_path(&self[i].path) &&
+                                self[i].path.starts_with(&self.flags.root)
+                            {
+                                if self[i].exists() {
+                                    let thepath = self[i].path.canonicalize().unwrap();
+                                    if thepath != self[i].path {
+                                        // The canonicalization of the
+                                        // path has changed! See issue #17
+                                        // which this fixes. Presumably a
+                                        // directory has been created or a
+                                        // symlink modified, and the path
+                                        // is now different.
+                                        let t = self.new_file(thepath);
+                                        // There is a small memory leak
+                                        // here, since we don't free the
+                                        // old target.  The trouble is
+                                        // that we don't know if it is
+                                        // otherwise in use, e.g. as the
+                                        // output or input of a different
+                                        // rule.  This *shouldn't* be
+                                        // common, since once the path
+                                        // exists, future runs will not
+                                        // run into this leak.
+                                        self.rule_mut(r).all_inputs.remove(&i);
+                                        self.rule_mut(r).all_inputs.insert(t);
+                                        // Now replace the target in the
+                                        // vec of explicit inputs.
+                                        for ii in self.rule_mut(r).inputs.iter_mut() {
+                                            if *ii == i {
+                                                *ii = t;
+                                            }
+                                        }
+                                        need_to_try_again = true;
+                                        // } else if git_add_files {
+                                        //     git_add(r->inputs[i]->path);
+                                        //     need_to_try_again = true;
+                                    } else {
+                                        have_explained_failure = true;
+                                        println!("error: add {:?} to git, which is required for {}",
+                                                 self.pretty_path_peek(i),
+                                                 self.pretty_reason(r));
+                                    }
+                                } else {
+                                    have_explained_failure = true;
+                                    println!("error: missing file {:?}, which is required for {}",
+                                             self.pretty_path_peek(i), self.pretty_reason(r));
+                                }
+                            }
+                        }
+                        if need_to_try_again {
+                            self.check_cleanliness(r);
+                            break;
+                        } else if have_explained_failure {
+                            self.failed(r);
+                        } else {
+                            println!("weird failure: {} {:?}", self.pretty_rule(r),
+                                     self.rule(r).status);
+                            self.set_status(r, Status::Unknown);
+                            self.check_cleanliness(r);
+                            println!("    actual cleanliness of {} is {:?}", self.pretty_rule(r),
+                                     self.rule(r).status);
+                            self.failed(r);
+                        }
                     }
                 }
             }
-        }
-        self.unlock_repository().unwrap();
-        let result = self.summarize_build_results();
-        if result != 0 {
-            return result;
-        }
-        if self.flags.makefile.is_some() || self.flags.ninja.is_some()
-            || self.flags.tupfile.is_some() || self.flags.script.is_some()
-            || self.flags.tar.is_some()
-        {
-            for r in self.rulerefs() {
-                self.set_status(r, Status::Unknown);
+            self.unlock_repository().unwrap();
+            let result = self.summarize_build_results();
+            if result != 0 && !self.flags.continual {
+                return result;
             }
-            self.mark_all();
-            if let Some(ref f) = self.flags.script {
-                let mut f = std::fs::File::create(f).unwrap();
-                self.write_script(&mut f).unwrap();
+            if result == 0 &&
+                (self.flags.makefile.is_some() || self.flags.ninja.is_some()
+                 || self.flags.tupfile.is_some() || self.flags.script.is_some()
+                 || self.flags.tar.is_some())
+            {
+                for r in self.rulerefs() {
+                    self.set_status(r, Status::Unknown);
+                }
+                self.mark_all();
+                if let Some(ref f) = self.flags.script {
+                    let mut f = std::fs::File::create(f).unwrap();
+                    self.write_script(&mut f).unwrap();
+                }
+                if let Some(ref mf) = self.flags.makefile {
+                    let mut f = std::fs::File::create(mf).unwrap();
+                    self.write_makefile(&mut f).unwrap();
+                }
+                if let Some(ref f) = self.flags.ninja {
+                    let mut f = std::fs::File::create(f).unwrap();
+                    self.write_ninja(&mut f).unwrap();
+                }
+                if let Some(ref f) = self.flags.tupfile {
+                    let mut f = std::fs::File::create(f).unwrap();
+                    self.write_tupfile(&mut f).unwrap();
+                }
+                if let Some(ref f) = self.flags.tar {
+                    self.create_tarball(f).unwrap();
+                }
             }
-            if let Some(ref mf) = self.flags.makefile {
-                let mut f = std::fs::File::create(mf).unwrap();
-                self.write_makefile(&mut f).unwrap();
-            }
-            if let Some(ref f) = self.flags.ninja {
-                let mut f = std::fs::File::create(f).unwrap();
-                self.write_ninja(&mut f).unwrap();
-            }
-            if let Some(ref f) = self.flags.tupfile {
-                let mut f = std::fs::File::create(f).unwrap();
-                self.write_tupfile(&mut f).unwrap();
-            }
-            if let Some(ref f) = self.flags.tar {
-                self.create_tarball(f).unwrap();
+            if self.flags.continual {
+                println!("I am going to do a continual thingy");
+                let rules: Vec<_> =
+                    self.statuses[Status::Clean].iter().map(|&r| r).collect();
+                for r in rules {
+                    self.set_status(r, Status::Built);
+                }
+                let (notify_tx, notify_rx) = std::sync::mpsc::channel();
+                let mut watcher =
+                    notify::watcher(notify_tx,
+                                    std::time::Duration::from_secs(3)).unwrap();
+                let srs = self.send_rule_status.clone();
+                std::thread::spawn(move || {
+                    loop {
+                        match notify_rx.recv().unwrap() {
+                            notify::DebouncedEvent::Write(fname) => {
+                                println!("Write event in {:?}", &fname);
+                                if let Some(dname) = fname.parent() {
+                                    srs.send(Event::NotifyChange(PathBuf::from(dname))).unwrap();
+                                }
+                                srs.send(Event::NotifyChange(fname)).unwrap();
+                            },
+                            notify::DebouncedEvent::Rename(fname, newname) => {
+                                println!("Rename event {:?} -> {:?}", &fname, &newname);
+                                if let Some(dname) = fname.parent() {
+                                    srs.send(Event::NotifyChange(PathBuf::from(dname))).unwrap();
+                                }
+                                if let Some(dname) = newname.parent() {
+                                    srs.send(Event::NotifyChange(PathBuf::from(dname))).unwrap();
+                                }
+                                srs.send(Event::NotifyChange(fname)).unwrap();
+                                srs.send(Event::NotifyChange(newname)).unwrap();
+                            },
+                            _ => (),
+                        }
+                    }
+                });
+
+                for f in self.filerefs() {
+                    // Avoid watching system directories, since this
+                    // can lead to significant and pointless rechecking.
+                    if self[f].children.len() > 0
+                        && (self.is_local(f) || self[f].is_file()) {
+                        watcher.watch(&self[f].path,
+                                      notify::RecursiveMode::NonRecursive).ok();
+                    }
+                }
+                println!("I am about to match...");
+                let mut found_something = false;
+                while !found_something {
+                    match self.recv_rule_status.recv() {
+                        Ok(Event::Finished(_,_)) => unreachable!(),
+                        Ok(Event::NotifyChange(fname)) => {
+                            println!("{:?} changed, rebuilding...", fname);
+                            let t = self.new_file(&fname);
+                            if self[t].children.len() == 0 {
+                                println!("Disabling watcher on {:?}", &fname);
+                                if let Err(e) = watcher.unwatch(fname) {
+                                    println!("Error disabling: {:?}", e);
+                                }
+                                continue;
+                            }
+                            found_something = true;
+                            for &c in self[t].children.iter() {
+                                println!("It affects rule {}", self.pretty_rule(c));
+                            }
+                            self[t].exists(); // clear out the hash!
+                            self.modified_file(t);
+                            while let Ok(msg) = self.recv_rule_status.try_recv() {
+                                match msg {
+                                    Event::Finished(_,_) => unreachable!(),
+                                    Event::NotifyChange(fname) => {
+                                        println!("{:?} changed, rebuilding...", fname);
+                                        let t = self.new_file(fname);
+                                        self[t].exists(); // clear out the hash!
+                                        self.modified_file(t);
+                                    },
+                                    Event::CtrlC => {
+                                        self.am_interrupted = true;
+                                        println!("Interrupted!");
+                                        self.unlock_repository_and_exit(1);
+                                    },
+                                }
+                            }
+                        },
+                        Err(e) => {
+                            println!("error receiving status: {}", e);
+                            self.am_interrupted = true;
+                            self.unlock_repository_and_exit(1);
+                        },
+                        Ok(Event::CtrlC) => {
+                            self.am_interrupted = true;
+                            println!("Interrupted!");
+                            self.unlock_repository_and_exit(1);
+                        },
+                    }
+                    println!("I finished match... {} dirty",
+                             self.statuses[Status::Dirty].len());
+                }
             }
         }
         0
@@ -1750,12 +1860,13 @@ impl Build {
         let mut children: Vec<RuleRef> = self[f].children.iter()
             .map(|&c| c)
             .filter(|&c| self.rule(c).status == Status::Unready
+                    || self.rule(c).status == Status::Failed
                     || self.rule(c).status == Status::Built).collect();
         while children.len() > 0 {
             let mut grandchildren = Vec::new();
             for r in children {
                 let oldstatus = self.rule(r).status;
-                if oldstatus == Status::Built {
+                if oldstatus == Status::Built || oldstatus == Status::Failed {
                     // Ensure that check_cleanliness won't assume it's
                     // already done.
                     self.set_status(r, Status::Marked);
@@ -1930,6 +2041,9 @@ impl Build {
                 self.failed(rr);
                 self.process_killers.remove(&rr);
             },
+            Ok(Event::NotifyChange(_)) => {
+                println!("FIXME: File changed already?!");
+            },
             Err(e) => {
                 println!("error receiving status: {}", e);
                 self.am_interrupted = true;
@@ -1956,6 +2070,10 @@ impl Build {
                 println!("error running rule: {} {}", self.pretty_rule(rr), e);
                 self.process_killers.remove(&rr);
                 true
+            },
+            Ok(Event::NotifyChange(_)) => {
+                println!("FIXME: File changed already?!");
+                false
             },
             Err(e) => {
                 if !self.am_interrupted {
@@ -2204,6 +2322,10 @@ impl Build {
             Ok(p) => p,
             Err(_) => &self[p].path,
         }
+    }
+
+    fn is_local(&self, p: FileRef) -> bool {
+        self[p].path.starts_with(&self.flags.root)
     }
 
     /// Formats the rule nicely if possible
