@@ -497,54 +497,58 @@ impl Build {
             self.unlock_repository_and_exit(1);
         }
 
+        self.lock_repository();
+
+        // First build the facfiles, which should already be marked,
+        // and should get marked as we go.
+        self.build_dirty();
+
+        if self.flags.clean {
+            for o in self.filerefs() {
+                if self.is_git_path(&self[o].path) {
+                    continue; // do not want to clean git paths!
+                }
+                if self.recv_rule_status.try_recv().is_ok() {
+                    println!("Interrupted!");
+                    self.emergency_unlock_repository().expect("trouble removing lock file");
+                    std::process::exit(1);
+                }
+                if !self[o].is_in_git && self[o].is_file() && self[o].rule.is_some() {
+                    vprintln!("rm {:?}", self.pretty_path_peek(o));
+                    self[o].unlink();
+                }
+                if self[o].is_fac_file() {
+                    let factum = self[o].path.with_extension("fac.tum");
+                    std::fs::remove_file(&factum).ok();
+                    vprintln!("rm {:?}", &factum);
+                }
+            }
+            // The following bit is a hokey and inefficient bit of
+            // code to ensure that we will rmdir subdirectories prior
+            // to their superdirectories.  I don't bother checking if
+            // anything is a directory or not, and I recompute depths
+            // many times.
+            let mut dirs: Vec<FileRef> = self.filerefs().iter()
+                .map(|&o| o)
+                .filter(|&o| self[o].is_dir()//  && self[o].rule.is_some()
+                ).collect();
+            dirs.sort_by_key(|&d| - (self[d].path.to_string_lossy().len() as i32));
+            for d in dirs {
+                if self.is_git_path(&self[d].path) {
+                    continue; // do not want to clean git paths!
+                }
+                vprintln!("rmdir {:?}", self.pretty_path_peek(d));
+                std::fs::remove_dir(&self[d].path).ok();
+            }
+            self.unlock_repository_and_exit(0);
+        }
+
         let mut first_time_through = true;
         while first_time_through || self.flags.continual {
-            first_time_through = false;
-            self.lock_repository();
-
-            // First build the facfiles, which should already be
-            // marked, and should get marked as we go.
-            self.build_dirty();
-
-            if self.flags.clean {
-                for o in self.filerefs() {
-                    if self.is_git_path(&self[o].path) {
-                        continue; // do not want to clean git paths!
-                    }
-                    if self.recv_rule_status.try_recv().is_ok() {
-                        println!("Interrupted!");
-                        self.emergency_unlock_repository().expect("trouble removing lock file");
-                        std::process::exit(1);
-                    }
-                    if !self[o].is_in_git && self[o].is_file() && self[o].rule.is_some() {
-                        vprintln!("rm {:?}", self.pretty_path_peek(o));
-                        self[o].unlink();
-                    }
-                    if self[o].is_fac_file() {
-                        let factum = self[o].path.with_extension("fac.tum");
-                        std::fs::remove_file(&factum).ok();
-                        vprintln!("rm {:?}", &factum);
-                    }
-                }
-                // The following bit is a hokey and inefficient bit of
-                // code to ensure that we will rmdir subdirectories
-                // prior to their superdirectories.  I don't bother
-                // checking if anything is a directory or not, and I
-                // recompute depths many times.
-                let mut dirs: Vec<FileRef> = self.filerefs().iter()
-                    .map(|&o| o)
-                    .filter(|&o| self[o].is_dir()//  && self[o].rule.is_some()
-                    ).collect();
-                dirs.sort_by_key(|&d| - (self[d].path.to_string_lossy().len() as i32));
-                for d in dirs {
-                    if self.is_git_path(&self[d].path) {
-                        continue; // do not want to clean git paths!
-                    }
-                    vprintln!("rmdir {:?}", self.pretty_path_peek(d));
-                    std::fs::remove_dir(&self[d].path).ok();
-                }
-                self.unlock_repository_and_exit(0);
+            if !first_time_through {
+                self.lock_repository();
             }
+            first_time_through = false;
 
             // Now we start building the actual targets.
             self.mark_all();
