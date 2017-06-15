@@ -419,7 +419,9 @@ pub struct Build {
     /// The set of rules with Status::Marked, topologically sorted
     /// such that we could build them in this order.  We use this to
     /// avoid a stack overflow when checking for cleanliness, in case
-    /// where there is a long dependency chain (> 1k long).
+    /// where there is a long dependency chain (> 1k long).  Note that
+    /// marked_rules may contain duplicates, as well as rules that are
+    /// no longer marked.
     marked_rules: Vec<RuleRef>,
 
     facfiles_used: HashSet<FileRef>,
@@ -590,17 +592,6 @@ impl Build {
             }
             if self.flags.continual {
                 println!("I am going to do a continual thingy");
-                let rules: Vec<_> =
-                    self.statuses[Status::Built].iter().map(|&r| r).collect();
-                for r in rules {
-                    self.set_status(r, Status::Clean);
-                }
-                let rules: Vec<_> =
-                    self.statuses[Status::Failed].iter().map(|&r| r).collect();
-                for r in rules {
-                    // set failed rules as unready.
-                    self.unready(r);
-                }
                 let (notify_tx, notify_rx) = std::sync::mpsc::channel();
                 let mut watcher =
                     notify::watcher(notify_tx,
@@ -704,10 +695,24 @@ impl Build {
             || self.statuses[Status::Marked].len() > 0
             || self.num_building() > 0
         {
-            assert_eq!(self.statuses[Status::Marked].len(), self.marked_rules.len());
+            vvvprintln!("   {} unknown", self.statuses[Status::Unknown].len());
+            vvvprintln!("   {} clean", self.statuses[Status::Clean].len());
+            vvvprintln!("   {} marked", self.statuses[Status::Marked].len());
+            vvvprintln!("   {} built", self.statuses[Status::Built].len());
+            vvvprintln!("   {} failed", self.statuses[Status::Failed].len());
+            vvvprintln!("   {} building", self.statuses[Status::Building].len());
             let rules: Vec<_> = std::mem::replace(&mut self.marked_rules, Vec::new());
             for r in rules {
                 self.check_cleanliness(r);
+                if self.rule(r).status == Status::Clean {
+                    // Mark for checking the children of this rule, as
+                    // they may now be buildable.
+                    let children: HashSet<_> = self.rule(r).all_outputs.iter()
+                        .flat_map(|&o| self[o].children.iter()).map(|&c| c).collect();
+                    for c in children {
+                        self.definitely_mark(c);
+                    }
+                }
             }
 
             if self.num_building() < self.flags.jobs {
@@ -770,6 +775,8 @@ impl Build {
                                     // run into this leak.
                                     self.rule_mut(r).all_inputs.remove(&i);
                                     self.rule_mut(r).all_inputs.insert(t);
+                                    self[i].children.remove(&r);
+                                    self[t].children.insert(r);
                                     // Now replace the target in the
                                     // vec of explicit inputs.
                                     for ii in self.rule_mut(r).inputs.iter_mut() {
@@ -795,7 +802,7 @@ impl Build {
                         }
                     }
                     if need_to_try_again {
-                        self.check_cleanliness(r);
+                        self.definitely_mark(r);
                         break;
                     } else if have_explained_failure {
                         self.failed(r);
@@ -1475,6 +1482,12 @@ impl Build {
 
     fn mark(&mut self, r: RuleRef) {
         if self.rule(r).status == Status::Unknown {
+            self.definitely_mark(r);
+        }
+    }
+
+    fn definitely_mark(&mut self, r: RuleRef) {
+        if self.rule(r).status != Status::Marked {
             self.set_status(r, Status::Marked);
             let mut to_mark = vec![r];
             while to_mark.len() > 0 {
@@ -1499,10 +1512,6 @@ impl Build {
     }
 
     fn mark_all(&mut self) {
-        vvvprintln!("   {} unknown", self.statuses[Status::Unknown].len());
-        vvvprintln!("   {} clean", self.statuses[Status::Clean].len());
-        vvvprintln!("   {} marked", self.statuses[Status::Marked].len());
-        vvvprintln!("   {} built", self.statuses[Status::Built].len());
         let to_mark: Vec<_> = if self.flags.targets.len() > 0 {
             let mut m = Vec::new();
             let targs = self.flags.targets.clone();
@@ -1521,7 +1530,6 @@ impl Build {
                 .map(|&r| r).filter(|&r| self.rule(r).is_default).collect()
         };
         for r in to_mark {
-            vvvprintln!("marking {}", self.pretty_reason(r));
             self.mark(r);
         }
     }
@@ -1856,10 +1864,8 @@ impl Build {
         self.set_status(r, Status::Built);
         // If we built a facfile, we should then read it!
         self.read_facfiles_from_rule(r);
-        // Only check "unready" children to see if they might now be
-        // ready to be built.  Other children might not be desired as
-        // part of our build, either because they are non-default, or
-        // because the user requested specific targets.
+        // Mark for checking the children of this rule, as they may
+        // now be buildable.
         let outputs: Vec<_> = self.rule(r).all_outputs.iter().map(|&o| o).collect();
         for o in outputs {
             self.modified_file(o);
@@ -1870,31 +1876,15 @@ impl Build {
     /// have built it.  Either way, we need to respond by marking its
     /// children as possibly ready.
     fn modified_file(&mut self, f: FileRef) {
-        let mut children: Vec<RuleRef> = self[f].children.iter()
+        let children: Vec<RuleRef> = self[f].children.iter()
             .map(|&c| c)
             .filter(|&c| self.rule(c).status == Status::Unready
                     || self.rule(c).status == Status::Failed
+                    || self.rule(c).status == Status::Clean
                     || self.rule(c).status == Status::Built).collect();
-        while children.len() > 0 {
-            let mut grandchildren = Vec::new();
-            for r in children {
-                let oldstatus = self.rule(r).status;
-                if oldstatus == Status::Built || oldstatus == Status::Failed {
-                    // Ensure that check_cleanliness won't assume it's
-                    // already done.
-                    self.set_status(r, Status::Marked);
-                }
-                self.check_cleanliness(r);
-                if oldstatus == Status::Unready && self.rule(r).status == Status::Clean {
-                    // Need to inform marked child rules they might be
-                    // ready, since they might have been waiting to
-                    // build this one.
-                    grandchildren.extend(self.rule(r).outputs.iter()
-                                         .flat_map(|o| self[*o].children.iter()).map(|&c| c)
-                                         .filter(|&c| self.rule(c).status == Status::Unready));
-                }
-            }
-            children = grandchildren;
+        for c in children {
+            // Next time examine the children to see if we can build them.
+            self.definitely_mark(c);
         }
     }
 
@@ -2145,8 +2135,14 @@ impl Build {
             let mut written_to_files = stat.written_to_files();
             let mut read_from_files = stat.read_from_files();
             let mut rule_actually_failed = false;
-            // First clear out the listing of inputs and outputs
-            self.rule_mut(r).all_inputs.clear();
+            // First clear out the listing of inputs and outputs.
+            let old_inputs: Vec<_> = self.rule_mut(r).all_inputs.drain().collect();
+            for i in old_inputs {
+                // Make sure to clear out "children" relationship when
+                // removing inputs.  We'll add back the proper links
+                // later.
+                self[i].children.remove(&r);
+            }
             let mut old_outputs: HashSet<FileRef> =
                 self.rule_mut(r).all_outputs.drain().collect();
             // First we add in our explicit inputs.  This is done
