@@ -483,46 +483,29 @@ impl Build {
             print!("... ");
         }).expect("Error setting Ctrl-C handler");
 
+        // Start by reading any facfiles in the git repository.
+        for f in self.filerefs() {
+            if self[f].is_fac_file() {
+                if let Err(e) = self.read_facfile(f) {
+                    println!("{}", e);
+                    self.unlock_repository_and_exit(1);
+                }
+            }
+        }
+        if self.rulerefs().len() == 0 {
+            println!("Please git add a .fac file containing rules!");
+            self.unlock_repository_and_exit(1);
+        }
+
         let mut first_time_through = true;
         while first_time_through || self.flags.continual {
             first_time_through = false;
             self.lock_repository();
-            let mut still_doing_facfiles = true;
-            while still_doing_facfiles || self.num_building() > 0 {
-                still_doing_facfiles = false;
-                for f in self.filerefs() {
-                    if self[f].is_fac_file() && self[f].rules_defined.is_none() && self.is_file_done(f) {
-                        if let Err(e) = self.read_facfile(f) {
-                            println!("{}", e);
-                            self.unlock_repository_and_exit(1);
-                        }
-                        still_doing_facfiles = true;
-                    }
-                }
-                let rules: Vec<_> = std::mem::replace(&mut self.marked_rules, Vec::new());
-                for r in rules {
-                    self.check_cleanliness(r);
-                }
-                assert_eq!(self.statuses[Status::Marked].len(), 0);
-                if self.num_building() < self.flags.jobs {
-                    let rules: Vec<_> = self.statuses[Status::Dirty].iter()
-                        .take(self.flags.jobs - self.num_building())
-                        .map(|&r| r).collect();
-                    for r in rules {
-                        still_doing_facfiles = true;
-                        if let Err(e) = self.spawn(r) {
-                            println!("I got err {}", e);
-                        }
-                    }
-                }
-                if self.num_building() > 0 {
-                    self.wait_for_a_rule();
-                }
-            }
-            if self.rulerefs().len() == 0 {
-                println!("Please git add a .fac file containing rules!");
-                self.unlock_repository_and_exit(1);
-            }
+
+            // First build the facfiles, which should already be
+            // marked, and should get marked as we go.
+            self.build_dirty();
+
             if self.flags.clean {
                 for o in self.filerefs() {
                     if self.is_git_path(&self[o].path) {
@@ -565,116 +548,8 @@ impl Build {
 
             // Now we start building the actual targets.
             self.mark_all();
-            assert_eq!(self.statuses[Status::Marked].len(), self.marked_rules.len());
-            let rules: Vec<_> = std::mem::replace(&mut self.marked_rules, Vec::new());
-            for r in rules {
-                self.check_cleanliness(r);
-            }
-            assert_eq!(self.statuses[Status::Marked].len(), 0);
-            while self.statuses[Status::Dirty].len() > 0
-                || self.statuses[Status::Unready].len() > 0
-                || self.num_building() > 0
-            {
-                if self.num_building() < self.flags.jobs {
-                    let rules: Vec<_> = self.statuses[Status::Dirty].iter()
-                        .take(self.flags.jobs - self.num_building())
-                        .map(|&r| r).collect();
-                    for r in rules {
-                        if let Err(e) = self.spawn(r) {
-                            println!("I got err {}", e);
-                        }
-                    }
-                }
-                if self.num_building() > 0 {
-                    self.wait_for_a_rule();
-                }
+            self.build_dirty();
 
-                if self.statuses[Status::Dirty].len() == 0
-                    && self.num_building() == 0
-                    && self.statuses[Status::Unready].len() > 0
-                {
-                    // Looks like we failed to build everything! There are
-                    // a few possibilities, including the possibility that
-                    // one of these unready rules is actually ready after
-                    // all.
-                    let rules: Vec<_>
-                        = self.statuses[Status::Unready].iter().map(|&r| r).collect();
-                    for r in rules {
-                        let mut need_to_try_again = false;
-                        let mut have_explained_failure = false;
-                        // FIXME figure out ignore_missing_files,
-                        // happy_building_at_least_one, etc. from
-                        // build.c:1171
-                        let inputs: Vec<_> = self.rule(r).all_inputs.iter()
-                            .map(|&i| i).collect();
-                        for i in inputs {
-                            if self[i].rule.is_none() && !self[i].is_in_git &&
-                                !self.is_git_path(&self[i].path) &&
-                                self[i].path.starts_with(&self.flags.root)
-                            {
-                                if self[i].exists() {
-                                    let thepath = self[i].path.canonicalize().unwrap();
-                                    if thepath != self[i].path {
-                                        // The canonicalization of the
-                                        // path has changed! See issue #17
-                                        // which this fixes. Presumably a
-                                        // directory has been created or a
-                                        // symlink modified, and the path
-                                        // is now different.
-                                        let t = self.new_file(thepath);
-                                        // There is a small memory leak
-                                        // here, since we don't free the
-                                        // old target.  The trouble is
-                                        // that we don't know if it is
-                                        // otherwise in use, e.g. as the
-                                        // output or input of a different
-                                        // rule.  This *shouldn't* be
-                                        // common, since once the path
-                                        // exists, future runs will not
-                                        // run into this leak.
-                                        self.rule_mut(r).all_inputs.remove(&i);
-                                        self.rule_mut(r).all_inputs.insert(t);
-                                        // Now replace the target in the
-                                        // vec of explicit inputs.
-                                        for ii in self.rule_mut(r).inputs.iter_mut() {
-                                            if *ii == i {
-                                                *ii = t;
-                                            }
-                                        }
-                                        need_to_try_again = true;
-                                        // } else if git_add_files {
-                                        //     git_add(r->inputs[i]->path);
-                                        //     need_to_try_again = true;
-                                    } else {
-                                        have_explained_failure = true;
-                                        println!("error: add {:?} to git, which is required for {}",
-                                                 self.pretty_path_peek(i),
-                                                 self.pretty_reason(r));
-                                    }
-                                } else {
-                                    have_explained_failure = true;
-                                    println!("error: missing file {:?}, which is required for {}",
-                                             self.pretty_path_peek(i), self.pretty_reason(r));
-                                }
-                            }
-                        }
-                        if need_to_try_again {
-                            self.check_cleanliness(r);
-                            break;
-                        } else if have_explained_failure {
-                            self.failed(r);
-                        } else {
-                            println!("weird failure: {} {:?}", self.pretty_rule(r),
-                                     self.rule(r).status);
-                            self.set_status(r, Status::Unknown);
-                            self.check_cleanliness(r);
-                            println!("    actual cleanliness of {} is {:?}", self.pretty_rule(r),
-                                     self.rule(r).status);
-                            self.failed(r);
-                        }
-                    }
-                }
-            }
             self.unlock_repository().unwrap();
             let result = self.summarize_build_results();
             if result != 0 && !self.flags.continual {
@@ -817,6 +692,121 @@ impl Build {
             }
         }
         0
+    }
+    /// Build the dirty rules
+    fn build_dirty(&mut self) {
+        while self.statuses[Status::Dirty].len() > 0
+            || self.statuses[Status::Unready].len() > 0
+            || self.statuses[Status::Marked].len() > 0
+            || self.num_building() > 0
+        {
+            assert_eq!(self.statuses[Status::Marked].len(), self.marked_rules.len());
+            let rules: Vec<_> = std::mem::replace(&mut self.marked_rules, Vec::new());
+            for r in rules {
+                self.check_cleanliness(r);
+            }
+
+            if self.num_building() < self.flags.jobs {
+                let rules: Vec<_> = self.statuses[Status::Dirty].iter()
+                    .take(self.flags.jobs - self.num_building())
+                    .map(|&r| r).collect();
+                for r in rules {
+                    if let Err(e) = self.spawn(r) {
+                        println!("I got err {}", e);
+                    }
+                }
+            }
+            if self.num_building() > 0 {
+                self.wait_for_a_rule();
+            }
+
+            if self.statuses[Status::Dirty].len() == 0
+                && self.statuses[Status::Marked].len() == 0
+                && self.num_building() == 0
+                && self.statuses[Status::Unready].len() > 0
+            {
+                // Looks like we failed to build everything! There are
+                // a few possibilities, including the possibility that
+                // one of these unready rules is actually ready after
+                // all.
+                let rules: Vec<_>
+                    = self.statuses[Status::Unready].iter().map(|&r| r).collect();
+                for r in rules {
+                    let mut need_to_try_again = false;
+                    let mut have_explained_failure = false;
+                    // FIXME figure out ignore_missing_files,
+                    // happy_building_at_least_one, etc. from
+                    // build.c:1171
+                    let inputs: Vec<_> = self.rule(r).all_inputs.iter()
+                        .map(|&i| i).collect();
+                    for i in inputs {
+                        if self[i].rule.is_none() && !self[i].is_in_git &&
+                            !self.is_git_path(&self[i].path) &&
+                            self[i].path.starts_with(&self.flags.root)
+                        {
+                            if self[i].exists() {
+                                let thepath = self[i].path.canonicalize().unwrap();
+                                if thepath != self[i].path {
+                                    // The canonicalization of the
+                                    // path has changed! See issue #17
+                                    // which this fixes. Presumably a
+                                    // directory has been created or a
+                                    // symlink modified, and the path
+                                    // is now different.
+                                    let t = self.new_file(thepath);
+                                    // There is a small memory leak
+                                    // here, since we don't free the
+                                    // old target.  The trouble is
+                                    // that we don't know if it is
+                                    // otherwise in use, e.g. as the
+                                    // output or input of a different
+                                    // rule.  This *shouldn't* be
+                                    // common, since once the path
+                                    // exists, future runs will not
+                                    // run into this leak.
+                                    self.rule_mut(r).all_inputs.remove(&i);
+                                    self.rule_mut(r).all_inputs.insert(t);
+                                    // Now replace the target in the
+                                    // vec of explicit inputs.
+                                    for ii in self.rule_mut(r).inputs.iter_mut() {
+                                        if *ii == i {
+                                            *ii = t;
+                                        }
+                                    }
+                                    need_to_try_again = true;
+                                    // } else if git_add_files {
+                                    //     git_add(r->inputs[i]->path);
+                                    //     need_to_try_again = true;
+                                } else {
+                                    have_explained_failure = true;
+                                    println!("error: add {:?} to git, which is required for {}",
+                                             self.pretty_path_peek(i),
+                                             self.pretty_reason(r));
+                                }
+                            } else {
+                                have_explained_failure = true;
+                                println!("error: missing file {:?}, which is required for {}",
+                                         self.pretty_path_peek(i), self.pretty_reason(r));
+                            }
+                        }
+                    }
+                    if need_to_try_again {
+                        self.check_cleanliness(r);
+                        break;
+                    } else if have_explained_failure {
+                        self.failed(r);
+                    } else {
+                        println!("weird failure: {} {:?}", self.pretty_rule(r),
+                                 self.rule(r).status);
+                        self.set_status(r, Status::Unknown);
+                        self.check_cleanliness(r);
+                        println!("    actual cleanliness of {} is {:?}", self.pretty_rule(r),
+                                 self.rule(r).status);
+                        self.failed(r);
+                    }
+                }
+            }
+        }
     }
     /// either take a lock on the repository, or exit
     fn lock_path(&self) -> PathBuf {
@@ -1505,6 +1495,10 @@ impl Build {
     }
 
     fn mark_all(&mut self) {
+        vvvprintln!("   {} unknown", self.statuses[Status::Unknown].len());
+        vvvprintln!("   {} clean", self.statuses[Status::Clean].len());
+        vvvprintln!("   {} marked", self.statuses[Status::Marked].len());
+        vvvprintln!("   {} built", self.statuses[Status::Built].len());
         let to_mark: Vec<_> = if self.flags.targets.len() > 0 {
             let mut m = Vec::new();
             let targs = self.flags.targets.clone();
@@ -1523,15 +1517,17 @@ impl Build {
                 .map(|&r| r).filter(|&r| self.rule(r).is_default).collect()
         };
         for r in to_mark {
+            vvvprintln!("marking {}", self.pretty_reason(r));
             self.mark(r);
         }
     }
 
-    fn is_file_done(&self, f: FileRef) -> bool {
+    /// Is this file built yet?
+    pub fn is_file_done(&self, f: FileRef) -> bool {
         if let Some(r) = self[f].rule {
             self.rule(r).status.is_done()
         } else {
-            // No rule to build it, so it is inherently done!x
+            // No rule to build it, so it is inherently done!
             true
         }
     }
@@ -1769,6 +1765,7 @@ impl Build {
         } else {
             vvprintln!(" *** Clean: {}", self.pretty_rule(r));
             self.set_status(r, Status::Clean);
+            self.read_facfiles_from_rule(r);
         }
     }
 
@@ -1835,13 +1832,31 @@ impl Build {
         }
     }
 
+    fn read_facfiles_from_rule(&mut self, r: RuleRef) {
+        let outputs: Vec<_> = self.rule(r).outputs.iter().map(|&o| o)
+            .filter(|&o| self[o].is_fac_file()).collect();
+        for o in outputs {
+            if let Some(_) = self[o].rules_defined {
+                // We have read this facfile before, so we need to
+                // be cautious, because rules may have changed.
+                unimplemented!()
+            }
+            if let Err(e) = self.read_facfile(o) {
+                println!("{}", e);
+                self.unlock_repository_and_exit(1);
+            }
+        }
+    }
+
     fn built(&mut self, r: RuleRef) {
         self.set_status(r, Status::Built);
+        // If we built a facfile, we should then read it!
+        self.read_facfiles_from_rule(r);
         // Only check "unready" children to see if they might now be
         // ready to be built.  Other children might not be desired as
         // part of our build, either because they are non-default, or
         // because the user requested specific targets.
-        let outputs: Vec<FileRef> = self.rule(r).all_outputs.iter().map(|&o| o).collect();
+        let outputs: Vec<_> = self.rule(r).all_outputs.iter().map(|&o| o).collect();
         for o in outputs {
             self.modified_file(o);
         }
