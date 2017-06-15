@@ -411,6 +411,7 @@ unsafe impl Send for Event {}
 pub struct Build {
     #[allow(dead_code)]
     id: Id,
+    reboot_now: Option<String>,
     files: Vec<File>,
     rules: Vec<Rule>,
     filemap: HashMap<PathBuf, FileRef>,
@@ -442,6 +443,7 @@ pub fn build(fl: flags::Flags) -> i32 {
     // https://github.com/bluss/indexing/blob/master/src/container.rs
     let mut b = Build {
         id: Id::default(),
+        reboot_now: None,
         files: Vec::new(),
         rules: Vec::new(),
         filemap: HashMap::new(),
@@ -462,8 +464,31 @@ pub fn build(fl: flags::Flags) -> i32 {
 }
 
 impl Build {
+    fn reboot(self) -> i32 {
+        let mut b = Build {
+            id: Id::default(),
+            reboot_now: self.reboot_now,
+            files: Vec::new(),
+            rules: Vec::new(),
+            filemap: HashMap::new(),
+            rulemap: HashMap::new(),
+            statuses: StatusMap::new(|| HashSet::new()),
+            marked_rules: Vec::new(),
+            facfiles_used: HashSet::new(),
+            recv_rule_status: self.recv_rule_status,
+            send_rule_status: self.send_rule_status,
+            process_killers: HashMap::new(),
+            am_interrupted: false,
+            flags: self.flags,
+        };
+        for ref f in git::ls_files() {
+            b.new_file_private(f, true);
+        }
+        b.build()
+    }
+
     /// Run the actual build!
-    pub fn build(&mut self) -> i32 {
+    pub fn build(mut self) -> i32 {
         if self.flags.parse_only.is_some() {
             let p = self.flags.run_from_directory.join(self.flags.parse_only
                                                        .as_ref().unwrap());
@@ -479,11 +504,15 @@ impl Build {
             self.flags.jobs = num_cpus::get();
             vprintln!("Using {} jobs", self.flags.jobs);
         }
-        let ctrl_c_sender = self.send_rule_status.clone();
-        ctrlc::set_handler(move || {
-            ctrl_c_sender.send(Event::CtrlC).expect("Error reporting Ctrl-C");
-            print!("... ");
-        }).expect("Error setting Ctrl-C handler");
+        if self.reboot_now.is_none() {
+            let ctrl_c_sender = self.send_rule_status.clone();
+            ctrlc::set_handler(move || {
+                ctrl_c_sender.send(Event::CtrlC).expect("Error reporting Ctrl-C");
+                print!("... ");
+            }).expect("Error setting Ctrl-C handler");
+        } else {
+            self.reboot_now = None;
+        }
 
         // Start by reading any facfiles in the git repository.
         for f in self.filerefs() {
@@ -555,8 +584,13 @@ impl Build {
             // Now we start building the actual targets.
             self.mark_all();
             self.build_dirty();
-
             self.unlock_repository().unwrap();
+
+            if let Some(reason) = self.reboot_now.clone() {
+                println!("Rebooting: {}", reason);
+                return self.reboot();
+            }
+
             let result = self.summarize_build_results();
             if result != 0 && !self.flags.continual {
                 return result;
@@ -592,10 +626,17 @@ impl Build {
             }
             if self.flags.continual {
                 println!("I am going to do a continual thingy");
+                self.mark_all();
+                if self.statuses[Status::Marked].len() > 0 {
+                    // We must have reread a facfile, since we have
+                    // something marked now.
+                    println!("Did I reread a facfile?");
+                    continue;
+                }
                 let (notify_tx, notify_rx) = std::sync::mpsc::channel();
                 let mut watcher =
                     notify::watcher(notify_tx,
-                                    std::time::Duration::from_secs(3)).unwrap();
+                                    std::time::Duration::from_secs(1)).unwrap();
                 let srs = self.send_rule_status.clone();
                 std::thread::spawn(move || {
                     loop {
@@ -671,9 +712,11 @@ impl Build {
                             }
                         },
                         Err(e) => {
-                            println!("error receiving status: {}", e);
+                            println!("error receiving status! {}", e);
                             self.am_interrupted = true;
-                            self.unlock_repository_and_exit(1);
+                            if self.reboot_now.is_none() {
+                                self.unlock_repository_and_exit(1);
+                            }
                         },
                         Ok(Event::CtrlC) => {
                             self.am_interrupted = true;
@@ -696,6 +739,7 @@ impl Build {
             || self.num_building() > 0
         {
             vvvprintln!("   {} unknown", self.statuses[Status::Unknown].len());
+            vvvprintln!("   {} unready", self.statuses[Status::Unready].len());
             vvvprintln!("   {} clean", self.statuses[Status::Clean].len());
             vvvprintln!("   {} marked", self.statuses[Status::Marked].len());
             vvvprintln!("   {} built", self.statuses[Status::Built].len());
@@ -708,7 +752,11 @@ impl Build {
                     // Mark for checking the children of this rule, as
                     // they may now be buildable.
                     let children: HashSet<_> = self.rule(r).all_outputs.iter()
-                        .flat_map(|&o| self[o].children.iter()).map(|&c| c).collect();
+                        .flat_map(|&o| self[o].children.iter()).map(|&c| c)
+                        .filter(|&c| self.rule(c).status == Status::Unready
+                                || self.rule(c).status == Status::Failed
+                                || self.rule(c).status == Status::Clean
+                                || self.rule(c).status == Status::Built).collect();
                     for c in children {
                         self.definitely_mark(c);
                     }
@@ -728,12 +776,23 @@ impl Build {
             if self.num_building() > 0 {
                 self.wait_for_a_rule();
             }
+            if let Some(ref reason) = self.reboot_now {
+                println!("Woo hoo, rebooting! {}", reason);
+                return;
+            }
 
             if self.statuses[Status::Dirty].len() == 0
                 && self.statuses[Status::Marked].len() == 0
                 && self.num_building() == 0
                 && self.statuses[Status::Unready].len() > 0
             {
+                vvvprintln!("  !!! {} unknown", self.statuses[Status::Unknown].len());
+                vvvprintln!("  !!! {} unready", self.statuses[Status::Unready].len());
+                vvvprintln!("  !!! {} clean", self.statuses[Status::Clean].len());
+                vvvprintln!("  !!! {} marked", self.statuses[Status::Marked].len());
+                vvvprintln!("  !!! {} built", self.statuses[Status::Built].len());
+                vvvprintln!("  !!! {} failed", self.statuses[Status::Failed].len());
+                vvvprintln!("  !!! {} building", self.statuses[Status::Building].len());
                 // Looks like we failed to build everything! There are
                 // a few possibilities, including the possibility that
                 // one of these unready rules is actually ready after
@@ -1848,10 +1907,14 @@ impl Build {
         let outputs: Vec<_> = self.rule(r).outputs.iter().map(|&o| o)
             .filter(|&o| self[o].is_fac_file()).collect();
         for o in outputs {
-            if let Some(_) = self[o].rules_defined {
+            if self[o].rules_defined.is_some() {
                 // We have read this facfile before, so we need to
                 // be cautious, because rules may have changed.
-                unimplemented!()
+                self.reboot_now = Some(format!("Restarting so we will reload {:?}",
+                                               self.pretty_path_peek(o)));
+                self.am_interrupted = true;
+                println!("I am rebooting now! {}", self.reboot_now.as_ref().unwrap());
+                return;
             }
             if let Err(e) = self.read_facfile(o) {
                 println!("{}", e);
@@ -1977,12 +2040,19 @@ impl Build {
 
     fn num_building(&self) -> usize {
         if !self.flags.dry_run {
-            assert_eq!(self.process_killers.len(), self.statuses[Status::Building].len());
+            if self.process_killers.len() != self.statuses[Status::Building].len() {
+                for &k in self.process_killers.keys() {
+                    println!("process killer for {}", self.pretty_rule(k));
+                }
+                for &r in self.statuses[Status::Building].iter() {
+                    println!("building {}", self.pretty_rule(r));
+                }
+            }
+            // assert_eq!(self.process_killers.len(), self.statuses[Status::Building].len());
         }
         self.statuses[Status::Building].len()
     }
-    /// Actually run a command.  This needs to update the inputs and
-    /// outputs.  FIXME
+    /// Actually run a command.
     pub fn spawn(&mut self, r: RuleRef) -> io::Result<()> {
         {
             // Before running, let us fill in any hash info for
@@ -1991,7 +2061,7 @@ impl Build {
                 .filter(|&w| self[*w].hashstat.unfinished()).map(|&w|w).collect();
             for w in v {
                 let p = self[w].path.clone(); // ugly workaround for borrow checker
-                self[w].hashstat.finish(&p).unwrap();
+                self[w].hashstat.finish(&p).ok();
             }
         }
         let srs = self.send_rule_status.clone();
@@ -2050,7 +2120,9 @@ impl Build {
             Err(e) => {
                 println!("error receiving status: {}", e);
                 self.am_interrupted = true;
-                self.unlock_repository_and_exit(1);
+                if self.reboot_now.is_none() {
+                    self.unlock_repository_and_exit(1);
+                }
             },
             Ok(Event::CtrlC) => {
                 if !self.am_interrupted {
