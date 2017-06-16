@@ -12,6 +12,7 @@ extern crate clap;
 extern crate ctrlc;
 extern crate metrohash;
 extern crate notify;
+extern crate colored;
 
 /// A module with just the version in it.
 pub mod version;

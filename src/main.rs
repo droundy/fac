@@ -17,6 +17,7 @@ extern crate libc;
 extern crate ctrlc;
 extern crate metrohash;
 extern crate notify;
+extern crate colored;
 
 mod git;
 pub mod refset;

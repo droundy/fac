@@ -19,6 +19,7 @@ use git;
 use ctrlc;
 use notify;
 use notify::{Watcher};
+use colored::{Colorize, ColoredString};
 
 pub mod hashstat;
 pub mod flags;
@@ -37,20 +38,35 @@ static mut VERBOSITY: u64 = 0;
 /// print, but that would be tedious.
 macro_rules! vprintln {
     () => {{ if unsafe { VERBOSITY > 0 } { println!() } }};
-    ($fmt:expr) => {{ if unsafe { VERBOSITY > 0 } { println!($fmt) } }};
-    ($fmt:expr, $($arg:tt)*) => {{ if unsafe { VERBOSITY > 0 } { println!($fmt, $($arg)*) } }};
+    ($fmt:expr) => {{ if unsafe { VERBOSITY > 0 } { println!("{}", $fmt.blue()) } }};
+    ($fmt:expr, $($arg:tt)*) => {{
+        if unsafe { VERBOSITY > 0 } { println!("{}", format!($fmt, $($arg)*).blue()) } }};
 }
 
 macro_rules! vvprintln {
     () => {{ if unsafe { VERBOSITY > 1 } { println!() } }};
-    ($fmt:expr) => {{ if unsafe { VERBOSITY > 1 } { println!($fmt) } }};
-    ($fmt:expr, $($arg:tt)*) => {{ if unsafe { VERBOSITY > 1 } { println!($fmt, $($arg)*) } }};
+    ($fmt:expr) => {{ if unsafe { VERBOSITY > 1 } { println!("{}", $fmt.magenta()) } }};
+    ($fmt:expr, $($arg:tt)*) => {{
+        if unsafe { VERBOSITY > 1 } { println!("{}", format!($fmt, $($arg)*).magenta()) } }};
 }
 
 macro_rules! vvvprintln {
     () => {{ if unsafe { VERBOSITY > 2 } { println!() } }};
-    ($fmt:expr) => {{ if unsafe { VERBOSITY > 2 } { println!($fmt) } }};
-    ($fmt:expr, $($arg:tt)*) => {{ if unsafe { VERBOSITY > 2 } { println!($fmt, $($arg)*) } }};
+    ($fmt:expr) => {{ if unsafe { VERBOSITY > 2 } { println!("{}", $fmt.yellow()) } }};
+    ($fmt:expr, $($arg:tt)*) => {{
+        if unsafe { VERBOSITY > 2 } { println!("{}", format!($fmt, $($arg)*).yellow()) } }};
+}
+
+macro_rules! failln {
+    ($fmt:expr) => {{ println!("{}", fail_color($fmt) ) }};
+    ($fmt:expr, $($arg:tt)*) => {{ println!("{}", fail_color(format!($fmt, $($arg)*))) }};
+}
+
+fn fail_color<T: AsRef<str>>(s: T) -> ColoredString {
+    s.as_ref().red().bold()
+}
+fn happy_color<T: AsRef<str>>(s: T) -> ColoredString {
+    s.as_ref().green().bold()
 }
 
 /// `Id` is a type that should be unique to each Build.  This was
@@ -533,6 +549,7 @@ impl Build {
         // First build the facfiles, which should already be marked,
         // and should get marked as we go.
         self.build_dirty();
+        vprintln!("Finished building and reading facfiles.");
 
         if self.flags.clean {
             for o in self.filerefs() {
@@ -626,7 +643,12 @@ impl Build {
             }
             if self.flags.continual {
                 println!("I am going to do a continual thingy");
-                self.mark_all();
+                let rules: Vec<_> = self.statuses[Status::Built].iter()
+                    .map(|&r| r).collect();
+                for r in rules {
+                    self.set_status(r, Status::Clean);
+                }
+                self.mark_all(); // this marks only currently Unknown things
                 if self.statuses[Status::Marked].len() > 0 {
                     // We must have reread a facfile, since we have
                     // something marked now.
@@ -866,8 +888,8 @@ impl Build {
                     } else if have_explained_failure {
                         self.failed(r);
                     } else {
-                        println!("weird failure: {} {:?}", self.pretty_rule(r),
-                                 self.rule(r).status);
+                        failln!("weird failure: {} {:?}",
+                                self.pretty_rule(r), self.rule(r).status);
                         self.set_status(r, Status::Unknown);
                         self.check_cleanliness(r);
                         println!("    actual cleanliness of {} is {:?}", self.pretty_rule(r),
@@ -1953,10 +1975,10 @@ impl Build {
 
     fn summarize_build_results(&self) -> i32 {
         if self.statuses[Status::Failed].len() > 0 {
-            println!("Build failed {}/{} failures",
-                     self.statuses[Status::Failed].len(),
-                     self.statuses[Status::Failed].len()
-                     + self.statuses[Status::Built].len());
+            failln!("Build failed {}/{} failures",
+                    self.statuses[Status::Failed].len(),
+                    self.statuses[Status::Failed].len()
+                    + self.statuses[Status::Built].len());
             if self.flags.dry_run {
                 println!("But it is only a dry run, so it's all cool!");
                 return 0;
@@ -1964,10 +1986,10 @@ impl Build {
             return self.statuses[Status::Failed].len() as i32;
         }
         if let Some(err) = self.check_strictness() {
-            println!("Build failed due to {}!", err);
+            failln!("Build failed due to {}!", err);
             1
         } else {
-            println!("Build succeeded!");
+            println!("{}", happy_color("Build succeeded!"));
             0
         }
     }
@@ -2195,7 +2217,7 @@ impl Build {
             + self.statuses[Status::Unready].len();
         let message: String;
         let abort = |sel: &mut Build, stat: &bigbro::Status, errmsg: &str| -> io::Result<()> {
-            println!("error: {}", errmsg);
+            failln!("error: {}", errmsg);
             sel.failed(r);
             sel.clean_output(stat);
             let ff = sel.rule(r).facfile;
@@ -2354,19 +2376,20 @@ impl Build {
             }
             if rule_actually_failed {
                 message = format!("build failed: {}", self.pretty_rule(r));
-                println!("!{}/{}!: {}",
-                         num_built, num_total, message);
+                let header = fail_color(format!("!{}/{}!:", num_built, num_total));
+                println!("{} {}", header, fail_color(&message));
                 self.failed(r);
                 self.clean_output(&stat);
             } else {
                 message = self.pretty_rule(r);
-                println!("[{}/{}]: {}", num_built, num_total, &message);
+                let header = happy_color(format!("[{}/{}]:", num_built, num_total));
+                println!("{} {}", header, message);
                 self.built(r);
             }
         } else {
             message = format!("build failed: {}", self.pretty_rule(r));
-            println!("!{}/{}!: {}",
-                     num_built, num_total, message);
+            let header = fail_color(format!("!{}/{}!:", num_built, num_total));
+            println!("{} {}", header, fail_color(&message));
             self.failed(r);
             self.clean_output(&stat);
         }
@@ -2376,7 +2399,7 @@ impl Build {
             f.unwrap().read_to_string(&mut contents)?;
             if contents.len() > 0 {
                 println!("{}", contents);
-                println!("end of output from: {}", &message);
+                println!("{}: {}", fail_color("end of output from"), &message);
             }
         }
         let ff = self.rule(r).facfile;
