@@ -18,6 +18,7 @@ extern crate ctrlc;
 extern crate metrohash;
 extern crate notify;
 extern crate colored;
+extern crate isatty;
 
 mod git;
 pub mod refset;

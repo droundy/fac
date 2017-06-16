@@ -13,6 +13,7 @@ extern crate ctrlc;
 extern crate metrohash;
 extern crate notify;
 extern crate colored;
+extern crate isatty;
 
 /// A module with just the version in it.
 pub mod version;

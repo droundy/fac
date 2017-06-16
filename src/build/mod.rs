@@ -20,6 +20,8 @@ use ctrlc;
 use notify;
 use notify::{Watcher};
 use colored::{Colorize, ColoredString};
+use colored;
+use isatty;
 
 pub mod hashstat;
 pub mod flags;
@@ -453,6 +455,10 @@ pub struct Build {
 
 /// Construct a new `Build` and use it to build.
 pub fn build(fl: flags::Flags) -> i32 {
+    if !isatty::stdout_isatty() {
+        // Do not color output if stdout is not a tty.
+        colored::control::set_override(false);
+    }
     let (tx,rx) = std::sync::mpsc::channel();
     unsafe { VERBOSITY = fl.verbosity; }
     // This approach to type witnesses is taken from
