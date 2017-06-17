@@ -325,6 +325,9 @@ pub struct Rule {
     linenum: usize,
     command: OsString,
     is_default: bool,
+
+    start_time: Option<std::time::Instant>,
+    build_time: std::time::Duration,
 }
 
 impl Rule {
@@ -648,7 +651,6 @@ impl Build {
                 }
             }
             if self.flags.continual {
-                println!("I am going to do a continual thingy");
                 let rules: Vec<_> = self.statuses[Status::Built].iter()
                     .map(|&r| r).collect();
                 for r in rules {
@@ -701,7 +703,7 @@ impl Build {
                                       notify::RecursiveMode::NonRecursive).ok();
                     }
                 }
-                println!("I am about to match...");
+                println!("Waiting for a file to change...");
                 let mut found_something = false;
                 while !found_something {
                     match self.recv_rule_status.recv() {
@@ -752,8 +754,6 @@ impl Build {
                             self.unlock_repository_and_exit(1);
                         },
                     }
-                    println!("I finished match... {} dirty",
-                             self.statuses[Status::Dirty].len());
                 }
             }
         }
@@ -1054,6 +1054,8 @@ impl Build {
             linenum: linenum,
             command: OsString::from(command),
             is_default: is_default,
+            build_time: std::time::Duration::from_secs(1),
+            start_time: None,
         });
         self.statuses[Status::Unknown].insert(r);
         Ok(r)
@@ -2110,6 +2112,7 @@ impl Build {
             .blind(self.flags.blind)
             .current_dir(&wd)
             .stdin(bigbro::Stdio::null());
+        self.rule_mut(r).start_time = Some(std::time::Instant::now());
         if let Some(ref logdir) = self.flags.log_output {
             std::fs::create_dir_all(logdir)?;
             let d = self.flags.root.join(logdir).join(self.sanitize_rule(r));
@@ -2126,10 +2129,11 @@ impl Build {
     }
     fn wait_for_a_rule(&mut self) {
         match self.recv_rule_status.recv() {
-            Ok(Event::Finished(rr,Ok(stat))) =>
+            Ok(Event::Finished(rr,Ok(stat))) => {
                 if let Err(e) = self.finish_rule(rr, stat) {
                     println!("error finishing rule? {}", e);
-                },
+                }
+            },
             Ok(Event::Finished(rr,Err(e))) => {
                 let num_built = 1 + self.statuses[Status::Failed].len()
                     + self.statuses[Status::Built].len();
@@ -2388,7 +2392,12 @@ impl Build {
                 self.clean_output(&stat);
             } else {
                 message = self.pretty_rule(r);
-                let header = happy_color(format!("[{}/{}]:", num_built, num_total));
+                let instant = self.rule_mut(r).start_time.take().unwrap();
+                self.rule_mut(r).build_time = instant.elapsed();
+                let mut time = self.rule(r).build_time.as_secs() as f64;
+                time += (self.rule(r).build_time.subsec_nanos() as f64)*1e-9;
+                let header = format!("{}/{} [{:.2}s]:",
+                                                 num_built, num_total, time);
                 println!("{} {}", header, message);
                 self.built(r);
             }
@@ -2404,7 +2413,7 @@ impl Build {
             f.unwrap().read_to_string(&mut contents)?;
             if contents.len() > 0 {
                 println!("{}", contents);
-                println!("{}: {}", fail_color("end of output from"), &message);
+                failln!("end of output from: {}", &message);
             }
         }
         let ff = self.rule(r).facfile;
