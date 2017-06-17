@@ -2220,6 +2220,7 @@ impl Build {
             + self.statuses[Status::Built].len()
             + self.statuses[Status::Building].len()
             + self.statuses[Status::Dirty].len()
+            + self.statuses[Status::Marked].len()
             + self.statuses[Status::Unready].len();
         let message: String;
         let abort = |sel: &mut Build, stat: &bigbro::Status, errmsg: &str| -> io::Result<()> {
@@ -2382,8 +2383,7 @@ impl Build {
             }
             if rule_actually_failed {
                 message = format!("build failed: {}", self.pretty_rule(r));
-                let header = fail_color(format!("!{}/{}!:", num_built, num_total));
-                println!("{} {}", header, fail_color(&message));
+                failln!("!{}/{}! {}", num_built, num_total, message);
                 self.failed(r);
                 self.clean_output(&stat);
             } else {
@@ -2394,8 +2394,7 @@ impl Build {
             }
         } else {
             message = format!("build failed: {}", self.pretty_rule(r));
-            let header = fail_color(format!("!{}/{}!:", num_built, num_total));
-            println!("{} {}", header, fail_color(&message));
+            failln!("!{}/{}! {}", num_built, num_total, message);
             self.failed(r);
             self.clean_output(&stat);
         }
