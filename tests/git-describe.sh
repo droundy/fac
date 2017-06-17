@@ -27,6 +27,8 @@ grep 0.0 version
 
 grep git top.fac.tum
 
+sleep 1
+
 cat > AUTHOR <<EOF
 David Roundy
 EOF
