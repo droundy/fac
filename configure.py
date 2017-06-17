@@ -199,6 +199,7 @@ if have_checkinstall and have_help2man:
 > web/fac-latest.deb
 < fac-static
 < fac.1
+C target
 ''')
 else:
     print("# no checkinstall+help2man, so we won't build a debian package")
@@ -243,6 +244,7 @@ c __pycache__
 c -fac
 C doc-pak
 c -pak
+c .deb
 
 | cp -a target/doc web/
 > web/doc/fac/index.html
@@ -287,6 +289,7 @@ c __pycache__
 c -fac
 C doc-pak
 c -pak
+c .deb
 ''')
 except:
     print('# no rust for windows')
