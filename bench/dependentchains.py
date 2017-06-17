@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-import os, hashlib, time, numpy, sys, datetime
+import os, hashlib, time, sys, datetime
 
 name='dependent-chain'
 
