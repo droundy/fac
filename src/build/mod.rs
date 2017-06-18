@@ -19,18 +19,63 @@ use git;
 use ctrlc;
 use notify;
 use notify::{Watcher};
-use colored::{Colorize, ColoredString};
-use colored;
+use termcolor;
+use termcolor::{WriteColor};
 use isatty;
 
 pub mod hashstat;
 pub mod flags;
 pub mod env;
 
+lazy_static! {
+    static ref FAILCOLOR: termcolor::ColorSpec = {
+        let mut c = termcolor::ColorSpec::new();
+        c.set_fg(Some(termcolor::Color::Red)).set_bold(true);
+        c
+    };
+    static ref SUCCESSCOLOR: termcolor::ColorSpec = {
+        let mut c = termcolor::ColorSpec::new();
+        c.set_fg(Some(termcolor::Color::Green)).set_intense(true);
+        c
+    };
+    static ref VCOLOR: termcolor::ColorSpec = {
+        let mut c = termcolor::ColorSpec::new();
+        c.set_fg(Some(termcolor::Color::Blue)).set_intense(true);
+        c
+    };
+    static ref VVCOLOR: termcolor::ColorSpec = {
+        let mut c = termcolor::ColorSpec::new();
+        c.set_fg(Some(termcolor::Color::Magenta));
+        c
+    };
+    static ref VVVCOLOR: termcolor::ColorSpec = {
+        let mut c = termcolor::ColorSpec::new();
+        c.set_fg(Some(termcolor::Color::Yellow));
+        c
+    };
+    static ref STDOUT: termcolor::StandardStream = {
+        if !isatty::stdout_isatty() {
+            // Do not color output if stdout is not a tty.
+            termcolor::StandardStream::stdout(termcolor::ColorChoice::Never)
+        } else {
+            termcolor::StandardStream::stdout(termcolor::ColorChoice::Auto)
+        }
+    };
+}
+
 /// VERBOSITY is used to enable our vprintln macro to know the
 /// verbosity.  This is a bit ugly, but is needed due to rust macros
 /// being hygienic.
 static mut VERBOSITY: u64 = 0;
+
+macro_rules! colorprintln {
+    ($c:expr, $($arg:expr),*) => {{
+        let mut stdout = STDOUT.lock();
+        stdout.set_color(&*$c).ok();
+        writeln!(stdout, $($arg),*).ok();
+        stdout.reset().ok();
+    }};
+}
 
 /// The `vprintln!` macro does a println! only if the --verbose flag
 /// is specified.  It is written as a macro because if it were a
@@ -38,37 +83,27 @@ static mut VERBOSITY: u64 = 0;
 /// regardless of the verbosity (thus slowing things down).
 /// Equivalently, we could write an if statement for each verbose
 /// print, but that would be tedious.
-macro_rules! vprintln {
-    () => {{ if unsafe { VERBOSITY > 0 } { println!() } }};
-    ($fmt:expr) => {{ if unsafe { VERBOSITY > 0 } { println!("{}", $fmt.blue()) } }};
-    ($fmt:expr, $($arg:tt)*) => {{
-        if unsafe { VERBOSITY > 0 } { println!("{}", format!($fmt, $($arg)*).blue()) } }};
-}
-
-macro_rules! vvprintln {
-    () => {{ if unsafe { VERBOSITY > 1 } { println!() } }};
-    ($fmt:expr) => {{ if unsafe { VERBOSITY > 1 } { println!("{}", $fmt.magenta()) } }};
-    ($fmt:expr, $($arg:tt)*) => {{
-        if unsafe { VERBOSITY > 1 } { println!("{}", format!($fmt, $($arg)*).magenta()) } }};
-}
-
-macro_rules! vvvprintln {
-    () => {{ if unsafe { VERBOSITY > 2 } { println!() } }};
-    ($fmt:expr) => {{ if unsafe { VERBOSITY > 2 } { println!("{}", $fmt.yellow()) } }};
-    ($fmt:expr, $($arg:tt)*) => {{
-        if unsafe { VERBOSITY > 2 } { println!("{}", format!($fmt, $($arg)*).yellow()) } }};
-}
 
 macro_rules! failln {
-    ($fmt:expr) => {{ println!("{}", fail_color($fmt) ) }};
-    ($fmt:expr, $($arg:tt)*) => {{ println!("{}", fail_color(format!($fmt, $($arg)*))) }};
+    ($($arg:expr),*) => (colorprintln!(FAILCOLOR, $($arg),*));
 }
-
-fn fail_color<T: AsRef<str>>(s: T) -> ColoredString {
-    s.as_ref().red().bold()
+macro_rules! successln {
+    ($($arg:expr),*) => (colorprintln!(SUCCESSCOLOR, $($arg),*));
 }
-fn happy_color<T: AsRef<str>>(s: T) -> ColoredString {
-    s.as_ref().green().bold()
+macro_rules! vprintln {
+    ($($arg:expr),*) => {{
+        if unsafe { VERBOSITY > 0 } { colorprintln!(VCOLOR, $($arg),*) }
+    }}
+}
+macro_rules! vvprintln {
+    ($($arg:expr),*) => {{
+        if unsafe { VERBOSITY > 1 } { colorprintln!(VVCOLOR, $($arg),*) }
+    }}
+}
+macro_rules! vvvprintln {
+    ($($arg:expr),*) => {{
+        if unsafe { VERBOSITY > 2 } { colorprintln!(VVVCOLOR, $($arg),*) }
+    }}
 }
 
 /// `Id` is a type that should be unique to each Build.  This was
@@ -454,14 +489,11 @@ pub struct Build {
     am_interrupted: bool,
 
     flags: flags::Flags,
+    started: std::time::Instant,
 }
 
 /// Construct a new `Build` and use it to build.
 pub fn build(fl: flags::Flags) -> i32 {
-    if !isatty::stdout_isatty() {
-        // Do not color output if stdout is not a tty.
-        colored::control::set_override(false);
-    }
     let (tx,rx) = std::sync::mpsc::channel();
     unsafe { VERBOSITY = fl.verbosity; }
     // This approach to type witnesses is taken from
@@ -481,6 +513,7 @@ pub fn build(fl: flags::Flags) -> i32 {
         process_killers: HashMap::new(),
         am_interrupted: false,
         flags: fl,
+        started: std::time::Instant::now(),
     };
     for ref f in git::ls_files() {
         b.new_file_private(f, true);
@@ -505,6 +538,7 @@ impl Build {
             process_killers: HashMap::new(),
             am_interrupted: false,
             flags: self.flags,
+            started: std::time::Instant::now(),
         };
         for ref f in git::ls_files() {
             b.new_file_private(f, true);
@@ -603,6 +637,7 @@ impl Build {
         let mut first_time_through = true;
         while first_time_through || self.flags.continual {
             if !first_time_through {
+                self.started = std::time::Instant::now();
                 self.lock_repository();
             }
             first_time_through = false;
@@ -755,6 +790,7 @@ impl Build {
                         },
                     }
                 }
+                self.started = std::time::Instant::now();
             }
         }
         0
@@ -1983,10 +2019,11 @@ impl Build {
 
     fn summarize_build_results(&self) -> i32 {
         if self.statuses[Status::Failed].len() > 0 {
-            failln!("Build failed {}/{} failures",
+            failln!("Build failed {}/{} failures (after {:.2}s)",
                     self.statuses[Status::Failed].len(),
                     self.statuses[Status::Failed].len()
-                    + self.statuses[Status::Built].len());
+                    + self.statuses[Status::Built].len(),
+                    duration_to_f64(self.started.elapsed()));
             if self.flags.dry_run {
                 println!("But it is only a dry run, so it's all cool!");
                 return 0;
@@ -1994,10 +2031,12 @@ impl Build {
             return self.statuses[Status::Failed].len() as i32;
         }
         if let Some(err) = self.check_strictness() {
-            failln!("Build failed due to {}!", err);
+            failln!("Build failed due to {}! (after {:.2}s)", err,
+                    duration_to_f64(self.started.elapsed()));
             1
         } else {
-            println!("{}", happy_color("Build succeeded!"));
+            successln!("Build succeeded! ({:.2}s)",
+                       duration_to_f64(self.started.elapsed()));
             0
         }
     }
@@ -2385,25 +2424,29 @@ impl Build {
                     }
                 }
             }
+            let instant = self.rule_mut(r).start_time.take().unwrap();
+            self.rule_mut(r).build_time = instant.elapsed();
+            let time = duration_to_f64(self.rule(r).build_time);
             if rule_actually_failed {
                 message = format!("build failed: {}", self.pretty_rule(r));
-                failln!("!{}/{}! {}", num_built, num_total, message);
+                failln!("!{}/{}! [{:.2}s]: {}", num_built, num_total, time, message);
                 self.failed(r);
                 self.clean_output(&stat);
             } else {
                 message = self.pretty_rule(r);
-                let instant = self.rule_mut(r).start_time.take().unwrap();
-                self.rule_mut(r).build_time = instant.elapsed();
-                let mut time = self.rule(r).build_time.as_secs() as f64;
-                time += (self.rule(r).build_time.subsec_nanos() as f64)*1e-9;
-                let header = format!("{}/{} [{:.2}s]:",
-                                                 num_built, num_total, time);
-                println!("{} {}", header, message);
+                println!("{}/{} [{:.2}s]: {}", num_built, num_total, time, message);
                 self.built(r);
             }
         } else {
+            let instant = self.rule_mut(r).start_time.take().unwrap();
+            let time = if self.rule(r).build_time == std::time::Duration::from_secs(1) {
+                self.rule_mut(r).build_time = instant.elapsed();
+                duration_to_f64(self.rule(r).build_time)
+            } else {
+                duration_to_f64(instant.elapsed())
+            };
             message = format!("build failed: {}", self.pretty_rule(r));
-            failln!("!{}/{}! {}", num_built, num_total, message);
+            failln!("!{}/{}! [{:2}s]: {}", num_built, num_total, time, message);
             self.failed(r);
             self.clean_output(&stat);
         }
@@ -2623,4 +2666,8 @@ fn cp_to_dir(x: &Path, dir: &Path) -> std::io::Result<()> {
     vprintln!("cp {:?} {:?}", &x, &newfile);
     std::fs::copy(x, newfile)?;
     Ok(())
+}
+
+fn duration_to_f64(t: std::time::Duration) -> f64 {
+    t.as_secs() as f64 + (t.subsec_nanos() as f64)*1e-9
 }

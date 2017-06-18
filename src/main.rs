@@ -17,8 +17,10 @@ extern crate libc;
 extern crate ctrlc;
 extern crate metrohash;
 extern crate notify;
-extern crate colored;
+extern crate termcolor;
 extern crate isatty;
+#[macro_use]
+extern crate lazy_static;
 
 mod git;
 pub mod refset;

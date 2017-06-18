@@ -12,8 +12,10 @@ extern crate clap;
 extern crate ctrlc;
 extern crate metrohash;
 extern crate notify;
-extern crate colored;
+extern crate termcolor;
 extern crate isatty;
+#[macro_use]
+extern crate lazy_static;
 
 /// A module with just the version in it.
 pub mod version;
