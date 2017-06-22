@@ -52,4 +52,10 @@ mod tests {
         let p = map.keys().next().unwrap();
         b.iter(|| map[p]);
     }
+
+    #[bench]
+    fn env(b: &mut Bencher) {
+        fac::build::env::hash();
+        b.iter(|| fac::build::env::hash());
+    }
 }
