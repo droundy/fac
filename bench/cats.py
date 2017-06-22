@@ -56,3 +56,12 @@ verbs = ['building', 'rebuilding', 'doing-nothing']
 
 def prepare():
     return {'rebuilding': 'sleep 1 && echo silly > %s.txt' % hashid(0)}
+
+if __name__ == "__main__":
+    import sys
+    size = 10
+    if len(sys.argv) > 1:
+        size = int(sys.argv[1])
+    create_bench(size)
+    with open("rebuilding.sh", "w") as f:
+        f.write(prepare()["rebuilding"])
