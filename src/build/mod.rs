@@ -266,7 +266,7 @@ pub enum FileKind {
 
 /// A reference to a File
 #[derive(PartialEq, Eq, Hash, Copy, Clone, Debug)]
-pub struct FileRef(usize, Id);
+pub struct FileRef(u32, Id);
 
 /// A file (or directory) that is either an input or an output for
 /// some rule.
@@ -337,7 +337,7 @@ impl File {
 
 /// A reference to a Rule
 #[derive(PartialEq, Eq, Hash, Copy, Clone, Debug)]
-pub struct RuleRef(usize, Id);
+pub struct RuleRef(u32, Id);
 unsafe impl Send for RuleRef {}
 
 /// A rule for building something.
@@ -1008,14 +1008,14 @@ impl Build {
     }
     fn filerefs(&self) -> Vec<FileRef> {
         let mut out = Vec::new();
-        for i in 0 .. self.files.len() {
+        for i in 0 .. self.files.len() as u32 {
             out.push(FileRef(i, self.id));
         }
         out
     }
     fn rulerefs(&self) -> Vec<RuleRef> {
         let mut out = Vec::new();
-        for i in 0 .. self.rules.len() {
+        for i in 0 .. self.rules.len() as u32 {
             out.push(RuleRef(i, self.id));
         }
         out
@@ -1030,7 +1030,7 @@ impl Build {
         if let Some(&f) = self.filemap.get(&path) {
             return f;
         }
-        let f = FileRef(self.files.len(), self.id);
+        let f = FileRef(self.files.len() as u32, self.id);
         self.files.push(File {
             id: self.id,
             rule: None,
@@ -1069,7 +1069,7 @@ impl Build {
                     cache_prefixes: HashSet<OsString>,
                     is_default: bool)
                     -> Result<RuleRef, RuleRef> {
-        let r = RuleRef(self.rules.len(), self.id);
+        let r = RuleRef(self.rules.len() as u32, self.id);
         let key = (OsString::from(command), PathBuf::from(working_directory));
         if self.rulemap.contains_key(&key) {
             return Err(self.rulemap[&key]);
@@ -2556,11 +2556,11 @@ impl Build {
 
     /// Look up the rule
     pub fn rule_mut(&mut self, r: RuleRef) -> &mut Rule {
-        &mut self.rules[r.0]
+        &mut self.rules[r.0 as usize]
     }
     /// Look up the rule
     pub fn rule(&self, r: RuleRef) -> &Rule {
-        &self.rules[r.0]
+        &self.rules[r.0 as usize]
     }
 
 
@@ -2590,12 +2590,12 @@ impl Build {
 impl std::ops::Index<FileRef> for Build  {
     type Output = File;
     fn index(&self, r: FileRef) -> &File {
-        &self.files[r.0]
+        &self.files[r.0 as usize]
     }
 }
 impl std::ops::IndexMut<FileRef> for Build  {
     fn index_mut(&mut self, r: FileRef) -> &mut File {
-        &mut self.files[r.0]
+        &mut self.files[r.0 as usize]
     }
 }
 
