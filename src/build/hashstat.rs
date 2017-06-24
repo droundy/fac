@@ -21,9 +21,11 @@ pub struct HashStat {
     /// modification time
     pub time: i64,
     /// in nanoseconds
-    pub time_ns: i64,
-    /// size
-    pub size: u64,
+    pub time_ns: i32,
+    /// The file size.  We truncate more significant bits because we
+    /// only care about size changing, and odds of a change by 4G are
+    /// slim.
+    pub size: u32,
     /// environment
     pub env: u64,
     /// hash
@@ -37,8 +39,8 @@ impl quickcheck::Arbitrary for HashStat {
     fn arbitrary<G: quickcheck::Gen>(g: &mut G) -> HashStat {
         HashStat {
             time: i64::arbitrary(g),
-            time_ns: i64::arbitrary(g),
-            size: u64::arbitrary(g),
+            time_ns: i32::arbitrary(g),
+            size: u32::arbitrary(g),
             env: u64::arbitrary(g),
             hash: u64::arbitrary(g),
             kind: None,
@@ -49,6 +51,9 @@ impl quickcheck::Arbitrary for HashStat {
 #[cfg(test)]
 quickcheck! {
     fn prop_encode_decode(hs: HashStat) -> bool {
+        println!("original {:?}", hs);
+        println!("encoded {:?}", hs.encode());
+        println!("decoded {:?}", HashStat::decode(&hs.encode()));
         hs == HashStat::decode(&hs.encode())
     }
 }
@@ -83,16 +88,15 @@ fn decode(i: &[u8]) -> u64 {
 impl HashStat {
     /// encode as bytes
     pub fn encode(&self) -> Vec<u8> {
-        let mut v = Vec::from(&encode(self.size)[..]);
+        let mut v = Vec::from(&encode(self.size as u64 + ((self.time_ns as u64) << 32))[..]);
         v.extend(&encode(self.time as u64)[..]);
-        v.extend(&encode(self.time_ns as u64)[..]);
         v.extend(&encode(self.env)[..]);
         v.extend(&encode(self.hash)[..]);
         v
     }
     /// decode from bytes
     pub fn decode(h: &[u8]) -> HashStat {
-        if h.len() != 5*16 {
+        if h.len() != 4*16 {
             return HashStat {
                 size: 0,
                 time: 0,
@@ -102,12 +106,13 @@ impl HashStat {
                 kind: None,
             };
         }
+        let size_time = decode(h);
         HashStat {
-            size: decode(h),
+            size: size_time as u32,
             time: decode(&h[16..]) as i64,
-            time_ns: decode(&h[32..]) as i64,
-            env: decode(&h[48..]),
-            hash: decode(&h[64..]),
+            time_ns: (size_time >> 32) as i32,
+            env: decode(&h[32..]),
+            hash: decode(&h[48..]),
             kind: None,
         }
     }
@@ -132,7 +137,7 @@ pub fn stat(f: &std::path::Path) -> std::io::Result<HashStat> {
     Ok(HashStat {
         time: 0,
         time_ns: 0,
-        size: s.len(),
+        size: s.len() as u32,
         env: env::hash(),
         hash: 0,
         kind: kind_of(&s),
@@ -144,8 +149,8 @@ pub fn stat(f: &std::path::Path) -> std::io::Result<HashStat> {
     let s = std::fs::symlink_metadata(f)?;
     Ok(HashStat {
         time: s.mtime(),
-        time_ns: s.mtime_nsec(),
-        size: s.len(),
+        time_ns: (s.mtime_nsec()/10) as i32,
+        size: s.len() as u32,
         env: env::hash(),
         hash: 0,
         kind: kind_of(&s),
