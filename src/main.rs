@@ -21,6 +21,7 @@ extern crate termcolor;
 extern crate isatty;
 #[macro_use]
 extern crate lazy_static;
+extern crate david_set;
 
 mod git;
 pub mod refset;

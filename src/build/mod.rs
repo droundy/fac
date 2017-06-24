@@ -12,6 +12,7 @@ use std::ffi::{OsString, OsStr};
 use std::path::{Path,PathBuf};
 
 use std::collections::{HashSet, HashMap};
+use david_set::{Set};
 
 use std::io::{Read, Write};
 
@@ -279,9 +280,9 @@ pub struct File {
     // Question: could Vec be more efficient than RefSet here? It
     // depends if we add a rule multiple times to the same set of
     // children.  FIXME check this!
-    children: HashSet<RuleRef>,
+    children: Set<RuleRef>,
 
-    rules_defined: Option<HashSet<RuleRef>>,
+    rules_defined: Option<Set<RuleRef>>,
 
     hashstat: hashstat::HashStat,
     is_in_git: bool,
@@ -347,8 +348,8 @@ pub struct Rule {
     id: Id,
     inputs: Vec<FileRef>,
     outputs: Vec<FileRef>,
-    all_inputs: HashSet<FileRef>,
-    all_outputs: HashSet<FileRef>,
+    all_inputs: Set<FileRef>,
+    all_outputs: Set<FileRef>,
     hashstats: HashMap<FileRef, hashstat::HashStat>,
 
     status: Status,
@@ -472,7 +473,7 @@ pub struct Build {
     rules: Vec<Rule>,
     filemap: HashMap<PathBuf, FileRef>,
     rulemap: HashMap<(OsString, PathBuf), RuleRef>,
-    statuses: StatusMap<HashSet<RuleRef>>,
+    statuses: StatusMap<Set<RuleRef>>,
     /// The set of rules with Status::Marked, topologically sorted
     /// such that we could build them in this order.  We use this to
     /// avoid a stack overflow when checking for cleanliness, in case
@@ -481,7 +482,7 @@ pub struct Build {
     /// no longer marked.
     marked_rules: Vec<RuleRef>,
 
-    facfiles_used: HashSet<FileRef>,
+    facfiles_used: Set<FileRef>,
 
     recv_rule_status: std::sync::mpsc::Receiver<Event>,
     send_rule_status: std::sync::mpsc::Sender<Event>,
@@ -505,9 +506,9 @@ pub fn build(fl: flags::Flags) -> i32 {
         rules: Vec::new(),
         filemap: HashMap::new(),
         rulemap: HashMap::new(),
-        statuses: StatusMap::new(|| HashSet::new()),
+        statuses: StatusMap::new(|| Set::new()),
         marked_rules: Vec::new(),
-        facfiles_used: HashSet::new(),
+        facfiles_used: Set::new(),
         recv_rule_status: rx,
         send_rule_status: tx,
         process_killers: HashMap::new(),
@@ -530,9 +531,9 @@ impl Build {
             rules: Vec::new(),
             filemap: HashMap::new(),
             rulemap: HashMap::new(),
-            statuses: StatusMap::new(|| HashSet::new()),
+            statuses: StatusMap::new(|| Set::new()),
             marked_rules: Vec::new(),
-            facfiles_used: HashSet::new(),
+            facfiles_used: Set::new(),
             recv_rule_status: self.recv_rule_status,
             send_rule_status: self.send_rule_status,
             process_killers: HashMap::new(),
@@ -815,7 +816,7 @@ impl Build {
                 if self.rule(r).status == Status::Clean {
                     // Mark for checking the children of this rule, as
                     // they may now be buildable.
-                    let children: HashSet<_> = self.rule(r).all_outputs.iter()
+                    let children: Vec<_> = self.rule(r).all_outputs.iter()
                         .flat_map(|&o| self[o].children.iter()).map(|&c| c)
                         .filter(|&c| self.rule(c).status == Status::Unready
                                 || self.rule(c).status == Status::Failed
@@ -1035,7 +1036,7 @@ impl Build {
             id: self.id,
             rule: None,
             path: path.clone(),
-            children: HashSet::new(),
+            children: Set::new(),
             rules_defined: None,
             hashstat: hashstat::HashStat::empty(),
             is_in_git: is_in_git,
@@ -1079,8 +1080,8 @@ impl Build {
             id: self.id,
             inputs: Vec::new(),
             outputs: Vec::new(),
-            all_inputs: HashSet::new(),
-            all_outputs: HashSet::new(),
+            all_inputs: Set::new(),
+            all_outputs: Set::new(),
             hashstats: HashMap::new(),
             status: Status::Unknown,
             cache_prefixes: cache_prefixes,
@@ -1099,7 +1100,7 @@ impl Build {
 
     /// Read a fac file
     pub fn read_facfile(&mut self, fileref: FileRef) -> io::Result<()> {
-        self[fileref].rules_defined = Some(HashSet::new());
+        self[fileref].rules_defined = Some(Set::new());
         let filepath = self[fileref].path.clone();
         let fp = self.pretty_path_peek(fileref).to_string_lossy().into_owned();
         let mut f = match std::fs::File::open(&filepath) {
@@ -1696,9 +1697,9 @@ impl Build {
         self.set_status(r, Status::BeingDetermined);
         let mut am_now_unready = false;
         let r_inputs: Vec<FileRef> = self.rule(r).inputs.iter().map(|&i| i).collect();
-        let r_all_inputs: HashSet<FileRef> =
+        let r_all_inputs: Set<FileRef> =
             self.rule(r).all_inputs.iter().map(|&i| i).collect();
-        let r_other_inputs: HashSet<FileRef> = r_inputs.iter().map(|&i| i).collect();
+        let r_other_inputs: Set<FileRef> = r_inputs.iter().map(|&i| i).collect();
         let r_other_inputs = &r_all_inputs - &r_other_inputs;
         for &i in r_all_inputs.iter() {
             if let Some(irule) = self[i].rule {
@@ -1840,7 +1841,7 @@ impl Build {
             }
         }
         if !is_dirty {
-            let r_all_outputs: HashSet<FileRef> =
+            let r_all_outputs: Vec<_> =
                 self.rule(r).all_outputs.iter().map(|&o| o).collect();
             if r_all_outputs.len() == 0 {
                 rebuild_excuse = rebuild_excuse.or(
@@ -2287,7 +2288,7 @@ impl Build {
                 // later.
                 self[i].children.remove(&r);
             }
-            let mut old_outputs: HashSet<FileRef> =
+            let mut old_outputs: Set<FileRef> =
                 self.rule_mut(r).all_outputs.drain().collect();
             // First we add in our explicit inputs.  This is done
             // first, because we want to ensure that we don't count an
