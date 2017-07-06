@@ -12,7 +12,7 @@ use std::ffi::{OsString, OsStr};
 use std::path::{Path,PathBuf};
 
 use std::collections::{HashSet, HashMap};
-use david_set::{Set};
+use tinyset::{Set64, Fits64, TinyMap};
 
 use std::io::{Read, Write};
 
@@ -23,6 +23,7 @@ use notify::{Watcher};
 use termcolor;
 use termcolor::{WriteColor};
 use isatty;
+use crude_profiler;
 
 pub mod hashstat;
 pub mod flags;
@@ -267,7 +268,16 @@ pub enum FileKind {
 
 /// A reference to a File
 #[derive(PartialEq, Eq, Hash, Copy, Clone, Debug)]
-pub struct FileRef(u32, Id);
+pub struct FileRef(u32);
+
+impl Fits64 for FileRef {
+    unsafe fn from_u64(x: u64) -> Self {
+        FileRef(x as u32)
+    }
+    fn to_u64(self) -> u64 {
+        self.0 as u64
+    }
+}
 
 /// A file (or directory) that is either an input or an output for
 /// some rule.
@@ -280,9 +290,9 @@ pub struct File {
     // Question: could Vec be more efficient than RefSet here? It
     // depends if we add a rule multiple times to the same set of
     // children.  FIXME check this!
-    children: Set<RuleRef>,
+    children: Set64<RuleRef>,
 
-    rules_defined: Option<Set<RuleRef>>,
+    rules_defined: Option<Set64<RuleRef>>,
 
     hashstat: hashstat::HashStat,
     is_in_git: bool,
@@ -338,8 +348,17 @@ impl File {
 
 /// A reference to a Rule
 #[derive(PartialEq, Eq, Hash, Copy, Clone, Debug)]
-pub struct RuleRef(u32, Id);
+pub struct RuleRef(u32);
 unsafe impl Send for RuleRef {}
+
+impl Fits64 for RuleRef {
+    unsafe fn from_u64(x: u64) -> Self {
+        RuleRef(x as u32)
+    }
+    fn to_u64(self) -> u64 {
+        self.0 as u64
+    }
+}
 
 /// A rule for building something.
 #[derive(Debug)]
@@ -348,9 +367,9 @@ pub struct Rule {
     id: Id,
     inputs: Vec<FileRef>,
     outputs: Vec<FileRef>,
-    all_inputs: Set<FileRef>,
-    all_outputs: Set<FileRef>,
-    hashstats: HashMap<FileRef, hashstat::HashStat>,
+    all_inputs: Set64<FileRef>,
+    all_outputs: Set64<FileRef>,
+    hashstats: TinyMap<FileRef, hashstat::HashStat>,
 
     status: Status,
     cache_prefixes: HashSet<OsString>,
@@ -473,7 +492,7 @@ pub struct Build {
     rules: Vec<Rule>,
     filemap: HashMap<PathBuf, FileRef>,
     rulemap: HashMap<(OsString, PathBuf), RuleRef>,
-    statuses: StatusMap<Set<RuleRef>>,
+    statuses: StatusMap<Set64<RuleRef>>,
     /// The set of rules with Status::Marked, topologically sorted
     /// such that we could build them in this order.  We use this to
     /// avoid a stack overflow when checking for cleanliness, in case
@@ -482,11 +501,11 @@ pub struct Build {
     /// no longer marked.
     marked_rules: Vec<RuleRef>,
 
-    facfiles_used: Set<FileRef>,
+    facfiles_used: Set64<FileRef>,
 
     recv_rule_status: std::sync::mpsc::Receiver<Event>,
     send_rule_status: std::sync::mpsc::Sender<Event>,
-    process_killers: HashMap<RuleRef, bigbro::Killer>,
+    process_killers: TinyMap<RuleRef, bigbro::Killer>,
     am_interrupted: bool,
 
     flags: flags::Flags,
@@ -506,12 +525,12 @@ pub fn build(fl: flags::Flags) -> i32 {
         rules: Vec::new(),
         filemap: HashMap::new(),
         rulemap: HashMap::new(),
-        statuses: StatusMap::new(|| Set::new()),
+        statuses: StatusMap::new(|| Set64::new()),
         marked_rules: Vec::new(),
-        facfiles_used: Set::new(),
+        facfiles_used: Set64::new(),
         recv_rule_status: rx,
         send_rule_status: tx,
-        process_killers: HashMap::new(),
+        process_killers: TinyMap::new(),
         am_interrupted: false,
         flags: fl,
         started: std::time::Instant::now(),
@@ -531,12 +550,12 @@ impl Build {
             rules: Vec::new(),
             filemap: HashMap::new(),
             rulemap: HashMap::new(),
-            statuses: StatusMap::new(|| Set::new()),
+            statuses: StatusMap::new(|| Set64::new()),
             marked_rules: Vec::new(),
-            facfiles_used: Set::new(),
+            facfiles_used: Set64::new(),
             recv_rule_status: self.recv_rule_status,
             send_rule_status: self.send_rule_status,
-            process_killers: HashMap::new(),
+            process_killers: TinyMap::new(),
             am_interrupted: false,
             flags: self.flags,
             started: std::time::Instant::now(),
@@ -549,6 +568,7 @@ impl Build {
 
     /// Run the actual build!
     pub fn build(mut self) -> i32 {
+        let _g = crude_profiler::push("init");
         if self.flags.parse_only.is_some() {
             let p = self.flags.run_from_directory.join(self.flags.parse_only
                                                        .as_ref().unwrap());
@@ -644,6 +664,7 @@ impl Build {
             first_time_through = false;
 
             // Now we start building the actual targets.
+            _g.replace("really building");
             self.mark_all();
             self.build_dirty();
             self.unlock_repository().unwrap();
@@ -653,6 +674,7 @@ impl Build {
                 return self.reboot();
             }
 
+            vprintln!("{}", crude_profiler::report());
             let result = self.summarize_build_results();
             if result != 0 && !self.flags.continual {
                 return result;
@@ -662,6 +684,7 @@ impl Build {
                  || self.flags.tupfile.is_some() || self.flags.script.is_some()
                  || self.flags.tar.is_some())
             {
+                _g.replace("generate-scripts");
                 for r in self.rulerefs() {
                     self.set_status(r, Status::Unknown);
                 }
@@ -687,8 +710,8 @@ impl Build {
                 }
             }
             if self.flags.continual {
-                let rules: Vec<_> = self.statuses[Status::Built].iter()
-                    .map(|&r| r).collect();
+                let _g = crude_profiler::push("continual");
+                let rules: Vec<_> = self.statuses[Status::Built].iter().collect();
                 for r in rules {
                     self.set_status(r, Status::Clean);
                 }
@@ -739,6 +762,7 @@ impl Build {
                                       notify::RecursiveMode::NonRecursive).ok();
                     }
                 }
+                _g.replace("waiting");
                 println!("Waiting for a file to change...");
                 let mut found_something = false;
                 while !found_something {
@@ -755,7 +779,7 @@ impl Build {
                                 continue;
                             }
                             found_something = true;
-                            for &c in self[t].children.iter() {
+                            for c in self[t].children.iter() {
                                 println!("It affects rule {}", self.pretty_rule(c));
                             }
                             self[t].exists(); // clear out the hash!
@@ -803,6 +827,7 @@ impl Build {
             || self.statuses[Status::Marked].len() > 0
             || self.num_building() > 0
         {
+            let _g = crude_profiler::push("build_dirty");
             vvvprintln!("   {} unknown", self.statuses[Status::Unknown].len());
             vvvprintln!("   {} unready", self.statuses[Status::Unready].len());
             vvvprintln!("   {} clean", self.statuses[Status::Clean].len());
@@ -817,7 +842,7 @@ impl Build {
                     // Mark for checking the children of this rule, as
                     // they may now be buildable.
                     let children: Vec<_> = self.rule(r).all_outputs.iter()
-                        .flat_map(|&o| self[o].children.iter()).map(|&c| c)
+                        .flat_map(|o| self[o].children.iter())
                         .filter(|&c| self.rule(c).status == Status::Unready
                                 || self.rule(c).status == Status::Failed
                                 || self.rule(c).status == Status::Clean
@@ -829,9 +854,9 @@ impl Build {
             }
 
             if self.num_building() < self.flags.jobs {
+                let _g = crude_profiler::push("spawning jobs");
                 let rules: Vec<_> = self.statuses[Status::Dirty].iter()
-                    .take(self.flags.jobs - self.num_building())
-                    .map(|&r| r).collect();
+                    .take(self.flags.jobs - self.num_building()).collect();
                 for r in rules {
                     if let Err(e) = self.spawn(r) {
                         println!("I got err {}", e);
@@ -851,6 +876,7 @@ impl Build {
                 && self.num_building() == 0
                 && self.statuses[Status::Unready].len() > 0
             {
+                let _g = crude_profiler::push("examining errors");
                 vvvprintln!("  !!! {} unknown", self.statuses[Status::Unknown].len());
                 vvvprintln!("  !!! {} unready", self.statuses[Status::Unready].len());
                 vvvprintln!("  !!! {} clean", self.statuses[Status::Clean].len());
@@ -863,15 +889,14 @@ impl Build {
                 // one of these unready rules is actually ready after
                 // all.
                 let rules: Vec<_>
-                    = self.statuses[Status::Unready].iter().map(|&r| r).collect();
+                    = self.statuses[Status::Unready].iter().collect();
                 for r in rules {
                     let mut need_to_try_again = false;
                     let mut have_explained_failure = false;
                     // FIXME figure out ignore_missing_files,
                     // happy_building_at_least_one, etc. from
                     // build.c:1171
-                    let inputs: Vec<_> = self.rule(r).all_inputs.iter()
-                        .map(|&i| i).collect();
+                    let inputs: Vec<_> = self.rule(r).all_inputs.iter().collect();
                     for i in inputs {
                         if self[i].rule.is_none() && !self[i].is_in_git &&
                             !self.is_git_path(&self[i].path) &&
@@ -967,6 +992,7 @@ impl Build {
     /// unlock_repository saves any factum files and also removes the
     /// lock file.
     fn unlock_repository(&mut self) -> std::io::Result<()> {
+        let _g = crude_profiler::push("unlock_repository");
         while self.num_building() > 0 {
             println!("I have {} processes to halt...", self.num_building());
             for mut k in self.process_killers.values_mut() {
@@ -1010,14 +1036,14 @@ impl Build {
     fn filerefs(&self) -> Vec<FileRef> {
         let mut out = Vec::new();
         for i in 0 .. self.files.len() as u32 {
-            out.push(FileRef(i, self.id));
+            out.push(FileRef(i));
         }
         out
     }
     fn rulerefs(&self) -> Vec<RuleRef> {
         let mut out = Vec::new();
         for i in 0 .. self.rules.len() as u32 {
-            out.push(RuleRef(i, self.id));
+            out.push(RuleRef(i));
         }
         out
     }
@@ -1031,12 +1057,12 @@ impl Build {
         if let Some(&f) = self.filemap.get(&path) {
             return f;
         }
-        let f = FileRef(self.files.len() as u32, self.id);
+        let f = FileRef(self.files.len() as u32);
         self.files.push(File {
             id: self.id,
             rule: None,
             path: path.clone(),
-            children: Set::new(),
+            children: Set64::new(),
             rules_defined: None,
             hashstat: hashstat::HashStat::empty(),
             is_in_git: is_in_git,
@@ -1070,7 +1096,7 @@ impl Build {
                     cache_prefixes: HashSet<OsString>,
                     is_default: bool)
                     -> Result<RuleRef, RuleRef> {
-        let r = RuleRef(self.rules.len() as u32, self.id);
+        let r = RuleRef(self.rules.len() as u32);
         let key = (OsString::from(command), PathBuf::from(working_directory));
         if self.rulemap.contains_key(&key) {
             return Err(self.rulemap[&key]);
@@ -1080,9 +1106,9 @@ impl Build {
             id: self.id,
             inputs: Vec::new(),
             outputs: Vec::new(),
-            all_inputs: Set::new(),
-            all_outputs: Set::new(),
-            hashstats: HashMap::new(),
+            all_inputs: Set64::new(),
+            all_outputs: Set64::new(),
+            hashstats: TinyMap::new(),
             status: Status::Unknown,
             cache_prefixes: cache_prefixes,
             cache_suffixes: cache_suffixes,
@@ -1100,7 +1126,7 @@ impl Build {
 
     /// Read a fac file
     pub fn read_facfile(&mut self, fileref: FileRef) -> io::Result<()> {
-        self[fileref].rules_defined = Some(Set::new());
+        self[fileref].rules_defined = Some(Set64::new());
         let filepath = self[fileref].path.clone();
         let fp = self.pretty_path_peek(fileref).to_string_lossy().into_owned();
         let mut f = match std::fs::File::open(&filepath) {
@@ -1304,7 +1330,7 @@ impl Build {
     /// Write a fac file
     pub fn print_fac_file(&mut self, fileref: FileRef) -> io::Result<()> {
         if let Some(ref rules_defined) = self[fileref].rules_defined {
-            for &r in rules_defined.iter() {
+            for r in rules_defined.iter() {
                 println!("| {}", self.rule(r).command.to_string_lossy());
                 for &i in self.rule(r).inputs.iter() {
                     println!("< {}", self[i].path.display());
@@ -1329,11 +1355,11 @@ impl Build {
         let f = std::fs::File::create(&self[fileref].path.with_extension("fac.tum"))?;
         let mut f = std::io::BufWriter::new(f);
         if let Some(ref rules_defined) = self[fileref].rules_defined {
-            for &r in rules_defined.iter() {
+            for r in rules_defined.iter() {
                 f.write(b"\n| ")?;
                 f.write(hashstat::osstr_to_bytes(&self.rule(r).command))?;
                 f.write(b"\n")?;
-                for &i in self.rule(r).all_inputs.iter() {
+                for i in self.rule(r).all_inputs.iter() {
                     f.write(b"< ")?;
                     f.write(hashstat::osstr_to_bytes(self.pretty_path(i).as_os_str()))?;
                     if let Some(st) = self.rule(r).hashstats.get(&i) {
@@ -1342,7 +1368,7 @@ impl Build {
                     }
                     f.write(b"\n")?;
                 }
-                for &o in self.rule(r).all_outputs.iter() {
+                for o in self.rule(r).all_outputs.iter() {
                     f.write(b"> ")?;
                     f.write(hashstat::osstr_to_bytes(self.pretty_path(o).as_os_str()))?;
                     f.write(b"\nH ")?;
@@ -1374,7 +1400,6 @@ impl Build {
 
         for &r in self.marked_rules.iter() {
             for i in self.rule(r).all_inputs.iter()
-                .map(|&i| i)
                 .filter(|&i| self[i].rule.is_none())
                 .filter(|&i| self[i].path.starts_with(&self.flags.root))
             {
@@ -1407,24 +1432,24 @@ impl Build {
     pub fn write_makefile<F: Write>(&self, f: &mut F) -> io::Result<()> {
         write!(f, "all:")?;
         let mut targets: Vec<_> = self.statuses[Status::Marked].iter()
-            .filter(|&&r| self.rule(r).all_outputs.len() > 0
-                    && self.rule(r).all_outputs.iter().all(|&o| self[o].children.len() == 0))
-            .map(|&r| self.pretty_rule_output(r)).collect();
+            .filter(|&r| self.rule(r).all_outputs.len() > 0
+                    && self.rule(r).all_outputs.iter().all(|o| self[o].children.len() == 0))
+            .map(|r| self.pretty_rule_output(r)).collect();
         targets.sort();
         for t in targets {
             write!(f, " {}", t.display())?;
         }
         writeln!(f, "\n")?;
-        let mut rules: Vec<_> = self.statuses[Status::Marked].iter().map(|&r| r).collect();
+        let mut rules: Vec<_> = self.statuses[Status::Marked].iter().collect();
         rules.sort_by_key(|&r| self.pretty_rule(r));
 
         write!(f, "clean:\n\trm -f")?;
         let mut clean_files: HashSet<PathBuf> = HashSet::new();
         for &r in rules.iter() {
             clean_files.extend(self.rule(r).all_outputs.iter()
-                               .filter(|&o| self[*o].path.starts_with(&self.flags.root))
-                               .filter(|&o| self[*o].hashstat.kind == Some(FileKind::File))
-                               .map(|&o| self.pretty_path(o)));
+                               .filter(|&o| self[o].path.starts_with(&self.flags.root))
+                               .filter(|&o| self[o].hashstat.kind == Some(FileKind::File))
+                               .map(|o| self.pretty_path(o)));
         }
         let mut clean_files: Vec<_> = clean_files.iter().collect();
         clean_files.sort();
@@ -1435,12 +1460,10 @@ impl Build {
 
         for r in rules {
             let mut inps: Vec<_> = self.rule(r).all_inputs.iter()
-                .map(|&i| i)
                 .filter(|&i| self[i].path.starts_with(&self.flags.root))
                 .map(|i| self.pretty_path(i))
                 .collect();
             let mut outs: Vec<_> = self.rule(r).all_outputs.iter()
-                .map(|&i| i)
                 .filter(|&i| self[i].path.starts_with(&self.flags.root))
                 .map(|i| self.pretty_path(i))
                 .collect();
@@ -1488,17 +1511,15 @@ impl Build {
         writeln!(f, "  command = $commandline")?;
         writeln!(f)?;
 
-        let mut rules: Vec<_> = self.statuses[Status::Marked].iter().map(|&r| r).collect();
+        let mut rules: Vec<_> = self.statuses[Status::Marked].iter().collect();
         rules.sort_by_key(|&r| self.pretty_rule(r));
 
         for r in rules {
             let mut inps: Vec<_> = self.rule(r).all_inputs.iter()
-                .map(|&i| i)
                 .filter(|&i| self[i].path.starts_with(&self.flags.root))
                 .map(|i| self.pretty_path(i))
                 .collect();
             let mut outs: Vec<_> = self.rule(r).all_outputs.iter()
-                .map(|&i| i)
                 .filter(|&i| self[i].path.starts_with(&self.flags.root))
                 .map(|i| self.pretty_path(i))
                 .collect();
@@ -1528,12 +1549,10 @@ impl Build {
     pub fn write_tupfile<F: Write>(&self, f: &mut F) -> io::Result<()> {
         for &r in self.marked_rules.iter() {
             let mut inps: Vec<_> = self.rule(r).all_inputs.iter()
-                .map(|&i| i)
                 .filter(|&i| self[i].path.starts_with(&self.flags.root))
                 .map(|i| self.pretty_path(i))
                 .collect();
             let mut outs: Vec<_> = self.rule(r).all_outputs.iter()
-                .map(|&i| i)
                 .filter(|&i| self[i].path.starts_with(&self.flags.root))
                 .map(|i| self.pretty_path(i))
                 .collect();
@@ -1620,7 +1639,7 @@ impl Build {
                 let oldlen = to_mark.len();
                 let r = *to_mark.last().unwrap();
                 let input_rules: Vec<_> = self.rule(r).all_inputs.iter()
-                    .flat_map(|&i| self[i].rule)
+                    .flat_map(|i| self[i].rule)
                     .filter(|&rr| self.rule(rr).status == Status::Unknown)
                     .collect();
                 for rr in input_rules {
@@ -1638,6 +1657,7 @@ impl Build {
     }
 
     fn mark_all(&mut self) {
+        let _g = crude_profiler::push("mark_all");
         let to_mark: Vec<_> = if self.flags.targets.len() > 0 {
             let mut m = Vec::new();
             let targs = self.flags.targets.clone();
@@ -1653,7 +1673,7 @@ impl Build {
             m
         } else {
             self.statuses[Status::Unknown].iter()
-                .map(|&r| r).filter(|&r| self.rule(r).is_default).collect()
+                .filter(|&r| self.rule(r).is_default).collect()
         };
         for r in to_mark {
             self.mark(r);
@@ -1696,12 +1716,11 @@ impl Build {
         let mut rebuild_excuse: Option<String> = None;
         self.set_status(r, Status::BeingDetermined);
         let mut am_now_unready = false;
-        let r_inputs: Vec<FileRef> = self.rule(r).inputs.iter().map(|&i| i).collect();
-        let r_all_inputs: Set<FileRef> =
-            self.rule(r).all_inputs.iter().map(|&i| i).collect();
-        let r_other_inputs: Set<FileRef> = r_inputs.iter().map(|&i| i).collect();
+        let r_inputs: Vec<FileRef> = self.rule(r).inputs.clone();
+        let r_all_inputs: Set64<FileRef> = self.rule(r).all_inputs.iter().collect();
+        let r_other_inputs: Set64<FileRef> = r_inputs.iter().map(|&i| i).collect();
         let r_other_inputs = &r_all_inputs - &r_other_inputs;
-        for &i in r_all_inputs.iter() {
+        for i in r_all_inputs.iter() {
             if let Some(irule) = self[i].rule {
                 match self.rule(irule).status {
                     Status::Unknown | Status::Marked => {
@@ -1753,7 +1772,7 @@ impl Build {
                     return;
                 }
         }
-        for &i in r_other_inputs.iter() {
+        for i in r_other_inputs.iter() {
             self[i].stat().ok(); // check if it is a directory!
             if !self[i].in_git() &&
                 self[i].rule.is_none() &&
@@ -1774,7 +1793,7 @@ impl Build {
                 }
         }
         if !is_dirty {
-            for &i in r_all_inputs.iter() {
+            for i in r_all_inputs.iter() {
                 let path = self[i].path.clone();
                 self[i].hashstat.stat(&path).ok();
                 if let Some(istat) = self.rule(r).hashstats.get(&i).map(|s| *s) {
@@ -1842,7 +1861,7 @@ impl Build {
         }
         if !is_dirty {
             let r_all_outputs: Vec<_> =
-                self.rule(r).all_outputs.iter().map(|&o| o).collect();
+                self.rule(r).all_outputs.iter().collect();
             if r_all_outputs.len() == 0 {
                 rebuild_excuse = rebuild_excuse.or(
                     Some(format!("it has never been run")));
@@ -1915,7 +1934,7 @@ impl Build {
             if oldstat != Status::Unready {
                 // Need to inform marked child rules they are unready now
                 let children: Vec<RuleRef> = self.rule(r).outputs.iter()
-                    .flat_map(|o| self[*o].children.iter()).map(|c| *c)
+                    .flat_map(|&o| self[o].children.iter())
                     .filter(|&c| self.rule(c).status == Status::Marked).collect();
                 // This is a separate loop to satisfy the borrow checker.
                 for childr in children.iter() {
@@ -1937,7 +1956,7 @@ impl Build {
                     self.set_status(r, Status::Unready);
                     // Need to inform marked child rules they are unready now
                     grandchildren.extend(self.rule(r).outputs.iter()
-                                         .flat_map(|o| self[*o].children.iter()).map(|c| *c)
+                                         .flat_map(|&o| self[o].children.iter())
                                          .filter(|&c| self.rule(c).status != Status::Unready
                                                  && self.rule(c).status != Status::Unknown));
                 }
@@ -1955,14 +1974,14 @@ impl Build {
                     self.set_status(r, Status::Failed);
                     // Need to inform marked child rules they are unready now
                     grandchildren.extend(self.rule(r).outputs.iter()
-                                         .flat_map(|o| self[*o].children.iter()).map(|c| *c)
+                                         .flat_map(|&o| self[o].children.iter())
                                          .filter(|&c| self.rule(c).status == Status::Unready));
                 }
                 children = grandchildren;
             }
             // Delete any files that were created, so that they will
             // be properly re-created next time this command is run.
-            for &o in self.rule(r).all_outputs.iter() {
+            for o in self.rule(r).all_outputs.iter() {
                 if !self[o].is_in_git {
                     self[o].unlink();
                 }
@@ -1996,7 +2015,7 @@ impl Build {
         self.read_facfiles_from_rule(r);
         // Mark for checking the children of this rule, as they may
         // now be buildable.
-        let outputs: Vec<_> = self.rule(r).all_outputs.iter().map(|&o| o).collect();
+        let outputs: Vec<_> = self.rule(r).all_outputs.iter().collect();
         for o in outputs {
             self.modified_file(o);
         }
@@ -2007,7 +2026,6 @@ impl Build {
     /// children as possibly ready.
     fn modified_file(&mut self, f: FileRef) {
         let children: Vec<RuleRef> = self[f].children.iter()
-            .map(|&c| c)
             .filter(|&c| self.rule(c).status == Status::Unready
                     || self.rule(c).status == Status::Failed
                     || self.rule(c).status == Status::Clean
@@ -2036,8 +2054,8 @@ impl Build {
                     duration_to_f64(self.started.elapsed()));
             1
         } else {
-            successln!("Build succeeded! ({:.2}s)",
-                       duration_to_f64(self.started.elapsed()));
+            successln!("Build succeeded! ({})",
+                       pretty_time(duration_to_f64(self.started.elapsed())));
             0
         }
     }
@@ -2053,7 +2071,7 @@ impl Build {
                 println!("Checking for strict dependencies...");
                 let mut fails = None;
                 for r in self.rulerefs() {
-                    for &i in self.rule(r).all_inputs.iter() {
+                    for i in self.rule(r).all_inputs.iter() {
                         if !self.rule(r).inputs.contains(&i) {
                             if self[i].rule.is_some() {
                                 let mut have_rule = false;
@@ -2080,7 +2098,6 @@ impl Build {
                 let mut fails = None;
                 for r in self.rulerefs() {
                     for i in self.rule(r).all_inputs.iter()
-                        .map(|&i| i)
                         .filter(|&i| self[i].path.starts_with(&self.flags.root))
                         .filter(|&i| !self.rule(r).inputs.contains(&i))
                     {
@@ -2090,7 +2107,6 @@ impl Build {
                         fails = Some(String::from("missing dependencies"));
                     }
                     for i in self.rule(r).all_outputs.iter()
-                        .map(|&i| i)
                         .filter(|&i| !self.rule(r).outputs.contains(&i))
                         .filter(|&i| self[i].children.len() > 0)
                     {
@@ -2114,7 +2130,7 @@ impl Build {
                 for &k in self.process_killers.keys() {
                     println!("process killer for {}", self.pretty_rule(k));
                 }
-                for &r in self.statuses[Status::Building].iter() {
+                for r in self.statuses[Status::Building].iter() {
                     println!("building {}", self.pretty_rule(r));
                 }
             }
@@ -2124,15 +2140,14 @@ impl Build {
     }
     /// Actually run a command.
     pub fn spawn(&mut self, r: RuleRef) -> io::Result<()> {
-        {
-            // Before running, let us fill in any hash info for
-            // inputs that we have not yet read about.
-            let v: Vec<FileRef> = self.rule(r).all_inputs.iter()
-                .filter(|&w| self[*w].hashstat.unfinished()).map(|&w|w).collect();
-            for w in v {
-                let p = self[w].path.clone(); // ugly workaround for borrow checker
-                self[w].hashstat.finish(&p).ok();
-            }
+        let _g = crude_profiler::push("spawn");
+        // Before running, let us fill in any hash info for inputs
+        // that we have not yet read about.
+        let v: Vec<FileRef> = self.rule(r).all_inputs.iter()
+            .filter(|&w| self[w].hashstat.unfinished()).collect();
+        for w in v {
+            let p = self[w].path.clone(); // ugly workaround for borrow checker
+            self[w].hashstat.finish(&p).ok();
         }
         let srs = self.send_rule_status.clone();
         if self.flags.dry_run {
@@ -2160,14 +2175,20 @@ impl Build {
         } else {
             cmd.save_stdouterr();
         }
-        let kill_child = cmd.spawn_and_hook(move |s| {
-            srs.send(Event::Finished(r, s)).ok();
-        })?;
+        // _g.replace("spawn_and_hook");
+        let kill_child = {
+            let _g = crude_profiler::push("spawn_and_hook");
+            cmd.spawn_and_hook(move |s| {
+                srs.send(Event::Finished(r, s)).ok();
+            })?
+        };
+        _g.replace("set_status Building");
         self.set_status(r, Status::Building);
         self.process_killers.insert(r, kill_child);
         Ok(())
     }
     fn wait_for_a_rule(&mut self) {
+        let _g = crude_profiler::push("wait_for_a_rule");
         match self.recv_rule_status.recv() {
             Ok(Event::Finished(rr,Ok(stat))) => {
                 if let Err(e) = self.finish_rule(rr, stat) {
@@ -2288,7 +2309,7 @@ impl Build {
                 // later.
                 self[i].children.remove(&r);
             }
-            let mut old_outputs: Set<FileRef> =
+            let mut old_outputs: Set64<FileRef> =
                 self.rule_mut(r).all_outputs.drain().collect();
             // First we add in our explicit inputs.  This is done
             // first, because we want to ensure that we don't count an
@@ -2402,7 +2423,7 @@ impl Build {
                     }
                 }
             }
-            for o in old_outputs {
+            for o in old_outputs.iter() {
                 // Any previously created files that still exist
                 // should be treated as if they were created this time
                 // around.
@@ -2414,7 +2435,7 @@ impl Build {
                 // let us fill in any hash info for outputs that were
                 // not touched in this build.
                 let v: Vec<FileRef> = self.rule(r).all_outputs.iter()
-                    .filter(|&w| self[*w].hashstat.unfinished()).map(|&w|w).collect();
+                    .filter(|w| self[*w].hashstat.unfinished()).collect();
                 for w in v {
                     let p = self[w].path.clone();
                     if self[w].hashstat.finish(&p).is_err() {
@@ -2512,7 +2533,7 @@ impl Build {
             return self.pretty_rule(r);
         }
         for &o in self.rule(r).outputs.iter() {
-            for &c in self[o].children.iter() {
+            for c in self[o].children.iter() {
                 if self.rule(c).status == Status::Unready
                     || self.rule(c).status == Status::Failed
                 {
@@ -2530,7 +2551,7 @@ impl Build {
             self.pretty_path(self.rule(r).outputs[0])
         } else {
             let mut paths: Vec<_> = self.rule(r).all_outputs.iter()
-                .map(|&o| self.pretty_path(o)).collect();
+                .map(|o| self.pretty_path(o)).collect();
             paths.sort();
             paths.sort_by_key(|p| p.to_string_lossy().len());
             paths[0].clone()
@@ -2671,4 +2692,18 @@ fn cp_to_dir(x: &Path, dir: &Path) -> std::io::Result<()> {
 
 fn duration_to_f64(t: std::time::Duration) -> f64 {
     t.as_secs() as f64 + (t.subsec_nanos() as f64)*1e-9
+}
+
+fn pretty_time(t: f64) -> String {
+    if t < 1e-7 {
+        format!("{:.2} ns", t/1e-9)
+    } else if t < 1e-4 {
+        format!("{:.2} us", t/1e-6)
+    } else if t < 1e-2 {
+        format!("{:.2} ms", t/1e-3)
+    } else if t >= 1e2 {
+        format!("{:.2e} s", t)
+    } else {
+        format!("{:.2} s", t)
+    }
 }

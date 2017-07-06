@@ -16,7 +16,8 @@ extern crate termcolor;
 extern crate isatty;
 #[macro_use]
 extern crate lazy_static;
-extern crate david_set;
+extern crate tinyset;
+extern crate crude_profiler;
 
 /// A module with just the version in it.
 pub mod version;
