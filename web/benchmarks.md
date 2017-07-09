@@ -9,8 +9,8 @@ plot to view that plot as a high-resolution SVG file.
 <!-- the result is to file system speed.  Also note that you can click on -->
 <!-- each plot to view a high-resolution version of that plot. -->
 
-One major conclusion is that `fac` is generally a factor of two or
-three times slower than make.  But do keep in mind that `fac` does
+One major conclusion is that `fac` is generally about a factor of two
+times slower than make.  But do keep in mind that `fac` does
 a lot more than make does, and is considerably easier to use in a
 robustly correct manner.  There are also still some remaining scaling
 issues that should be addressed, which arise when there are 10k or so
