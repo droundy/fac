@@ -386,27 +386,19 @@ pub struct Rule {
     build_time: std::time::Duration,
 }
 
-impl Rule {
-    /// Identifies whether a given path is "cache"
-    pub fn is_cache(&self, path: &Path) -> bool {
-        self.cache_suffixes.iter().any(|s| is_suffix(path, s)) ||
-            self.cache_prefixes.iter().any(|s| is_prefix(path, s))
-    }
-}
-
 #[cfg(unix)]
 use std::os::unix::ffi::{OsStrExt};
 #[cfg(unix)]
 fn is_suffix(path: &Path, suff: &OsStr) -> bool {
     let l = suff.as_bytes().len();
     let pp = path.as_os_str().as_bytes().len();
-    pp > l && path.as_os_str().as_bytes()[pp-l..] == suff.as_bytes()[..]
+    pp >= l && path.as_os_str().as_bytes()[pp-l..] == suff.as_bytes()[..]
 }
 #[cfg(unix)]
 fn is_prefix(path: &Path, suff: &OsStr) -> bool {
     let l = suff.as_bytes().len();
     let p = path.as_os_str().as_bytes();
-    p.len() > l && p[..l] == suff.as_bytes()[..]
+    p.len() >= l && p[..l] == suff.as_bytes()[..]
 }
 #[cfg(unix)]
 fn cut_suffix(path: &Path, suff: &OsStr) -> Option<PathBuf> {
@@ -428,13 +420,13 @@ fn cut_suffix(path: &Path, suff: &OsStr) -> Option<PathBuf> {
 fn is_suffix(path: &Path, suff: &OsStr) -> bool {
     let pathstring: String = path.as_os_str().to_string_lossy().into_owned();
     let suffstring: String = suff.to_string_lossy().into_owned();
-    pathstring.ends_with(&suffstring)
+    pathstring.ends_with(&suffstring) || pathstring == suffstring
 }
 #[cfg(not(unix))]
 fn is_prefix(path: &Path, suff: &OsStr) -> bool {
     let pathstring: String = path.as_os_str().to_string_lossy().into_owned();
     let suffstring: String = suff.to_string_lossy().into_owned();
-    pathstring.starts_with(&suffstring)
+    pathstring.starts_with(&suffstring) || pathstring == suffstring
 }
 #[cfg(not(unix))]
 fn cut_suffix(path: &Path, suff: &OsStr) -> Option<PathBuf> {
@@ -453,6 +445,8 @@ fn cut_suffix(path: &Path, suff: &OsStr) -> Option<PathBuf> {
 
 #[test]
 fn test_is_prefix() {
+    assert!(is_prefix(std::path::Path::new("world"),
+                      std::ffi::OsStr::new("world")));
     assert!(is_prefix(std::path::Path::new("/the/world/is"),
                       std::ffi::OsStr::new("/the/world")));
     assert!(!is_prefix(std::path::Path::new("/the/world/is"),
@@ -465,6 +459,8 @@ fn test_is_suffix() {
                       std::ffi::OsStr::new("awesome")));
     assert!(!is_suffix(std::path::Path::new("/the/world/is"),
                        std::ffi::OsStr::new("/the/world")));
+    assert!(is_suffix(std::path::Path::new("awesome"),
+                      std::ffi::OsStr::new("awesome")));
 }
 
 #[derive(Debug)]
@@ -1229,14 +1225,8 @@ impl Build {
                         .insert(bytes_to_osstr(&line[2..]).to_os_string());
                 },
                 b'C' => {
-                    let prefix = bytes_to_osstr(&line[2..]).to_os_string();
-                    let prefix = if PathBuf::from(&prefix).is_absolute() {
-                        prefix
-                    } else {
-                        self.flags.root.join(&prefix).into_os_string()
-                    };
                     self.rule_mut(get_rule(command, 'C')?).cache_prefixes
-                        .insert(prefix);
+                        .insert(bytes_to_osstr(&line[2..]).to_os_string());
                 },
                 _ => {
                     return Err(
@@ -1294,7 +1284,9 @@ impl Build {
                     let f = self.new_file(bytes_to_osstr(&line[2..]));
                     file = Some(f);
                     if let Some(r) = command {
-                        self.add_output(r, f);
+                        if !self.is_cache(r, self.pretty_path_peek(f)) {
+                            self.add_output(r, f);
+                        }
                     } else {
                         if !self[f].is_in_git {
                             // looks like a stray output that deserves
@@ -1308,7 +1300,9 @@ impl Build {
                     let f = self.new_file(bytes_to_osstr(&line[2..]));
                     file = Some(f);
                     if let Some(r) = command {
-                        self.add_input(r, f);
+                        if !self.is_cache(r, self.pretty_path_peek(f)) {
+                            self.add_input(r, f);
+                        }
                     }
                 },
                 b'H' => {
@@ -1823,8 +1817,6 @@ impl Build {
                     // We did not just build it, so different excuses!
                     if self[i].hashstat.cheap_matches(&istat) {
                         // nothing to do here
-                    } else if self.rule(r).is_cache(&path) {
-                        // it is now treated as cache, so ignore it!
                     } else if self[i].hashstat.matches(&path, &istat) {
                         // the following handles updating the file
                         // stats in the rule, so next time a cheap
@@ -1879,8 +1871,6 @@ impl Build {
                         break;
                     } else if self[o].hashstat.cheap_matches(&ostat) {
                         // nothing to do here
-                    } else if self.rule(r).is_cache(&path) {
-                        // it is now treated as cache, so ignore it!
                     } else if self[o].hashstat.matches(&path, &ostat) {
                         // the following handles updating the file
                         // stats in the rule, so next time a cheap
@@ -2270,11 +2260,18 @@ impl Build {
                 std::fs::remove_file(w).ok(); // output is not in git, so we can delete
             }
         }
-        let mut dirs: Vec<_> = stat.mkdir_directories().iter().map(|d| d.clone()).collect();
+        let mut dirs: Vec<_> = stat.mkdir_directories().iter().cloned().collect();
         dirs.sort_by_key(|d| - (d.to_string_lossy().len() as i32));
         for d in dirs {
             std::fs::remove_dir(&d).ok();
         }
+    }
+
+    /// Identifies whether a given path is "cache"
+    fn is_cache(&self, r: RuleRef, path: &Path) -> bool {
+        let path = path.strip_prefix(&self.flags.root).unwrap_or(path);
+        self.rule(r).cache_suffixes.iter().any(|s| is_suffix(path, s)) ||
+            self.rule(r).cache_prefixes.iter().any(|s| is_prefix(path, s))
     }
 
     /// Handle a rule finishing.
@@ -2289,14 +2286,6 @@ impl Build {
             + self.statuses[Status::Marked].len()
             + self.statuses[Status::Unready].len();
         let message: String;
-        let abort = |sel: &mut Build, stat: &bigbro::Status, errmsg: &str| -> io::Result<()> {
-            failln!("error: {}", errmsg);
-            sel.failed(r);
-            sel.clean_output(stat);
-            let ff = sel.rule(r).facfile;
-            sel.facfiles_used.insert(ff);
-            Ok(())
-        };
 
         if stat.status().success() {
             let mut written_to_files = stat.written_to_files();
@@ -2331,7 +2320,7 @@ impl Build {
             for w in written_to_files {
                 if w.starts_with(&self.flags.root)
                     && !self.is_git_path(&w)
-                    && !self.rule(r).is_cache(&w) {
+                    && !self.is_cache(r, &w) {
                         let fw = self.new_file(&w);
                         if self[fw].hashstat.finish(&w).is_ok() {
                             if let Some(fwr) = self[fw].rule {
@@ -2340,7 +2329,11 @@ impl Build {
                                                        self.pretty_path_peek(fw),
                                                        self.pretty_rule(r),
                                                        self.pretty_rule(fwr));
-                                    return abort(self, &stat, &mess);
+                                    failln!("error: {}", &mess);
+                                    self.failed(r);
+                                    let ff = self.rule(r).facfile;
+                                    self.facfiles_used.insert(ff);
+                                    return Ok(())
                                 }
                             }
                             self.add_output(r, fw);
@@ -2356,7 +2349,7 @@ impl Build {
             for d in stat.mkdir_directories() {
                 if d.starts_with(&self.flags.root)
                     && !self.is_git_path(&d)
-                    && !self.rule(r).is_cache(&d)
+                    && !self.is_cache(r, &d)
                 {
                     let fw = self.new_file(&d);
                     if self[fw].hashstat.finish(&d).is_ok() {
@@ -2370,7 +2363,7 @@ impl Build {
                 }
             }
             for rr in read_from_files {
-                if !self.is_boring(&rr) && !self.rule(r).is_cache(&rr) {
+                if !self.is_boring(&rr) && !self.is_cache(r, &rr) {
                     let fr = self.new_file(&rr);
                     if !old_outputs.contains(&fr)
                         && self[fr].hashstat.finish(&rr).is_ok()
@@ -2402,7 +2395,7 @@ impl Build {
                 }
             }
             for rr in stat.read_from_directories() {
-                if !self.is_boring(&rr) && !self.rule(r).is_cache(&rr) {
+                if !self.is_boring(&rr) && !self.is_cache(r, &rr) {
                     let fr = self.new_file(&rr);
                     if self[fr].hashstat.finish(&rr).is_ok() && !old_outputs.contains(&fr) {
                         let hs = self[fr].hashstat;
@@ -2428,7 +2421,7 @@ impl Build {
                 // Any previously created files that still exist
                 // should be treated as if they were created this time
                 // around.
-                if self[o].exists() && !self.rule(r).is_cache(&self[o].path) {
+                if self[o].exists() && !self.is_cache(r, &self[o].path) {
                     self.add_output(r, o);
                 }
             }
@@ -2454,7 +2447,6 @@ impl Build {
                 message = format!("build failed: {}", self.pretty_rule(r));
                 failln!("!{}/{}! [{:.2}s]: {}", num_built, num_total, time, message);
                 self.failed(r);
-                self.clean_output(&stat);
             } else {
                 message = self.pretty_rule(r);
                 println!("{}/{} [{:.2}s]: {}", num_built, num_total, time, message);

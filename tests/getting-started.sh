@@ -13,7 +13,7 @@ rm -rf $0.dir
 mkdir $0.dir
 cd $0.dir
 
-cp ${FAC:-../../fac} .
+cp ${FAC:-../../fac} fac
 
 if ! which pdflatex; then
     echo there is no latex

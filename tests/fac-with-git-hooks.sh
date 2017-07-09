@@ -13,7 +13,7 @@ cd $0.dir
 
 # expect rust failure
 
-cp ${FAC:-../../fac} .
+cp ${FAC:-../../fac} fac
 
 if ! which sparse; then
     echo there is no sparse

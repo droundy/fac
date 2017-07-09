@@ -177,7 +177,7 @@ def pluralize(num, noun):
             return str(num)+' '+noun+'es'
         return str(num)+' '+noun+'s'
 
-os.environ['FAC'] = os.getcwd()+"/target/debug/fac"
+os.environ['FAC'] = os.getcwd()+"/debug-fac"
 
 rust_numpassed = 0
 rust_numfailed = 0
