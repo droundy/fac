@@ -74,8 +74,9 @@ macro_rules! colorprintln {
     ($c:expr, $($arg:expr),*) => {{
         let mut stdout = STDOUT.lock();
         stdout.set_color(&*$c).ok();
-        writeln!(stdout, $($arg),*).ok();
+        write!(stdout, $($arg),*).ok();
         stdout.reset().ok();
+        writeln!(stdout).ok(); // this is to ensure color reset message gets through.
     }};
 }
 
