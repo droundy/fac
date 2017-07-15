@@ -627,7 +627,7 @@ impl Build {
                     self[o].unlink();
                 }
                 if self[o].is_fac_file() {
-                    let factum = self[o].path.with_extension("fac.tum");
+                    let factum = self.factum_path(o);
                     std::fs::remove_file(&factum).ok();
                     vprintln!("rm {:?}", &factum);
                 }
@@ -1241,7 +1241,7 @@ impl Build {
     }
     /// Read a factum file
     fn read_factum_file(&mut self, fileref: FileRef) -> io::Result<()> {
-        let filepath = self[fileref].path.with_extension("fac.tum");
+        let filepath = self.factum_path(fileref);
         let mut f = if let Ok(f) = std::fs::File::open(&filepath) {
             f
         } else {
@@ -1322,6 +1322,19 @@ impl Build {
         Ok(())
     }
 
+    /// Determines the ".fac.tum" file path corresponding to the given
+    /// file (which ought to end in ".fac", but this is not checked.
+    /// It is slightly complicated by the fact that `with_extension`
+    /// treats a filename such as ".fac" as not having an extension,
+    /// and would convert this to ".fac.fac.tum", which is not what we
+    /// want.
+    fn factum_path(&self, fileref: FileRef) -> PathBuf {
+        if self[fileref].path.file_name() == Some(&OsStr::new(".fac")) {
+            return self[fileref].path.with_extension("tum")
+        }
+        self[fileref].path.with_extension("fac.tum")
+    }
+
     /// Write a fac file
     pub fn print_fac_file(&mut self, fileref: FileRef) -> io::Result<()> {
         if let Some(ref rules_defined) = self[fileref].rules_defined {
@@ -1347,7 +1360,7 @@ impl Build {
     }
     /// Write a fac.tum file
     pub fn save_factum_file(&mut self, fileref: FileRef) -> io::Result<()> {
-        let f = std::fs::File::create(&self[fileref].path.with_extension("fac.tum"))?;
+        let f = std::fs::File::create(&self.factum_path(fileref))?;
         let mut f = std::io::BufWriter::new(f);
         if let Some(ref rules_defined) = self[fileref].rules_defined {
             for r in rules_defined.iter() {
