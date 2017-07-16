@@ -464,6 +464,12 @@ fn test_is_suffix() {
 }
 
 #[derive(Debug)]
+enum InterruptReason {
+    Rebooting(String),
+    CtrlC,
+}
+
+#[derive(Debug)]
 enum Event {
     Finished(RuleRef, io::Result<bigbro::Status>),
     NotifyChange(PathBuf),
@@ -484,7 +490,6 @@ unsafe impl Send for Event {}
 pub struct Build {
     #[allow(dead_code)]
     id: Id,
-    reboot_now: Option<String>,
     files: Vec<File>,
     rules: Vec<Rule>,
     filemap: HashMap<PathBuf, FileRef>,
@@ -503,7 +508,7 @@ pub struct Build {
     recv_rule_status: std::sync::mpsc::Receiver<Event>,
     send_rule_status: std::sync::mpsc::Sender<Event>,
     process_killers: TinyMap<RuleRef, bigbro::Killer>,
-    am_interrupted: bool,
+    am_interrupted: Option<InterruptReason>,
 
     flags: flags::Flags,
     started: std::time::Instant,
@@ -517,7 +522,6 @@ pub fn build(fl: flags::Flags) -> i32 {
     // https://github.com/bluss/indexing/blob/master/src/container.rs
     let mut b = Build {
         id: Id::default(),
-        reboot_now: None,
         files: Vec::new(),
         rules: Vec::new(),
         filemap: HashMap::new(),
@@ -528,7 +532,7 @@ pub fn build(fl: flags::Flags) -> i32 {
         recv_rule_status: rx,
         send_rule_status: tx,
         process_killers: TinyMap::new(),
-        am_interrupted: false,
+        am_interrupted: None,
         flags: fl,
         started: std::time::Instant::now(),
     };
@@ -542,7 +546,6 @@ impl Build {
     fn reboot(self) -> i32 {
         let mut b = Build {
             id: Id::default(),
-            reboot_now: self.reboot_now,
             files: Vec::new(),
             rules: Vec::new(),
             filemap: HashMap::new(),
@@ -553,7 +556,7 @@ impl Build {
             recv_rule_status: self.recv_rule_status,
             send_rule_status: self.send_rule_status,
             process_killers: TinyMap::new(),
-            am_interrupted: false,
+            am_interrupted: self.am_interrupted,
             flags: self.flags,
             started: std::time::Instant::now(),
         };
@@ -581,14 +584,14 @@ impl Build {
             self.flags.jobs = num_cpus::get();
             vprintln!("Using {} jobs", self.flags.jobs);
         }
-        if self.reboot_now.is_none() {
+        if self.am_interrupted.is_none() {
             let ctrl_c_sender = self.send_rule_status.clone();
             ctrlc::set_handler(move || {
                 ctrl_c_sender.send(Event::CtrlC).expect("Error reporting Ctrl-C");
                 print!("... ");
             }).expect("Error setting Ctrl-C handler");
         } else {
-            self.reboot_now = None;
+            self.am_interrupted = None;
         }
 
         // Start by reading any facfiles in the git repository.
@@ -666,8 +669,10 @@ impl Build {
             self.build_dirty();
             self.unlock_repository().unwrap();
 
-            if let Some(reason) = self.reboot_now.clone() {
-                println!("Rebooting: {}", reason);
+            if let Some(InterruptReason::Rebooting(_)) = self.am_interrupted {
+                if let Some(InterruptReason::Rebooting(ref reason)) = self.am_interrupted {
+                    println!("Rebooting: {}", reason);
+                }
                 return self.reboot();
             }
 
@@ -709,6 +714,10 @@ impl Build {
             if self.flags.continual {
                 let _g = crude_profiler::push("continual");
                 let rules: Vec<_> = self.statuses[Status::Built].iter().collect();
+                for r in rules {
+                    self.set_status(r, Status::Clean);
+                }
+                let rules: Vec<_> = self.statuses[Status::Failed].iter().collect();
                 for r in rules {
                     self.set_status(r, Status::Clean);
                 }
@@ -791,7 +800,7 @@ impl Build {
                                         self.modified_file(t);
                                     },
                                     Event::CtrlC => {
-                                        self.am_interrupted = true;
+                                        self.am_interrupted = Some(InterruptReason::CtrlC);
                                         println!("Interrupted!");
                                         self.unlock_repository_and_exit(1);
                                     },
@@ -800,13 +809,14 @@ impl Build {
                         },
                         Err(e) => {
                             println!("error receiving status! {}", e);
-                            self.am_interrupted = true;
-                            if self.reboot_now.is_none() {
+                            if self.am_interrupted.is_none() {
+                                // the following is a hokey guess?
+                                self.am_interrupted = Some(InterruptReason::CtrlC);
                                 self.unlock_repository_and_exit(1);
                             }
                         },
                         Ok(Event::CtrlC) => {
-                            self.am_interrupted = true;
+                            self.am_interrupted = Some(InterruptReason::CtrlC);
                             println!("Interrupted!");
                             self.unlock_repository_and_exit(1);
                         },
@@ -841,9 +851,7 @@ impl Build {
                     let children: Vec<_> = self.rule(r).all_outputs.iter()
                         .flat_map(|o| self[o].children.iter())
                         .filter(|&c| self.rule(c).status == Status::Unready
-                                || self.rule(c).status == Status::Failed
-                                || self.rule(c).status == Status::Clean
-                                || self.rule(c).status == Status::Built).collect();
+                                || self.rule(c).status == Status::Clean).collect();
                     for c in children {
                         self.definitely_mark(c);
                     }
@@ -863,8 +871,13 @@ impl Build {
             if self.num_building() > 0 {
                 self.wait_for_a_rule();
             }
-            if let Some(ref reason) = self.reboot_now {
-                println!("Woo hoo, rebooting! {}", reason);
+            if let Some(InterruptReason::Rebooting(_)) = self.am_interrupted {
+                if let Some(InterruptReason::Rebooting(ref reason)) = self.am_interrupted {
+                    println!("Woo hoo, rebooting! {}", reason);
+                }
+                while self.num_building() > 0 { // first finish what we are doing...
+                    self.wait_for_a_rule();
+                }
                 return;
             }
 
@@ -2000,10 +2013,10 @@ impl Build {
             if self[o].rules_defined.is_some() {
                 // We have read this facfile before, so we need to
                 // be cautious, because rules may have changed.
-                self.reboot_now = Some(format!("Restarting so we will reload {:?}",
-                                               self.pretty_path_peek(o)));
-                self.am_interrupted = true;
-                println!("I am rebooting now! {}", self.reboot_now.as_ref().unwrap());
+                let msg = format!("Restarting so we will reload {:?}",
+                                  self.pretty_path_peek(o));
+                println!("I am rebooting now! {}", &msg);
+                self.am_interrupted = Some(InterruptReason::Rebooting(msg));
                 return;
             }
             if let Err(e) = self.read_facfile(o) {
@@ -2031,9 +2044,7 @@ impl Build {
     fn modified_file(&mut self, f: FileRef) {
         let children: Vec<RuleRef> = self[f].children.iter()
             .filter(|&c| self.rule(c).status == Status::Unready
-                    || self.rule(c).status == Status::Failed
-                    || self.rule(c).status == Status::Clean
-                    || self.rule(c).status == Status::Built).collect();
+                    || self.rule(c).status == Status::Clean).collect();
         for c in children {
             // Next time examine the children to see if we can build them.
             self.definitely_mark(c);
@@ -2216,14 +2227,14 @@ impl Build {
             },
             Err(e) => {
                 println!("error receiving status: {}", e);
-                self.am_interrupted = true;
-                if self.reboot_now.is_none() {
+                if self.am_interrupted.is_none() {
+                    self.am_interrupted = Some(InterruptReason::CtrlC); // ?!
                     self.unlock_repository_and_exit(1);
                 }
             },
             Ok(Event::CtrlC) => {
-                if !self.am_interrupted {
-                    self.am_interrupted = true;
+                if self.am_interrupted.is_none() {
+                    self.am_interrupted = Some(InterruptReason::CtrlC);
                     println!("Interrupted!");
                     self.unlock_repository_and_exit(1);
                 }
@@ -2248,16 +2259,16 @@ impl Build {
                 false
             },
             Err(e) => {
-                if !self.am_interrupted {
+                if self.am_interrupted.is_none() {
                     println!("error receiving status: {}", e);
-                    self.am_interrupted = true;
+                    self.am_interrupted = Some(InterruptReason::CtrlC);
                     self.unlock_repository_and_exit(1);
                 }
                 false
             },
             Ok(Event::CtrlC) => {
-                if !self.am_interrupted {
-                    self.am_interrupted = true;
+                if self.am_interrupted.is_none() {
+                    self.am_interrupted = Some(InterruptReason::CtrlC);
                     println!("Interrupted!");
                     self.unlock_repository_and_exit(1);
                 }
@@ -2436,6 +2447,8 @@ impl Build {
                 // around.
                 if self[o].exists() && !self.is_cache(r, &self[o].path) {
                     self.add_output(r, o);
+                } else if self[o].rule == Some(r) {
+                    self[o].rule = None; // this rule does not create this output!
                 }
             }
             {
@@ -2450,6 +2463,7 @@ impl Build {
                         // we should remove it from the list of
                         // outputs.
                         self.rule_mut(r).all_outputs.remove(&w);
+                        self[w].rule = None; // also remove back link, since we didn't create it!
                     }
                 }
             }
