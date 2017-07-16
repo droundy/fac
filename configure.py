@@ -258,6 +258,7 @@ c .gcda
 c .gcno
 c .gcov
 c Cargo.lock
+c -fac
 c -pak
 c .deb
 C doc-pak
