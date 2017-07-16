@@ -27,3 +27,4 @@ else:
 for f in sorted(glob.glob('*.c')):
     print('| sparse -Ibigbro -Wsparse-error %s > %s.sparse' % (f, f[:-2]))
     print('> %s.sparse' % (f[:-2]))
+    print('< version-identifier.h')
