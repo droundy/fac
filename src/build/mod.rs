@@ -2407,16 +2407,16 @@ impl Build {
                             if self.flags.git_add {
                                 if let Err(e) = git::add(&self[fr].path) {
                                     rule_actually_failed = true;
-                                    println!("error: unable to git add {:?} successfully:",
-                                             self.pretty_path_peek(fr));
-                                    println!("{}", e);
+                                    failln!("error: unable to git add {:?} successfully:",
+                                            self.pretty_path_peek(fr));
+                                    failln!("{}", e);
                                 } else {
                                     self[fr].is_in_git = true;
                                 }
                             } else {
                                 rule_actually_failed = true;
-                                println!("error: {:?} should be in git for {}",
-                                         self.pretty_path_peek(fr), self.pretty_reason(r));
+                                failln!("error: {:?} should be in git for {}",
+                                        self.pretty_path_peek(fr), self.pretty_reason(r));
                             }
                         }
                         self.add_input(r, fr);
@@ -2440,8 +2440,8 @@ impl Build {
                 if !self.rule(r).all_outputs.contains(&o) {
                     self.add_output(r, o);
                     if !self[o].exists() {
-                        println!("build failed to create: {:?}",
-                                 self.pretty_path_peek(o));
+                        failln!("build failed to create: {:?}",
+                                self.pretty_path_peek(o));
                         rule_actually_failed = true;
                     }
                     // We do not want to ignore below any explict old outputs...
