@@ -949,14 +949,14 @@ impl Build {
                                     //     need_to_try_again = true;
                                 } else {
                                     have_explained_failure = true;
-                                    println!("error: add {:?} to git, which is required for {}",
-                                             self.pretty_path_peek(i),
-                                             self.pretty_reason(r));
+                                    failln!("error: add {:?} to git, which is required for {}",
+                                            self.pretty_path_peek(i),
+                                            self.pretty_reason(r));
                                 }
                             } else {
                                 have_explained_failure = true;
-                                println!("error: missing file {:?}, which is required for {}",
-                                         self.pretty_path_peek(i), self.pretty_reason(r));
+                                failln!("error: missing file {:?}, which is required for {}",
+                                        self.pretty_path_peek(i), self.pretty_reason(r));
                             }
                         }
                     }
@@ -1238,8 +1238,14 @@ impl Build {
                         .insert(bytes_to_osstr(&line[2..]).to_os_string());
                 },
                 b'C' => {
+                    let prefix = bytes_to_osstr(&line[2..]).to_os_string();
+                    let prefix = if PathBuf::from(&prefix).is_absolute() {
+                        prefix
+                    } else {
+                        filepath.parent().unwrap().join(&prefix).into_os_string()
+                    };
                     self.rule_mut(get_rule(command, 'C')?).cache_prefixes
-                        .insert(bytes_to_osstr(&line[2..]).to_os_string());
+                        .insert(prefix);
                 },
                 _ => {
                     return Err(
@@ -1297,7 +1303,7 @@ impl Build {
                     let f = self.new_file(bytes_to_osstr(&line[2..]));
                     file = Some(f);
                     if let Some(r) = command {
-                        if !self.is_cache(r, self.pretty_path_peek(f)) {
+                        if !self.is_cache(r, &self[f].path) {
                             self.add_output(r, f);
                         }
                     } else {
@@ -1313,7 +1319,7 @@ impl Build {
                     let f = self.new_file(bytes_to_osstr(&line[2..]));
                     file = Some(f);
                     if let Some(r) = command {
-                        if !self.is_cache(r, self.pretty_path_peek(f)) {
+                        if !self.is_cache(r, &self[f].path) {
                             self.add_input(r, f);
                         }
                     }
@@ -2293,7 +2299,6 @@ impl Build {
 
     /// Identifies whether a given path is "cache"
     fn is_cache(&self, r: RuleRef, path: &Path) -> bool {
-        let path = path.strip_prefix(&self.flags.root).unwrap_or(path);
         self.rule(r).cache_suffixes.iter().any(|s| is_suffix(path, s)) ||
             self.rule(r).cache_prefixes.iter().any(|s| is_prefix(path, s))
     }
