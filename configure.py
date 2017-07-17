@@ -237,8 +237,6 @@ else:
 
 def cargo_cmd(cmd, inps, outs):
         print('\n| {}'.format(cmd))
-        if 'src/version.rs' not in outs:
-            inps.append('src/version.rs')
         for i in inps:
             print("< {}".format(i))
         for o in outs:
@@ -257,6 +255,7 @@ c __pycache__
 c .gcda
 c .gcno
 c .gcov
+c src/version.rs
 c Cargo.lock
 c fac
 c -pak
@@ -271,12 +270,8 @@ C bigbro
 ''')
 
 if is_in_path('cargo'):
-    # we have extra trickery here because apparently cargo is not
-    # smart about running multiple cargo commands in parallel that run
-    # the build script (which generates version.rs.  So we make one
-    # cargo command generate it, and the others depend on it.
     cargo_cmd("cargo build --features strict && mv target/debug/fac debug-fac", [],
-              ["debug-fac", 'src/version.rs'])
+              ["debug-fac"])
     cargo_cmd("cargo test --features strict > cargo-test-output.log",
               [], ['cargo-test-output.log'])
     cargo_cmd("cargo doc --no-deps && cp -a target/doc web/", [],

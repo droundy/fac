@@ -12,8 +12,6 @@ macro_rules! print_err {
 }
 
 fn main() {
-    print_err!("removing old src/version.rs");
-    std::fs::remove_file("src/version.rs").ok();
     print_err!("running git describe --dirty");
     let mut stat = Command::new("git")
         .args(&["describe", "--dirty"])
@@ -35,12 +33,20 @@ fn main() {
         version.extend(b"(unknown version)");
     }
 
-    print_err!("creating src/version.rs");
-    let mut file = std::fs::File::create("src/version.rs").expect("error creating version.rs");
-    print_err!("writing to src/version.rs");
-    file.write(b"/// The version of fac\npub static VERSION: &'static str = \"")
-        .expect("error writing to file");
-    file.write(&version).expect("error writing to file");
-    file.write(b"\";\n").expect("error writing to file");
-    print_err!("all done writing to src/version.rs");
+    // The following attempts to atomically create version.rs, in case
+    // two cargos are running simultaneously.  Rust does not document
+    // rename as atomic, but on posix systems it currently is.
+    {
+        print_err!("creating src/version.rs~");
+        let mut file = std::fs::File::create("src/version.rs~").expect("error creating version.rs");
+        print_err!("writing to src/version.rs");
+        file.write(b"/// The version of fac\npub static VERSION: &'static str = \"")
+            .expect("error writing to file");
+        file.write(&version).expect("error writing to file");
+        file.write(b"\";\n").expect("error writing to file");
+        print_err!("all done writing to src/version.rs~");
+    }
+    print_err!("mv src/version.rs~ src/version.rs");
+    std::fs::rename("src/version.rs~", "src/version.rs")
+        .expect("failed to rename version.rs");
 }
