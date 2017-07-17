@@ -17,12 +17,12 @@ fn main() {
     print_err!("running git describe --dirty");
     let mut stat = Command::new("git")
         .args(&["describe", "--dirty"])
-        .output().unwrap();
+        .output().expect("unable to call git describe?");
     if !stat.status.success() || stat.stdout.len() < 5 {
         print_err!("running revparse HEAD, since git describe --dirty failed");
         stat = Command::new("git")
             .args(&["revparse", "HEAD"])
-            .output().unwrap();
+            .output().expect("unable to call git revparse?");
     }
 
     print_err!("constructing version string");
