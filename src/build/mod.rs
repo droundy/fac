@@ -2444,6 +2444,8 @@ impl Build {
                                  self.pretty_path_peek(o));
                         rule_actually_failed = true;
                     }
+                    // We do not want to ignore below any explict old outputs...
+                    old_outputs.remove(&o);
                 }
             }
             for o in old_outputs.iter() {
