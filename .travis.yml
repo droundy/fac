@@ -52,6 +52,7 @@ matrix:
 before_install: set -e
 
 install:
+  - git --version
   - sh ci/install.sh
   - source ~/.cargo/env || true
 
