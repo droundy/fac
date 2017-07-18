@@ -12,6 +12,7 @@ cat > git-cloning.fac <<EOF
 | if cd bigbro; then git pull; else git clone --depth 3 git://github.com/droundy/bigbro.git bigbro; fi
 > bigbro/configure.fac
 C bigbro/.git/ref/
+c bigbro/syscalls/linux.h
 EOF
 git add git-cloning.fac
 
