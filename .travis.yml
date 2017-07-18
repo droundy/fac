@@ -53,6 +53,7 @@ before_install: set -e
 
 install:
   # - sh ci/install.sh
+  - rustup install stable-$TARGET
   - source ~/.cargo/env || true
 
 script:

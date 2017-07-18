@@ -9,7 +9,6 @@ main() {
     git describe --dirty || true
     git rev-parse HEAD
 
-    rustup install $TARGET
     cargo build --target $TARGET
     cargo build --target $TARGET --release
 
