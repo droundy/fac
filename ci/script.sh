@@ -4,8 +4,9 @@ set -ex
 
 main() {
     git --version
-    git describe --dirty
     pwd
+    git describe --dirty || true
+    git revparse HEAD
 
     cross build --target $TARGET
     cross build --target $TARGET --release
