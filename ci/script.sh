@@ -6,7 +6,7 @@ main() {
     git --version
     pwd
     git describe --dirty || true
-    git revparse HEAD
+    git rev-parse HEAD
 
     cross build --target $TARGET
     cross build --target $TARGET --release
