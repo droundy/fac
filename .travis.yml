@@ -53,6 +53,7 @@ before_install: set -e
 
 install:
   - git --version
+  - git describe --dirty
   - sh ci/install.sh
   - source ~/.cargo/env || true
 
