@@ -3,6 +3,10 @@
 set -ex
 
 main() {
+    git --version
+    git describe --dirty
+    pwd
+
     cross build --target $TARGET
     cross build --target $TARGET --release
 
