@@ -9,16 +9,16 @@ main() {
     git describe --dirty || true
     git rev-parse HEAD
 
+    rustup install $TARGET
     cargo build --target $TARGET
-    cross build --target $TARGET
-    cross build --target $TARGET --release
+    cargo build --target $TARGET --release
 
     if [ ! -z $DISABLE_TESTS ]; then
         return
     fi
 
-    cross test --target $TARGET
-    cross test --target $TARGET --release
+    cargo test --target $TARGET
+    cargo test --target $TARGET --release
 
     # cross run --target $TARGET
     # cross run --target $TARGET --release
