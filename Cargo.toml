@@ -10,6 +10,11 @@ repository = "https://github.com/droundy/fac"
 homepage = "https://facio.gitlab.io/fac"
 documentation = "http://facio.gitlab.io/fac/doc/fac/index.html"
 
+[badges]
+gitlab = { repository = "facio/fac", branch = "master" }
+travis-ci = { repository = "droundy/fac", branch = "master" }
+appveyor = { repository = "droundy/fac", branch = "master", service = "github"}
+
 [lib]
 name = "fac"
 path = "src/lib.rs"

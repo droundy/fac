@@ -5,6 +5,7 @@
 
 [![Build Status](https://semaphoreci.com/api/v1/droundy/fac/branches/master/shields_badge.svg)](https://semaphoreci.com/droundy/fac)
 [![build status](https://gitlab.com/facio/fac/badges/master/build.svg)](https://gitlab.com/facio/fac/pipelines)
+[![Build Status](https://travis-ci.org/droundy/fac.svg?branch=master)](https://travis-ci.org/droundy/fac)
 [![coverage report](https://gitlab.com/facio/fac/badges/master/coverage.svg)](https://facio.gitlab.io/fac/coverage.html)
 [![codecov](https://codecov.io/gl/facio/fac/branch/master/graph/badge.svg)](https://codecov.io/gl/facio/fac)
 
