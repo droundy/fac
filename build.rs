@@ -37,7 +37,7 @@ fn main() {
     // two cargos are running simultaneously.  Rust does not document
     // rename as atomic, but on posix systems it currently is.
     {
-        print_err!("creating src/version.rs~");
+        print_err!("creating src/version.rs~, and I am in {:?}", std::env::current_dir());
         let mut file = std::fs::File::create("src/version.rs~").expect("error creating version.rs");
         print_err!("writing to src/version.rs");
         file.write(b"/// The version of fac\npub static VERSION: &'static str = \"")
