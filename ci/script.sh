@@ -5,9 +5,11 @@ set -ex
 main() {
     git --version
     pwd
+    git pull --tags
     git describe --dirty || true
     git rev-parse HEAD
 
+    cargo build --target $TARGET
     cross build --target $TARGET
     cross build --target $TARGET --release
 
