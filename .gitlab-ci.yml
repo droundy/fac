@@ -16,7 +16,9 @@ test:
   before_script:
     - git config --global user.email "testing-on-gitlab-ci@example.com"
     - git config --global user.name "CI Builder"
-    - mkdir -p ~/.cargo
+    - mkdir -p ~/.cargo/bin
+    - export PATH=$PATH:~/.cargo/bin
+    - git clone git://git.kernel.org/pub/scm/devel/sparse/chrisl/sparse.git /root/sparse && cd /root/sparse && make && cp sparse ~/.cargo/bin/
   script:
     - python3 run-tests.py -v
   after_script:
