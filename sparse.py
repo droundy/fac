@@ -22,7 +22,7 @@ myver = b'v0.5.0-'
 if ver[:len(myver)] == myver:
     print('# looking good!')
 else:
-    print('# I am not confident with sparse version', ver.stdout)
+    print('# I am not confident with sparse version', ver)
 
 for f in sorted(glob.glob('*.c')):
     print('| sparse -Ibigbro -Wsparse-error %s > %s.sparse' % (f, f[:-2]))
