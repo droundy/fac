@@ -43,8 +43,6 @@ cat > top.fac <<EOF
 > main
 < Foo.o
 < Bar.o
-C /tmp/
-# the C /tmp/ is needed because ghc leaves trash in /tmp, which it shouldn't
 
 EOF
 

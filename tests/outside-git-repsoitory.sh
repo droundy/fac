@@ -2,10 +2,10 @@
 
 set -ev
 
-chmod -R +xr /tmp/$0.dir || echo no such dir
-rm -rf /tmp/$0.dir
-mkdir -p /tmp/$0.dir
-cd /tmp/$0.dir
+chmod -R +xr /tmp/`whoami`-$$ || echo no such dir
+rm -rf /tmp/`whoami`-$$
+mkdir -p /tmp/`whoami`-$$/$0.dir
+cd /tmp/`whoami`-$$/$0.dir
 
 cat > my.fac <<EOF
 | cat foo bar > out || true

@@ -14,9 +14,8 @@ cat > top.fac <<EOF
 > baz
 c foobar
 
-| echo foo > /tmp/junk && echo baz > bar
+| echo foo > /tmp/junk-$$ && echo baz > bar
 > bar
-C /tmp
 
 | echo foo >  .cache-me && cat .cache-read > localcache
 > localcache
@@ -51,9 +50,8 @@ cat > top.fac <<EOF
 > baz
 c foobar
 
-| echo foo > /tmp/junk && echo baz > bar
+| echo foo > /tmp/junk-$$ && echo baz > bar
 > bar
-C /tmp
 
 | echo foo >  .cache-me && cat .cache-read > localcache
 > localcache
@@ -76,5 +74,7 @@ if egrep '^. foobar' top.fac.tum; then
   echo this file should be ignored
   exit 1
 fi
+
+rm -f /tmp/junk-$$
 
 exit 0

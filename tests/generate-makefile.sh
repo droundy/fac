@@ -19,8 +19,8 @@ cat > build.fac <<EOF
 
 # The following is malformed output
 
-| echo hello > /tmp/mistake && echo baz > baz
-> /tmp/mistake
+| echo hello > /tmp/mistake-$$ && echo baz > baz
+> /tmp/mistake-$$
 
 EOF
 
@@ -37,7 +37,7 @@ cat > build.fac <<EOF
 
 | echo foo > foo
 
-| echo hello > /tmp/mistake && echo baz > baz
+| echo hello > /tmp/mistake-$$ && echo baz > baz
 
 EOF
 
@@ -56,5 +56,7 @@ make
 grep awesome awesome
 grep foo foo
 grep baz baz
+
+rm -f /tmp/mistake-$$
 
 exit 0
