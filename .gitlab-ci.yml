@@ -18,7 +18,7 @@ test:
     - git config --global user.name "CI Builder"
     - mkdir -p ~/.cargo/bin
     - export PATH=~/.cargo/bin:$PATH
-    - git clone git://git.kernel.org/pub/scm/devel/sparse/chrisl/sparse.git ~/sparse && cd ~/sparse && make && cp sparse ~/.cargo/bin/
+    - git clone git://git.kernel.org/pub/scm/devel/sparse/chrisl/sparse.git ~/sparse && (cd ~/sparse && make && cp sparse ~/.cargo/bin/)
   script:
     - python3 run-tests.py -v
   after_script:
