@@ -186,41 +186,42 @@ rust_numskipped = 0
 rust_numexpectedfailed = 0
 rust_numunexpectedpassed = 0
 
-for i in range(num_sh):
-    sh = sh_tests[i]
-    with open(sh) as f:
-        expect_failure = 'expect rust failure' in f.read()
-    write_script_name(sh, i, num_sh)
-    cmdline = 'bash %s > %s.rust.log 2>&1' % (sh, sh)
-    exitval = system(cmdline)
-    if expect_failure:
-        if exitval == 137:
-            print(build.blue('SKIP'), "(rust)", build.took())
-            if '-v' in sys.argv:
-                os.system('cat %s.rust.log' % sh)
-            rust_numskipped += 1
-        elif exitval:
-            print(build.warn('fail'), "(rust)", build.took())
-            if '-v' in sys.argv:
-                os.system('cat %s.rust.log' % sh)
-            rust_numexpectedfailed += 1
+if have_cargo:
+    for i in range(num_sh):
+        sh = sh_tests[i]
+        with open(sh) as f:
+            expect_failure = 'expect rust failure' in f.read()
+        write_script_name(sh, i, num_sh)
+        cmdline = 'bash %s > %s.rust.log 2>&1' % (sh, sh)
+        exitval = system(cmdline)
+        if expect_failure:
+            if exitval == 137:
+                print(build.blue('SKIP'), "(rust)", build.took())
+                if '-v' in sys.argv:
+                    os.system('cat %s.rust.log' % sh)
+                rust_numskipped += 1
+            elif exitval:
+                print(build.warn('fail'), "(rust)", build.took())
+                if '-v' in sys.argv:
+                    os.system('cat %s.rust.log' % sh)
+                rust_numexpectedfailed += 1
+            else:
+                print(build.red('pass'), "(rust)", build.took())
+                rust_numunexpectedpassed += 1
         else:
-            print(build.red('pass'), "(rust)", build.took())
-            rust_numunexpectedpassed += 1
-    else:
-        if exitval == 137:
-            print(build.blue('SKIP'), "(rust)", build.took())
-            if '-v' in sys.argv:
-                os.system('cat %s.rust.log' % sh)
-            rust_numskipped += 1
-        elif exitval:
-            print(build.FAIL, "(rust)", build.took())
-            if '-v' in sys.argv:
-                os.system('cat %s.rust.log' % sh)
-            rust_numfailed += 1
-        else:
-            print(build.PASS, "(rust)", build.took())
-            rust_numpassed += 1
+            if exitval == 137:
+                print(build.blue('SKIP'), "(rust)", build.took())
+                if '-v' in sys.argv:
+                    os.system('cat %s.rust.log' % sh)
+                rust_numskipped += 1
+            elif exitval:
+                print(build.FAIL, "(rust)", build.took())
+                if '-v' in sys.argv:
+                    os.system('cat %s.rust.log' % sh)
+                rust_numfailed += 1
+            else:
+                print(build.PASS, "(rust)", build.took())
+                rust_numpassed += 1
 
 if have_gcovr:
     os.system('rm -f test.*') # generated while testing compiler flags
