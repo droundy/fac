@@ -1,35 +1,116 @@
 extern crate fac;
 
-use std::io::Write;
+use std::io::{Write, Read};
+
+struct TempDir(std::path::PathBuf);
+impl TempDir {
+    fn new<P: AsRef<std::path::Path>> (p: P) -> TempDir {
+        println!("remove test repository");
+        std::fs::remove_dir_all(&p.as_ref()).ok();
+        println!("create {:?}", p.as_ref());
+        assert!(std::fs::create_dir_all(p.as_ref()).is_ok());
+        TempDir(std::path::PathBuf::from(p.as_ref()))
+    }
+    fn fac(&self, args: &[&str]) -> std::process::Output {
+        match std::env::var_os("PATH") {
+            Some(paths) => {
+                for path in std::env::split_paths(&paths) {
+                    println!("'{}'", path.display());
+                }
+                let mut new_paths = vec![std::env::current_dir().unwrap()
+                                         .join("target/debug")];
+                for path in std::env::split_paths(&paths) {
+                    new_paths.push(path);
+                }
+                std::env::set_var("PATH", std::env::join_paths(new_paths).unwrap());
+            }
+            None => println!("PATH is not defined in the environment.")
+        }
+        match std::env::var_os("PATH") {
+            Some(paths) => {
+                for path in std::env::split_paths(&paths) {
+                    println!("new path '{}'", path.display());
+                }
+            }
+            None => println!("PATH is not defined in the environment.")
+        }
+        let s = std::process::Command::new("fac").args(args)
+            .current_dir(&self.0).output();
+        println!("I am in {:?} with args {:?}", std::env::current_dir(), args);
+        if !s.is_ok() {
+            println!("Bad news: {:?}", s);
+            println!("  exists:: {:?}", std::path::Path::new("target/debug/fac").exists());
+        } else {
+            let s = s.unwrap();
+            println!("output is {:?}", String::from_utf8_lossy(&s.stdout));
+            return s;
+        }
+        s.unwrap()
+    }
+    fn git_init(&self) {
+        let s = std::process::Command::new("git").arg("init")
+            .current_dir(&self.0).output().unwrap();
+        assert!(s.status.success());
+    }
+    fn add_file(&self, p: &str, contents: &[u8]) {
+        let absp = self.0.join(p);
+        let mut f = std::fs::File::create(absp).unwrap();
+        f.write(contents).unwrap();
+        let s = std::process::Command::new("git").arg("add").arg(p)
+            .current_dir(&self.0).output().unwrap();
+        assert!(s.status.success());
+    }
+    fn expect_file(&self, p: &str, contents: &[u8]) {
+        let absp = self.0.join(p);
+        let mut f = std::fs::File::open(absp).unwrap();
+        let mut actual_contents = Vec::new();
+        f.read_to_end(&mut actual_contents).unwrap();
+        assert_eq!(std::str::from_utf8(actual_contents.as_slice()),
+                   std::str::from_utf8(contents));
+    }
+}
+impl Drop for TempDir {
+    fn drop(&mut self) {
+        std::fs::remove_dir_all(&self.0).unwrap();
+    }
+}
+
+/// This test is mostly to confirm that we are in fact testing the fac
+/// that we just compiled!
+#[test]
+fn fac_version() {
+    let tempdir = TempDir::new(&format!("tests/test-repositories/test-{}", line!()));
+    tempdir.git_init();
+    tempdir.add_file("top.fac", b"
+| fac --version > version
+");
+    assert!(tempdir.fac(&[]).status.success());
+    tempdir.expect_file("version", format!("fac {}\n", fac::version::VERSION).as_bytes());
+}
 
 #[test]
-fn it_works() {
+fn echo_to_file() {
     assert!(fac::version::VERSION.len() > 0);
-    create_repository(std::collections::HashMap::new()).unwrap();
+    let tempdir = TempDir::new(&format!("tests/test-repositories/test-{}", line!()));
+    tempdir.git_init();
+    tempdir.add_file("top.fac", b"# comment
+| echo hello world > foo
+");
+    tempdir.expect_file("top.fac", b"# comment
+| echo hello world > foo
+");
+    assert!(tempdir.fac(&[]).status.success());
+    tempdir.expect_file("foo", b"hello world\n");
 }
 
-fn create_repository(files: std::collections::HashMap<std::path::PathBuf, Vec<u8>>) -> std::io::Result<()> {
-    println!("remove test-repository");
-    std::fs::remove_dir_all("test-repository").ok();
-    println!("create test-repository");
-    std::fs::create_dir_all("test-repository")?;
-    std::env::set_current_dir("test-repository")?;
-    git_init()?;
-    for (fname, contents) in files {
-        let mut f = std::fs::File::create(&fname)?;
-        f.write(&contents)?;
-        fac::git::add(&fname)?;
-    }
-    Ok(())
+#[test]
+fn failing_rule() {
+    assert!(fac::version::VERSION.len() > 0);
+    let tempdir = TempDir::new(&format!("tests/test-repositories/test-{}", line!()));
+    tempdir.git_init();
+    tempdir.add_file("top.fac", b"# comment
+| ec ho hello world > foo
+");
+    assert!(! tempdir.fac(&[]).status.success());
 }
 
-/// git add a file or more
-pub fn git_init() -> std::io::Result<()> {
-    let s = std::process::Command::new("git").arg("init").output()?;
-    if s.status.success() {
-        Ok(())
-    } else {
-        Err(std::io::Error::new(std::io::ErrorKind::Other,
-                                String::from_utf8_lossy(&s.stderr).into_owned()))
-    }
-}
