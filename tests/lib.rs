@@ -12,29 +12,23 @@ impl TempDir {
         TempDir(std::path::PathBuf::from(p.as_ref()))
     }
     fn fac(&self, args: &[&str]) -> std::process::Output {
-        match std::env::var_os("PATH") {
-            Some(paths) => {
-                for path in std::env::split_paths(&paths) {
-                    println!("'{}'", path.display());
+        let newpath =
+            match std::env::var_os("PATH") {
+                Some(paths) => {
+                    let mut new_paths = vec![std::env::current_dir().unwrap()
+                                             .join("target/debug")];
+                    for path in std::env::split_paths(&paths) {
+                        new_paths.push(path);
+                    }
+                    std::env::join_paths(new_paths).unwrap()
                 }
-                let mut new_paths = vec![std::env::current_dir().unwrap()
-                                         .join("target/debug")];
-                for path in std::env::split_paths(&paths) {
-                    new_paths.push(path);
-                }
-                std::env::set_var("PATH", std::env::join_paths(new_paths).unwrap());
-            }
-            None => println!("PATH is not defined in the environment.")
-        }
-        match std::env::var_os("PATH") {
-            Some(paths) => {
-                for path in std::env::split_paths(&paths) {
-                    println!("new path '{}'", path.display());
-                }
-            }
-            None => println!("PATH is not defined in the environment.")
-        }
-        let s = std::process::Command::new("fac").args(args)
+                None => {
+                    println!("PATH is not defined in the environment.");
+                    std::env::join_paths(&[std::env::current_dir().unwrap()
+                                           .join("target/debug")]).unwrap()
+                },
+            };
+        let s = std::process::Command::new("fac").args(args).env("PATH", newpath)
             .current_dir(&self.0).output();
         println!("I am in {:?} with args {:?}", std::env::current_dir(), args);
         if !s.is_ok() {
