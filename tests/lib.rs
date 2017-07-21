@@ -15,8 +15,7 @@ impl TempDir {
         let newpath =
             match std::env::var_os("PATH") {
                 Some(paths) => {
-                    let mut new_paths = vec![std::env::current_dir().unwrap()
-                                             .join("target/debug")];
+                    let mut new_paths = vec![location_of_executables()];
                     for path in std::env::split_paths(&paths) {
                         new_paths.push(path);
                     }
@@ -28,6 +27,7 @@ impl TempDir {
                                            .join("target/debug")]).unwrap()
                 },
             };
+        println!("PATH is {:?}", &newpath);
         let s = std::process::Command::new("fac").args(args).env("PATH", newpath)
             .current_dir(&self.0).output();
         println!("I am in {:?} with args {:?}", std::env::current_dir(), args);
@@ -109,5 +109,14 @@ fn failing_rule() {
 | ec ho hello world > foo
 ");
     assert!(! tempdir.fac(&[]).status.success());
+}
+
+fn location_of_executables() -> std::path::PathBuf {
+    // The key here is that this test executable is located in almost
+    // the same place as the built `fac` is located.
+    let mut path = std::env::current_exe().unwrap();
+    path.pop(); // chop off exe name
+    path.pop(); // chop off "deps"
+    path
 }
 
