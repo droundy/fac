@@ -34,6 +34,9 @@ impl TempDir {
         if !s.is_ok() {
             println!("Bad news: {:?}", s);
             println!("  exists:: {:?}", std::path::Path::new("target/debug/fac").exists());
+            for x in std::path::Path::new("target/debug").read_dir().unwrap() {
+                println!("  target/debug has {:?}", x);
+            }
         } else {
             let s = s.unwrap();
             println!("output is {:?}", String::from_utf8_lossy(&s.stdout));
