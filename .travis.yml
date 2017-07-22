@@ -12,10 +12,6 @@ sudo: required
 env:
   global:
     - CRATE_NAME=fac
-    - RUST_BACKTRACE=1
-    - RUSTFLAGS="-C link-dead-code"
-    - CARGO_MAKE_RUN_CODECOV="true"
-
 
 matrix:
   include:
@@ -63,8 +59,6 @@ install:
 
 script:
   - bash ci/script.sh
-  - cargo install --debug cargo-make
-  - cargo make ci-flow
 
 after_script: set +e
 
