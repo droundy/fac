@@ -215,6 +215,7 @@ if have_checkinstall and have_help2man:
 < fac-static
 < fac.1
 C target
+c ~
 ''')
 else:
     print("# no checkinstall+help2man, so we won't build a debian package")
@@ -250,6 +251,7 @@ c ~
 c .fac
 c .tum
 c .pyc
+c .o
 c fac.exe
 c __pycache__
 c .gcda
@@ -258,6 +260,7 @@ c .gcov
 c src/version.rs
 c Cargo.lock
 c fac
+c fac-afl
 c -pak
 c .deb
 C doc-pak
@@ -272,8 +275,8 @@ C bigbro
 if is_in_path('cargo'):
     cargo_cmd("cargo build --features strict && mv target/debug/fac debug-fac", [],
               ["debug-fac"])
-    cargo_cmd("cargo test --features strict > cargo-test-output.log",
-              [], ['cargo-test-output.log'])
+    # cargo_cmd("cargo test --features strict > cargo-test-output.log",
+    #           [], ['cargo-test-output.log'])
     cargo_cmd("cargo doc --no-deps && cp -a target/doc web/", [],
               ["web/doc/fac/index.html"])
     cargo_cmd("cargo build --release && mv target/release/fac rust-fac", [],

@@ -117,10 +117,21 @@ num_sh = len(sh_tests);
 if 'rust' not in sys.argv:
     for i in range(num_sh):
         sh = sh_tests[i]
+        with open(sh) as f:
+            expect_failure = 'expect C failure' in f.read()
         write_script_name(sh, i, num_sh)
         cmdline = 'bash %s > %s.log 2>&1' % (sh, sh)
         exitval = system(cmdline)
-        if exitval == 137:
+        if expect_failure:
+            if exitval:
+                print(build.green('fail'), build.took())
+                expectedfailures += 1
+            else:
+                print(build.red('pass'), sh, build.took())
+                if '-v' in sys.argv:
+                    os.system('cat %s.log' % sh)
+                unexpectedpasses += 1
+        elif exitval == 137:
             print(build.blue('SKIP'), build.took())
             if '-v' in sys.argv:
                 os.system('cat %s.log' % sh)

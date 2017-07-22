@@ -65,6 +65,10 @@ impl TempDir {
         assert_eq!(std::str::from_utf8(actual_contents.as_slice()),
                    std::str::from_utf8(contents));
     }
+    fn no_such_file(&self, p: &str) {
+        let absp = self.0.join(p);
+        assert!(!absp.exists());
+    }
 }
 impl Drop for TempDir {
     fn drop(&mut self) {
@@ -107,6 +111,44 @@ fn echo_to_file() {
 ");
     assert!(tempdir.fac(&[]).status.success());
     tempdir.expect_file("foo", b"hello world\n");
+}
+
+#[test]
+fn dependency_makefile() {
+    assert!(fac::version::VERSION.len() > 0);
+    let tempdir = TempDir::new(&format!("tests/test-repositories/test-{}", line!()));
+    tempdir.git_init();
+    tempdir.add_file("top.fac", b"# comment
+| gcc -MD -MF .foo.o.dep -c foo.c
+M .foo.o.dep
+
+| gcc -o foo foo.o
+< foo.o
+> foo
+
+| ./foo > message
+< foo
+> message
+");
+    tempdir.add_file("foo.c", b"
+#include <stdio.h>
+#include \"foo.h\"
+
+int main() {
+  printf(message);
+  return 0;
+}
+");
+    tempdir.add_file("foo.h", b"
+const char *message = \"hello\\n\";
+");
+    assert!(tempdir.fac(&["--blind"]).status.success());
+    tempdir.expect_file("message", b"hello\n");
+    assert!(tempdir.fac(&["--clean"]).status.success());
+    tempdir.no_such_file("foo.o");
+    tempdir.no_such_file(".foo.o.dep");
+    tempdir.no_such_file("foo");
+    tempdir.no_such_file("message");
 }
 
 #[test]

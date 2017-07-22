@@ -375,6 +375,7 @@ pub struct Rule {
     status: Status,
     cache_prefixes: HashSet<OsString>,
     cache_suffixes: HashSet<OsString>,
+    deps_makefile: Option<FileRef>,
 
     working_directory: PathBuf,
     facfile: FileRef,
@@ -1122,6 +1123,7 @@ impl Build {
             status: Status::Unknown,
             cache_prefixes: cache_prefixes,
             cache_suffixes: cache_suffixes,
+            deps_makefile: None,
             working_directory: PathBuf::from(working_directory),
             facfile: facfile,
             linenum: linenum,
@@ -1247,6 +1249,13 @@ impl Build {
                     self.rule_mut(get_rule(command, 'C')?).cache_prefixes
                         .insert(prefix);
                 },
+                b'M' => {
+                    let f = self.new_file( &normalize(&filepath.parent().unwrap()
+                                                      .join(bytes_to_osstr(&line[2..]))));
+                    let r = get_rule(command, 'M')?;
+                    self.add_explicit_output(r, f);
+                    self.rule_mut(r).deps_makefile = Some(f)
+                },
                 _ => {
                     return Err(
                         io::Error::new(
@@ -1339,6 +1348,106 @@ impl Build {
             }
         }
         Ok(())
+    }
+
+    fn read_deps_makefile(&mut self, r: RuleRef, fileref: FileRef) -> io::Result<()> {
+        println!("in read_deps_makefile {:?}", self.pretty_path_peek(fileref));
+        let filepath = PathBuf::from(self.pretty_path_peek(fileref));
+        let mut f = if let Ok(f) = std::fs::File::open(&filepath) {
+            f
+        } else {
+            println!("no such file: {:?}", filepath);
+            return Ok(()); // not an error for generated makefile to not exist!
+        };
+        let mut v = Vec::new();
+        f.read_to_end(&mut v)?;
+        let mut current_name = Vec::new();
+        let mut bytes = v.into_iter();
+        loop {
+            match bytes.next() {
+                None => {
+                    println!("Short file?!");
+                    return Ok(());
+                },
+                Some(b'\\') => {
+                    match bytes.next() {
+                        Some(b't') => current_name.push(b'\t'),
+                        Some(b'n') => current_name.push(b'\n'),
+                        Some(b'\n') => {
+                            if current_name.len() > 0 {
+                                let f = self.new_file(bytes_to_osstr(&current_name));
+                                if !self.is_cache(r, &self[f].path) {
+                                    self.add_output_with_hash(r,f);
+                                }
+                                current_name = Vec::new();
+                            }
+                        },
+                        Some(bb) => current_name.push(bb),
+                        None => {
+                            println!("Weird bit");
+                            return Ok(())
+                        },
+                    }
+                },
+                Some(b':') => {
+                    if current_name.len() > 0 {
+                        let f = self.new_file(bytes_to_osstr(&current_name));
+                        if !self.is_cache(r, &self[f].path) {
+                            self.add_output_with_hash(r,f);
+                        }
+                        current_name = Vec::new();
+                    }
+                    break;
+                },
+                Some(b' ') => {
+                    if current_name.len() > 0 {
+                        let f = self.new_file(bytes_to_osstr(&current_name));
+                        if !self.is_cache(r, &self[f].path) {
+                            self.add_output_with_hash(r,f);
+                        }
+                        current_name = Vec::new();
+                    }
+                },
+                Some(b) => current_name.push(b),
+            }
+        }
+        loop {
+            match bytes.next() {
+                None => {
+                    return Ok(());
+                },
+                Some(b'\\') => {
+                    match bytes.next() {
+                        Some(b't') => current_name.push(b'\t'),
+                        Some(b'n') => current_name.push(b'\n'),
+                        Some(b'\n') => {
+                            if current_name.len() > 0 {
+                                let f = self.new_file(bytes_to_osstr(&current_name));
+                                if !self.is_cache(r, &self[f].path) {
+                                    self.add_input_with_hash(r,f);
+                                }
+                                current_name = Vec::new();
+                            }
+                        },
+                        Some(bb) => current_name.push(bb),
+                        None => {
+                            println!("Weird bit");
+                            return Ok(())
+                        },
+                    }
+                },
+                Some(b' ') => {
+                    if current_name.len() > 0 {
+                        let f = self.new_file(bytes_to_osstr(&current_name));
+                        if !self.is_cache(r, &self[f].path) {
+                            self.add_input_with_hash(r,f);
+                        }
+                        current_name = Vec::new();
+                    }
+                },
+                Some(b) => current_name.push(b),
+            }
+        }
     }
 
     /// Determines the ".fac.tum" file path corresponding to the given
@@ -1618,6 +1727,22 @@ impl Build {
         assert!(!self.rule(r).all_outputs.contains(&input));
         self.rule_mut(r).all_inputs.insert(input);
         self[input].children.insert(r);
+    }
+    fn add_output_with_hash(&mut self, r: RuleRef, f: FileRef) {
+        let p = self[f].path.clone();
+        if self[f].hashstat.finish(&p).is_ok() {
+            self.add_output(r, f);
+            let hs = self[f].hashstat;
+            self.rule_mut(r).hashstats.insert(f, hs);
+        }
+    }
+    fn add_input_with_hash(&mut self, r: RuleRef, f: FileRef) {
+        let p = self[f].path.clone();
+        if self[f].hashstat.finish(&p).is_ok() {
+            self.add_input(r, f);
+            let hs = self[f].hashstat;
+            self.rule_mut(r).hashstats.insert(f, hs);
+        }
     }
     /// Add a new File as an output of this rule.
     pub fn add_output(&mut self, r: RuleRef, output: FileRef) {
@@ -2185,7 +2310,7 @@ impl Build {
         let mut cmd = bigbro::Command::new("/bin/sh");
         cmd.arg("-c")
             .arg(&self.rule(r).command)
-            .blind(self.flags.blind)
+            .blind(self.flags.blind || self.rule(r).deps_makefile.is_some())
             .current_dir(&wd)
             .stdin(bigbro::Stdio::null());
         self.rule_mut(r).start_time = Some(std::time::Instant::now());
@@ -2317,160 +2442,167 @@ impl Build {
         let message: String;
 
         if stat.status().success() {
-            let mut written_to_files = stat.written_to_files();
-            let mut read_from_files = stat.read_from_files();
             let mut rule_actually_failed = false;
-            // First clear out the listing of inputs and outputs.
-            let old_inputs: Vec<_> = self.rule_mut(r).all_inputs.drain().collect();
-            for i in old_inputs {
-                // Make sure to clear out "children" relationship when
-                // removing inputs.  We'll add back the proper links
-                // later.
-                self[i].children.remove(&r);
-            }
-            let mut old_outputs: Set64<FileRef> =
-                self.rule_mut(r).all_outputs.drain().collect();
-            // First we add in our explicit inputs.  This is done
-            // first, because we want to ensure that we don't count an
-            // explicit input as an output.
-            let explicit_inputs = self.rule(r).inputs.clone();
-            for i in explicit_inputs {
-                self.add_input(r, i);
-                let hs = self[i].hashstat;
-                if hs.kind != Some(FileKind::Dir) {
-                    // for files and symlinks that were not read, we
-                    // want to know what their hash was, so we won't
-                    // rebuild on their behalf.
-                    self.rule_mut(r).hashstats.insert(i, hs);
+            if let Some(f) = self.rule(r).deps_makefile {
+                if let Err(e) = self.read_deps_makefile(r, f) {
+                    failln!("Error reading deps file: {:?}", e);
+                    rule_actually_failed = true;
                 }
-                written_to_files.remove(&self[i].path);
-                read_from_files.remove(&self[i].path);
-            }
-            for w in written_to_files {
-                if w.starts_with(&self.flags.root)
-                    && !self.is_git_path(&w)
-                    && !self.is_cache(r, &w) {
-                        let fw = self.new_file(&w);
-                        if self[fw].hashstat.finish(&w).is_ok() {
-                            if let Some(fwr) = self[fw].rule {
-                                if fwr != r {
-                                    let mess = format!("two rules generate same output {:?}:\n\t{}\nand\n\t{}",
-                                                       self.pretty_path_peek(fw),
-                                                       self.pretty_rule(r),
-                                                       self.pretty_rule(fwr));
-                                    failln!("error: {}", &mess);
-                                    self.failed(r);
-                                    let ff = self.rule(r).facfile;
-                                    self.facfiles_used.insert(ff);
-                                    return Ok(())
-                                }
-                            }
-                            self.add_output(r, fw);
-                            // update the hashstat for the output that changed
-                            let hs = self[fw].hashstat;
-                            self.rule_mut(r).hashstats.insert(fw, hs);
-                            old_outputs.remove(&fw);
-                        } else {
-                            vprintln!("   Hash not okay?!");
-                        }
-                    }
-            }
-            for d in stat.mkdir_directories() {
-                if d.starts_with(&self.flags.root)
-                    && !self.is_git_path(&d)
-                    && !self.is_cache(r, &d)
-                {
-                    let fw = self.new_file(&d);
-                    if self[fw].hashstat.finish(&d).is_ok() {
-                        // We allow multiple rules to mkdir the same
-                        // directory.  This is fine, since we do not
-                        // apply strict ordering to the creation of a
-                        // directory.
-                        self.add_output(r, fw);
-                        old_outputs.remove(&fw);
-                    }
+            } else {
+                let mut written_to_files = stat.written_to_files();
+                let mut read_from_files = stat.read_from_files();
+                // First clear out the listing of inputs and outputs.
+                let old_inputs: Vec<_> = self.rule_mut(r).all_inputs.drain().collect();
+                for i in old_inputs {
+                    // Make sure to clear out "children" relationship when
+                    // removing inputs.  We'll add back the proper links
+                    // later.
+                    self[i].children.remove(&r);
                 }
-            }
-            for rr in read_from_files {
-                if !self.is_boring(&rr) && !self.is_cache(r, &rr) {
-                    let fr = self.new_file(&rr);
-                    if !old_outputs.contains(&fr)
-                        && self[fr].hashstat.finish(&rr).is_ok()
-                    {
-                        let hs = self[fr].hashstat;
-                        self.rule_mut(r).hashstats.insert(fr, hs);
-                        if rr.starts_with(&self.flags.root)
-                            && !self[fr].rule.is_some()
-                            && !self[fr].is_in_git
-                            && !self.is_git_path(&rr)
-                        {
-                            if self.flags.git_add {
-                                if let Err(e) = git::add(&self[fr].path) {
-                                    rule_actually_failed = true;
-                                    failln!("error: unable to git add {:?} successfully:",
-                                            self.pretty_path_peek(fr));
-                                    failln!("{}", e);
-                                } else {
-                                    self[fr].is_in_git = true;
+                let mut old_outputs: Set64<FileRef> =
+                    self.rule_mut(r).all_outputs.drain().collect();
+                // First we add in our explicit inputs.  This is done
+                // first, because we want to ensure that we don't count an
+                // explicit input as an output.
+                let explicit_inputs = self.rule(r).inputs.clone();
+                for i in explicit_inputs {
+                    self.add_input(r, i);
+                    let hs = self[i].hashstat;
+                    if hs.kind != Some(FileKind::Dir) {
+                        // for files and symlinks that were not read, we
+                        // want to know what their hash was, so we won't
+                        // rebuild on their behalf.
+                        self.rule_mut(r).hashstats.insert(i, hs);
+                    }
+                    written_to_files.remove(&self[i].path);
+                    read_from_files.remove(&self[i].path);
+                }
+                for w in written_to_files {
+                    if w.starts_with(&self.flags.root)
+                        && !self.is_git_path(&w)
+                        && !self.is_cache(r, &w) {
+                            let fw = self.new_file(&w);
+                            if self[fw].hashstat.finish(&w).is_ok() {
+                                if let Some(fwr) = self[fw].rule {
+                                    if fwr != r {
+                                        let mess = format!("two rules generate same output {:?}:\n\t{}\nand\n\t{}",
+                                                           self.pretty_path_peek(fw),
+                                                           self.pretty_rule(r),
+                                                           self.pretty_rule(fwr));
+                                        failln!("error: {}", &mess);
+                                        self.failed(r);
+                                        let ff = self.rule(r).facfile;
+                                        self.facfiles_used.insert(ff);
+                                        return Ok(())
+                                    }
                                 }
+                                self.add_output(r, fw);
+                                // update the hashstat for the output that changed
+                                let hs = self[fw].hashstat;
+                                self.rule_mut(r).hashstats.insert(fw, hs);
+                                old_outputs.remove(&fw);
                             } else {
-                                rule_actually_failed = true;
-                                failln!("error: {:?} should be in git for {}",
-                                        self.pretty_path_peek(fr), self.pretty_reason(r));
+                                vprintln!("   Hash not okay?!");
                             }
                         }
-                        self.add_input(r, fr);
+                }
+                for d in stat.mkdir_directories() {
+                    if d.starts_with(&self.flags.root)
+                        && !self.is_git_path(&d)
+                        && !self.is_cache(r, &d)
+                    {
+                        let fw = self.new_file(&d);
+                        if self[fw].hashstat.finish(&d).is_ok() {
+                            // We allow multiple rules to mkdir the same
+                            // directory.  This is fine, since we do not
+                            // apply strict ordering to the creation of a
+                            // directory.
+                            self.add_output(r, fw);
+                            old_outputs.remove(&fw);
+                        }
                     }
                 }
-            }
-            for rr in stat.read_from_directories() {
-                if !self.is_boring(&rr) && !self.is_cache(r, &rr) {
-                    let fr = self.new_file(&rr);
-                    if self[fr].hashstat.finish(&rr).is_ok() && !old_outputs.contains(&fr) {
-                        let hs = self[fr].hashstat;
-                        self.rule_mut(r).hashstats.insert(fr, hs);
-                        self.add_input(r, fr);
+                for rr in read_from_files {
+                    if !self.is_boring(&rr) && !self.is_cache(r, &rr) {
+                        let fr = self.new_file(&rr);
+                        if !old_outputs.contains(&fr)
+                            && self[fr].hashstat.finish(&rr).is_ok()
+                        {
+                            let hs = self[fr].hashstat;
+                            self.rule_mut(r).hashstats.insert(fr, hs);
+                            if rr.starts_with(&self.flags.root)
+                                && !self[fr].rule.is_some()
+                                && !self[fr].is_in_git
+                                && !self.is_git_path(&rr)
+                            {
+                                if self.flags.git_add {
+                                    if let Err(e) = git::add(&self[fr].path) {
+                                        rule_actually_failed = true;
+                                        failln!("error: unable to git add {:?} successfully:",
+                                                self.pretty_path_peek(fr));
+                                        failln!("{}", e);
+                                    } else {
+                                        self[fr].is_in_git = true;
+                                    }
+                                } else {
+                                    rule_actually_failed = true;
+                                    failln!("error: {:?} should be in git for {}",
+                                            self.pretty_path_peek(fr), self.pretty_reason(r));
+                                }
+                            }
+                            self.add_input(r, fr);
+                        }
                     }
                 }
-            }
-            // Here we add in any explicit outputs that were not
-            // actually touched.
-            let explicit_outputs = self.rule(r).outputs.clone();
-            for o in explicit_outputs {
-                if !self.rule(r).all_outputs.contains(&o) {
-                    self.add_output(r, o);
-                    if !self[o].exists() {
-                        failln!("build failed to create: {:?}",
-                                self.pretty_path_peek(o));
-                        rule_actually_failed = true;
+                for rr in stat.read_from_directories() {
+                    if !self.is_boring(&rr) && !self.is_cache(r, &rr) {
+                        let fr = self.new_file(&rr);
+                        if self[fr].hashstat.finish(&rr).is_ok() && !old_outputs.contains(&fr) {
+                            let hs = self[fr].hashstat;
+                            self.rule_mut(r).hashstats.insert(fr, hs);
+                            self.add_input(r, fr);
+                        }
                     }
-                    // We do not want to ignore below any explict old outputs...
-                    old_outputs.remove(&o);
                 }
-            }
-            for o in old_outputs.iter() {
-                // Any previously created files that still exist
-                // should be treated as if they were created this time
-                // around.
-                if self[o].exists() && !self.is_cache(r, &self[o].path) {
-                    self.add_output(r, o);
-                } else if self[o].rule == Some(r) {
-                    self[o].rule = None; // this rule does not create this output!
+                // Here we add in any explicit outputs that were not
+                // actually touched.
+                let explicit_outputs = self.rule(r).outputs.clone();
+                for o in explicit_outputs {
+                    if !self.rule(r).all_outputs.contains(&o) {
+                        self.add_output(r, o);
+                        if !self[o].exists() {
+                            failln!("build failed to create: {:?}",
+                                    self.pretty_path_peek(o));
+                            rule_actually_failed = true;
+                        }
+                        // We do not want to ignore below any explict old outputs...
+                        old_outputs.remove(&o);
+                    }
                 }
-            }
-            {
-                // let us fill in any hash info for outputs that were
-                // not touched in this build.
-                let v: Vec<FileRef> = self.rule(r).all_outputs.iter()
-                    .filter(|w| self[*w].hashstat.unfinished()).collect();
-                for w in v {
-                    let p = self[w].path.clone();
-                    if self[w].hashstat.finish(&p).is_err() {
-                        // presumably this file no longer exists, so
-                        // we should remove it from the list of
-                        // outputs.
-                        self.rule_mut(r).all_outputs.remove(&w);
-                        self[w].rule = None; // also remove back link, since we didn't create it!
+                for o in old_outputs.iter() {
+                    // Any previously created files that still exist
+                    // should be treated as if they were created this time
+                    // around.
+                    if self[o].exists() && !self.is_cache(r, &self[o].path) {
+                        self.add_output(r, o);
+                    } else if self[o].rule == Some(r) {
+                        self[o].rule = None; // this rule does not create this output!
+                    }
+                }
+                {
+                    // let us fill in any hash info for outputs that were
+                    // not touched in this build.
+                    let v: Vec<FileRef> = self.rule(r).all_outputs.iter()
+                        .filter(|w| self[*w].hashstat.unfinished()).collect();
+                    for w in v {
+                        let p = self[w].path.clone();
+                        if self[w].hashstat.finish(&p).is_err() {
+                            // presumably this file no longer exists, so
+                            // we should remove it from the list of
+                            // outputs.
+                            self.rule_mut(r).all_outputs.remove(&w);
+                            self[w].rule = None; // also remove back link, since we didn't create it!
+                        }
                     }
                 }
             }
