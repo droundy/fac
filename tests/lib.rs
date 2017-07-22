@@ -72,6 +72,15 @@ impl Drop for TempDir {
     }
 }
 
+fn location_of_executables() -> std::path::PathBuf {
+    // The key here is that this test executable is located in almost
+    // the same place as the built `fac` is located.
+    let mut path = std::env::current_exe().unwrap();
+    path.pop(); // chop off exe name
+    path.pop(); // chop off "deps"
+    path
+}
+
 /// This test is mostly to confirm that we are in fact testing the fac
 /// that we just compiled!
 #[test]
@@ -110,13 +119,3 @@ fn failing_rule() {
 ");
     assert!(! tempdir.fac(&[]).status.success());
 }
-
-fn location_of_executables() -> std::path::PathBuf {
-    // The key here is that this test executable is located in almost
-    // the same place as the built `fac` is located.
-    let mut path = std::env::current_exe().unwrap();
-    path.pop(); // chop off exe name
-    path.pop(); // chop off "deps"
-    path
-}
-
