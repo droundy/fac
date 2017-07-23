@@ -114,6 +114,29 @@ fn echo_to_file() {
 }
 
 #[test]
+fn dry_run() {
+    let tempdir = TempDir::new(&format!("tests/test-repositories/test-{}", line!()));
+    tempdir.git_init();
+    tempdir.add_file("top.fac", b"# comment
+| echo hello world > foo
+");
+    tempdir.expect_file("top.fac", b"# comment
+| echo hello world > foo
+");
+    let output = tempdir.fac(&["--dry"]);
+    println!("output:\n{}\n", String::from_utf8_lossy(&output.stdout));
+    assert!(output.status.success());
+    assert!(has_match(&output.stdout, b"dry run"));
+    assert!(has_match(&output.stdout, b"echo hello world > foo"));
+    assert!(has_match(&output.stdout, b"Build failed"));
+    tempdir.no_such_file("foo");
+}
+
+fn has_match(bigstr: &[u8], substr: &[u8]) -> bool {
+    bigstr.windows(substr.len()).any(|x| x == substr)
+}
+
+#[test]
 fn dependency_makefile() {
     assert!(fac::version::VERSION.len() > 0);
     let tempdir = TempDir::new(&format!("tests/test-repositories/test-{}", line!()));
