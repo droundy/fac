@@ -65,8 +65,12 @@ impl TempDir {
         while b" \n\r".contains(&actual_contents[actual_contents.len()-1]) {
             actual_contents.pop();
         }
+        let mut contents = Vec::from(contents);
+        while b" \n\r".contains(&contents[contents.len()-1]) {
+            contents.pop();
+        }
         assert_eq!(std::str::from_utf8(actual_contents.as_slice()),
-                   std::str::from_utf8(contents));
+                   std::str::from_utf8(&contents));
     }
     fn no_such_file(&self, p: &str) {
         let absp = self.0.join(p);
@@ -114,7 +118,6 @@ fn echo_to_file() {
     tempdir.expect_file("foo", b"hello world");
 }
 
-#[cfg(target_os = "linux")]
 #[test]
 fn dry_run() {
     let tempdir = TempDir::new(&format!("tests/test-repositories/test-{}", line!()));
@@ -138,6 +141,7 @@ fn has_match(bigstr: &[u8], substr: &[u8]) -> bool {
     bigstr.windows(substr.len()).any(|x| x == substr)
 }
 
+#[cfg(target_os = "linux")]
 #[test]
 fn dependency_makefile() {
     let tempdir = TempDir::new(&format!("tests/test-repositories/test-{}", line!()));
