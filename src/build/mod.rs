@@ -866,6 +866,7 @@ impl Build {
                 for r in rules {
                     if let Err(e) = self.spawn(r) {
                         println!("I got err {}", e);
+                        std::process::exit(1);
                     }
                 }
             }
@@ -1351,7 +1352,6 @@ impl Build {
     }
 
     fn read_deps_makefile(&mut self, r: RuleRef, fileref: FileRef) -> io::Result<()> {
-        println!("in read_deps_makefile {:?}", self.pretty_path_peek(fileref));
         let filepath = PathBuf::from(self.pretty_path_peek(fileref));
         let mut f = if let Ok(f) = std::fs::File::open(&filepath) {
             f
@@ -2307,9 +2307,16 @@ impl Build {
             return Ok(());
         }
         let wd = self.flags.root.join(&self.rule(r).working_directory);
-        let mut cmd = bigbro::Command::new("/bin/sh");
-        cmd.arg("-c")
-            .arg(&self.rule(r).command)
+        let mut cmd = if cfg!(target_os = "windows") {
+            let mut cmd = bigbro::Command::new("CMD");
+            cmd.arg("/C");
+            cmd
+        } else {
+            let mut cmd = bigbro::Command::new("/bin/sh");
+            cmd.arg("-c");
+            cmd
+        };
+        cmd.arg(&self.rule(r).command)
             .blind(self.flags.blind || self.rule(r).deps_makefile.is_some())
             .current_dir(&wd)
             .stdin(bigbro::Stdio::null());

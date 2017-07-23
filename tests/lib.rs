@@ -39,7 +39,7 @@ impl TempDir {
             }
         } else {
             let s = s.unwrap();
-            println!("output is {:?}", String::from_utf8_lossy(&s.stdout));
+            println!("output is:\n{}", String::from_utf8_lossy(&s.stdout));
             return s;
         }
         s.unwrap()
@@ -62,6 +62,9 @@ impl TempDir {
         let mut f = std::fs::File::open(absp).unwrap();
         let mut actual_contents = Vec::new();
         f.read_to_end(&mut actual_contents).unwrap();
+        while b" \n\r".contains(&actual_contents[actual_contents.len()-1]) {
+            actual_contents.pop();
+        }
         assert_eq!(std::str::from_utf8(actual_contents.as_slice()),
                    std::str::from_utf8(contents));
     }
@@ -72,7 +75,7 @@ impl TempDir {
 }
 impl Drop for TempDir {
     fn drop(&mut self) {
-        std::fs::remove_dir_all(&self.0).unwrap();
+        std::fs::remove_dir_all(&self.0).ok(); // ignore errors that might happen on windows
     }
 }
 
@@ -95,24 +98,23 @@ fn fac_version() {
 | fac --version > version
 ");
     assert!(tempdir.fac(&[]).status.success());
-    tempdir.expect_file("version", format!("fac {}\n", fac::version::VERSION).as_bytes());
+    tempdir.expect_file("version", format!("fac {}", fac::version::VERSION).as_bytes());
 }
 
 #[test]
 fn echo_to_file() {
-    assert!(fac::version::VERSION.len() > 0);
     let tempdir = TempDir::new(&format!("tests/test-repositories/test-{}", line!()));
     tempdir.git_init();
     tempdir.add_file("top.fac", b"# comment
 | echo hello world > foo
 ");
     tempdir.expect_file("top.fac", b"# comment
-| echo hello world > foo
-");
+| echo hello world > foo");
     assert!(tempdir.fac(&[]).status.success());
-    tempdir.expect_file("foo", b"hello world\n");
+    tempdir.expect_file("foo", b"hello world");
 }
 
+#[cfg(target_os = "linux")]
 #[test]
 fn dry_run() {
     let tempdir = TempDir::new(&format!("tests/test-repositories/test-{}", line!()));
@@ -138,7 +140,6 @@ fn has_match(bigstr: &[u8], substr: &[u8]) -> bool {
 
 #[test]
 fn dependency_makefile() {
-    assert!(fac::version::VERSION.len() > 0);
     let tempdir = TempDir::new(&format!("tests/test-repositories/test-{}", line!()));
     tempdir.git_init();
     tempdir.add_file("top.fac", b"# comment
@@ -166,7 +167,7 @@ int main() {
 const char *message = \"hello\\n\";
 ");
     assert!(tempdir.fac(&["--blind"]).status.success());
-    tempdir.expect_file("message", b"hello\n");
+    tempdir.expect_file("message", b"hello");
     assert!(tempdir.fac(&["--clean"]).status.success());
     tempdir.no_such_file("foo.o");
     tempdir.no_such_file(".foo.o.dep");
@@ -176,7 +177,6 @@ const char *message = \"hello\\n\";
 
 #[test]
 fn failing_rule() {
-    assert!(fac::version::VERSION.len() > 0);
     let tempdir = TempDir::new(&format!("tests/test-repositories/test-{}", line!()));
     tempdir.git_init();
     tempdir.add_file("top.fac", b"# comment
