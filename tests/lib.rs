@@ -144,6 +144,7 @@ fn has_match(bigstr: &[u8], substr: &[u8]) -> bool {
 #[test]
 fn dependency_makefile() {
     if let Some(cc) = pick_executable(&["gcc", "cc", "clang", "cl.exe"]) {
+        println!("We found cc = {}", cc);
         let tempdir = TempDir::new(&format!("tests/test-repositories/test-{}", line!()));
         tempdir.git_init();
         tempdir.add_file("top.fac", format!("# comment
