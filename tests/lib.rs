@@ -177,8 +177,6 @@ const char *message = \"hello\\n\";
         tempdir.no_such_file(".foo.o.dep");
         tempdir.no_such_file("foo");
         tempdir.no_such_file("message");
-    } else {
-        assert_eq!("there is no C compiler", "oops");
     }
 }
 
