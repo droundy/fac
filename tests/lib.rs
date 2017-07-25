@@ -190,6 +190,18 @@ fn failing_rule() {
     assert!(! tempdir.fac(&[]).status.success());
 }
 
+#[test]
+fn failure_stdout_captured() {
+    let tempdir = TempDir::new(&format!("tests/test-repositories/test-{}", line!()));
+    tempdir.git_init();
+    tempdir.add_file("top.fac", b"# comment
+| echo this fails && false
+");
+    let output = tempdir.fac(&[]);
+    assert!(! output.status.success());
+    assert!(has_match(&output.stdout, b"this fails"));
+}
+
 fn executable_exists(cmd: &str) -> bool {
     std::process::Command::new(cmd).args(&["--missing-flag-hopefully"]).output().is_ok()
 }
