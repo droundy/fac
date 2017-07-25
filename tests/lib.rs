@@ -141,24 +141,24 @@ fn has_match(bigstr: &[u8], substr: &[u8]) -> bool {
     bigstr.windows(substr.len()).any(|x| x == substr)
 }
 
-#[cfg(target_os = "linux")]
 #[test]
 fn dependency_makefile() {
-    let tempdir = TempDir::new(&format!("tests/test-repositories/test-{}", line!()));
-    tempdir.git_init();
-    tempdir.add_file("top.fac", b"# comment
-| gcc -MD -MF .foo.o.dep -c foo.c
+    if let Some(cc) = pick_executable(&["gcc", "cc", "clang", "cl.exe"]) {
+        let tempdir = TempDir::new(&format!("tests/test-repositories/test-{}", line!()));
+        tempdir.git_init();
+        tempdir.add_file("top.fac", format!("# comment
+| {} -MD -MF .foo.o.dep -c foo.c
 M .foo.o.dep
 
-| gcc -o foo foo.o
+| {} -o foo foo.o
 < foo.o
 > foo
 
 | ./foo > message
 < foo
 > message
-");
-    tempdir.add_file("foo.c", b"
+", cc, cc).as_bytes());
+        tempdir.add_file("foo.c", b"
 #include <stdio.h>
 #include \"foo.h\"
 
@@ -167,16 +167,19 @@ int main() {
   return 0;
 }
 ");
-    tempdir.add_file("foo.h", b"
+        tempdir.add_file("foo.h", b"
 const char *message = \"hello\\n\";
 ");
-    assert!(tempdir.fac(&["--blind"]).status.success());
-    tempdir.expect_file("message", b"hello");
-    assert!(tempdir.fac(&["--clean"]).status.success());
-    tempdir.no_such_file("foo.o");
-    tempdir.no_such_file(".foo.o.dep");
-    tempdir.no_such_file("foo");
-    tempdir.no_such_file("message");
+        assert!(tempdir.fac(&["--blind"]).status.success());
+        tempdir.expect_file("message", b"hello");
+        assert!(tempdir.fac(&["--clean"]).status.success());
+        tempdir.no_such_file("foo.o");
+        tempdir.no_such_file(".foo.o.dep");
+        tempdir.no_such_file("foo");
+        tempdir.no_such_file("message");
+    } else {
+        assert_eq!("there is no C compiler", "oops");
+    }
 }
 
 #[test]
@@ -187,4 +190,12 @@ fn failing_rule() {
 | ec ho hello world > foo
 ");
     assert!(! tempdir.fac(&[]).status.success());
+}
+
+fn executable_exists(cmd: &str) -> bool {
+    std::process::Command::new(cmd).args(&["--missing-flag-hopefully"]).output().is_ok()
+}
+
+fn pick_executable(cmds: &[&'static str]) -> Option<&'static str> {
+    cmds.iter().map(|&x| x).filter(|&x| executable_exists(x)).next()
 }
