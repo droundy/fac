@@ -216,6 +216,8 @@ if have_checkinstall and have_help2man:
 < fac.1
 C target
 c ~
+C src
+c .html
 ''')
 else:
     print("# no checkinstall+help2man, so we won't build a debian package")

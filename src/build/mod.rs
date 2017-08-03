@@ -2489,6 +2489,10 @@ impl Build {
                         && !self.is_git_path(&w)
                         && !self.is_cache(r, &w) {
                             let fw = self.new_file(&w);
+                            // We may already have out-of-date
+                            // information on the file time/size/hash,
+                            // which we should now get rid of!
+                            self[fw].hashstat = hashstat::HashStat::empty();
                             if self[fw].hashstat.finish(&w).is_ok() {
                                 if let Some(fwr) = self[fw].rule {
                                     if fwr != r {
