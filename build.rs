@@ -33,20 +33,16 @@ fn main() {
         version = Vec::from("unknown");
     }
 
-    // The following attempts to atomically create version.rs, in case
-    // two cargos are running simultaneously.  Rust does not document
-    // rename as atomic, but on posix systems it currently is.
-    {
-        print_err!("creating src/version.rs~, and I am in {:?}", std::env::current_dir());
-        let mut file = std::fs::File::create("src/version.rs~").expect("error creating version.rs");
-        print_err!("writing to src/version.rs");
-        file.write(b"/// The version of fac\npub static VERSION: &'static str = \"")
-            .expect("error writing to file");
-        file.write(&version).expect("error writing to file");
-        file.write(b"\";\n").expect("error writing to file");
-        print_err!("all done writing to src/version.rs~");
-    }
-    print_err!("mv src/version.rs~ src/version.rs");
-    std::fs::rename("src/version.rs~", "src/version.rs")
-        .expect("failed to rename version.rs");
+    // The following attempts to atomically create
+    // $OUT_DIR/commit-info.txt, in case two cargos are running
+    // simultaneously.  Rust does not document rename as atomic, but
+    // on posix systems it currently is.
+    let out_dir = std::path::PathBuf::from(std::env::var_os("OUT_DIR").unwrap());
+    std::fs::File::create(out_dir.join("commit-info.txt~"))
+        .unwrap()
+        .write_all(&version)
+        .unwrap();
+    std::fs::rename(out_dir.join("commit-info.txt~"),
+                    out_dir.join("commit-info.txt"))
+        .expect("failed to rename commit-info.txt");
 }
