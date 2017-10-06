@@ -27,7 +27,8 @@ doc = false
 [dependencies]
 
 libc = "^0.2"
-bigbro = "^0.3.15"
+#bigbro = "^0.3.15"
+bigbro = { git = 'https://github.com/droundy/bigbro' }
 clap = "~2.23.3"
 num_cpus = "^1.5.0"
 metrohash = "^1.0.1"
