@@ -41,6 +41,9 @@ if 'rust' not in sys.argv:
             print('Build failed!')
             exit(1)
     else:
+        if system('rm -rf bigbro && sh build/%s.sh' % (platform.system().lower())):
+            print('Build from script failed!')
+            exit(1)
         print(build.blue("creating build script and tarball"))
         if system('MINIMAL=1 ./fac --script build/%s.sh -i version-identifier.h -i README.md -i COPYING --tar %s fac'
                   % (platform.system().lower(), tarname)):
@@ -77,7 +80,10 @@ if 'rust' not in sys.argv:
         system('rm tests/fac-with-coverage')
         print(build.took('rebuilding with fac and coverage'))
 else:
-    if system('./debug-fac debug-fac rust-fac'):
+    system('rm -rf bigbro')
+    system('./fac -c')
+    system('cargo build')
+    if system('target/debug/fac debug-fac rust-fac'):
         print('Build with fac failed!')
         exit(1)
     print(build.took('building fac using rust'))
