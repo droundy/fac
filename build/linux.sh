@@ -14,8 +14,6 @@ set -ev
 
 (gcc ${CFLAGS} -Ibigbro -std=c99 -o clean-all.o -c clean-all.c)
 
-(gcc ${CFLAGS} -Ibigbro -std=c99 -o environ.o -c environ.c)
-
 (python generate-version-header.py)
 
 (gcc ${CFLAGS} -Ibigbro -std=c99 -o fac.o -c fac.c)
@@ -36,6 +34,6 @@ set -ev
 
 (gcc ${CFLAGS} -Ibigbro -std=c99 -o targets.o -c targets.c)
 
-(gcc -o fac main.o fac.o files.o targets.o clean-all.o build.o git.o environ.o mkdir.o arguments.o bigbro/bigbro-linux.o lib/listset.o lib/iterablehash.o lib/sha1.o ${LDFLAGS-} -lpthread -lm)
+(gcc -o fac main.o fac.o files.o targets.o clean-all.o build.o git.o mkdir.o arguments.o bigbro/bigbro-linux.o lib/listset.o lib/iterablehash.o lib/sha1.o ${LDFLAGS-} -lpthread -lm)
 
 rm -rf bigbro

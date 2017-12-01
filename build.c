@@ -6,7 +6,6 @@
 #include "errors.h"
 #include "fac.h"
 #include "build.h"
-#include "environ.h"
 
 #include "bigbro.h"
 #include "lib/listset.h"
@@ -420,12 +419,8 @@ static void check_cleanliness(struct all_targets *all, struct rule *r) {
     return;
   }
   bool is_dirty = false;
-  if (env.abc.a != r->env.abc.a || env.abc.b != r->env.abc.b || env.abc.c != r->env.abc.c) {
-    if (r->env.abc.a || r->env.abc.b || r->env.abc.c) {
-      rebuild_excuse(r, "the environment has changed");
-    } else {
-      rebuild_excuse(r, "we have never built it");
-    }
+  if (r->num_inputs == 0 && r->num_outputs == 0) {
+    rebuild_excuse(r, "we have never built it");
     is_dirty = true;
   }
   for (int i=0;i<r->num_inputs;i++) {
@@ -1062,10 +1057,7 @@ static void build_marked(struct all_targets *all, const char *log_directory,
                 }
               }
             }
-            if (r->status != failed) {
-              r->env = env; /* save the environment for this rule */
-              built_rule(all, r);
-            }
+            if (r->status != failed) built_rule(all, r);
             insert_to_listset(&facfiles_used, r->facfile_path);
 
             if (!show_output) {
@@ -1251,7 +1243,6 @@ static void summarize_build_results(struct all_targets *all, bool am_continual,
   }
 }
 
-sha1hash env;
 
 static bool have_lock = false;
 static char *lockfilename = NULL;
@@ -1348,7 +1339,6 @@ static const char *require_strict_dependencies(struct all_targets *all) {
 
 void do_actual_build(struct cmd_args *args) {
   atexit(free_lock);
-  env = hash_environment();
   do {
     {
       int seconds_waited = 0;

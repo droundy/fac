@@ -102,7 +102,6 @@ struct rule {
   int input_array_size;
   struct target **inputs;
   struct hashstat *input_stats;
-  sha1hash env;
 
   int num_outputs, num_explicit_outputs;
   struct target **outputs;

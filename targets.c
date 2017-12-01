@@ -58,8 +58,6 @@ struct rule *create_rule(struct all_targets *all, const char *facfile_path,
   if (r->status_next) r->status_next->status_prev = &r->status_next;
   all->num_with_status[unknown]++;
 
-  r->env.abc.a = r->env.abc.b = r->env.abc.c = 0;
-
   r->num_inputs = r->num_outputs = 0;
   r->num_explicit_inputs = r->num_explicit_outputs = 0;
   r->input_array_size = 0;

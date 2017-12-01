@@ -136,7 +136,7 @@ for variant in variants.keys():
     variants[variant]['flags'] = flags
     variants[variant]['linkflags'] = linkflags
 
-    sources = ['main', 'fac', 'files', 'targets', 'clean-all', 'build', 'git', 'environ',
+    sources = ['main', 'fac', 'files', 'targets', 'clean-all', 'build', 'git',
                'mkdir', 'arguments']
 
     libsources = ['listset', 'iterablehash', 'sha1']
@@ -265,6 +265,7 @@ c fac
 c fac-afl
 c -pak
 c .deb
+c .1
 C doc-pak
 C bench
 C tests
