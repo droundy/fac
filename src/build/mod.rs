@@ -631,28 +631,28 @@ impl Build {
                 }
                 if self[o].is_fac_file() {
                     let factum = self.factum_path(o);
-                    std::fs::remove_file(&factum).ok();
-                    vprintln!("rm {:?}", &factum);
+                    let merr = std::fs::remove_file(&factum);
+                    vprintln!("rm {:?} -> {:?}", &factum, merr);
                 }
             }
-            // The following bit is a hokey and inefficient bit of
-            // code to ensure that we will rmdir subdirectories prior
-            // to their superdirectories.  I don't bother checking if
-            // anything is a directory or not, and I recompute depths
-            // many times.
-            let mut dirs: Vec<FileRef> = self.filerefs().iter()
+            let myroot = self.flags.root.clone();
+            let dirs: Vec<FileRef> = self.filerefs().iter()
                 .map(|&o| o)
-                .filter(|&o| self[o].is_dir()//  && self[o].rule.is_some()
-                ).collect();
-            dirs.sort_by_key(|&d| - (self[d].path.to_string_lossy().len() as i32));
+                .filter(|&o| self[o].is_dir()
+                        && self[o].rule.is_some()
+                        && self[o].path.starts_with(&myroot))
+                .collect();
             for d in dirs {
                 if self.is_git_path(&self[d].path) {
                     continue; // do not want to clean git paths!
                 }
                 vprintln!("rmdir {:?}", self.pretty_path_peek(d));
-                std::fs::remove_dir(&self[d].path).ok();
+                std::fs::remove_dir_all(&self[d].path).ok();
             }
-            self.unlock_repository_and_exit(0);
+            // We use emergency_unlock_repository here to avoid
+            // recreating the factum files that we just deleted!
+            self.emergency_unlock_repository().ok();
+            std::process::exit(0);
         }
 
         let mut first_time_through = true;
