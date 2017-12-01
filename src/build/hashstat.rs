@@ -13,7 +13,6 @@ use metrohash::MetroHash64;
 use std::os::unix::fs::{MetadataExt};
 
 use build::{FileKind};
-use build::env;
 
 /// The stat information about a file
 #[derive(Copy, Clone, PartialEq, PartialOrd, Eq, Hash, Debug)]
@@ -26,8 +25,6 @@ pub struct HashStat {
     /// only care about size changing, and odds of a change by 4G are
     /// slim.
     pub size: u32,
-    /// environment
-    pub env: u64,
     /// hash
     pub hash: u64,
     /// kind of file
@@ -41,7 +38,6 @@ impl quickcheck::Arbitrary for HashStat {
             time: i64::arbitrary(g),
             time_ns: i32::arbitrary(g),
             size: u32::arbitrary(g),
-            env: u64::arbitrary(g),
             hash: u64::arbitrary(g),
             kind: None,
         }
@@ -90,18 +86,16 @@ impl HashStat {
     pub fn encode(&self) -> Vec<u8> {
         let mut v = Vec::from(&encode(self.size as u64 + ((self.time_ns as u64) << 32))[..]);
         v.extend(&encode(self.time as u64)[..]);
-        v.extend(&encode(self.env)[..]);
         v.extend(&encode(self.hash)[..]);
         v
     }
     /// decode from bytes
     pub fn decode(h: &[u8]) -> HashStat {
-        if h.len() != 4*16 {
+        if h.len() != 3*16 {
             return HashStat {
                 size: 0,
                 time: 0,
                 time_ns: 0,
-                env: 0,
                 hash: 0,
                 kind: None,
             };
@@ -111,8 +105,7 @@ impl HashStat {
             size: size_time as u32,
             time: decode(&h[16..]) as i64,
             time_ns: (size_time >> 32) as i32,
-            env: decode(&h[32..]),
-            hash: decode(&h[48..]),
+            hash: decode(&h[32..]),
             kind: None,
         }
     }
@@ -138,7 +131,6 @@ pub fn stat(f: &std::path::Path) -> std::io::Result<HashStat> {
         time: 0,
         time_ns: 0,
         size: s.len() as u32,
-        env: env::hash(),
         hash: 0,
         kind: kind_of(&s),
     })
@@ -151,7 +143,6 @@ pub fn stat(f: &std::path::Path) -> std::io::Result<HashStat> {
         time: s.mtime(),
         time_ns: (s.mtime_nsec()/10) as i32,
         size: s.len() as u32,
-        env: env::hash(),
         hash: 0,
         kind: kind_of(&s),
     })
@@ -171,7 +162,6 @@ impl HashStat {
             time: 0,
             time_ns: 0,
             size: 0,
-            env: 0,
             hash: 0,
             kind: None,
         }
@@ -206,23 +196,16 @@ impl HashStat {
     /// see if it matches
     pub fn matches(&mut self, f: &std::path::Path, other: &HashStat) -> bool {
         self.stat(f).ok();
-        if self.size != other.size || self.env != other.env {
+        if self.size != other.size {
             return false;
         }
         if self.time == other.time && self.time_ns == other.time_ns {
             return true;
         }
-        if self.env != other.env {
-            return false;
-        }
         if self.hash == 0 {
             self.finish(f).unwrap();
         }
         self.hash == other.hash
-    }
-    /// see if the environment matches
-    pub fn env_matches(&mut self, other: &HashStat) -> bool {
-        self.env == other.env && self.env != 0
     }
     /// see if it we know matches without doing any disk IO
     pub fn cheap_matches(&mut self, other: &HashStat) -> bool {
@@ -232,7 +215,6 @@ impl HashStat {
         self.size == other.size
             && self.time == other.time
             && self.time_ns == other.time_ns
-            && self.env == other.env
     }
     /// hash a file
     fn hash(&mut self, f: &std::path::Path) -> std::io::Result<()> {

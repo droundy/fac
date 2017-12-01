@@ -27,7 +27,6 @@ use crude_profiler;
 
 pub mod hashstat;
 pub mod flags;
-pub mod env;
 
 lazy_static! {
     static ref FAILCOLOR: termcolor::ColorSpec = {
@@ -1724,7 +1723,10 @@ impl Build {
         // other set, because we can't tell in this function which set
         // it *should* be in.  Plus better to fix the bug than to hide
         // it with a runtime check.
-        assert!(!self.rule(r).all_outputs.contains(&input));
+        if self.rule(r).all_outputs.contains(&input) {
+            failln!("Buggy thing: input {:?} is also an output!",
+                    self.pretty_path(input));
+        }
         self.rule_mut(r).all_inputs.insert(input);
         self[input].children.insert(r);
     }
@@ -1982,11 +1984,6 @@ impl Build {
                         self.rule_mut(r).hashstats.insert(i, newstat);
                         let facfile = self.rule(r).facfile;
                         self.facfiles_used.insert(facfile);
-                    } else if !self[i].hashstat.env_matches(&istat) {
-                        rebuild_excuse = rebuild_excuse.or(
-                            Some(format!("the environment has changed")));
-                        is_dirty = true;
-                        break;
                     } else {
                         rebuild_excuse = rebuild_excuse.or(
                             Some(format!("{:?} has been modified",
@@ -2036,11 +2033,6 @@ impl Build {
                         self.rule_mut(r).hashstats.insert(o, newstat);
                         let facfile = self.rule(r).facfile;
                         self.facfiles_used.insert(facfile);
-                    } else if !self[o].hashstat.env_matches(&ostat) {
-                        rebuild_excuse = rebuild_excuse.or(
-                            Some(format!("the environment has changed")));
-                        is_dirty = true;
-                        break;
                     } else if self[o].hashstat.kind == Some(FileKind::Dir) {
                         // If the rule creates a directory, we want to
                         // ignore any changes within that directory,
