@@ -9,8 +9,11 @@ most familiar.
 ## Minimal rebuild
 
 **Fac** enables you to have a truly minimal rebuild, with very a few
-exceptions.  One exception is that if you change an environment
-variable, you will trigger an entire rebuild, which may not be needed.
+exceptions.  One exception is when one of your commands reads a
+directory (python3 does this), and therefore needs to be rerun every
+time the contents of that directory change.  Even worse, a few
+commands (cargo is an example) call `stat` on every file in your
+repository, so if any file changes they need to be rerun.
 
 **SCons** is similar in this regard, but scons always computes the
 hash of every input file, even if its size and modification time are
@@ -31,18 +34,20 @@ enumerated every dependency.
 
 ## Correct build
 
-**Fac** should almost (always) give you a correct build (if it is
+**Fac** should almost always give you a correct build (if it is
 successful), meaning that every file that needs to be rebuilt will be
 rebuilt.  Fac can achieve this even if you provide no dependency
 information, or wrong dependency information, although you may need to
 run fac several times (the first time you build) in such a case.  You
 could end up with an incorrect build if you modify a file in a way
 that does not change its modification time or its file size.  You
-could also end up with an incorrect build if your build depends on
-either the non-existence of files that are later created.
-And finally, there is a race condition where if you edit a file while
-it is being used in a build, fac may fail to rerun the build after it
-finishes.
+could also end up with an incorrect build if your build depends on the
+non-existence of files that are later created.  There is also a race
+condition where if you edit a file while a build is going on.
+Finally, fac does *not* (this is changed from a previous version)
+track environment variables, so if you modify an environment variable
+that will affect your build, you will need to run `fac -c` manually to
+rebuild.
 
 Note that if you *do* manually (or through a script) specify
 dependencies, then the above caveats (except for the race condition
