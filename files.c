@@ -666,6 +666,7 @@ static void fprint_makeclean_rule(FILE *f, struct rule *r) {
 }
 
 void fprint_makefile(FILE *f, struct all_targets *all) {
+  fprintf(f, ".PHONY: all clean\n");
   for (struct rule *r = (struct rule *)all->r.first; r; r = (struct rule *)r->e.next) {
     r->is_printed = false;
   }

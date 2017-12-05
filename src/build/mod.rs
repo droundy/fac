@@ -1565,6 +1565,7 @@ impl Build {
 
     /// Output a makefile to do the build
     pub fn write_makefile<F: Write>(&self, f: &mut F) -> io::Result<()> {
+        write!(f, ".PHONY: all clean\n")?;
         write!(f, "all:")?;
         let mut targets: Vec<_> = self.statuses[Status::Marked].iter()
             .filter(|&r| self.rule(r).all_outputs.len() > 0
