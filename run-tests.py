@@ -62,6 +62,8 @@ if 'rust' not in sys.argv:
     system('echo rm -rf bigbro >> build/%s.sh' % platform.system().lower())
     system('chmod +x build/%s.sh' % platform.system().lower())
 
+    system('./fac -c')
+    system('rm -rf bigbro && sh build/linux.sh')
     print(build.blue("building with fac"))
     if system('./fac'):
         print('Build with fac failed!')
