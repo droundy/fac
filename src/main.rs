@@ -25,7 +25,6 @@ extern crate tinyset;
 extern crate crude_profiler;
 
 mod git;
-pub mod refset;
 
 pub mod build;
 mod version;

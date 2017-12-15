@@ -22,6 +22,5 @@ extern crate crude_profiler;
 /// A module with just the version in it.
 pub mod version;
 pub mod git;
-pub mod refset;
 
 pub mod build;
