@@ -1006,7 +1006,7 @@ impl Build {
         let _g = crude_profiler::push("unlock_repository");
         while self.num_building() > 0 {
             println!("I have {} processes to halt...", self.num_building());
-            for mut k in self.process_killers.values_mut() {
+            for k in self.process_killers.values_mut() {
                 k.terminate().ok();
             }
             // give processes a second to die...
@@ -1017,7 +1017,7 @@ impl Build {
             if self.num_building() > 0 {
                 println!("I have {} processes that were stubborn and need more force...",
                          self.num_building());
-                for mut k in self.process_killers.values_mut() {
+                for k in self.process_killers.values_mut() {
                     k.kill().ok();
                 }
                 // give processes a second to die...
