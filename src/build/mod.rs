@@ -1344,6 +1344,15 @@ impl Build {
                                            &format!("H must be after a file!"));
                     }
                 },
+                b'B' => {
+                    if let Some(r) = command {
+                        self.rule_mut(r).build_time =
+                            std::time::Duration::from_millis(bytes_to_u64(&line[2..]));
+                    } else {
+                        return parse_error(&filepath, lineno,
+                                           &format!("B must be after a rule!"));
+                    }
+                },
                 _ => (),
             }
         }
@@ -1494,6 +1503,10 @@ impl Build {
                 f.write(b"\n| ")?;
                 f.write(hashstat::osstr_to_bytes(&self.rule(r).command))?;
                 f.write(b"\n")?;
+                if self.rule(r).build_time != std::time::Duration::from_secs(1) {
+                    // We know how long it took to build, so we should save this!
+                    write!(f, "B {:.0}\n", 1000.0*duration_to_f64(self.rule(r).build_time))?;
+                }
                 for i in self.rule(r).all_inputs.iter() {
                     f.write(b"< ")?;
                     f.write(hashstat::osstr_to_bytes(self.pretty_path(i).as_os_str()))?;
@@ -2189,12 +2202,12 @@ impl Build {
             return self.statuses[Status::Failed].len() as i32;
         }
         if let Some(err) = self.check_strictness() {
-            failln!("Build failed due to {}! (after {:.2}s)", err,
-                    duration_to_f64(self.started.elapsed()));
+            failln!("Build failed due to {}! (after {})", err,
+                    pretty_duration(self.started.elapsed()));
             1
         } else {
             successln!("Build succeeded! ({})",
-                       pretty_time(duration_to_f64(self.started.elapsed())));
+                       pretty_duration(self.started.elapsed()));
             0
         }
     }
@@ -2612,15 +2625,45 @@ impl Build {
             }
             let instant = self.rule_mut(r).start_time.take().unwrap();
             self.rule_mut(r).build_time = instant.elapsed();
-            let time = duration_to_f64(self.rule(r).build_time);
+
+
             if rule_actually_failed {
-                message = format!("build failed: {}", self.pretty_rule(r));
-                failln!("!{}/{}! [{:.2}s]: {}", num_built, num_total, time, message);
                 self.failed(r);
             } else {
-                message = self.pretty_rule(r);
-                println!("{}/{} [{:.2}s]: {}", num_built, num_total, time, message);
                 self.built(r);
+            }
+            let time = self.rule(r).build_time;
+            let time_left =
+                if num_total - num_built > self.flags.jobs {
+                    // Now we assume that we will parallelize
+                    // completely according to how many jobs are
+                    // remaining.  Obviously this is an approximation.
+                    let t: std::time::Duration =
+                        self.statuses[Status::Unready].iter()
+                        .chain(self.statuses[Status::Marked].iter())
+                        .chain(self.statuses[Status::Dirty].iter())
+                        .chain(self.statuses[Status::Building].iter())
+                        .map(|r| self.rule(r).build_time).sum();
+                    t / self.flags.jobs as u32 // hello
+                } else if num_total > num_built {
+                    self.statuses[Status::Unready].iter()
+                        .chain(self.statuses[Status::Marked].iter())
+                        .chain(self.statuses[Status::Dirty].iter())
+                        .chain(self.statuses[Status::Building].iter())
+                        .map(|r| self.rule(r).build_time).max().unwrap_or_default()
+                } else {
+                    std::time::Duration::from_secs(0)
+                };
+            let time_spent = self.started.elapsed();
+            if rule_actually_failed {
+                message = format!("build failed: {}", self.pretty_rule(r));
+                failln!("!{}/{}! [{}]: {}", num_built, num_total,
+                        pretty_duration(time), message);
+            } else {
+                message = self.pretty_rule(r);
+                println!("{}/{} [{} leaving {}/{}]: {}", num_built, num_total,
+                         pretty_duration(time), pretty_duration(time_left),
+                         pretty_duration(time_left+time_spent), message);
             }
         } else {
             let instant = self.rule_mut(r).start_time.take().unwrap();
@@ -2794,6 +2837,18 @@ fn bytes_to_osstr(b: &[u8]) -> &OsStr {
     Path::new(std::str::from_utf8(b).unwrap()).as_os_str()
 }
 
+/// Read a decimal string from a set of bytes
+fn bytes_to_u64(v: &[u8]) -> u64 {
+    let mut output = 0;
+    for b in v {
+        if *b >= b'0' && *b <= b'9' {
+            output *= 10;
+            output += (b - b'0') as u64;
+        }
+    }
+    output
+}
+
 fn normalize(p: &Path) -> PathBuf {
     // This should give the symlink-resolved path that corresponds to
     // what symlink_metadata would see, i.e. it does not resolve the
@@ -2858,15 +2913,24 @@ fn duration_to_f64(t: std::time::Duration) -> f64 {
 }
 
 fn pretty_time(t: f64) -> String {
-    if t < 1e-7 {
-        format!("{:.2} ns", t/1e-9)
-    } else if t < 1e-4 {
-        format!("{:.2} us", t/1e-6)
-    } else if t < 1e-2 {
-        format!("{:.2} ms", t/1e-3)
-    } else if t >= 1e2 {
-        format!("{:.2e} s", t)
+    const MIN: f64 = 60.0;
+    const HOUR: f64 = 60.0*MIN;
+    const DAY: f64 = 24.0*HOUR;
+    if t < 1e-2 {
+        format!("0s")
+    } else if t < 10. {
+        format!("{:.1}s", t)
+    } else if t < 2.*MIN {
+        format!("{:.0}s", t)
+    } else if t < 2.*HOUR {
+        format!("{:.0}m", t/MIN)
+    } else if t < 48.*HOUR {
+        format!("{:.0}h", t/HOUR)
     } else {
-        format!("{:.2} s", t)
+        format!("{:.2}d", t/DAY)
     }
+}
+
+fn pretty_duration(d: std::time::Duration) -> String {
+    pretty_time(duration_to_f64(d))
 }
