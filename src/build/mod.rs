@@ -2642,15 +2642,23 @@ impl Build {
                         self.statuses[Status::Unready].iter()
                         .chain(self.statuses[Status::Marked].iter())
                         .chain(self.statuses[Status::Dirty].iter())
-                        .chain(self.statuses[Status::Building].iter())
-                        .map(|r| self.rule(r).build_time).sum();
+                        .map(|r| self.rule(r).build_time)
+                        .chain(self.statuses[Status::Building].iter()
+                               .map(|r| self.rule(r).build_time
+                                    .checked_sub(self.rule(r).start_time.unwrap().elapsed())
+                                    .unwrap_or_default()))
+                        .sum();
                     t / self.flags.jobs as u32 // hello
                 } else if num_total > num_built {
                     self.statuses[Status::Unready].iter()
                         .chain(self.statuses[Status::Marked].iter())
                         .chain(self.statuses[Status::Dirty].iter())
-                        .chain(self.statuses[Status::Building].iter())
-                        .map(|r| self.rule(r).build_time).max().unwrap_or_default()
+                        .map(|r| self.rule(r).build_time)
+                        .chain(self.statuses[Status::Building].iter()
+                               .map(|r| self.rule(r).build_time
+                                    .checked_sub(self.rule(r).start_time.unwrap().elapsed())
+                                    .unwrap_or_default()))
+                        .max().unwrap_or_default()
                 } else {
                     std::time::Duration::from_secs(0)
                 };
