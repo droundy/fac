@@ -1348,9 +1348,6 @@ impl Build {
                     if let Some(r) = command {
                         self.rule_mut(r).build_time =
                             std::time::Duration::from_millis(bytes_to_u64(&line[2..]));
-                    } else {
-                        return parse_error(&filepath, lineno,
-                                           &format!("B must be after a rule!"));
                     }
                 },
                 _ => (),
