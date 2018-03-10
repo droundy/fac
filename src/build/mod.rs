@@ -1004,7 +1004,7 @@ impl Build {
     /// lock file.
     fn unlock_repository(&mut self) -> std::io::Result<()> {
         let _g = crude_profiler::push("unlock_repository");
-        while self.num_building() > 0 {
+        if self.num_building() > 0 {
             println!("I have {} processes to halt...", self.num_building());
             for k in self.process_killers.values_mut() {
                 k.terminate().ok();
@@ -1026,6 +1026,9 @@ impl Build {
             while self.check_for_a_rule() {
                 // nothing to do here?
             }
+        }
+        if self.num_building() > 0 {
+            println!("I wasn't able to kill all jobs?! ({} left)", self.num_building());
         }
         let e1 = self.save_factum_files();
         let e2 = self.emergency_unlock_repository();
