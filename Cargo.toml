@@ -1,6 +1,6 @@
 [package]
 name = "fac"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["daveroundy@gmail.com"]
 build = "build.rs"
 
@@ -27,8 +27,7 @@ doc = false
 [dependencies]
 
 libc = "^0.2"
-#bigbro = "^0.3.15"
-bigbro = { git = 'https://github.com/droundy/bigbro' }
+bigbro = "^0.4"
 clap = "~2.23.3"
 num_cpus = "^1.5.0"
 metrohash = "^1.0.1"
