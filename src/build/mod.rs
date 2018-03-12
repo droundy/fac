@@ -2466,7 +2466,7 @@ impl Build {
                 let mut read_from_files = stat.read_from_files();
                 // First clear out the listing of inputs and outputs.
                 let old_inputs: Vec<_> = self.rule_mut(r).all_inputs.drain().collect();
-                for i in old_inputs {
+                for &i in old_inputs.iter() {
                     // Make sure to clear out "children" relationship when
                     // removing inputs.  We'll add back the proper links
                     // later.
@@ -2478,7 +2478,7 @@ impl Build {
                 // first, because we want to ensure that we don't count an
                 // explicit input as an output.
                 let explicit_inputs = self.rule(r).inputs.clone();
-                for i in explicit_inputs {
+                for &i in explicit_inputs.iter() {
                     self.add_input(r, i);
                     let hs = self[i].hashstat;
                     if hs.kind != Some(FileKind::Dir) {
@@ -2489,6 +2489,15 @@ impl Build {
                     }
                     written_to_files.remove(&self[i].path);
                     read_from_files.remove(&self[i].path);
+                }
+                // We now want to keep our old inputs as inputs,
+                // because bigbro no longer tracks calls to stat, so
+                // we cannot assume that just because a file was not
+                // read, it is no longer needed for the build.
+                for i in old_inputs {
+                    if !explicit_inputs.contains(&i) && self[i].exists() {
+                        read_from_files.insert(self[i].path.clone());
+                    }
                 }
                 for w in written_to_files {
                     if w.starts_with(&self.flags.root)

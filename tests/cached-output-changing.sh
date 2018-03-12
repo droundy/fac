@@ -52,13 +52,21 @@ test -e baz || echo baz > baz
 
 EOF
 
+${FAC:-../../fac}
+
+grep foo foo
+grep bar bar
+grep baz baz
+
 echo badness > baz
 
 cat top.fac.tum
 
-if ${FAC:-../../fac}; then
-    echo This should fail because baz exists
-fi
+${FAC:-../../fac}
+
+grep foo foo
+grep bar bar
+grep badness baz
 
 cat top.fac.tum
 

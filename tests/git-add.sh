@@ -37,7 +37,7 @@ if ${FAC:-../../fac}; then
     exit 1
 fi
 
-${FAC:-../../fac} --git-add
+${FAC:-../../fac} --git-add -v
 
 git ls-files
 git ls-files | grep foo
