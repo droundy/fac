@@ -1316,7 +1316,19 @@ impl Build {
                     file = Some(f);
                     if let Some(r) = command {
                         if !self.is_cache(r, &self[f].path) {
-                            self.add_output(r, f);
+                            if self.rule(r).all_inputs.contains(&f) {
+                                if self.rule(r).inputs.contains(&f) {
+                                    // Do not add as output, since it
+                                    // is now an explicit input.
+                                    vprintln!("WARNING: ignoring something");
+                                } else {
+                                    vprintln!("WARNING: ignoring input something!");
+                                    self.rule_mut(r).all_inputs.remove(&f);
+                                    self.add_output(r, f);
+                                }
+                            } else {
+                                self.add_output(r, f);
+                            }
                         }
                     } else {
                         if !self[f].is_in_git {
