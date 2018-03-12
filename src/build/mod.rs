@@ -2828,7 +2828,7 @@ impl Build {
             // any directory named ".cache" can be assumed to be a
             // cache.
             (path.is_absolute()
-             && path.components().any(|c| c.as_ref() == OsStr::new(".cache")))
+             && path.components().any(|c| c.as_os_str() == OsStr::new(".cache")))
     }
 }
 
