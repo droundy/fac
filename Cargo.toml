@@ -8,7 +8,7 @@ description = "build tool"
 license = "GPL-2.0+"
 repository = "https://github.com/droundy/fac"
 homepage = "https://facio.gitlab.io/fac"
-documentation = "http://facio.gitlab.io/fac/doc/fac/index.html"
+documentation = "http://facio.gitlab.io/fac/documentation.html"
 
 [badges]
 gitlab = { repository = "facio/fac", branch = "master" }
