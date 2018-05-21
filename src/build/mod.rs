@@ -999,9 +999,9 @@ impl Build {
                     return;
                 }
             }
-            println!("Giving up after 10 seconds...\nperhaps remove {:?}",
+            println!("Giving up after 10 seconds...\nperhaps remove {}",
                      diff_paths(&self.flags.root.join(".git/fac-lock"),
-                                &self.flags.run_from_directory));
+                                &self.flags.run_from_directory).unwrap().display());
             std::process::exit(1);
         }
     }
