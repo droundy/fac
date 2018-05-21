@@ -4,6 +4,7 @@
 extern crate quickcheck;
 extern crate num_cpus;
 extern crate bigbro;
+extern crate pathdiff;
 
 use std;
 use std::io;
@@ -15,6 +16,8 @@ use std::collections::{HashSet, HashMap};
 use tinyset::{Set64, Fits64, TinyMap};
 
 use std::io::{Read, Write};
+
+use self::pathdiff::{diff_paths};
 
 use git;
 use ctrlc;
@@ -996,7 +999,9 @@ impl Build {
                     return;
                 }
             }
-            println!("Giving up after 10 seconds... remove .git/fac-lock?");
+            println!("Giving up after 10 seconds...\nperhaps remove {:?}",
+                     diff_paths(&self.flags.root.join(".git/fac-lock"),
+                                &self.flags.run_from_directory));
             std::process::exit(1);
         }
     }
