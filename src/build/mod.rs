@@ -580,7 +580,7 @@ impl Build {
                 println!("{}", e);
                 return 1;
             }
-            println!("finished parsing file {:?}", self.pretty_path_peek(fr));
+            println!("finished parsing file {:?}", self.pretty_display_path(fr));
             return 0;
         }
         if self.flags.jobs == 0 {
@@ -629,7 +629,7 @@ impl Build {
                     std::process::exit(1);
                 }
                 if !self[o].is_in_git && self[o].is_file() && self[o].rule.is_some() {
-                    vprintln!("rm {:?}", self.pretty_path_peek(o));
+                    vprintln!("rm {:?}", self.pretty_display_path(o));
                     self[o].unlink();
                 }
                 if self[o].is_fac_file() {
@@ -649,7 +649,7 @@ impl Build {
                 if self.is_git_path(&self[d].path) {
                     continue; // do not want to clean git paths!
                 }
-                vprintln!("rmdir {:?}", self.pretty_path_peek(d));
+                vprintln!("rmdir {:?}", self.pretty_display_path(d));
                 std::fs::remove_dir_all(&self[d].path).ok();
             }
             // We use emergency_unlock_repository here to avoid
@@ -954,13 +954,13 @@ impl Build {
                                 } else {
                                     have_explained_failure = true;
                                     failln!("error: add {:?} to git, which is required for {}",
-                                            self.pretty_path_peek(i),
+                                            self.pretty_display_path(i),
                                             self.pretty_reason(r));
                                 }
                             } else {
                                 have_explained_failure = true;
                                 failln!("error: missing file {:?}, which is required for {}",
-                                        self.pretty_path_peek(i), self.pretty_reason(r));
+                                        self.pretty_display_path(i), self.pretty_reason(r));
                             }
                         }
                     }
@@ -1148,13 +1148,14 @@ impl Build {
     pub fn read_facfile(&mut self, fileref: FileRef) -> io::Result<()> {
         self[fileref].rules_defined = Some(Set64::new());
         let filepath = self[fileref].path.clone();
-        let fp = self.pretty_path_peek(fileref).to_string_lossy().into_owned();
+        let fp_pb = self.pretty_display_path(fileref);
+        let fp = fp_pb.display();
         let mut f = match std::fs::File::open(&filepath) {
             Ok(f) => f,
             Err(e) =>
                 return Err(io::Error::new(e.kind(),
                                           format!("error: unable to open file {:?}: {}",
-                                                  self.pretty_path_peek(fileref), e))),
+                                                  self.pretty_display_path(fileref), e))),
         };
         let mut v = Vec::new();
         f.read_to_end(&mut v)?;
@@ -1199,7 +1200,7 @@ impl Build {
                                     io::ErrorKind::Other,
                                     format!("error: {}:{} duplicate rule: {}\n\talso defined in {}:{}",
                                             &fp, lineno, self.pretty_rule(e),
-                                            self.pretty_path_peek(self.rule(e).facfile).display(),
+                                            self.pretty_display_path(self.rule(e).facfile).display(),
                                             self.rule(e).linenum)));
                         },
                     }
@@ -1223,7 +1224,7 @@ impl Build {
                                     io::ErrorKind::Other,
                                     format!("error: {}:{} duplicate rule: {}\n\talso defined in {}:{}",
                                             &fp, lineno, self.pretty_rule(e),
-                                            self.pretty_path_peek(self.rule(e).facfile).to_string_lossy(),
+                                            self.pretty_display_path(self.rule(e).facfile).to_string_lossy(),
                                             self.rule(e).linenum)));
                         },
                     }
@@ -1756,7 +1757,7 @@ impl Build {
         // it with a runtime check.
         if self.rule(r).all_outputs.contains(&input) {
             failln!("Buggy thing: input {:?} is also an output!",
-                    self.pretty_path(input));
+                    self.pretty_display_path(input));
         }
         self.rule_mut(r).all_inputs.insert(input);
         self[input].children.insert(r);
@@ -1973,7 +1974,7 @@ impl Build {
                     // doesn't exist we must rebuild.
                     rebuild_excuse = rebuild_excuse.or(
                         Some(format!("input {:?} has no rule",
-                                     self.pretty_path_peek(i))));
+                                     self.pretty_display_path(i))));
                     is_dirty = true;
                 }
         }
@@ -1997,7 +1998,7 @@ impl Build {
                             } else {
                                 rebuild_excuse = rebuild_excuse.or(
                                     Some(format!("{:?} has been rebuilt",
-                                                 self.pretty_path_peek(i))));
+                                                 self.pretty_display_path(i))));
                                 is_dirty = true;
                                 break;
                             }
@@ -2018,7 +2019,7 @@ impl Build {
                     } else {
                         rebuild_excuse = rebuild_excuse.or(
                             Some(format!("{:?} has been modified",
-                                         self.pretty_path_peek(i))));
+                                         self.pretty_display_path(i))));
                         is_dirty = true;
                         break;
                     }
@@ -2031,7 +2032,7 @@ impl Build {
                     // is weird and we must need to rebuild.
                     rebuild_excuse = rebuild_excuse.or(
                         Some(format!("have no information on {:?}",
-                                     self.pretty_path_peek(i))));
+                                     self.pretty_display_path(i))));
                     is_dirty = true;
                     break;
                 }
@@ -2051,7 +2052,7 @@ impl Build {
                     if !self[o].exists() {
                         rebuild_excuse = rebuild_excuse.or(
                             Some(format!("output {:?} does not exist",
-                                         self.pretty_path_peek(o))));
+                                         self.pretty_display_path(o))));
                         is_dirty = true;
                         break;
                     } else if self[o].hashstat.cheap_matches(&ostat) {
@@ -2072,14 +2073,14 @@ impl Build {
                     } else {
                         rebuild_excuse = rebuild_excuse.or(
                             Some(format!("output {:?} has been modified",
-                                         self.pretty_path_peek(o))));
+                                         self.pretty_display_path(o))));
                         is_dirty = true;
                         break;
                     }
                 } else {
                     rebuild_excuse = rebuild_excuse.or(
                         Some(format!("have never built {:?}",
-                                     self.pretty_path_peek(o))));
+                                     self.pretty_display_path(o))));
                     is_dirty = true;
                     break;
                 }
@@ -2168,7 +2169,7 @@ impl Build {
                 // We have read this facfile before, so we need to
                 // be cautious, because rules may have changed.
                 let msg = format!("Restarting so we will reload {:?}",
-                                  self.pretty_path_peek(o));
+                                  self.pretty_display_path(o));
                 println!("I am rebooting now! {}", &msg);
                 self.am_interrupted = Some(InterruptReason::Rebooting(msg));
                 return;
@@ -2250,7 +2251,7 @@ impl Build {
                                 if !have_rule {
                                     println!("missing dependency: \"{}\" requires {}",
                                              self.pretty_rule(r),
-                                             self.pretty_path_peek(i).display());
+                                             self.pretty_display_path(i).display());
                                     fails = Some(String::from("missing dependencies"));
                                 }
                             }
@@ -2272,7 +2273,7 @@ impl Build {
                     {
                         println!("missing dependency: \"{}\" requires {}",
                                  self.pretty_rule(r),
-                                 self.pretty_path_peek(i).display());
+                                 self.pretty_display_path(i).display());
                         fails = Some(String::from("missing dependencies"));
                     }
                     for i in self.rule(r).all_outputs.iter()
@@ -2281,7 +2282,7 @@ impl Build {
                     {
                         println!("missing output: \"{}\" builds {}",
                                  self.pretty_rule(r),
-                                 self.pretty_path_peek(i).display());
+                                 self.pretty_display_path(i).display());
                         fails = Some(String::from("missing outputs"));
                     }
                 }
@@ -2529,7 +2530,7 @@ impl Build {
                                 if let Some(fwr) = self[fw].rule {
                                     if fwr != r {
                                         let mess = format!("two rules generate same output {:?}:\n\t{}\nand\n\t{}",
-                                                           self.pretty_path_peek(fw),
+                                                           self.pretty_display_path(fw),
                                                            self.pretty_rule(r),
                                                            self.pretty_rule(fwr));
                                         failln!("error: {}", &mess);
@@ -2581,16 +2582,19 @@ impl Build {
                                 if self.flags.git_add {
                                     if let Err(e) = git::add(&self[fr].path) {
                                         rule_actually_failed = true;
-                                        failln!("error: unable to git add {:?} successfully:",
-                                                self.pretty_path_peek(fr));
+                                        failln!("error: unable to git add {} successfully:",
+                                                diff_paths(&self[fr].path,
+                                                           &self.flags.run_from_directory).unwrap().display());
                                         failln!("{}", e);
                                     } else {
                                         self[fr].is_in_git = true;
                                     }
                                 } else {
                                     rule_actually_failed = true;
-                                    failln!("error: {:?} should be in git for {}",
-                                            self.pretty_path_peek(fr), self.pretty_reason(r));
+                                    failln!("error: {} should be in git for {}",
+                                            diff_paths(&self[fr].path,
+                                                       &self.flags.run_from_directory).unwrap().display(),
+                                            self.pretty_reason(r));
                                 }
                             }
                             self.add_input(r, fr);
@@ -2615,7 +2619,7 @@ impl Build {
                         self.add_output(r, o);
                         if !self[o].exists() {
                             failln!("build failed to create: {:?}",
-                                    self.pretty_path_peek(o));
+                                    self.pretty_display_path(o));
                             rule_actually_failed = true;
                         }
                         // We do not want to ignore below any explict old outputs...
@@ -2725,7 +2729,6 @@ impl Build {
         self.facfiles_used.insert(ff);
         Ok(())
     }
-
     /// Formats the path nicely as a relative path if possible
     pub fn pretty_path(&self, p: FileRef) -> PathBuf {
         if self[p].path == self.flags.root {
@@ -2745,6 +2748,16 @@ impl Build {
             Ok(p) => p,
             Err(_) => &self[p].path,
         }
+    }
+
+
+    /// Formats the path nicely as a relative path if possible
+    pub fn pretty_display_path(&self, p: FileRef) -> PathBuf {
+        if self[p].path.strip_prefix(&self.flags.root).is_err() {
+            return self[p].path.clone();
+        }
+        diff_paths(&self[p].path,
+                   &self.flags.run_from_directory).unwrap()
     }
 
     fn is_local(&self, p: FileRef) -> bool {
@@ -2777,7 +2790,7 @@ impl Build {
                 if self.rule(c).status == Status::Unready
                     || self.rule(c).status == Status::Failed
                 {
-                    return format!("{}", self.pretty_path_peek(o).display());
+                    return format!("{}", self.pretty_path(o).display());
                 }
             }
         }
@@ -2802,7 +2815,7 @@ impl Build {
     /// Formats the rule as a sane filename
     fn sanitize_rule(&self, r: RuleRef) -> PathBuf {
         let rr = if self.rule(r).outputs.len() == 1 {
-            format!("{}", self.pretty_path_peek(self.rule(r).outputs[0]).display())
+            format!("{}", self.pretty_path(self.rule(r).outputs[0]).display())
         } else {
             self.pretty_rule(r)
         };
