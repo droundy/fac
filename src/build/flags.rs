@@ -180,6 +180,11 @@ pub fn args<'a>() -> Flags {
     if let Some(ts) = m.values_of_os("target") {
         for t in ts {
             let p = here.join(t);
+            let p = if let Ok(p) = std::fs::canonicalize(&p) {
+                p
+            } else {
+                p
+            };
             if let Ok(p) = p.strip_prefix(&top) {
                 targets.push(PathBuf::from(p));
             } else {
@@ -192,6 +197,11 @@ pub fn args<'a>() -> Flags {
     if let Some(fs) = m.values_of_os("include-in-tar") {
         for f in fs {
             let p = here.join(f);
+            let p = if let Ok(p) = std::fs::canonicalize(&p) {
+                p
+            } else {
+                p
+            };
             if let Ok(p) = p.strip_prefix(&top) {
                 include_in_tar.push(PathBuf::from(p));
             } else {
