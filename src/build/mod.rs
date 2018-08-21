@@ -2591,7 +2591,7 @@ impl Build {
                                     }
                                 } else {
                                     rule_actually_failed = true;
-                                    failln!("error: {} should be in git for {}",
+                                    failln!("error: {:?} should be in git for {}",
                                             diff_paths(&self[fr].path,
                                                        &self.flags.run_from_directory).unwrap().display(),
                                             self.pretty_reason(r));
