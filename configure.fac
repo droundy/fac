@@ -1,19 +1,8 @@
-| python generate-version-header.py
-> version-identifier.h
-
-| python build/get-bigbro.py
-> bigbro/configure.fac
-c pyc
-c __init__
-
-| python configure.py > .fac
+| python3 configure.py > .fac
 > .fac
 
 | python3 web/mkdown.py
 > web/index.html
-
-| python3 sparse.py > sparse.fac
-> sparse.fac
 
 | cd bench && python3 fac-plots.py > .fac
 > bench/.fac

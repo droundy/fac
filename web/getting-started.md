@@ -37,7 +37,7 @@ Now we can run the build using
     $ git add build.fac
     $ fac
     1/1 [...s]: pdflatex paper.tex
-    Build succeeded! 0:0...
+    Build succeeded! (0...
 
 Note that `.fac` files need to be added to git repository before fac
 will use them.  As you can see, fac reports on each command run, as
@@ -78,7 +78,7 @@ always be correct with a single run of fac.
     $ fac
     1/2 [...s]: sha1sum ...
     2/2 [...s]: pdflatex ...
-    Build succeeded! 0:0...
+    Build succeeded! ...
 
 Once you have run fac once (even if it fails), then the build will
 succeed the second time, and from then on will know that it must
@@ -97,7 +97,7 @@ adding a `<` line specifying the required input.
 which we can run with:
 
     $ fac
-    Build succeeded! 0:...
+    Build succeeded! ...
 
 Note that there is no need to specify the output of `sha1sum`.  Fac
 will run any commands that it is able to run, and will only run
@@ -114,7 +114,7 @@ introduce a typo in the dependency...
 ... fac will now refuse to run `pdflatex` with a polite error message.
 
     $ ! fac
-    error: missing file typo.tex, which is required for paper.pdf
+    error: missing file "typo.tex", which is required for ...
     Build failed 1/1 failures
 
 Now we can change paper.tex to actually depend on `typo.tex`, and
@@ -135,7 +135,7 @@ forgot a very important step!
 
     $ ! fac
     1/2 [...s]: sha1sum paper.tex > hash.tex
-    error: add typo.tex to git, which is required for paper.pdf
+    error: add "typo.tex" to git, which is required for ...
     Build failed 1/2 failures
 
 It is important for you to add your input files to git, or other users
@@ -175,7 +175,7 @@ hand.
     with open('/usr/share/dict/words') as words:
         for word in words:
             word = word.strip()
-            if len(badchars.findall(word)) == 0 and word[0] == 'h':
+            if len(badchars.findall(word)) == 0 and word[0:2] == 'he':
                 with open('hello-%s.c' % word, 'w') as f:
                     f.write(r"""
     #include <stdio.h>
@@ -257,7 +257,8 @@ missed some (or all) of these the first time, let's run it again.
 
     $ fac
     1/1 [...s]: python2 configure.py > cfiles.fac
-    2/... [...s]: gcc -o ...
+    2/... [...s]: gcc -o hello-he...
+    3/... [...s]: gcc -o hello-he...
     ...
 
 You can see that fac immediately reruns the configuration script, even

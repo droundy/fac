@@ -10,8 +10,6 @@ cd $0.dir
 
 mkdir subdir
 
-# expect C failure
-
 cat > top.fac <<EOF
 | gcc -MD -MF .foo.o.dep -c foo.c
 M .foo.o.dep

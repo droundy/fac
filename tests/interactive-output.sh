@@ -11,8 +11,6 @@ rm -rf $0.dir
 mkdir $0.dir
 cd $0.dir
 
-# expect rust failure
-
 cat > my.fac <<EOF
 | sleep 1 && echo good > good
 

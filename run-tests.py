@@ -14,10 +14,6 @@ if 'GIT_AUTHOR_EMAIL' not in os.environ:
     os.putenv("GIT_COMMITTER_EMAIL", 'Tester <test@example.com>')
     os.putenv("GIT_COMMITTER_NAME", 'Tester')
 
-# we always run with test coverage if gcovr is present!
-have_gcovr = os.system('gcovr -h') == 0
-have_cargo = os.system('cargo --version') == 0
-
 def system(cmd):
     # print("running:", cmd)
     x = subprocess.call(cmd, shell=True)
@@ -34,61 +30,12 @@ except:
 version = version[:-1]
 tarname = 'fac-%s.tar.gz' % version
 
-if 'rust' not in sys.argv:
-    print('building on', platform.system())
-    if platform.system() == 'Windows':
-        if system('./fac fac.exe -v'):
-            print('Build failed!')
-            exit(1)
-    else:
-        if system('rm -rf bigbro && sh build/%s.sh' % (platform.system().lower())):
-            print('Build from script failed!')
-            exit(1)
-        print(build.blue("creating build script and tarball"))
-        if system('MINIMAL=1 ./fac --script build/%s.sh -i version-identifier.h -i README.md -i COPYING --tar %s fac'
-                  % (platform.system().lower(), tarname)):
-            print('Build failed!')
-            exit(1)
-        print(build.took('creating tarball'))
-
-        print(build.blue("creating build script but not tarball"))
-        if system('MINIMAL=1 ./fac --script build/%s.sh fac'
-                  % (platform.system().lower())):
-            print('Build failed!')
-            exit(1)
-        print(build.took('build script'))
-    system('mv %s web/' % tarname)
-    system('ln -sf %s web/fac.tar.gz' % tarname)
-    system('echo rm -rf bigbro >> build/%s.sh' % platform.system().lower())
-    system('chmod +x build/%s.sh' % platform.system().lower())
-
-    system('./fac -c')
-    system('rm -rf bigbro && sh build/linux.sh')
-    print(build.blue("building with fac"))
-    if system('./fac'):
-        print('Build with fac failed!')
-        exit(1)
-    print(build.took('intial compiling'))
-
-    if have_gcovr:
-        os.system('rm -f *.gc* */*.gc*') # remove any preexisting coverage files
-        if system('COVERAGE=1 ./fac fac'):
-            print('Build with coverage failed!')
-            exit(1)
-        system('cp fac tests/fac-with-coverage')
-        system('COVERAGE=1 tests/fac-with-coverage -c')
-        system('rm -rf bigbro') # needed because -c doesn't remove cached files!  :(
-        system('COVERAGE=1 tests/fac-with-coverage')
-        system('rm tests/fac-with-coverage')
-        print(build.took('rebuilding with fac and coverage'))
-else:
-    system('rm -rf bigbro')
-    system('./fac -c')
-    system('cargo build')
-    if system('target/debug/fac debug-fac rust-fac'):
-        print('Build with fac failed!')
-        exit(1)
-    print(build.took('building fac using rust'))
+system('./fac -c')
+system('cargo build')
+if system('target/debug/fac debug-fac fac'):
+    print('Build with fac failed!')
+    exit(1)
+print(build.took('building fac using rust'))
 
 
 def shorten_name(n):
@@ -122,54 +69,16 @@ failures = []
 
 sh_tests = sorted(glob.glob('tests/*.sh'))
 num_sh = len(sh_tests);
-if 'rust' not in sys.argv:
-    for i in range(num_sh):
-        sh = sh_tests[i]
-        with open(sh) as f:
-            expect_failure = 'expect C failure' in f.read()
-        write_script_name(sh, i, num_sh)
-        cmdline = 'bash %s > %s.log 2>&1' % (sh, sh)
-        exitval = system(cmdline)
-        if expect_failure:
-            if exitval:
-                print(build.green('fail'), build.took())
-                expectedfailures += 1
-            else:
-                print(build.red('pass'), sh, build.took())
-                if '-v' in sys.argv:
-                    os.system('cat %s.log' % sh)
-                unexpectedpasses += 1
-        elif exitval == 137:
-            print(build.blue('SKIP'), build.took())
-            if '-v' in sys.argv:
-                os.system('cat %s.log' % sh)
-            numskipped += 1
-        elif exitval:
-            print(build.FAIL, build.took())
-            if '-v' in sys.argv:
-                os.system('cat %s.log' % sh)
-            numfailed += 1
-            failures.append(shorten_name(sh))
-        else:
-            print(build.PASS, build.took())
-            numpassed += 1
-    for sh in sorted(glob.glob('tests/*.test')):
-        if 'assertion-fails' in sh:
-            continue
-        write_script_name(sh)
-        if system('%s > %s.log 2>&1' % (sh, sh)):
-            print(build.FAIL, build.took())
-            if '-v' in sys.argv:
-                os.system('cat %s.log' % sh)
-            numfailed += 1
-            failures.append(shorten_name(sh))
-        else:
-            print(build.PASS, build.took())
-            numpassed += 1
 
-    for sh in sorted(glob.glob('bugs/*.sh')):
-        write_script_name(sh)
-        if system('bash %s > %s.log 2>&1' % (sh, sh)):
+for i in range(num_sh):
+    sh = sh_tests[i]
+    with open(sh) as f:
+        expect_failure = 'expect rust failure' in f.read()
+    write_script_name(sh, i, num_sh)
+    cmdline = 'bash %s > %s.log 2>&1' % (sh, sh)
+    exitval = system(cmdline)
+    if expect_failure:
+        if exitval:
             print(build.green('fail'), build.took())
             expectedfailures += 1
         else:
@@ -177,16 +86,54 @@ if 'rust' not in sys.argv:
             if '-v' in sys.argv:
                 os.system('cat %s.log' % sh)
             unexpectedpasses += 1
-    for sh in sorted(glob.glob('bugs/*.test')):
-        write_script_name(sh)
-        if system('bash %s > %s.log 2>&1' % (sh, sh)):
-            print(build.green('fail'), build.took())
-            expectedfailures += 1
-        else:
-            print(build.red('pass'), build.took())
-            if '-v' in sys.argv:
-                os.system('cat %s.log' % sh)
-            unexpectedpasses += 1
+    elif exitval == 137:
+        print(build.blue('SKIP'), build.took())
+        if '-v' in sys.argv:
+            os.system('cat %s.log' % sh)
+        numskipped += 1
+    elif exitval:
+        print(build.FAIL, build.took())
+        if '-v' in sys.argv:
+            os.system('cat %s.log' % sh)
+        numfailed += 1
+        failures.append(shorten_name(sh))
+    else:
+        print(build.PASS, build.took())
+        numpassed += 1
+for sh in sorted(glob.glob('tests/*.test')):
+    if 'assertion-fails' in sh:
+        continue
+    write_script_name(sh)
+    if system('%s > %s.log 2>&1' % (sh, sh)):
+        print(build.FAIL, build.took())
+        if '-v' in sys.argv:
+            os.system('cat %s.log' % sh)
+        numfailed += 1
+        failures.append(shorten_name(sh))
+    else:
+        print(build.PASS, build.took())
+        numpassed += 1
+
+for sh in sorted(glob.glob('bugs/*.sh')):
+    write_script_name(sh)
+    if system('bash %s > %s.log 2>&1' % (sh, sh)):
+        print(build.green('fail'), build.took())
+        expectedfailures += 1
+    else:
+        print(build.red('pass'), sh, build.took())
+        if '-v' in sys.argv:
+            os.system('cat %s.log' % sh)
+        unexpectedpasses += 1
+for sh in sorted(glob.glob('bugs/*.test')):
+    write_script_name(sh)
+    if system('bash %s > %s.log 2>&1' % (sh, sh)):
+        print(build.green('fail'), build.took())
+        expectedfailures += 1
+    else:
+        print(build.red('pass'), build.took())
+        if '-v' in sys.argv:
+            os.system('cat %s.log' % sh)
+        unexpectedpasses += 1
 
 def pluralize(num, noun):
     if num == 1:
@@ -198,77 +145,61 @@ def pluralize(num, noun):
 
 os.environ['FAC'] = os.getcwd()+"/debug-fac"
 
-rust_numpassed = 0
-rust_numfailed = 0
-rust_numskipped = 0
+debug_numpassed = 0
+debug_numfailed = 0
+debug_numskipped = 0
 
-rust_numexpectedfailed = 0
-rust_numunexpectedpassed = 0
+debug_numexpectedfailed = 0
+debug_numunexpectedpassed = 0
 
-if have_cargo:
-    for i in range(num_sh):
-        sh = sh_tests[i]
-        with open(sh) as f:
-            expect_failure = 'expect rust failure' in f.read()
-        write_script_name(sh, i, num_sh)
-        cmdline = 'bash %s > %s.rust.log 2>&1' % (sh, sh)
-        exitval = system(cmdline)
-        if expect_failure:
-            if exitval == 137:
-                print(build.blue('SKIP'), "(rust)", build.took())
-                if '-v' in sys.argv:
-                    os.system('cat %s.rust.log' % sh)
-                rust_numskipped += 1
-            elif exitval:
-                print(build.warn('fail'), "(rust)", build.took())
-                if '-v' in sys.argv:
-                    os.system('cat %s.rust.log' % sh)
-                rust_numexpectedfailed += 1
-            else:
-                print(build.red('pass'), "(rust)", build.took())
-                rust_numunexpectedpassed += 1
+for i in range(num_sh):
+    sh = sh_tests[i]
+    with open(sh) as f:
+        expect_failure = 'expect rust failure' in f.read()
+    write_script_name(sh, i, num_sh)
+    cmdline = 'bash %s > %s.debug.log 2>&1' % (sh, sh)
+    exitval = system(cmdline)
+    if expect_failure:
+        if exitval == 137:
+            print(build.blue('SKIP'), "(debug)", build.took())
+            if '-v' in sys.argv:
+                os.system('cat %s.debug.log' % sh)
+            debug_numskipped += 1
+        elif exitval:
+            print(build.warn('fail'), "(debug)", build.took())
+            if '-v' in sys.argv:
+                os.system('cat %s.debug.log' % sh)
+            debug_numexpectedfailed += 1
         else:
-            if exitval == 137:
-                print(build.blue('SKIP'), "(rust)", build.took())
-                if '-v' in sys.argv:
-                    os.system('cat %s.rust.log' % sh)
-                rust_numskipped += 1
-            elif exitval:
-                print(build.FAIL, "(rust)", build.took())
-                if '-v' in sys.argv:
-                    os.system('cat %s.rust.log' % sh)
-                rust_numfailed += 1
-            else:
-                print(build.PASS, "(rust)", build.took())
-                rust_numpassed += 1
-
-if have_gcovr:
-    os.system('rm -f test.*') # generated while testing compiler flags
-    os.system('rm -f *-win.gc* *-static.gc* *-afl.gc*') # generated for other builds than "standard"
-    os.system('rm -f cc*.gc*') # not sure where these come from!
-    os.system('rm -f bigbro/*.gc*') # not interested in bigbro coverage
-    os.system('rm -f bigbro/*/*.gc*') # not interested in bigbro coverage
-    os.system('rm -f tests/*.gc*') # not interested in test binaries
-    assert not os.system('gcovr --exclude-directories tests -k -r . --exclude-unreachable-branches --html --html-details -o web/coverage.html')
-    assert not os.system('gcovr --exclude-directories tests -k -r . --exclude-unreachable-branches')
-else:
-    print('not running gcovr')
+            print(build.red('pass'), "(debug)", build.took())
+            debug_numunexpectedpassed += 1
+    else:
+        if exitval == 137:
+            print(build.blue('SKIP'), "(debug)", build.took())
+            if '-v' in sys.argv:
+                os.system('cat %s.debug.log' % sh)
+            debug_numskipped += 1
+        elif exitval:
+            print(build.FAIL, "(debug)", build.took())
+            if '-v' in sys.argv:
+                os.system('cat %s.debug.log' % sh)
+            debug_numfailed += 1
+        else:
+            print(build.PASS, "(debug)", build.took())
+            debug_numpassed += 1
 
 print()
-if have_cargo:
-    if rust_numfailed:
-        print(build.red('Rust failed ' + str(rust_numfailed)+'/'+str(rust_numfailed+rust_numpassed)))
-    else:
-        print('All', pluralize(rust_numpassed, 'test'), 'passed using rust!')
-
-    if rust_numunexpectedpassed:
-        print(build.red('Rust unexpectedly passed ' + str(rust_numunexpectedpassed)
-                        +'/'+str(rust_numunexpectedpassed+rust_numexpectedfailed)
-                        +' expected failures'))
-    else:
-        print('All', pluralize(rust_numexpectedfailed, 'test'), 'exected failures failed using rust!')
+if debug_numfailed:
+    print(build.red('Debug failed ' + str(debug_numfailed)+'/'+str(debug_numfailed+debug_numpassed)))
 else:
-    rust_numfailed = 0
+    print('All', pluralize(debug_numpassed, 'test'), 'passed using debug!')
+
+if debug_numunexpectedpassed:
+    print(build.red('Debug unexpectedly passed ' + str(debug_numunexpectedpassed)
+                    +'/'+str(debug_numunexpectedpassed+debug_numexpectedfailed)
+                    +' expected failures'))
+else:
+    print('All', pluralize(debug_numexpectedfailed, 'test'), 'exected failures failed using debug!')
 
 if numfailed:
     for f in failures:
@@ -285,5 +216,5 @@ if numskipped:
 if unexpectedpasses:
     print(build.red(pluralize(unexpectedpasses, 'unexpected pass')))
 
-if numfailed or rust_numfailed:
+if numfailed or debug_numfailed:
     exit(1)

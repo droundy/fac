@@ -2567,7 +2567,7 @@ impl Build {
                     }
                 }
                 for rr in read_from_files {
-                    if !self.is_boring(&rr) && !self.is_cache(r, &rr) {
+                    if !self.is_boring(&rr) && !self.is_cache(r, &rr) && rr.exists() {
                         let fr = self.new_file(&rr);
                         if !old_outputs.contains(&fr)
                             && self[fr].hashstat.finish(&rr).is_ok()
