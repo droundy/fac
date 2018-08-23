@@ -44,24 +44,24 @@ http://physics.oregonstate.edu/~roundyd/fac
 To build fac (assuming you have just cloned fac, and do not have an
 older version of fac) just run
 
-    sh build/linux.sh
+    cargo build
 
-This should build fac on an x86-64 linux system.  You may be able to
-use build-freebsd.sh to build on freebsd (but it is likely
-bit-rotted).  You can then build an optimized version by running
+This should build fac on an x86-64 linux system that has rust
+installed.  You may be able to use build-freebsd.sh to build on
+freebsd (but it is likely bit-rotted).  You can then build an
+optimized version by running
 
-    ./fac fac
+    target/debug/fac fac
 
 To use fac, you can copy the fac binary into some location in your
 path.
 
 ### Build dependencies and details
 
-The most rare build dependency for fac is libpopt, which is included
-in the `libpopt-dev` package in Debian-based distributions.  In
-addition, fac requires both `python2` and `python3` (something to
-fix), and building the fac documentation (which is the default build
-target) requires `sass` and `python-markdown`.
+You need to have [rust installed](https://rustup.rs).  In addition,
+fac requires both `python2` and `python3` (something to fix), and
+building the fac documentation (which is the default build target)
+requires `sass` and `python-markdown`.
 
 For more detail on building fac, see the
 [web page on building fac](http://physics.oregonstate.edu/~roundyd/fac/building.html),
