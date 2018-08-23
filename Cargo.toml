@@ -7,11 +7,10 @@ build = "build.rs"
 description = "build tool"
 license = "GPL-2.0+"
 repository = "https://github.com/droundy/fac"
-homepage = "https://facio.gitlab.io/fac"
-documentation = "http://facio.gitlab.io/fac/documentation.html"
+homepage = "https://physics.oregonstate.edu/~droundy/fac"
+documentation = "https://physics.oregonstate.edu/~droundy/fac/documentation.html"
 
 [badges]
-gitlab = { repository = "facio/fac", branch = "master" }
 travis-ci = { repository = "droundy/fac", branch = "master" }
 appveyor = { repository = "droundy/fac", branch = "master", service = "github"}
 

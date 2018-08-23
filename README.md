@@ -3,8 +3,6 @@
 
 <!-- [![Build Status](https://travis-ci.org/droundy/fac.svg?branch=master)](https://travis-ci.org/droundy/fac) -->
 
-[![Build Status](https://semaphoreci.com/api/v1/droundy/fac/branches/master/shields_badge.svg)](https://semaphoreci.com/droundy/fac)
-[![build status](https://gitlab.com/facio/fac/badges/master/build.svg)](https://gitlab.com/facio/fac/pipelines)
 [![Build Status](https://travis-ci.org/droundy/fac.svg?branch=master)](https://travis-ci.org/droundy/fac)
 [![Build status](https://ci.appveyor.com/api/projects/status/opg6nds3m9ahkqvj?svg=true)](https://ci.appveyor.com/project/droundy/fac)
 
