@@ -3,8 +3,8 @@ image: rust
 build:
   stage: build
   script:
-    - apt update
-    - apt install python3-markdown ruby-sass help2man
+    - sudo apt-get update
+    - sudo apt-get install python3-markdown ruby-sass help2man
     - cargo build
     - target/debug/fac
   artifacts:
