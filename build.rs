@@ -45,4 +45,6 @@ fn main() {
     std::fs::rename(out_dir.join("commit-info.txt~"),
                     out_dir.join("commit-info.txt"))
         .expect("failed to rename commit-info.txt");
+    println!("cargo:rerun-if-changed=.git/refs/heads/master");
+    println!("cargo:rerun-if-changed=.git/HEAD");
 }
