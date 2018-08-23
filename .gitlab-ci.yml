@@ -1,14 +1,15 @@
-image: facio/build
+image: rust
 
 build:
   stage: build
   script:
-    - sh build/linux.sh
-    - ./fac
+    - apt update
+    - apt install python3-markdown ruby-sass help2man
+    - cargo build
+    - target/debug/fac
   artifacts:
     paths:
       - fac
-      - fac-static
 
 # run tests
 test:
@@ -18,11 +19,8 @@ test:
     - git config --global user.name "CI Builder"
     - mkdir -p ~/.cargo/bin
     - export PATH=~/.cargo/bin:$PATH
-    - git clone git://git.kernel.org/pub/scm/devel/sparse/chrisl/sparse.git ~/sparse && (cd ~/sparse && make && cp sparse ~/.cargo/bin/)
   script:
     - python3 run-tests.py -v
-  after_script:
-    - bash <(curl -s https://codecov.io/bash) -t 4bcdcd28-ba20-4da7-ab75-2ac3344e2f15
   artifacts:
     paths:
       - web
@@ -30,8 +28,8 @@ test:
 pages:
   stage: deploy
   script:
-    - sh build/linux.sh
-    - ./fac
+    - cargo build
+    - target/debug/fac
     - cat .fac
     - ./fac web/index.html web/fac-latest.deb web/style.css
     - ./fac

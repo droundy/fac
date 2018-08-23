@@ -28,4 +28,4 @@ peripherals.  To use fac, you can copy the fac binary into some
 location in your path.
 
 Building the documentation (by running `./fac`) will require a few
-more packages: sass, graphviz, python-markdown, and help2man.
+more packages: sass, python-markdown, and help2man.
