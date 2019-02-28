@@ -2508,15 +2508,6 @@ impl Build {
                     written_to_files.remove(&self[i].path);
                     read_from_files.remove(&self[i].path);
                 }
-                // We now want to keep our old inputs as inputs,
-                // because bigbro no longer tracks calls to stat, so
-                // we cannot assume that just because a file was not
-                // read, it is no longer needed for the build.
-                for i in old_inputs {
-                    if !explicit_inputs.contains(&i) && self[i].exists() {
-                        read_from_files.insert(self[i].path.clone());
-                    }
-                }
                 for w in written_to_files {
                     if w.starts_with(&self.flags.root)
                         && !self.is_git_path(&w)
