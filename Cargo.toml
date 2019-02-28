@@ -1,6 +1,6 @@
 [package]
 name = "fac"
-version = "0.4.0"
+version = "0.5.0"
 authors = ["daveroundy@gmail.com"]
 build = "build.rs"
 
