@@ -26,7 +26,7 @@ doc = false
 [dependencies]
 
 libc = "^0.2"
-bigbro = "^0.4"
+bigbro = "0.5"
 clap = "~2.23.3"
 num_cpus = "^1.5.0"
 metrohash = "^1.0.1"
