@@ -40,6 +40,7 @@ impl TempDir {
         } else {
             let s = s.unwrap();
             println!("output is:\n{}", String::from_utf8_lossy(&s.stdout));
+            println!("error is:\n{}", String::from_utf8_lossy(&s.stderr));
             return s;
         }
         s.unwrap()
