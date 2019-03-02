@@ -437,7 +437,7 @@ fn cut_suffix(path: &Path, suff: &OsStr) -> Option<PathBuf> {
         let fnamestring: String = fname.to_string_lossy().into_owned();
         let suffstring: String = suff.to_string_lossy().into_owned();
         if fnamestring.ends_with(&suffstring) {
-            Some(path.with_file_name(OsStr::new(fnamestring.trim_right_matches(&suffstring))))
+            Some(path.with_file_name(OsStr::new(fnamestring.trim_end_matches(&suffstring))))
         } else {
             None
         }
