@@ -40,6 +40,7 @@ impl TempDir {
         } else {
             let s = s.unwrap();
             println!("output is:\n{}", String::from_utf8_lossy(&s.stdout));
+            println!("error is:\n{}", String::from_utf8_lossy(&s.stderr));
             return s;
         }
         s.unwrap()
@@ -171,7 +172,7 @@ int main() {
         tempdir.add_file("foo.h", b"
 const char *message = \"hello\\n\";
 ");
-        assert!(tempdir.fac(&["--blind"]).status.success());
+        assert!(tempdir.fac(&["--blind","-v"]).status.success());
         tempdir.expect_file("message", b"hello");
         assert!(tempdir.fac(&["--clean"]).status.success());
         tempdir.no_such_file("foo.o");
