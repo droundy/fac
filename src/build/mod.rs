@@ -2509,6 +2509,7 @@ impl Build {
                     read_from_files.remove(&self[i].path);
                 }
                 for w in written_to_files {
+                    read_from_files.remove(&w); // If it is an output, then it does not count as an input.
                     if w.starts_with(&self.flags.root)
                         && !self.is_git_path(&w)
                         && !self.is_cache(r, &w) {
