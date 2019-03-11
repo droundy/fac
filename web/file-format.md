@@ -19,6 +19,16 @@ build.  Each `.fac` file consists of:
    order of these directives has no effect, so long as the follow the
    `"| "` line to which they apply.
 
+2. Rules beginning with `"* "` (an asterisk followed by a space).
+   This rule is identical to a pipe rule, but will rerun the command
+   if there are changes to the contents of any directories the rule
+   calls `readdir(3)` on (or technically `getdents(2)`).  You need to
+   use this rule if you use a wildcard or glob and what the command to
+   be rerun if new files are added.  This behavior is no longer the
+   default (i.e. the pipe behavior) because it causes many rebuilds
+   when `python3` is run, since it always reads the current directory
+   when the first module is imported.
+
 2. Optional rules beginning with `"? "` are identical to rules
    beginning with a pipe, with the sole difference being that optional
    rules are only built if they are needed to build another target, or

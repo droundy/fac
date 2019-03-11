@@ -384,6 +384,7 @@ pub struct Rule {
     linenum: usize,
     command: OsString,
     is_default: bool,
+    ignore_readdir: bool,
 
     start_time: Option<std::time::Instant>,
     build_time: std::time::Duration,
@@ -1137,6 +1138,7 @@ impl Build {
             linenum: linenum,
             command: OsString::from(command),
             is_default: is_default,
+            ignore_readdir: true,
             build_time: std::time::Duration::from_secs(1),
             start_time: None,
         });
@@ -1190,6 +1192,31 @@ impl Build {
                                         HashSet::new(),
                                         true) {
                         Ok(r) => {
+                            self[fileref].rules_defined
+                                .as_mut().expect("rules_defined should be some!").insert(r);
+                            command = Some(r);
+                        },
+                        Err(e) => {
+                            return Err(
+                                io::Error::new(
+                                    io::ErrorKind::Other,
+                                    format!("error: {}:{} duplicate rule: {}\n\talso defined in {}:{}",
+                                            &fp, lineno, self.pretty_rule(e),
+                                            self.pretty_display_path(self.rule(e).facfile).display(),
+                                            self.rule(e).linenum)));
+                        },
+                    }
+                },
+                b'*' => {
+                    match self.new_rule(bytes_to_osstr(&line[2..]),
+                                        filepath.parent().unwrap(),
+                                        fileref,
+                                        lineno,
+                                        HashSet::new(),
+                                        HashSet::new(),
+                                        true) {
+                        Ok(r) => {
+                            self.rule_mut(r).ignore_readdir = false;
                             self[fileref].rules_defined
                                 .as_mut().expect("rules_defined should be some!").insert(r);
                             command = Some(r);
@@ -2593,13 +2620,15 @@ impl Build {
                         }
                     }
                 }
-                for rr in stat.read_from_directories() {
-                    if !self.is_boring(&rr) && !self.is_cache(r, &rr) {
-                        let fr = self.new_file(&rr);
-                        if self[fr].hashstat.finish(&rr).is_ok() && !old_outputs.contains(&fr) {
-                            let hs = self[fr].hashstat;
-                            self.rule_mut(r).hashstats.insert(fr, hs);
-                            self.add_input(r, fr);
+                if self.rule(r).ignore_readdir {
+                    for rr in stat.read_from_directories() {
+                        if !self.is_boring(&rr) && !self.is_cache(r, &rr) {
+                            let fr = self.new_file(&rr);
+                            if self[fr].hashstat.finish(&rr).is_ok() && !old_outputs.contains(&fr) {
+                                let hs = self[fr].hashstat;
+                                self.rule_mut(r).hashstats.insert(fr, hs);
+                                self.add_input(r, fr);
+                            }
                         }
                     }
                 }
