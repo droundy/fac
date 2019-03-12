@@ -219,14 +219,16 @@ also.
     
     | python2 build-source.py
     
-    | python2 configure.py > cfiles.fac
+    * python2 configure.py > cfiles.fac
     > cfiles.fac
 
 Note that it is very important that we informed fac that this command
 will create a `.fac` file (`cfiles.fac`, in this case) by using a `>`
 directive.  This tells fac that it should run this command as soon as
 possible, *and* that it should read the generated `.fac` file as
-further input.  Also note that we used a shell redirection.  Each
+further input.  We also informed fac that this command may need to be
+rerun if directory contents change by defining it using a `*` rule.
+Also note that we used a shell redirection.  Each
 command in fac is run through the shell, so you can use any "shell"
 trickery you care for.
 

@@ -25,9 +25,9 @@ cat > top.fac <<EOF
 # internal database.  A solution (maybe not the best) is to have fac
 # blacklist out files in .git/ (except maybe the hooks).
 
-| sleep 2 && git gc && git log --stat > thelogstat
+* sleep 2 && git gc && git log --stat > thelogstat
 
-| git status > thestatus
+* git status > thestatus
 EOF
 
 cat > README <<EOF

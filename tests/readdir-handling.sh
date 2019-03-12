@@ -7,7 +7,7 @@ mkdir $0.dir
 cd $0.dir
 
 cat > top.fac <<EOF
-| ls > foo
+* ls > foo
 > foo
 EOF
 

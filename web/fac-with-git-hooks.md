@@ -74,8 +74,11 @@ We create a file `configure.fac` which just tells fac to run
 `configure.py` to find out what to do.
 
 ##### configure.fac
-    | python3 configure.py
+    * python3 configure.py
     > .fac
+
+We use a `*` rule here because configure uses globs ("%.c") and
+therefore may need to be rerun if directory contents change.
 
 You might wonder, why all the trickiness with the
 `check-for-curses.py` rules?  The optional aspect `?` is because I

@@ -7,7 +7,7 @@ mkdir $0.dir
 cd $0.dir
 
 cat > top.fac <<EOF
-* echo *.message > messages
+| echo *.message > messages
 > messages
 EOF
 
@@ -30,6 +30,9 @@ ${FAC:-../../fac}
 ls -lhd .
 
 grep foo.message messages
-grep bar.message messages
+if grep bar.message messages; then
+    echo should not have rerun for '|' rule
+    exit 1
+fi
 
 exit 0

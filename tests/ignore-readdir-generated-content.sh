@@ -7,7 +7,7 @@ mkdir $0.dir
 cd $0.dir
 
 cat > top.fac <<EOF
-* ls foo > foo-listing
+| ls foo > foo-listing
 < foo
 
 | mkdir -p foo
@@ -29,6 +29,7 @@ grep world foo/world
 
 # foo-listing may not be correct the first time, since content is generated in foo
 cat foo-listing
+cp foo-listing old-foo-listing
 
 sleep 1
 
@@ -38,30 +39,12 @@ grep hello foo/hello
 grep world foo/world
 
 cat foo-listing
+diff foo-listing old-foo-listing
 
-grep hello foo-listing
-grep world foo-listing
-
-cat >> top.fac <<EOF
-| echo wonderful > foo/wonderful
-EOF
-
-sleep 1
+rm foo-listing
 
 ${FAC:-../../fac} -vvv
 
-# have to run twice because first time we modify the directory.
-# Should we make this build in just one rule?
-
-${FAC:-../../fac} -vvv
-
-grep wonderful foo/wonderful
-
-# The foo-listing should be updated, since we have added a new file to
-# the foo directory.
-cat foo-listing
-
-grep wonderful foo-listing
 grep hello foo-listing
 grep world foo-listing
 

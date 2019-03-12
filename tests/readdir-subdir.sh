@@ -7,7 +7,7 @@ mkdir $0.dir
 cd $0.dir
 
 cat > top.fac <<EOF
-| ls subdir > contents
+* ls subdir > contents
 EOF
 
 git init

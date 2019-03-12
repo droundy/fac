@@ -2620,7 +2620,7 @@ impl Build {
                         }
                     }
                 }
-                if self.rule(r).ignore_readdir {
+                if !self.rule(r).ignore_readdir {
                     for rr in stat.read_from_directories() {
                         if !self.is_boring(&rr) && !self.is_cache(r, &rr) {
                             let fr = self.new_file(&rr);
