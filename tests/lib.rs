@@ -152,12 +152,12 @@ fn dependency_makefile() {
 | {} -MD -MF .foo.o.dep -c foo.c
 M .foo.o.dep
 
-| {} -o foo foo.o
+| {} -o foo.exe foo.o
 < foo.o
-> foo
+> foo.exe
 
-| ./foo > message
-< foo
+| ./foo.exe > message
+< foo.exe
 > message
 ", cc, cc).as_bytes());
         tempdir.add_file("foo.c", b"
@@ -172,7 +172,7 @@ int main() {
         tempdir.add_file("foo.h", b"
 const char *message = \"hello\\n\";
 ");
-        assert!(tempdir.fac(&["--blind","-v"]).status.success());
+        assert!(tempdir.fac(&["--blind","-v", "-j1"]).status.success());
         tempdir.expect_file("message", b"hello");
         assert!(tempdir.fac(&["--clean"]).status.success());
         tempdir.no_such_file("foo.o");
