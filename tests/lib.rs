@@ -142,13 +142,19 @@ fn has_match(bigstr: &[u8], substr: &[u8]) -> bool {
     bigstr.windows(substr.len()).any(|x| x == substr)
 }
 
+#[cfg(windows)]
+const AM_WINDOWS: bool = true;
+#[cfg(not(windows))]
+const AM_WINDOWS: bool = false;
+
 #[test]
 fn dependency_makefile() {
     if let Some(cc) = pick_executable(&["clang", "gcc", "cc", "cl.exe"]) {
         println!("We found cc = {}", cc);
         let tempdir = TempDir::new(&format!("tests/test-repositories/test-{}", line!()));
         tempdir.git_init();
-        tempdir.add_file("top.fac", format!("# comment
+        if AM_WINDOWS {
+            tempdir.add_file("top.fac",format!("# comment
 | {} -MD -MF .foo.o.dep -c foo.c
 M .foo.o.dep
 
@@ -156,16 +162,30 @@ M .foo.o.dep
 < foo.o
 > foo.exe
 
-| ./foo.exe > message
+| foo.exe > message
 < foo.exe
 > message
 ", cc, cc).as_bytes());
+        } else {
+            tempdir.add_file("top.fac",format!("# comment
+| {} -MD -MF .foo.o.dep -c foo.c
+M .foo.o.dep
+
+| {} -o foo foo.o
+< foo.o
+> foo
+
+| ./foo > message
+< foo
+> message
+", cc, cc).as_bytes());
+        }
         tempdir.add_file("foo.c", b"
 #include <stdio.h>
 #include \"foo.h\"
 
 int main() {
-  printf(message);
+  printf(\"%s\", message);
   return 0;
 }
 ");
