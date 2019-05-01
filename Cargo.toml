@@ -2,7 +2,6 @@
 name = "fac"
 version = "0.5.0"
 authors = ["daveroundy@gmail.com"]
-build = "build.rs"
 
 description = "build tool"
 license = "GPL-2.0+"
@@ -33,6 +32,7 @@ metrohash = "^1.0.1"
 notify = "^4.0.1"
 tinyset = "^0.0.12"
 pathdiff = "^0.1.0"
+git-version = "0.3.0"
 
 termcolor = "^0.3.2"
 isatty = "^0.1.3"
