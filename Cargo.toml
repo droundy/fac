@@ -9,6 +9,8 @@ repository = "https://github.com/droundy/fac"
 homepage = "https://physics.oregonstate.edu/~droundy/fac"
 documentation = "https://physics.oregonstate.edu/~droundy/fac/documentation.html"
 
+readme = "README.md"
+
 [badges]
 travis-ci = { repository = "droundy/fac", branch = "master" }
 appveyor = { repository = "droundy/fac", branch = "master", service = "github"}
