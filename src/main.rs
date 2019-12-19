@@ -3,26 +3,8 @@
 #![cfg_attr(feature = "strict", deny(warnings))]
 #![cfg_attr(feature = "strict", deny(missing_docs))]
 
-#[cfg(test)]
-#[macro_use]
-extern crate quickcheck;
-
 #[macro_use]
 extern crate clap;
-
-#[cfg(feature="profile")]
-extern crate cpuprofiler;
-
-extern crate libc;
-extern crate ctrlc;
-extern crate metrohash;
-extern crate notify;
-extern crate termcolor;
-extern crate atty;
-#[macro_use]
-extern crate lazy_static;
-extern crate tinyset;
-extern crate crude_profiler;
 
 mod git;
 

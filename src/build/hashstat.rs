@@ -45,7 +45,7 @@ impl quickcheck::Arbitrary for HashStat {
 }
 
 #[cfg(test)]
-quickcheck! {
+quickcheck::quickcheck! {
     fn prop_encode_decode(hs: HashStat) -> bool {
         println!("original {:?}", hs);
         println!("encoded {:?}", hs.encode());

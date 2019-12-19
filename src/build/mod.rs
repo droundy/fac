@@ -20,18 +20,13 @@ use std::io::{Read, Write};
 use self::pathdiff::{diff_paths};
 
 use crate::git;
-use ctrlc;
-use notify;
 use notify::{Watcher};
-use termcolor;
 use termcolor::{WriteColor};
-use atty;
-use crude_profiler;
 
 pub mod hashstat;
 pub mod flags;
 
-lazy_static! {
+lazy_static::lazy_static! {
     static ref FAILCOLOR: termcolor::ColorSpec = {
         let mut c = termcolor::ColorSpec::new();
         c.set_fg(Some(termcolor::Color::Red)).set_bold(true);
@@ -233,14 +228,14 @@ impl<A: quickcheck::Arbitrary> quickcheck::Arbitrary for StatusMap<A> {
 }
 
 #[cfg(test)]
-quickcheck! {
+quickcheck::quickcheck! {
     fn prop_can_access_statusmap(m: StatusMap<bool>, s: Status) -> bool {
         m[s] || !m[s]
     }
 }
 
 #[cfg(test)]
-quickcheck! {
+quickcheck::quickcheck! {
     fn prop_status_eq(s: Status) -> bool {
         s == s
     }
