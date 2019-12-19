@@ -6,8 +6,8 @@ use std;
 use std::env;
 use std::path::{PathBuf};
 
-use version;
-use git;
+use crate::version;
+use crate::git;
 
 /// The flags determining build
 #[derive(Debug, Clone)]

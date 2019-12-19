@@ -12,7 +12,7 @@ use metrohash::MetroHash64;
 #[cfg(unix)]
 use std::os::unix::fs::{MetadataExt};
 
-use build::{FileKind};
+use crate::build::{FileKind};
 
 /// The stat information about a file
 #[derive(Copy, Clone, PartialEq, PartialOrd, Eq, Hash, Debug)]

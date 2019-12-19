@@ -19,7 +19,7 @@ use std::io::{Read, Write};
 
 use self::pathdiff::{diff_paths};
 
-use git;
+use crate::git;
 use ctrlc;
 use notify;
 use notify::{Watcher};
