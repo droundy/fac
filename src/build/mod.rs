@@ -2843,7 +2843,7 @@ impl Build {
         let mut buf = String::with_capacity(rr.len());
         for c in rr.chars() {
             match c {
-                'a' ... 'z' | 'A' ... 'Z' | '0' ... '9' | '_' | '-' | '.' => buf.push(c),
+                'a' ..= 'z' | 'A' ..= 'Z' | '0' ..= '9' | '_' | '-' | '.' => buf.push(c),
                 _ => buf.push('_'),
             }
         }
