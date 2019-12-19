@@ -13,7 +13,7 @@ use std::ffi::{OsString, OsStr};
 use std::path::{Path,PathBuf};
 
 use std::collections::{HashSet, HashMap};
-use tinyset::{Set64, Fits64, Map64};
+use tinyset::{Set64, Fits64};
 
 use std::io::{Read, Write};
 
@@ -372,7 +372,7 @@ pub struct Rule {
     outputs: Vec<FileRef>,
     all_inputs: Set64<FileRef>,
     all_outputs: Set64<FileRef>,
-    hashstats: Map64<FileRef, hashstat::HashStat>,
+    hashstats: HashMap<FileRef, hashstat::HashStat>,
 
     status: Status,
     cache_prefixes: HashSet<OsString>,
@@ -511,7 +511,7 @@ pub struct Build {
 
     recv_rule_status: std::sync::mpsc::Receiver<Event>,
     send_rule_status: std::sync::mpsc::Sender<Event>,
-    process_killers: Map64<RuleRef, bigbro::Killer>,
+    process_killers: HashMap<RuleRef, bigbro::Killer>,
     am_interrupted: Option<InterruptReason>,
 
     flags: flags::Flags,
@@ -535,7 +535,7 @@ pub fn build(fl: flags::Flags) -> i32 {
         facfiles_used: Set64::new(),
         recv_rule_status: rx,
         send_rule_status: tx,
-        process_killers: Map64::new(),
+        process_killers: HashMap::new(),
         am_interrupted: None,
         flags: fl,
         started: std::time::Instant::now(),
@@ -559,7 +559,7 @@ impl Build {
             facfiles_used: Set64::new(),
             recv_rule_status: self.recv_rule_status,
             send_rule_status: self.send_rule_status,
-            process_killers: Map64::new(),
+            process_killers: HashMap::new(),
             am_interrupted: self.am_interrupted,
             flags: self.flags,
             started: std::time::Instant::now(),
@@ -1128,7 +1128,7 @@ impl Build {
             outputs: Vec::new(),
             all_inputs: Set64::new(),
             all_outputs: Set64::new(),
-            hashstats: Map64::new(),
+            hashstats: HashMap::new(),
             status: Status::Unknown,
             cache_prefixes: cache_prefixes,
             cache_suffixes: cache_suffixes,
@@ -2325,7 +2325,7 @@ impl Build {
         if !self.flags.dry_run {
             if self.process_killers.len() != self.statuses[Status::Building].len() {
                 for k in self.process_killers.keys() {
-                    println!("process killer for {}", self.pretty_rule(k));
+                    println!("process killer for {}", self.pretty_rule(*k));
                 }
                 for r in self.statuses[Status::Building].iter() {
                     println!("building {}", self.pretty_rule(r));
