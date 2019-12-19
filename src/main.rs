@@ -18,7 +18,7 @@ extern crate ctrlc;
 extern crate metrohash;
 extern crate notify;
 extern crate termcolor;
-extern crate isatty;
+extern crate atty;
 #[macro_use]
 extern crate lazy_static;
 extern crate tinyset;

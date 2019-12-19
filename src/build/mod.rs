@@ -25,7 +25,7 @@ use notify;
 use notify::{Watcher};
 use termcolor;
 use termcolor::{WriteColor};
-use isatty;
+use atty;
 use crude_profiler;
 
 pub mod hashstat;
@@ -58,7 +58,7 @@ lazy_static! {
         c
     };
     static ref STDOUT: termcolor::StandardStream = {
-        if !isatty::stdout_isatty() {
+        if atty::isnt(atty::Stream::Stdout) {
             // Do not color output if stdout is not a tty.
             termcolor::StandardStream::stdout(termcolor::ColorChoice::Never)
         } else {
@@ -200,7 +200,7 @@ impl<T: Clone> Clone for StatusMap<T> {
 #[cfg(test)]
 impl quickcheck::Arbitrary for Status {
     fn arbitrary<G: quickcheck::Gen>(g: &mut G) -> Status {
-        let choice: u32 = g.gen();
+        let choice: u32 = g.next_u32();
         match choice % 9 {
             0 => Status::Unknown,
             1 => Status::BeingDetermined,
