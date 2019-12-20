@@ -36,6 +36,7 @@ notify = "^4.0.1"
 tinyset = "0.4.1"
 pathdiff = "^0.1.0"
 git-version = "0.3.0"
+internment = "0.3.12"
 
 termcolor = "1.0.5"
 atty = "0.2.0"

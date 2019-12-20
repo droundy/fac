@@ -1,11 +1,5 @@
 //! Rules and types for building the stuff.
 
-#[cfg(test)]
-extern crate quickcheck;
-extern crate num_cpus;
-extern crate bigbro;
-extern crate pathdiff;
-
 use std;
 use std::io;
 
@@ -17,7 +11,7 @@ use tinyset::{Set64, Fits64};
 
 use std::io::{Read, Write};
 
-use self::pathdiff::{diff_paths};
+use pathdiff::{diff_paths};
 
 use crate::git;
 use notify::{Watcher};
