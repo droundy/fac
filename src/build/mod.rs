@@ -3,6 +3,7 @@
 use std;
 use std::io;
 
+use internment::Intern;
 use std::ffi::{OsString, OsStr};
 use std::path::{Path,PathBuf};
 
@@ -364,8 +365,8 @@ pub struct Rule {
     hashstats: HashMap<FileRef, hashstat::HashStat>,
 
     status: Status,
-    cache_prefixes: HashSet<OsString>,
-    cache_suffixes: HashSet<OsString>,
+    cache_prefixes: Set64<Intern<OsString>>,
+    cache_suffixes: Set64<Intern<OsString>>,
     deps_makefile: Option<FileRef>,
 
     working_directory: PathBuf,
@@ -1101,8 +1102,8 @@ impl Build {
                     working_directory: &Path,
                     facfile: FileRef,
                     linenum: usize,
-                    cache_suffixes: HashSet<OsString>,
-                    cache_prefixes: HashSet<OsString>,
+                    cache_suffixes: Set64<Intern<OsString>>,
+                    cache_prefixes: Set64<Intern<OsString>>,
                     is_default: bool)
                     -> Result<RuleRef, RuleRef> {
         let r = RuleRef(self.rules.len() as u32);
@@ -1177,8 +1178,8 @@ impl Build {
                                         filepath.parent().unwrap(),
                                         fileref,
                                         lineno,
-                                        HashSet::new(),
-                                        HashSet::new(),
+                                        Set64::new(),
+                                        Set64::new(),
                                         true) {
                         Ok(r) => {
                             self[fileref].rules_defined
@@ -1201,8 +1202,8 @@ impl Build {
                                         filepath.parent().unwrap(),
                                         fileref,
                                         lineno,
-                                        HashSet::new(),
-                                        HashSet::new(),
+                                        Set64::new(),
+                                        Set64::new(),
                                         true) {
                         Ok(r) => {
                             self.rule_mut(r).ignore_readdir = false;
@@ -1226,8 +1227,8 @@ impl Build {
                                         filepath.parent().unwrap(),
                                         fileref,
                                         lineno,
-                                        HashSet::new(),
-                                        HashSet::new(),
+                                        Set64::new(),
+                                        Set64::new(),
                                         false) {
                         Ok(r) => {
                             self[fileref].rules_defined
@@ -1262,7 +1263,7 @@ impl Build {
                 },
                 b'c' => {
                     self.rule_mut(get_rule(command, 'c')?).cache_suffixes
-                        .insert(bytes_to_osstr(&line[2..]).to_os_string());
+                        .insert(Intern::new(bytes_to_osstr(&line[2..]).to_os_string()));
                 },
                 b'C' => {
                     let prefix = bytes_to_osstr(&line[2..]).to_os_string();
@@ -1272,7 +1273,7 @@ impl Build {
                         filepath.parent().unwrap().join(&prefix).into_os_string()
                     };
                     self.rule_mut(get_rule(command, 'C')?).cache_prefixes
-                        .insert(prefix);
+                        .insert(Intern::new(prefix));
                 },
                 b'M' => {
                     let f = self.new_file( &normalize(&filepath.parent().unwrap()
@@ -2471,8 +2472,8 @@ impl Build {
 
     /// Identifies whether a given path is "cache"
     fn is_cache(&self, r: RuleRef, path: &Path) -> bool {
-        self.rule(r).cache_suffixes.iter().any(|s| is_suffix(path, s)) ||
-            self.rule(r).cache_prefixes.iter().any(|s| is_prefix(path, s))
+        self.rule(r).cache_suffixes.iter().any(|s| is_suffix(path, &s)) ||
+            self.rule(r).cache_prefixes.iter().any(|s| is_prefix(path, &s))
     }
 
     /// Handle a rule finishing.
