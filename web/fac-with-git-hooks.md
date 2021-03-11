@@ -13,7 +13,7 @@ infrastructure towards making it more complicated.
 
 ##### hello.c
     #include <stdio.h>
-    
+
     int main() {
       printf("Hello dang world!\n");
     }
@@ -90,7 +90,7 @@ single fac target that checks the status of any source files that need
 to be checked (but no more).  I'm assuming this may be a static
 checker that is slow, or even a little fuzzer.
 
-Now we can just build the executable without running the by calling
+Now we can just build the executable without running the lint by calling
 `fac` with no arguments.
 
     $ git add configure.fac configure.py
@@ -103,10 +103,8 @@ Now we can just build the executable without running the by calling
     ...
     Build succeeded! ...
 
-Or we can just run the lint by
+Or we can just run the lint by calling `fac curses.log`.
 
-    $ fac
-    ...
     $ # I am first running it manually to show you the output
     $ python3 check-for-curses.py hello.c # fails
     Watch your language: "dang" in file hello.c
@@ -126,15 +124,15 @@ that the output of configuring would have changed.
 Suppose we really like linting while we are editing.  In this case, we
 might want to execute in a convenient terminal:
 
-     $ fac --continual sparse.log
+     $ fac --continual curses.log
 
-This will wait for any changes to be made, and then re-run sparse.
+This will wait for any changes to be made, and then re-run our lint.
 Thus you can edit away and see if you are introducing new problems, or
 have fixed existing warnings.  So let's make an edit:
 
 ##### hello.c
     #include <stdio.h>
-    
+
     int main() {
       printf("Hello world!\n");
     }
@@ -174,12 +172,12 @@ To make clear that the test works, we can now introduce a new error:
 
 ##### hello.c
     #include <stdio.h>
-    
+
     int main() {
       printf("Hello world shucks!\n");
     }
 
-    $ ! git commit -am 'break the build'
+    $ git commit -am 'break the build'
     fac curses.log
     1/1 [...s]: python3 configure.py
     !2/3! [...s]: build failed: python3 check-for-curses.py hello.c > hello.curse
