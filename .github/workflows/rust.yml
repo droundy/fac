@@ -7,13 +7,49 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
-
-    runs-on: ubuntu-latest
-
+  deploy:
+    name: Deploy
+    runs-on: ${{ matrix.job.os }}
+    strategy:
+      matrix:
+        job:
+          - { os: ubuntu-latest  , target: arm-unknown-linux-gnueabihf , use-cross: true }
+          - { os: ubuntu-latest  , target: x86_64-unknown-linux-musl   , use-cross: true }
     steps:
-    - uses: actions/checkout@v2
-    - name: Build
-      run: cargo build --verbose
-    - name: Run tests
-      run: cargo test --verbose
+      - uses: actions/checkout@v2
+      - name: Build target
+        uses: actions-rs/cargo@v1
+        with:
+          use-cross: ${{ matrix.job.use-cross }}
+          command: build
+          args: --release --target ${{ matrix.job.target }}
+
+      - name: Strip release binary (linux and macOS)
+        if: matrix.job.os != 'windows-latest'
+        run: |
+          if [ "${{ matrix.job.target }}" = "arm-unknown-linux-gnueabihf" ]; then
+            sudo apt-get -y install gcc-arm-linux-gnueabihf
+            arm-linux-gnueabihf-strip "target/${{ matrix.job.target }}/release/fac"
+          else
+            strip "target/${{ matrix.job.target }}/release/fac"
+          fi
+
+      - id: get_version
+        uses: battila7/get-version-action@v2
+      - name: Package
+        shell: bash
+        run: |
+          bin="target/${{ matrix.job.target }}/release/fac"
+          staging="fac-${{ steps.get_version.outputs.version }}-${{ matrix.job.target }}"
+
+          mkdir -p "$staging"/doc
+          cp COPYING README.md $bin $staging
+          cp web/*.md "$staging"/doc
+          tar czvf "$staging.tar.gz" $staging
+
+      - name: Publish
+        uses: softprops/action-gh-release@v1
+        with:
+            files: 'fac*'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
