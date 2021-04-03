@@ -13,7 +13,6 @@ jobs:
     strategy:
       matrix:
         job:
-          - { os: ubuntu-latest  , target: arm-unknown-linux-gnueabihf , use-cross: true }
           - { os: ubuntu-latest  , target: x86_64-unknown-linux-musl   , use-cross: true }
     steps:
       - uses: actions/checkout@v2
