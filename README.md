@@ -41,14 +41,19 @@ http://physics.oregonstate.edu/~roundyd/fac
 
 ## Build and install
 
-To build fac (assuming you have just cloned fac, and do not have an
-older version of fac) just run
+The easy way to get fac is to first install rust on your computer,
+and then to type
+
+    cargo install fac
+
+## Build and install from a git clone
+
+To build fac (and its documentation) just run
 
     cargo build
 
 This should build fac on an x86-64 linux system that has rust
-installed.  You may be able to use build-freebsd.sh to build on
-freebsd (but it is likely bit-rotted).  You can then build an
+installed.  You can then build an
 optimized version by running
 
     target/debug/fac fac
