@@ -64,7 +64,7 @@ path.
 ### Build dependencies and details
 
 You need to have [rust installed](https://rustup.rs).  In addition,
-fac requires both `python2` and `python3` (something to fix), and
+building fac with fac itself requires both `python2` and `python3` (something to fix), and
 building the fac documentation (which is the default build target)
 requires `sass` and `python-markdown`.
 
