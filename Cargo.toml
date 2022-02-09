@@ -29,10 +29,10 @@ doc = false
 
 libc = "^0.2"
 bigbro = "0.5"
-clap = "2.33.0"
-num_cpus = "^1.5.0"
-metrohash = "^1.0.1"
-notify = "^4.0.1"
+clap = "3.0.14"
+num_cpus = "1.13.1"
+metrohash = "1.0.6"
+notify = "4.0.17"
 tinyset = "0.4.1"
 pathdiff = "0.2.0"
 git-version = "0.3.4"
@@ -40,13 +40,13 @@ internment = "0.4.2"
 
 termcolor = "1.0.5"
 atty = "0.2.0"
-ctrlc = "^3.0"
+ctrlc = "3.2.1"
 lazy_static = "1.4.0"
 
 crude-profiler = "^0.1.7"
 
 [dev-dependencies]
-quickcheck = "0.9.0"
+quickcheck = "1.0.3"
 
 [features]
 # Treat warnings as a build error.

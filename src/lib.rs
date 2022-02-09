@@ -3,7 +3,6 @@
 #![cfg_attr(feature = "strict", deny(warnings))]
 #![cfg_attr(feature = "strict", deny(missing_docs))]
 
-#[macro_use]
 extern crate clap;
 
 /// A module with just the version in it.
