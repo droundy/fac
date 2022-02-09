@@ -40,7 +40,7 @@ internment = "0.4.2"
 
 termcolor = "1.0.5"
 atty = "0.2.0"
-ctrlc = "^3.0"
+ctrlc = "3.2.1"
 lazy_static = "1.4.0"
 
 crude-profiler = "^0.1.7"
