@@ -46,7 +46,7 @@ lazy_static = "1.4.0"
 crude-profiler = "^0.1.7"
 
 [dev-dependencies]
-quickcheck = "0.9.0"
+quickcheck = "1.0.3"
 
 [features]
 # Treat warnings as a build error.

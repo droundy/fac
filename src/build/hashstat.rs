@@ -33,7 +33,7 @@ pub struct HashStat {
 
 #[cfg(test)]
 impl quickcheck::Arbitrary for HashStat {
-    fn arbitrary<G: quickcheck::Gen>(g: &mut G) -> HashStat {
+    fn arbitrary(g: &mut quickcheck::Gen) -> HashStat {
         HashStat {
             time: i64::arbitrary(g),
             time_ns: i32::arbitrary(g),

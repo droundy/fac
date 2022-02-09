@@ -189,8 +189,8 @@ impl<T: Clone> Clone for StatusMap<T> {
 
 #[cfg(test)]
 impl quickcheck::Arbitrary for Status {
-    fn arbitrary<G: quickcheck::Gen>(g: &mut G) -> Status {
-        let choice: u32 = g.next_u32();
+    fn arbitrary(g: &mut quickcheck::Gen) -> Status {
+        let choice: u32 = u32::arbitrary(g);
         match choice % 9 {
             0 => Status::Unknown,
             1 => Status::BeingDetermined,
@@ -208,7 +208,7 @@ impl quickcheck::Arbitrary for Status {
 
 #[cfg(test)]
 impl<A: quickcheck::Arbitrary> quickcheck::Arbitrary for StatusMap<A> {
-    fn arbitrary<G: quickcheck::Gen>(g: &mut G) -> StatusMap<A> {
+    fn arbitrary(g: &mut quickcheck::Gen) -> StatusMap<A> {
         StatusMap::from([quickcheck::Arbitrary::arbitrary(g),
                          quickcheck::Arbitrary::arbitrary(g),
                          quickcheck::Arbitrary::arbitrary(g),
