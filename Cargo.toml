@@ -33,10 +33,10 @@ clap = "3.0.14"
 num_cpus = "1.13.1"
 metrohash = "1.0.6"
 notify = "4.0.17"
-tinyset = "0.4.1"
+tinyset = "0.4.10"
 pathdiff = "0.2.0"
 git-version = "0.3.4"
-internment = "0.4.2"
+internment = { version = "0.6.0", features = ["tinyset"] }
 
 termcolor = "1.0.5"
 atty = "0.2.0"
