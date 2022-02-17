@@ -163,6 +163,7 @@ pub fn args<'a>() -> Flags {
              .help("include in tarball"))
         .arg(clap::Arg::new("target")
              .index(1)
+             .allow_invalid_utf8(true)
              .multiple_occurrences(true)
              .help("names of files to build"))
         .get_matches();
