@@ -62,7 +62,7 @@ pub struct Flags {
 
 /// Parse command line arguments to determine what to do
 pub fn args<'a>() -> Flags {
-    let m = clap::App::new("fac")
+    let m = clap::Command::new("fac")
         .version(version::VERSION)
         .about("build things")
         .arg(clap::Arg::new("jobs")
